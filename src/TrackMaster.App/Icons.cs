@@ -1,0 +1,100 @@
+using System.Windows;
+using System.Windows.Media;
+
+namespace TrackMaster.App;
+
+/// <summary>Strich-Symbole im Stil von Fluent (24×24-Raster). Werden einmal erzeugt und eingefroren.</summary>
+public static class Icons
+{
+    private static readonly Dictionary<string, string> Paths = new()
+    {
+        ["App"] = "M3 9h18M3 15h18M7 6v12M12 6v12M17 6v12",
+        ["New"] = "M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6",
+        ["Open"] = "M3 6h6l2 2h10v11H3z",
+        ["Save"] = "M5 3h11l3 3v15H5zM8 3v5h7V3M8 21v-7h8v7",
+        ["SaveAs"] = "M5 3h9l3 3v4M5 3v18h6M8 3v5h6M14 21l1-3 5-5 2 2-5 5z",
+        ["Template"] = "M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z",
+        ["Image"] = "M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15 9h.01",
+        ["List"] = "M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1",
+        ["Csv"] = "M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 15h6M9 18h6M12 12v6",
+        ["Pdf"] = "M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4",
+        ["Print"] = "M7 8V3h10v5M7 17H3v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7h-4M7 13h10v8H7z",
+        ["Exit"] = "M14 4h5v16h-5M10 8l-4 4 4 4M6 12h9",
+        ["Undo"] = "M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
+        ["Redo"] = "M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3",
+        ["Select"] = "M6 3l12 9-5.5 1L10 19z",
+        ["Hand"] = "M7 11V6a1.5 1.5 0 0 1 3 0v5M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V11M16 11V8a1.5 1.5 0 0 1 3 0v6a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4.5a1.5 1.5 0 0 1 2.5-1.5L7 14",
+        ["RotateLeft"] = "M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5",
+        ["RotateRight"] = "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5",
+        ["Mirror"] = "M12 3v18M9 7l-6 5 6 5zM15 7l6 5-6 5z",
+        ["Swap"] = "M4 8h14l-3-3M20 16H6l3 3",
+        ["Copy"] = "M8 8h12v12H8zM4 16V4h12",
+        ["Delete"] = "M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14",
+        ["SelectAll"] = "M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4M9 9h6v6H9z",
+        ["SelectNone"] = "M4 4h16v16H4zM9 9l6 6M15 9l-6 6",
+        ["Connector"] = "M4 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0M16 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 12h8",
+        ["Shield"] = "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8 12l3 3 5-6",
+        ["Straight"] = "M3 12h18M6 9v6M10 9v6M14 9v6M18 9v6",
+        ["Curve"] = "M4 20A16 16 0 0 1 20 4M8 20A12 12 0 0 1 20 8",
+        ["SwitchLeft"] = "M3 16h18M3 16c8 0 10-8 18-9",
+        ["SwitchRight"] = "M3 8h18M3 8c8 0 10 8 18 9",
+        ["Buffer"] = "M3 12h14M19 6v12",
+        ["Crossing"] = "M3 8l18 8M3 16l18-8",
+        ["Flex"] = "M3 17c4 0 4-10 9-10s5 10 9 10",
+        ["Slope"] = "M3 19h18M3 19l18-10M17 19v-7",
+        ["Helix"] = "M4 7c0 2 16 2 16 0s-16-2-16 0M4 12c0 2 16 2 16 0M4 17c0 2 16 2 16 0M4 7v10M20 7v10",
+        ["Board"] = "M3 7h18v10H3zM5 17v3M19 17v3",
+        ["Terrain"] = "M2 20l6-9 4 5 3-4 7 8z",
+        ["Tunnel"] = "M4 20v-8a8 8 0 0 1 16 0v8M8 20v-8a4 4 0 0 1 8 0v8",
+        ["Water"] = "M2 10c3 0 3-2 6-2s3 2 6 2 3-2 6-2M2 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2",
+        ["Building"] = "M4 21V9l8-6 8 6v12zM10 21v-6h4v6",
+        ["Tree"] = "M12 2l6 9h-4l5 7H5l5-7H6zM12 18v4",
+        ["Bolt"] = "M13 2L4 14h7l-1 8 9-12h-7z",
+        ["Isolate"] = "M3 12h7M14 12h7M10 7v10M14 7v10",
+        ["Chip"] = "M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4",
+        ["Signal"] = "M9 2h6v13H9zM12 15v7M12 5.5h.01M12 8.5h.01M12 11.5h.01",
+        ["Wire"] = "M3 17c5 0 5-10 9-10s4 10 9 10",
+        ["Fit"] = "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
+        ["ZoomIn"] = "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M21 21l-5-5M8 11h6M11 8v6",
+        ["ZoomOut"] = "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M21 21l-5-5M8 11h6",
+        ["Grid"] = "M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18",
+        ["Hash"] = "M4 9h16M4 15h16M10 3L8 21M16 3l-2 18",
+        ["Magnet"] = "M6 3v9a6 6 0 0 0 12 0V3h-4v9a2 2 0 0 1-4 0V3zM6 7h4M14 7h4",
+        ["Cube"] = "M12 2l9 5v10l-9 5-9-5V7zM12 12l9-5M12 12v10M12 12L3 7",
+        ["Train"] = "M6 3h12v13H6zM6 10h12M9 19l-2 3M15 19l2 3M9 13h.01M15 13h.01",
+        ["Sun"] = "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5",
+        ["Help"] = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01",
+        ["Info"] = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 11v6M12 7.5h.01",
+        ["Search"] = "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M21 21l-5-5",
+        ["Plus"] = "M12 5v14M5 12h14",
+        ["Minus"] = "M5 12h14",
+    };
+
+    private static readonly Dictionary<(string, Color), ImageSource> Cache = new();
+
+    public static ImageSource Get(string name, Color? color = null)
+    {
+        var c = color ?? Theme.IconColor;
+        if (Cache.TryGetValue((name, c), out var cached)) return cached;
+        var group = new DrawingGroup();
+        // Unsichtbarer Rahmen hält das 24×24-Raster, damit schmale Symbole nicht gestreckt werden
+        group.Children.Add(new GeometryDrawing(Brushes.Transparent, null, new RectangleGeometry(new Rect(0, 0, 24, 24))));
+        if (Paths.TryGetValue(name, out var data))
+        {
+            try
+            {
+                var brush = new SolidColorBrush(c);
+                var pen = new Pen(brush, 1.6) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+                group.Children.Add(new GeometryDrawing(null, pen, Geometry.Parse(data)));
+            }
+            catch (FormatException)
+            {
+                // Fehlerhafter Pfad: leeres Symbol statt Absturz
+            }
+        }
+        var image = new DrawingImage(group);
+        image.Freeze();
+        Cache[(name, c)] = image;
+        return image;
+    }
+}

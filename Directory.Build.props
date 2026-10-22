@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Company>TrackMaster Pro</Company>
+    <Product>TrackMaster Pro</Product>
+    <Version>0.1.0</Version>
+    <NeutralLanguage>de-DE</NeutralLanguage>
+  </PropertyGroup>
+</Project>

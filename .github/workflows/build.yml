@@ -24,33 +24,38 @@ jobs:
       - name: Tests
         run: dotnet test tests/TrackMaster.Tests -c Release --no-build --logger "console;verbosity=normal"
 
-      - name: Programm veröffentlichen
-        run: dotnet publish src/TrackMaster.App -c Release -r win-x64 --self-contained false -o artifacts/TrackMasterPro
+      - name: Programme veröffentlichen
+        run: |
+          dotnet publish src/TrackMaster.App -c Release -r win-x64 --self-contained false -o artifacts/TrackMasterPro
+          dotnet publish tools/TrackMaster.Lizenzverwaltung -c Release -r win-x64 --self-contained false -o artifacts/Lizenzwerkzeuge
+          dotnet publish tools/TrackMaster.LicenseTool -c Release -r win-x64 --self-contained false -o artifacts/Lizenzwerkzeuge
 
-      - name: Bildschirmfoto (Beispielanlage)
+      - name: Bildschirmfotos
         shell: pwsh
         run: |
-          $exe = "artifacts/TrackMasterPro/TrackMasterPro.exe"
-          $p = Start-Process -FilePath $exe -ArgumentList "--screenshot", "$PWD/artifacts/screenshot.png" -PassThru
-          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Zeitüberschreitung beim Bildschirmfoto" }
-          if (Test-Path "artifacts/screenshot.png.error.txt") { Get-Content "artifacts/screenshot.png.error.txt"; throw "Fehler beim Start" }
-          if (-not (Test-Path "artifacts/screenshot.png")) { throw "Kein Bildschirmfoto erzeugt (Exitcode $($p.ExitCode))" }
-
-      - name: Bildschirmfoto (Weiche gewählt, Register Gleise)
-        shell: pwsh
-        run: |
-          $exe = "artifacts/TrackMasterPro/TrackMasterPro.exe"
-          $p = Start-Process -FilePath $exe -ArgumentList "--screenshot", "$PWD/artifacts/screenshot-auswahl.png", "--tab", "Gleise", "--select" -PassThru
-          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Zeitüberschreitung beim Bildschirmfoto" }
-          if (Test-Path "artifacts/screenshot-auswahl.png.error.txt") { Get-Content "artifacts/screenshot-auswahl.png.error.txt"; throw "Fehler beim Start" }
-          if (-not (Test-Path "artifacts/screenshot-auswahl.png")) { throw "Kein Bildschirmfoto erzeugt (Exitcode $($p.ExitCode))" }
+          function Shot($exe, $name, [string[]]$more) {
+            $file = "$PWD/artifacts/$name.png"
+            $p = Start-Process -FilePath $exe -ArgumentList (@("--screenshot", $file) + $more) -PassThru
+            if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "Zeitüberschreitung beim Bildschirmfoto $name" }
+            if (Test-Path "$file.error.txt") { Get-Content "$file.error.txt"; throw "Fehler beim Bildschirmfoto $name" }
+            if (-not (Test-Path $file)) { throw "Kein Bildschirmfoto $name (Exitcode $($p.ExitCode))" }
+          }
+          $app = "artifacts/TrackMasterPro/TrackMasterPro.exe"
+          Shot $app "screenshot-basis" @()
+          Shot $app "screenshot" @("--pro")
+          Shot $app "screenshot-auswahl" @("--pro", "--tab", "Gleise", "--select")
+          Shot $app "screenshot-gelaende" @("--pro", "--tab", "Gelände")
+          Shot $app "screenshot-3d" @("--pro", "--3d", "orbit")
+          Shot $app "screenshot-mitfahren" @("--pro", "--3d", "ride")
+          Shot "artifacts/Lizenzwerkzeuge/TrackMaster.Lizenzverwaltung.exe" "screenshot-lizenzverwaltung" @()
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.Drawing
-          foreach ($name in "screenshot", "screenshot-auswahl") {
-            $img = [System.Drawing.Image]::FromFile("$PWD/artifacts/$name.png")
+          foreach ($file in Get-ChildItem "$PWD/artifacts/*.png") {
+            $name = $file.BaseName
+            $img = [System.Drawing.Image]::FromFile($file.FullName)
             $w = [int]($img.Width * 0.6); $h = [int]($img.Height * 0.6)
             $bmp = New-Object System.Drawing.Bitmap $img, $w, $h
             $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
@@ -68,6 +73,11 @@ jobs:
         with:
           name: TrackMasterPro-win-x64
           path: artifacts/TrackMasterPro
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lizenzwerkzeuge-win-x64
+          path: artifacts/Lizenzwerkzeuge
 
       - uses: actions/upload-artifact@v4
         if: always()

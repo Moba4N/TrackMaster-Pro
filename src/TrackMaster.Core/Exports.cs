@@ -5,13 +5,52 @@ namespace TrackMaster.Core;
 
 public sealed record BomRow(TrackPieceDef Def, int Count);
 
+/// <summary>Zubehör für die Stückliste (Antriebe, Decoder, Signale, Einspeiser, Isolierverbinder).</summary>
+public sealed record AccessoryRow(string Name, string Detail, int Count);
+
 public static class BillOfMaterials
 {
+    /// <summary>Gleise nach Artikel gezählt. Flexgleis wird zusammengefasst: Gesamtlänge und Zahl der Stücke im Handel (+5 % Verschnitt).</summary>
     public static IReadOnlyList<BomRow> Build(LayoutPlan plan)
-        => plan.Pieces.GroupBy(p => p.Key)
+    {
+        var rows = plan.Pieces.Where(p => !p.Def.IsFlex).GroupBy(p => p.Key)
             .Select(g => new BomRow(Catalog.Get(g.Key), g.Count()))
             .OrderBy(r => r.Def.SystemName).ThenBy(r => r.Def.Category).ThenBy(r => r.Def.Number, StringComparer.Ordinal)
             .ToList();
+        var flex = plan.Pieces.Where(p => p.Def.IsFlex).Sum(p => p.Def.TrackLength);
+        if (flex > 0)
+        {
+            var stock = plan.Gauge.FlexStockLength;
+            var def = new TrackPieceDef
+            {
+                Number = "Flexgleis", Kind = PieceKind.Straight, Length = flex, Category = "Flexgleis",
+                Name = $"Flexgleis, Stücke zu {Fmt.Num(stock, 0)} mm", Spec = $"gesamt {Fmt.Num(flex / 1000, 2)} m",
+                GaugeId = plan.GaugeId, SystemId = Catalog.FlexSystemId, SystemName = "Flexgleis", Verified = true, Key = $"{plan.GaugeId}|{Catalog.FlexSystemId}|summe",
+            };
+            rows.Add(new BomRow(def, (int)Math.Ceiling(flex * 1.05 / stock)));
+        }
+        return rows;
+    }
+
+    public static IReadOnlyList<AccessoryRow> Accessories(LayoutPlan plan)
+    {
+        var rows = new List<AccessoryRow>();
+        var drives = plan.Pieces.Count(p => p.Def.Kind == PieceKind.Switch) + plan.Pieces.Count(p => p.Def.Kind == PieceKind.Crossing && p.Def.Name.StartsWith("DKW")) * 2;
+        if (drives > 0) rows.Add(new("Weichenantrieb", "je Weiche einer, DKW zwei", drives));
+        foreach (var g in plan.Signals.GroupBy(s => s.Type).OrderBy(g => g.Key))
+            rows.Add(new(Signal.TypeName(g.Key), "Lichtsignal", g.Count()));
+        if (plan.Feeders.Count > 0) rows.Add(new("Anschlussgleis / Einspeiser", "Einspeisungen", plan.Feeders.Count));
+        if (plan.Isolations.Count > 0)
+        {
+            var threeRail = Electrics.IsThreeRail(plan);
+            rows.Add(threeRail
+                ? new("Mittelleiter-Trennstelle", "Isolierung des Mittelleiters", plan.Isolations.Count)
+                : new("Isolierschienenverbinder", "zwei je Trennstelle", plan.Isolations.Count * 2));
+        }
+        var addresses = Electrics.SwitchingItems(plan).Sum(i => i.AddressCount);
+        if (addresses > 0) rows.Add(new("Weichendecoder (4 Ausgänge)", $"{addresses} Adressen", (int)Math.Ceiling(addresses / 4.0)));
+        return rows;
+    }
 
     /// <summary>CSV mit Semikolon und BOM, damit Excel Umlaute und Spalten richtig erkennt.</summary>
     public static string ToCsv(LayoutPlan plan)
@@ -20,6 +59,8 @@ public static class BillOfMaterials
         sb.Append("\"Hersteller/System\";\"Artikel\";\"Bezeichnung\";\"Daten\";\"Anzahl\"\r\n");
         foreach (var r in Build(plan))
             sb.Append(string.Join(';', new[] { r.Def.SystemName, r.Def.Number, r.Def.Name, r.Def.Spec, r.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
+        foreach (var a in Accessories(plan))
+            sb.Append(string.Join(';', new[] { "Zubehör", "", a.Name, a.Detail, a.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
         return sb.ToString();
     }
 

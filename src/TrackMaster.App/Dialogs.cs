@@ -5,7 +5,7 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>Einfache Fenster im Windows-11-Stil: Stückliste und Tastenkürzel.</summary>
-public static class Dialogs
+public static partial class Dialogs
 {
     private static Window Frame(Window owner, string title, UIElement body, params Button[] footer)
     {
@@ -73,6 +73,22 @@ public static class Dialogs
                 Cell(Theme.Label(r.Count.ToString(), 12, true), i + 1, 3, right: true);
             }
             body.Children.Add(grid);
+        }
+        var extras = BillOfMaterials.Accessories(plan);
+        if (extras.Count > 0)
+        {
+            var head = Theme.Label("Zubehör", 13, true);
+            head.Margin = new Thickness(0, 14, 0, 4);
+            body.Children.Add(head);
+            foreach (var a in extras)
+            {
+                var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
+                var count = Theme.Label(a.Count.ToString(), 12, true);
+                DockPanel.SetDock(count, Dock.Right);
+                row.Children.Add(count);
+                row.Children.Add(Theme.Label($"{a.Name} – {a.Detail}"));
+                body.Children.Add(row);
+            }
         }
         var csv = Theme.Button("Als CSV speichern…", "Csv");
         var close = Theme.Button("Schließen", accent: true);

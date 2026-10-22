@@ -3,7 +3,7 @@ using TrackMaster.Core;
 
 namespace TrackMaster.App;
 
-public enum CanvasTool { Select, Pan }
+public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal }
 
 /// <summary>
 /// Der geöffnete Plan mit Auswahl, aktivem Gleisende und Rückgängig-Verlauf.
@@ -23,8 +23,19 @@ public sealed class PlanSession
     public bool ShowGrid { get; set; } = true;
     public bool ShowEnds { get; set; } = true;
     public bool ShowLabels { get; set; }
+    public bool ShowHeights { get; set; } = true;
+    public bool ShowScenery { get; set; } = true;
+    public bool ShowSections { get; set; }
     public bool SnapEnabled { get; set; } = true;
     public CanvasTool Tool { get; set; } = CanvasTool.Select;
+    /// <summary>Signaltyp für das Werkzeug „Signal setzen“.</summary>
+    public SignalType SignalType { get; set; } = SignalType.Hauptsignal;
+    /// <summary>Gewähltes Objekt (Gelände, Einspeisung, Trennstelle, Signal) – Gleise stehen in <see cref="Selection"/>.</summary>
+    public int? SelectedObject { get; private set; }
+    /// <summary>Ergebnis der letzten Prüfung; die Zeichenfläche markiert die Stellen.</summary>
+    public IReadOnlyList<PlanIssue> Issues { get; set; } = [];
+    /// <summary>Pro-Funktionen frei? Wird vom Hauptfenster aus der Lizenz gesetzt.</summary>
+    public Func<bool> IsPro { get; set; } = () => true;
     /// <summary>Gewähltes Gleissystem je Spur.</summary>
     public Dictionary<string, string> SystemByGauge { get; } = new();
 
@@ -60,6 +71,7 @@ public sealed class PlanSession
     {
         Connections = Connectivity.Analyze(Plan);
         Selection.RemoveWhere(id => Plan.Find(id) is null);
+        if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
         if (Active is { } a && Connections.Find(a.PieceId, a.Index) is not { IsOpen: true }) Active = null;
         Changed?.Invoke();
     }
@@ -71,6 +83,8 @@ public sealed class PlanSession
         FilePath = path;
         Dirty = false;
         Selection.Clear();
+        SelectedObject = null;
+        Issues = [];
         Active = null;
         Commit();
     }
@@ -164,10 +178,19 @@ public sealed class PlanSession
 
     public void Delete()
     {
+        if (SelectedObject is { } obj)
+        {
+            Record();
+            Plan.RemoveObject(obj);
+            SelectedObject = null;
+            Commit();
+            Say("Gelöscht. Strg+Z macht es rückgängig.");
+            return;
+        }
         var n = Selection.Count;
         if (n == 0) return;
         Record();
-        Plan.Pieces.RemoveAll(p => Selection.Contains(p.Id));
+        Plan.RemovePieces(Selection);
         Selection.Clear();
         Commit();
         Say($"{n} {(n == 1 ? "Gleis" : "Gleise")} gelöscht. Strg+Z macht es rückgängig.");
@@ -240,6 +263,7 @@ public sealed class PlanSession
 
     public void SelectAll()
     {
+        SelectedObject = null;
         Selection.Clear();
         foreach (var p in Plan.Pieces) Selection.Add(p.Id);
         Changed?.Invoke();
@@ -248,16 +272,30 @@ public sealed class PlanSession
     public void ClearSelection()
     {
         Selection.Clear();
+        SelectedObject = null;
         Active = null;
         Changed?.Invoke();
     }
 
     public void Select(IEnumerable<int> ids, bool add)
     {
+        SelectedObject = null;
         if (!add) Selection.Clear();
         foreach (var id in ids) Selection.Add(id);
         Changed?.Invoke();
     }
+
+    public void SelectObject(int? id)
+    {
+        Selection.Clear();
+        Active = null;
+        SelectedObject = id;
+        Changed?.Invoke();
+    }
+
+    public object? FindObject(int id)
+        => (object?)Plan.Scenery.FirstOrDefault(s => s.Id == id) ?? (object?)Plan.Feeders.FirstOrDefault(f => f.Id == id)
+           ?? (object?)Plan.Isolations.FirstOrDefault(i => i.Id == id) ?? Plan.Signals.FirstOrDefault(s => s.Id == id);
 
     public void Toggle(int id)
     {
@@ -308,11 +346,13 @@ public sealed class PlanSession
     // ---------- Verschieben mit der Maus ----------
 
     private List<(PlacedPiece Piece, double X, double Y)>? _moveStart;
+    private (SceneryItem Item, double Dx, double Dy)? _moveObject;
     private bool _moveRecorded;
 
     public void BeginMove()
     {
         _moveStart = SelectedPieces.Select(p => (p, p.X, p.Y)).ToList();
+        _moveObject = SelectedObject is { } id && Plan.Scenery.FirstOrDefault(s => s.Id == id) is { } item ? (item, 0, 0) : null;
         _moveRecorded = false;
     }
 
@@ -325,16 +365,142 @@ public sealed class PlanSession
             _moveRecorded = true;
         }
         foreach (var (p, x, y) in _moveStart) { p.X = x + dx; p.Y = y + dy; }
+        if (_moveObject is { } mo)
+        {
+            mo.Item.MoveBy(dx - mo.Dx, dy - mo.Dy);
+            _moveObject = (mo.Item, dx, dy);
+        }
         Commit();
     }
 
     public void EndMove(double snapTolerance)
     {
-        if (_moveStart is not null && _moveRecorded && SnapEnabled)
+        if (_moveStart is { Count: > 0 } && _moveRecorded && SnapEnabled)
         {
             PlanEditing.Snap(Plan, Selection, snapTolerance);
             Commit();
         }
         _moveStart = null;
+        _moveObject = null;
+    }
+
+    // ---------- Pro: Höhe, Gelände, Elektrik ----------
+
+    /// <summary>Meldet, dass eine Funktion die Pro-Version braucht. Das Hauptfenster zeigt dazu den Lizenzhinweis.</summary>
+    public event Action<string>? ProRequired;
+
+    /// <summary>Prüft die Pro-Freischaltung; ohne Lizenz Hinweis und false.</summary>
+    public bool RequirePro(string feature)
+    {
+        if (IsPro()) return true;
+        ProRequired?.Invoke(feature);
+        return false;
+    }
+
+    public void AttachFlex(string key, (double X, double Y) fallbackCenter) => Attach(key, fallbackCenter);
+
+    public void SetTunnel(bool on)
+    {
+        var sel = SelectedPieces;
+        if (sel.Count == 0) { Say("Bitte zuerst die Gleise wählen, die im Tunnel liegen."); return; }
+        Record();
+        foreach (var p in sel) p.Tunnel = on;
+        Commit();
+        Say(on ? $"{sel.Count} Gleis(e) als Tunnel markiert." : $"Tunnel bei {sel.Count} Gleis(en) aufgehoben.");
+    }
+
+    public void ApplyGradient(double startHeight, double percent, bool reverse)
+    {
+        if (Selection.Count == 0) { Say("Bitte zuerst die Gleise der Rampe wählen."); return; }
+        Record();
+        var r = PlanEditing.ApplyGradient(Plan, Selection, startHeight, percent, reverse);
+        if (r.Pieces == 0) { History.DiscardLast(); Say(r.Note ?? "Keine Steigung gesetzt."); return; }
+        Commit();
+        Say($"Steigung {Fmt.Num(percent, 1)} % über {r.Pieces} Gleise ({Fmt.Num(r.Length / 1000, 2)} m), Endhöhe {Fmt.Num(r.EndHeight, 0)} mm.{(r.Note is null ? "" : " " + r.Note)}");
+    }
+
+    public void BuildHelix(string curveKey, double turns, double rise, bool rightHand, (double X, double Y) center)
+    {
+        Record();
+        try
+        {
+            var pieces = PlanEditing.BuildHelix(Plan, curveKey, turns, rise, rightHand, ActiveConnector, center);
+            Selection.Clear();
+            foreach (var p in pieces) Selection.Add(p.Id);
+            var last = pieces[^1];
+            Active = (last.Id, 1);
+            SelectedObject = null;
+            Commit();
+            Say($"Gleiswendel mit {pieces.Count} Bögen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm.");
+        }
+        catch (InvalidOperationException e)
+        {
+            History.DiscardLast();
+            Say(e.Message);
+        }
+    }
+
+    public SceneryItem AddScenery(SceneryItem item)
+    {
+        Record();
+        item.Id = Plan.NextId++;
+        if (string.IsNullOrWhiteSpace(item.Name))
+            item.Name = $"{SceneryItem.KindName(item.Kind)} {Plan.Scenery.Count(s => s.Kind == item.Kind) + 1}";
+        Plan.Scenery.Add(item);
+        SelectedObject = item.Kind == SceneryKind.Tree ? SelectedObject : item.Id;
+        Selection.Clear();
+        Commit();
+        return item;
+    }
+
+    public void AddFeeder(int pieceId)
+    {
+        Record();
+        var circuit = Plan.Feeders.LastOrDefault()?.Circuit ?? "Stromkreis 1";
+        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = circuit };
+        Plan.Feeders.Add(f);
+        SelectedObject = f.Id;
+        Selection.Clear();
+        Commit();
+        Say($"Einspeisung an Gleis Nr. {pieceId} ({circuit}).");
+    }
+
+    /// <summary>Setzt oder entfernt eine Trennstelle an einem Gleisende (an verbundenen Enden auch auf der Gegenseite).</summary>
+    public void ToggleIsolation(int pieceId, int index)
+    {
+        var c = Connections.Find(pieceId, index);
+        var existing = Plan.Isolations.FirstOrDefault(i => (i.PieceId == pieceId && i.Index == index) || (c?.Link is { } l && i.PieceId == l.PieceId && i.Index == l.Index));
+        Record();
+        if (existing is not null)
+        {
+            Plan.Isolations.Remove(existing);
+            Say("Trennstelle entfernt.");
+        }
+        else
+        {
+            Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = pieceId, Index = index });
+            Say("Trennstelle gesetzt.");
+        }
+        Commit();
+    }
+
+    public void AddSignal(int pieceId, int index)
+    {
+        Record();
+        var n = Plan.Signals.Count(s => s.Type == SignalType) + 1;
+        var prefix = SignalType switch { SignalType.Vorsignal => "V", SignalType.Sperrsignal => "Sh", SignalType.Ausfahrsignal => "N", SignalType.Blocksignal => "B", _ => "A" };
+        var sig = new Signal { Id = Plan.NextId++, PieceId = pieceId, Index = index, Type = SignalType, Name = $"{prefix}{n}" };
+        Plan.Signals.Add(sig);
+        SelectedObject = sig.Id;
+        Selection.Clear();
+        Commit();
+    }
+
+    public void AssignAddresses(int first, bool onlyMissing)
+    {
+        Record();
+        var n = Electrics.AssignAddresses(Plan, first, onlyMissing);
+        Commit();
+        Say($"{n} Adressen vergeben.");
     }
 }

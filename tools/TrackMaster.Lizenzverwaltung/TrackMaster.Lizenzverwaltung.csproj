@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>TrackMaster.Lizenzverwaltung</AssemblyName>
+    <RootNamespace>TrackMaster.Lizenzverwaltung</RootNamespace>
+    <StartupObject>TrackMaster.Lizenzverwaltung.Program</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TrackMaster.Licensing\TrackMaster.Licensing.csproj" />
+  </ItemGroup>
+</Project>

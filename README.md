@@ -17,30 +17,118 @@ Voraussetzung ist die **.NET 8 Desktop Runtime (x64)**. Fehlt sie, bietet Window
 
 Eine Plandatei lässt sich direkt öffnen: `TrackMasterPro.exe MeineAnlage.trackmaster.json`.
 
-## Was die erste Version kann
+## Basis und Pro
 
-- Spur wählen (Z, N, TT, H0, 0, G) und das Gleissystem des Herstellers. Märklin C-Gleis (H0) ist mit Katalogmaßen geprüft.
-  Die anderen Systeme haben vorläufige Maße und sind in der Bibliothek entsprechend markiert.
-- Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder per Ziehen frei platzieren.
-  Gleise rasten an freien Enden ein, auch als ganze Gruppe.
+Ohne Lizenz läuft die **Basisversion**. Mit einer gültigen, signierten Lizenzdatei wird daraus **Pro**.
+Pro-Funktionen sind im Tooltip als „Pro-Funktion“ gekennzeichnet; in der Basisversion erklärt ein Klick darauf, was Pro bietet.
+Pläne mit Gelände, Elektrik oder Höhen lassen sich auch in der Basisversion öffnen und speichern, ohne dass etwas verloren geht.
+
+| Basis | Pro (zusätzlich) |
+|---|---|
+| Gleisplanung in allen Spuren mit allen Gleissystemen | Höhenplanung: Steigung, Gleiswendel, Höhen je Gleis |
+| Flexgleis, Weichen, Kreuzungen, Prellböcke | Gelände: Höhenflächen, Gewässer, Gebäude, Vegetation, Tunnel |
+| Bearbeiten, Rückgängig, Speichern und Öffnen | Elektrik: Einspeisungen, Trennstellen, Kehrschleifen-Erkennung, Signale, Decoder-Adressen, Kabelplan |
+| Kollisions- und Planprüfung | 3D-Ansicht mit Mitfahren und Tageszeit |
+| Stückliste und Drucken | Export: Stückliste als CSV, Gleisplan als SVG im Maßstab 1:1 |
+
+Die Lizenz wird unter **Datei › Lizenz** eingespielt und liegt dann in `%APPDATA%\TrackMaster Pro\trackmaster.lic`.
+Dort steht auch die **Rechnerkennung**, falls eine Lizenz an einen PC gebunden werden soll.
+Debug-Builds laufen als Entwicklerversion mit allen Funktionen.
+
+### Lizenzen ausstellen
+
+Lizenzen sind mit RSA-SHA256 signiert (wie bei Moba4N). Der öffentliche Schlüssel ist im Programm eingebaut
+(`src/TrackMaster.Licensing/LicensePublicKey.cs`), der private Schlüssel `trackmaster.private.pem` bleibt beim Herausgeber
+und gehört **nie** ins Repository (`*.private.pem` und `*.lic` stehen in `.gitignore`).
+
+Das Artefakt **Lizenzwerkzeuge-win-x64** enthält zwei Programme:
+
+- **TrackMaster.Lizenzverwaltung.exe** – Oberfläche: privaten Schlüssel wählen, Kunde, E-Mail, Ablaufdatum und
+  optional Rechnerkennung eintragen, „Pro-Lizenz speichern…“. Ausgestellte Lizenzen werden aufgelistet und lassen sich
+  erneut speichern.
+- **TrackMaster.LicenseTool.exe** – Kommandozeile:
+
+```
+TrackMaster.LicenseTool keygen  <ordner>
+TrackMaster.LicenseTool issue   <private.pem> <ausgabe.lic> --name "Max Muster" [--email a@b.de] [--expires 2027-12-31] [--machine <id>]
+TrackMaster.LicenseTool verify  <datei.lic> [public.pem]
+TrackMaster.LicenseTool machine
+```
+
+Wer mit `keygen` ein neues Schlüsselpaar erzeugt, muss den öffentlichen Schlüssel in `LicensePublicKey.cs` ersetzen;
+bereits ausgestellte Lizenzen gelten dann nicht mehr.
+
+## Funktionen
+
+**Gleise (Basis)**
+- Spur wählen (Z, N, TT, H0, 0, G) und das Gleissystem des Herstellers. Märklin C-Gleis (H0) ist mit Katalogmaßen geprüft,
+  die anderen Systeme haben vorläufige Maße und sind in der Bibliothek markiert.
+- Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder frei ziehen; Gleise rasten an freien Enden ein.
+- **Flexgleis** mit freier Länge oder freiem Radius und Winkel; in der Stückliste als ganze Stangen mit 5 % Verschnitt.
 - Drehen, Spiegeln, Anschluss wechseln, Duplizieren, Löschen, Verschieben mit Pfeiltasten, Rückgängig und Wiederholen.
-- Eigenschaften: Position, Drehung und Höhe je Gleis, Größe der Anlagenplatte, Übersicht mit Gleislänge,
-  kleinstem Radius und offenen Gleisenden.
-- Stückliste mit CSV-Export (für Excel) und SVG-Export der Anlage im Maßstab 1:1.
-- Speichern und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version, Pläne lassen sich austauschen.
-- Beispielanlage „Bahnhof Neustadt“ beim Start.
+- **Planprüfung** (F7): zu enge Gleisabstände und Überschneidungen (mit Durchfahrtshöhe je Spur), Gleise über den
+  Plattenrand, zu starke Steigungen (Warnung ab 3 %, Fehler ab 5 %), Gleise in Gebäuden, im Wasser oder unter dem Gelände
+  ohne Tunnel, offene Gleisenden. Ein Klick auf einen Eintrag zeigt die Stelle.
+- Stückliste mit Zubehör (Weichenantriebe, Signale, Einspeisungen, Isolierverbinder, Decoder) und **Drucken** (Strg+P).
 
-Die Register Gelände, Elektrik und 3D sind als Ausblick angelegt und noch ohne Funktion.
+**Höhen (Pro)**
+- Höhe und Steigung je Gleis, Höhenangaben im Plan, Darstellung nach Ebenen.
+- **Steigung**: gleichmäßige Rampe über eine gewählte Gleisfolge mit Start-Höhe und Prozentwert.
+- **Gleiswendel**: Windungen aus einem Bogengleis mit Höhe je Windung; übereinanderliegende Windungen verbinden sich nicht.
+- **Tunnel** für gewählte Gleise.
+
+**Gelände (Pro)**
+- Höhenflächen und Gewässer als Vielecke zeichnen (Klicks setzen Punkte, Enter schließt, Esc bricht ab).
+- Gebäude aufziehen, Bäume setzen; Name, Größe, Höhe und Drehung im Eigenschaftenfeld.
+
+**Elektrik (Pro)**
+- Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.
+- Kehrschleifen-Erkennung im Zweileiter-System (beim Märklin-Mittelleiter entfällt sie).
+- Signale (Haupt-, Vor-, Ausfahr-, Sperr- und Blocksignal), Decoder-Adressen automatisch vergeben, Konflikte erkennen.
+- **Kabelplan** als Text mit Abschnitten, Einspeisungen, Trennstellen und Decoderbelegung.
+
+**3D (Pro)**
+- 3D-Ansicht mit Gelände, Gebäuden, Bäumen, Schotter, Schienen, Pfeilern, Tunnelportalen und Signalen.
+- **Mitfahren** im Führerstand mit einstellbarer Geschwindigkeit (km/h im Vorbild).
+- **Tageszeit** von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.
+
+**Export (Pro)**: Stückliste als CSV (für Excel), Gleisplan als SVG im Maßstab 1:1.
+
+Speichern und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
+ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
+
+### Tastenkürzel
+
+| Taste | Funktion |
+|---|---|
+| Strg+N / Strg+O / Strg+S | Neu / Öffnen / Speichern |
+| Strg+P | Drucken |
+| Strg+Z / Strg+Y | Rückgängig / Wiederholen |
+| Strg+A / Strg+D | Alles wählen / Duplizieren |
+| Entf | Löschen |
+| R / Umschalt+R | Drehen rechts / links |
+| F | Spiegeln |
+| A / E | Anschluss wechseln / nächstes Gleisende |
+| Pfeiltasten | Auswahl verschieben |
+| + / − / 0 | Vergrößern / Verkleinern / Einpassen |
+| F7 | Planprüfung |
+| Enter / Esc | Fläche abschließen / Werkzeug beenden |
+| F1 | Hilfe |
 
 ## Aufbau
 
 ```
 src/
-  TrackMaster.Core    Gleiskatalog, Geometrie (Geraden und Bögen), Plan, Verbindungen und Einrasten,
-                      Rückgängig/Wiederholen, Dateiformat, Stückliste, SVG-Export
-  TrackMaster.App     Hauptfenster (TrackMasterPro.exe): Ribbon, Gleisbibliothek, Zeichenfläche, Eigenschaften
+  TrackMaster.Core          Gleiskatalog mit Flexgleis, Geometrie, Plan mit Höhen, Gelände und Elektrik,
+                            Verbindungen, Planprüfung, Stromabschnitte und Kehrschleifen, Dateiformat, Stückliste, SVG
+  TrackMaster.Licensing     Lizenzdatei, Signaturprüfung, Basis/Pro, Werkzeuge zum Ausstellen
+  TrackMaster.App           Hauptfenster (TrackMasterPro.exe): Ribbon, Zeichenfläche, Eigenschaften, Dialoge,
+                            Drucken, 3D-Ansicht
+tools/
+  TrackMaster.Lizenzverwaltung   Lizenzen ausstellen (Oberfläche)
+  TrackMaster.LicenseTool        Lizenzen ausstellen und prüfen (Kommandozeile)
 tests/
-  TrackMaster.Tests   Tests für Geometrie, Einrasten, Dateiformat und Stückliste
+  TrackMaster.Tests         Tests für Geometrie, Flexgleis, Steigung, Wendel, Planprüfung, Elektrik, Dateiformat, Lizenzen
 ```
 
 ## Selbst bauen
@@ -53,5 +141,7 @@ dotnet test tests/TrackMaster.Tests
 dotnet publish src/TrackMaster.App -c Release -r win-x64 --self-contained false -o artifacts/TrackMasterPro
 ```
 
-GitHub Actions baut bei jedem Push auf `windows-latest`, führt die Tests aus, veröffentlicht das Programm als
-Artefakt und erzeugt zur Kontrolle Bildschirmfotos (`TrackMasterPro.exe --screenshot datei.png [--tab Gleise] [--select]`).
+GitHub Actions baut bei jedem Push auf `windows-latest`, führt die Tests aus, veröffentlicht Programm und Lizenzwerkzeuge
+als Artefakte und erzeugt zur Kontrolle Bildschirmfotos:
+`TrackMasterPro.exe --screenshot datei.png [--pro] [--tab Gleise] [--select] [--3d orbit|ride|evening]`.
+`--pro` schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.

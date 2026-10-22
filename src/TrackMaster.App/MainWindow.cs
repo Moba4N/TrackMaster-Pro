@@ -10,6 +10,9 @@ using System.Windows.Shell;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using TrackMaster.Core;
+using TrackMaster.Licensing;
+
+using LicenseManager = TrackMaster.Licensing.LicenseManager;
 
 namespace TrackMaster.App;
 
@@ -22,6 +25,7 @@ public sealed class MainWindow : Window
     public PlanSession Session { get; } = new();
     public PlanCanvas Canvas { get; }
     public Ribbon Ribbon { get; } = new();
+    public LicenseManager License { get; }
 
     private readonly LibraryPanel _library;
     private readonly PropertiesPanel _properties;
@@ -32,6 +36,8 @@ public sealed class MainWindow : Window
     private readonly StackPanel _statusLeft = new() { Orientation = Orientation.Horizontal };
     private readonly TextBlock _statusMessage = new() { Margin = new Thickness(10, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _cursorText = new() { Margin = new Thickness(14, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.TextSecondaryBrush };
+    private readonly Border _editionBadge = new() { CornerRadius = new CornerRadius(4), Padding = new Thickness(7, 1, 7, 1), Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+    private Window? _issuesWindow;
     private readonly DispatcherTimer _messageTimer = new() { Interval = TimeSpan.FromSeconds(5) };
     private readonly Dictionary<string, ICommand> _commands = new();
     private readonly List<(RibbonToggleButton Button, Func<bool> IsOn)> _toggles = [];
@@ -41,8 +47,10 @@ public sealed class MainWindow : Window
     private readonly Canvas _menuLabelHost = new() { IsHitTestVisible = false };
     private RibbonApplicationMenu _appMenu = null!;
 
-    public MainWindow()
+    public MainWindow(LicenseManager license)
     {
+        License = license;
+        Session.IsPro = () => License.IsPro;
         Title = "TrackMaster Pro";
         Width = 1600; Height = 940; MinWidth = 1024; MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -86,6 +94,7 @@ public sealed class MainWindow : Window
         StateChanged += (_, _) => _root.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
         Session.Changed += OnSessionChanged;
         Session.Message += ShowMessage;
+        Session.ProRequired += feature => { if (Dialogs.ShowProRequired(this, feature)) Run("license"); };
         Canvas.ViewChanged += () => { _zoomText.Text = $"{Fmt.Num(Canvas.Zoom * 100, 0)} %"; UpdateStatus(); };
         Canvas.CursorMoved += p => _cursorText.Text = p is { } w ? $"X {Fmt.Num(w.X, 0)} · Y {Fmt.Num(w.Y, 0)} mm" : "X – · Y –";
         _messageTimer.Tick += (_, _) => { _messageTimer.Stop(); _statusMessage.Text = "Bereit"; };
@@ -107,9 +116,35 @@ public sealed class MainWindow : Window
         Add("save", () => SaveFile(false));
         Add("saveAs", () => SaveFile(true));
         Add("sample", () => { if (ConfirmDiscard()) { Session.LoadSample(); Canvas.Fit(); } });
-        Add("bom", () => Dialogs.ShowBillOfMaterials(this, Session.Plan, ExportCsv));
-        Add("csv", ExportCsv);
-        Add("svg", ExportSvg);
+        Add("bom", () => Dialogs.ShowBillOfMaterials(this, Session.Plan, () => Run("csv")));
+        // Pro-Funktionen fragen erst die Lizenz ab
+        void Pro(string id, string feature, Action run, Func<bool>? can = null) => Add(id, () => { if (Session.RequirePro(feature)) run(); }, can);
+        Pro("csv", "Stückliste als CSV", ExportCsv);
+        Pro("svg", "SVG-Export", ExportSvg);
+        Add("print", PrintPlan);
+        Add("license", ShowLicense);
+        Add("check", () => ShowCheck(false));
+        Pro("elecCheck", "Elektrik prüfen", () => ShowCheck(true));
+        Add("flex", AddFlex);
+        Pro("gradient", "Steigung", AskGradient, HasSelection);
+        Pro("helix", "Gleiswendel", AskHelix);
+        Pro("tunnel", "Tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
+        Pro("toolTerrain", "Gelände formen", () => SetTool(CanvasTool.Terrain));
+        Pro("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
+        Pro("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
+        Pro("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
+        Pro("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
+        Pro("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
+        foreach (var t in Enum.GetValues<SignalType>())
+        {
+            var type = t;
+            Pro("signal" + type, "Signal setzen", () => { Session.SignalType = type; SetTool(CanvasTool.Signal); });
+        }
+        Pro("addresses", "Decoder und Adressen", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
+        Pro("wiring", "Kabelplan", ShowWiring);
+        Pro("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
+        Pro("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
+        Pro("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
         Add("exit", Close);
         Add("undo", Session.Undo, () => Session.History.CanUndo);
         Add("redo", Session.Redo, () => Session.History.CanRedo);
@@ -144,14 +179,28 @@ public sealed class MainWindow : Window
         if (_commands.TryGetValue(id, out var c) && c.CanExecute(null)) c.Execute(null);
     }
 
-    private ICommand Planned(string name) => new RelayCommand(() => ShowMessage($"„{name}“ ist für eine spätere Version geplant."));
-
     private void SetTool(CanvasTool tool)
     {
+        if (Session.Tool != tool) Canvas.CancelPolygon();
         Session.Tool = tool;
-        Canvas.Cursor = tool == CanvasTool.Pan ? Cursors.Hand : null;
+        Canvas.Cursor = tool switch { CanvasTool.Pan => Cursors.Hand, CanvasTool.Select => null, _ => Cursors.Cross };
         SyncToggles();
+        OnSessionChanged();
+        Canvas.InvalidateVisual();
+        Canvas.Focus();
     }
+
+    private static string ToolHint(CanvasTool tool) => tool switch
+    {
+        CanvasTool.Terrain => "Höhenfläche: Eckpunkte anklicken, Doppelklick oder Eingabetaste schließt die Fläche ab. Esc bricht ab.",
+        CanvasTool.Water => "Gewässer: Uferpunkte anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab.",
+        CanvasTool.Building => "Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug.",
+        CanvasTool.Tree => "Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug.",
+        CanvasTool.Feeder => "Einspeisung: Auf ein Gleis klicken. Den Stromkreis stellt man in den Eigenschaften ein.",
+        CanvasTool.Isolation => "Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder.",
+        CanvasTool.Signal => "Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren.",
+        _ => "",
+    };
 
     // ---------- Titelleiste ----------
 
@@ -234,17 +283,40 @@ public sealed class MainWindow : Window
         ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Small, IsLabelVisible = true },
     };
 
-    private RibbonButton PlannedLarge(string label, string icon)
+    /// <summary>Pro-Funktion: im Tooltip gekennzeichnet; ohne Lizenz fragt der Befehl nach der Lizenz.</summary>
+    private RibbonButton ProLarge(string label, string icon, string command, string? description = null)
     {
-        var b = Large(label, icon, Planned(label), "Geplant für eine spätere Version.");
-        b.Opacity = 0.55;
+        var b = Large(label, icon, command, description);
+        b.ToolTipFooterTitle = "Pro-Funktion";
+        b.ToolTipFooterDescription = License.IsPro ? "In dieser Version freigeschaltet." : "Braucht eine Pro-Lizenz (Datei › Lizenz).";
         return b;
     }
 
-    private RibbonButton PlannedSmall(string label, string icon)
+    private RibbonButton ProSmall(string label, string icon, string command, string? description = null)
     {
-        var b = Small(label, icon, Planned(label), "Geplant für eine spätere Version.");
-        b.Opacity = 0.55;
+        var b = Small(label, icon, command, description);
+        b.ToolTipFooterTitle = "Pro-Funktion";
+        b.ToolTipFooterDescription = License.IsPro ? "In dieser Version freigeschaltet." : "Braucht eine Pro-Lizenz (Datei › Lizenz).";
+        return b;
+    }
+
+    /// <summary>Werkzeug-Schalter: ein Klick wählt das Werkzeug (Pro-Werkzeuge über ihren Befehl mit Lizenzabfrage).</summary>
+    private RibbonToggleButton ToolToggle(string label, string icon, bool large, CanvasTool tool, string command, string description)
+    {
+        var b = new RibbonToggleButton
+        {
+            Label = label, SmallImageSource = Icons.Get(icon), LargeImageSource = large ? Icons.Get(icon) : null,
+            ToolTipTitle = label, ToolTipDescription = description, ToolTipFooterTitle = "Pro-Funktion",
+            ToolTipFooterDescription = License.IsPro ? "In dieser Version freigeschaltet." : "Braucht eine Pro-Lizenz (Datei › Lizenz).",
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = large ? RibbonImageSize.Large : RibbonImageSize.Small, IsLabelVisible = true },
+        };
+        b.Click += (_, _) =>
+        {
+            if (Session.Tool == tool) SetTool(CanvasTool.Select);
+            else Run(command);
+            SyncToggles();
+        };
+        _toggles.Add((b, () => Session.Tool == tool));
         return b;
     }
 
@@ -302,48 +374,81 @@ public sealed class MainWindow : Window
         _appMenu.Items.Add(Item("Stückliste…", "List", "bom"));
         _appMenu.Items.Add(Item("Stückliste als CSV…", "Csv", "csv"));
         _appMenu.Items.Add(Item("Als SVG exportieren (1:1)…", "Image", "svg"));
+        _appMenu.Items.Add(Item("Drucken…", "Print", "print"));
         _appMenu.Items.Add(new RibbonSeparator());
         _appMenu.Items.Add(Item("Beispielplan laden", "Template", "sample"));
+        _appMenu.Items.Add(Item("Lizenz…", "Shield", "license"));
         _appMenu.FooterPaneContent = new RibbonButton { Label = "Beenden", SmallImageSource = Icons.Get("Exit"), Command = _commands["exit"], HorizontalAlignment = HorizontalAlignment.Right };
         Ribbon.ApplicationMenu = _appMenu;
 
         Ribbon.Items.Add(Tab("Start",
             Group("Verlauf", Large("Rückgängig", "Undo", "undo", "Letzten Schritt zurücknehmen (Strg+Z)."), Large("Wiederholen", "Redo", "redo", "Zurückgenommenen Schritt wiederholen (Strg+Y).")),
             Group("Werkzeuge",
-                Toggle("Auswählen", "Select", true, () => Session.Tool == CanvasTool.Select, _ => SetTool(CanvasTool.Select), "Gleise wählen und verschieben."),
+                Toggle("Auswählen", "Select", true, () => Session.Tool == CanvasTool.Select, _ => SetTool(CanvasTool.Select), "Gleise und Objekte wählen und verschieben (Esc)."),
                 Toggle("Verschieben", "Hand", true, () => Session.Tool == CanvasTool.Pan, on => SetTool(on ? CanvasTool.Pan : CanvasTool.Select), "Ansicht mit der linken Maustaste verschieben (auch: Leertaste halten).")),
             Group("Bearbeiten",
                 Small("15° links drehen", "RotateLeft", "rotL", "Umschalt+R"), Small("15° rechts drehen", "RotateRight", "rotR", "R"), Small("Spiegeln", "Mirror", "flip", "Bögen, Weichen und Kreuzungen spiegeln (F)."),
                 Small("Anschluss wechseln", "Swap", "swap", "Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A)."), Small("Duplizieren", "Copy", "duplicate", "Strg+D"), Small("Löschen", "Delete", "delete", "Entf")),
             Group("Auswahl", Small("Alles auswählen", "SelectAll", "selectAll", "Strg+A"), Small("Auswahl aufheben", "SelectNone", "selectNone", "Esc"), Small("Nächstes Gleisende", "Connector", "nextEnd", "Springt zum nächsten offenen Gleisende (E).")),
-            Group("Prüfen", Large("Stückliste", "List", "bom", "Alle Gleise nach Artikel gezählt."), PlannedLarge("Kollisions­prüfung", "Shield"))));
+            Group("Prüfen", Large("Stückliste", "List", "bom", "Alle Gleise nach Artikel gezählt, mit Zubehör."),
+                Large("Kollisions­prüfung", "Shield", "check", "Prüft Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen und Gelände (F7).")),
+            Group("Datei", Small("Drucken", "Print", "print", "Plan auf eine Seite drucken (Strg+P)."), Small("Lizenz", "Shield", "license", "Basis oder Pro, Lizenz einspielen."))));
 
         Ribbon.Items.Add(Tab("Gleise",
             Group("Bibliothek", Large("Gleis suchen", "Search", "search", "Springt in das Suchfeld der Gleisbibliothek.")),
             Group("Verlegen",
                 Large("Gerade", "Straight", "qStraight", "Gerade des gewählten Systems am aktiven Gleisende ansetzen."), Large("Bogen", "Curve", "qCurve"),
                 Large("Weiche links", "SwitchLeft", "qSwitchL"), Large("Weiche rechts", "SwitchRight", "qSwitchR"),
-                Small("Prellbock", "Buffer", "qBuffer"), Small("Kreuzung", "Crossing", "qCrossing"), PlannedSmall("Flexgleis", "Flex")),
-            Group("Höhe", PlannedSmall("Steigung", "Slope"), PlannedSmall("Gleiswendel", "Helix"))));
+                Small("Prellbock", "Buffer", "qBuffer"), Small("Kreuzung", "Crossing", "qCrossing"), Small("Flexgleis…", "Flex", "flex", "Gerade oder Bogen mit frei gewählten Maßen.")),
+            Group("Höhe",
+                ProLarge("Steigung…", "Slope", "gradient", "Gleichmäßige Steigung über die gewählten Gleise legen."),
+                ProLarge("Gleis­wendel…", "Helix", "helix", "Wendel aus Bögen mit mehreren Windungen bauen."),
+                ProSmall("Tunnel", "Tunnel", "tunnel", "Gewählte Gleise als Tunnel markieren oder die Markierung aufheben."))));
 
         Ribbon.Items.Add(Tab("Gelände",
             Group("Grundplatte", Large("Anlagen­platte", "Board", "board", "Breite und Tiefe der Anlagenplatte einstellen.")),
-            Group("Landschaft (geplant)", PlannedLarge("Gelände formen", "Terrain"), PlannedLarge("Tunnel", "Tunnel"), PlannedSmall("Gewässer", "Water"), PlannedSmall("Gebäude", "Building"), PlannedSmall("Vegetation", "Tree"))));
+            Group("Landschaft",
+                ToolToggle("Gelände formen", "Terrain", true, CanvasTool.Terrain, "toolTerrain", "Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen."),
+                ProLarge("Tunnel", "Tunnel", "tunnel", "Gewählte Gleise als Tunnel markieren."),
+                ToolToggle("Gewässer", "Water", false, CanvasTool.Water, "toolWater", "See oder Fluss als Vieleck zeichnen."),
+                ToolToggle("Gebäude", "Building", false, CanvasTool.Building, "toolBuilding", "Gebäude als Rechteck aufziehen."),
+                ToolToggle("Vegetation", "Tree", false, CanvasTool.Tree, "toolTree", "Bäume mit Klicks setzen.")),
+            Group("Anzeigen",
+                Toggle("Gelände zeigen", "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); }))));
 
+        var signalMenu = new RibbonMenuButton
+        {
+            Label = "Signal setzen", LargeImageSource = Icons.Get("Signal"), SmallImageSource = Icons.Get("Signal"), ToolTipTitle = "Signal setzen",
+            ToolTipDescription = "Signalart wählen, dann auf ein Gleisende klicken.", ToolTipFooterTitle = "Pro-Funktion",
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        foreach (var t in Enum.GetValues<SignalType>())
+            signalMenu.Items.Add(new RibbonMenuItem { Header = Signal.TypeName(t), Command = _commands["signal" + t] });
         Ribbon.Items.Add(Tab("Elektrik",
-            Group("Stromversorgung (geplant)", PlannedLarge("Einspeisung", "Bolt"), PlannedSmall("Trennstelle", "Isolate")),
-            Group("Digital (geplant)", PlannedLarge("Decoder", "Chip"), PlannedLarge("Signal setzen", "Signal"), PlannedSmall("Kabelplan", "Wire"))));
+            Group("Stromversorgung",
+                ToolToggle("Einspeisung", "Bolt", true, CanvasTool.Feeder, "toolFeeder", "Gleis an einen Stromkreis/Booster anschließen."),
+                ToolToggle("Trennstelle", "Isolate", false, CanvasTool.Isolation, "toolIsolation", "Isolierte Schienenverbinder an einer Gleisverbindung setzen."),
+                Toggle("Stromkreise zeigen", "Grid", false, () => Session.ShowSections, on => { if (on && !Session.RequirePro("Stromkreise zeigen")) { SyncToggles(); return; } Session.ShowSections = on; Canvas.Rebuild(); }),
+                ProSmall("Elektrik prüfen", "Shield", "elecCheck", "Abschnitte ohne Einspeisung, Kehrschleifen, doppelte Adressen.")),
+            Group("Digital",
+                ProLarge("Decoder", "Chip", "addresses", "Digitaladressen für Weichen und Signale vergeben."),
+                signalMenu,
+                ProSmall("Kabelplan", "Wire", "wiring", "Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste."))));
 
         Ribbon.Items.Add(Tab("Ansicht",
             Group("Zoom", Large("Ganze Anlage", "Fit", "fit", "Taste 0"), Small("Vergrößern", "ZoomIn", "zoomIn", "+"), Small("Verkleinern", "ZoomOut", "zoomOut", "-")),
             Group("Anzeigen",
                 Toggle("Raster", "Grid", false, () => Session.ShowGrid, on => { Session.ShowGrid = on; Canvas.InvalidateVisual(); }),
                 Toggle("Gleisenden", "Connector", false, () => Session.ShowEnds, on => { Session.ShowEnds = on; Canvas.InvalidateVisual(); }),
-                Toggle("Artikelnummern", "Hash", false, () => Session.ShowLabels, on => { Session.ShowLabels = on; Canvas.InvalidateVisual(); })),
-            Group("Hilfe", Large("Tasten­kürzel", "Help", "help", "Alle Maus- und Tastaturbefehle."))));
+                Toggle("Artikelnummern", "Hash", false, () => Session.ShowLabels, on => { Session.ShowLabels = on; Canvas.InvalidateVisual(); }),
+                Toggle("Höhen", "Slope", false, () => Session.ShowHeights, on => { Session.ShowHeights = on; Canvas.InvalidateVisual(); }),
+                Toggle("Gelände", "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); })),
+            Group("Hilfe", Large("Tasten­kürzel", "Help", "help", "Alle Maus- und Tastaturbefehle (F1)."))));
 
         Ribbon.Items.Add(Tab("3D",
-            Group("3D (geplant)", PlannedLarge("3D-Ansicht", "Cube"), PlannedLarge("Mitfahren", "Train"), PlannedLarge("Tageszeit", "Sun"))));
+            Group("3D", ProLarge("3D-Ansicht", "Cube", "view3d", "Die Anlage räumlich ansehen: ziehen dreht, Mausrad zoomt."),
+                ProLarge("Mitfahren", "Train", "ride", "Im Führerstand über die Gleise fahren, ab dem gewählten Gleis."),
+                ProLarge("Tageszeit", "Sun", "daytime", "3D-Ansicht mit Licht nach Uhrzeit, vom Morgen bis zur Nacht."))));
     }
 
     private void SyncToggles()
@@ -449,6 +554,12 @@ public sealed class MainWindow : Window
         DockPanel.SetDock(right, Dock.Right);
         dock.Children.Add(right);
         _statusMessage.Text = "Bereit";
+        _editionBadge.Background = License.IsPro ? Theme.AccentBrush : Theme.HoverBrush;
+        _editionBadge.Child = Theme.Label(License.EditionName, 11, true, License.IsPro ? Brushes.White : Theme.TextBrush);
+        _editionBadge.ToolTip = License.Summary;
+        _editionBadge.Margin = new Thickness(8, 0, 4, 0);
+        DockPanel.SetDock(_editionBadge, Dock.Left);
+        dock.Children.Add(_editionBadge);
         dock.Children.Add(_statusMessage);
         dock.Children.Add(_statusLeft);
         return new Border { Background = Theme.WindowBrush, BorderBrush = Theme.BorderStrongBrush, BorderThickness = new Thickness(0, 1, 0, 0), Child = dock };
@@ -497,10 +608,12 @@ public sealed class MainWindow : Window
     {
         var plan = Session.Plan;
         var file = Session.FilePath is { } path ? Path.GetFileName(path) : plan.Name;
-        _title.Text = $"{file}{(Session.Dirty ? " *" : "")} – TrackMaster Pro";
+        _title.Text = $"{file}{(Session.Dirty ? " *" : "")} – TrackMaster Pro{(License.IsPro ? "" : " Basis")}";
         Title = _title.Text;
         _docTab.Text = $"{plan.Name} · Spur {plan.GaugeId}";
-        _hint.Text = plan.Pieces.Count == 0
+        _hint.Text = Session.Tool is not (CanvasTool.Select or CanvasTool.Pan)
+            ? ToolHint(Session.Tool)
+            : plan.Pieces.Count == 0
             ? "Leerer Plan: Klicke ein Gleis in der Bibliothek an oder ziehe es auf die Platte."
             : Session.ActiveConnector is not null
                 ? "Aktives Gleisende (blau): Ein Klick in der Bibliothek setzt das nächste Gleis dort an. A wechselt den Anschluss, F spiegelt."
@@ -521,8 +634,18 @@ public sealed class MainWindow : Window
         if (ctrl && e.Key == Key.S) { Run("save"); e.Handled = true; return; }
         if (ctrl && e.Key == Key.O) { Run("open"); e.Handled = true; return; }
         if (ctrl && e.Key == Key.N) { Run("new"); e.Handled = true; return; }
+        if (ctrl && e.Key == Key.P) { Run("print"); e.Handled = true; return; }
         if (e.Key == Key.F1) { Run("help"); e.Handled = true; return; }
+        if (e.Key == Key.F7) { Run("check"); e.Handled = true; return; }
         if (Keyboard.FocusedElement is TextBox or ComboBox or ComboBoxItem) return;
+        if (e.Key == Key.Enter && Canvas.IsDrawingPolygon) { Canvas.FinishPolygon(); e.Handled = true; return; }
+        if (e.Key == Key.Escape && Session.Tool is not (CanvasTool.Select or CanvasTool.Pan))
+        {
+            if (Canvas.IsDrawingPolygon) Canvas.CancelPolygon();
+            else SetTool(CanvasTool.Select);
+            e.Handled = true;
+            return;
+        }
 
         string? cmd = (ctrl, e.Key) switch
         {
@@ -633,6 +756,102 @@ public sealed class MainWindow : Window
     private void ExportCsv() => ExportTo("Stückliste speichern", "CSV-Datei (*.csv)|*.csv", $"{SafeName} – Stückliste.csv", BillOfMaterials.ToCsv(Session.Plan));
 
     private void ExportSvg() => ExportTo("Gleisplan als SVG speichern", "SVG-Grafik (*.svg)|*.svg", $"{SafeName}.svg", SvgExport.Build(Session.Plan));
+
+    // ---------- Prüfen, Höhe, Elektrik, 3D, Drucken, Lizenz ----------
+
+    private void ShowCheck(bool electrics)
+    {
+        _issuesWindow?.Close();
+        IReadOnlyList<PlanIssue> Analyze()
+        {
+            var issues = electrics ? Electrics.Analyze(Session.Plan).Issues : PlanCheck.Run(Session.Plan);
+            Session.Issues = issues;
+            Canvas.InvalidateVisual();
+            return issues;
+        }
+        _issuesWindow = Dialogs.ShowIssues(this, electrics ? "Elektrik prüfen" : "Kollisions- und Planprüfung", Analyze, issue =>
+        {
+            if (issue.PieceIds.Count > 0) Session.Select(issue.PieceIds, add: false);
+            Canvas.Reveal(issue.X, issue.Y);
+            Activate();
+        }, electrics && Electrics.IsThreeRail(Session.Plan) ? "Mittelleiter-Gleis (Märklin): Kehrschleifen brauchen hier keine Sonderschaltung." : null);
+        _issuesWindow.Closed += (_, _) => { Session.Issues = []; Canvas.InvalidateVisual(); _issuesWindow = null; };
+    }
+
+    private void AddFlex()
+    {
+        if (Dialogs.AskFlex(this, Session.Plan.Gauge) is { } key) Session.AttachFlex(key, Canvas.CenterWorld());
+    }
+
+    private void AskGradient()
+    {
+        var sel = Session.SelectedPieces;
+        var start = sel.Count > 0 ? sel.Min(p => p.ConnectorHeights().Min()) : 0;
+        if (Dialogs.AskGradient(this, sel.Count, start) is { } g) Session.ApplyGradient(g.StartHeight, g.Percent, g.Reverse);
+    }
+
+    private void AskHelix()
+    {
+        var gauge = Session.Plan.Gauge;
+        var curves = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
+        if (curves.Count == 0) curves = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
+        if (Dialogs.AskHelix(this, gauge, curves, Session.ActiveConnector is not null) is { } h)
+        {
+            Session.BuildHelix(h.CurveKey, h.Turns, h.Rise, h.RightHand, Canvas.CenterWorld());
+            Canvas.Fit();
+        }
+    }
+
+    private void ShowWiring()
+    {
+        var text = Electrics.WiringPlan(Session.Plan);
+        Dialogs.ShowText(this, "Kabelplan", text, "Als Textdatei speichern…",
+            () => ExportTo("Kabelplan speichern", "Textdatei (*.txt)|*.txt", $"{SafeName} – Kabelplan.txt", text));
+    }
+
+    private void Open3D(View3DMode mode)
+    {
+        var window = new View3DWindow(Session.Plan, Session.SelectedPieces.FirstOrDefault()?.Id, mode) { Owner = this };
+        window.Show();
+    }
+
+    private void PrintPlan()
+    {
+        var dlg = new PrintDialog();
+        if (dlg.ShowDialog() != true) return;
+        var visual = PlanPrint.Render(Session.Plan, dlg.PrintableAreaWidth, dlg.PrintableAreaHeight, License.IsPro);
+        dlg.PrintVisual(visual, $"TrackMaster Pro – {Session.Plan.Name}");
+        ShowMessage("An den Drucker gesendet.");
+    }
+
+    private void ShowLicense()
+    {
+        Dialogs.ShowLicense(this, License, () =>
+        {
+            var dlg = new OpenFileDialog { Title = "Lizenzdatei wählen", Filter = "TrackMaster-Lizenz (*.lic)|*.lic|Alle Dateien (*.*)|*.*" };
+            if (dlg.ShowDialog(this) != true) return null;
+            try
+            {
+                var result = License.Install(File.ReadAllText(dlg.FileName));
+                if (!result.IsValid) return $"Die Lizenz wurde nicht übernommen: {result.StatusText}.";
+                ApplyEdition();
+                return $"Pro-Lizenz für {result.License!.Licensee} eingespielt – alle Funktionen sind frei.";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return $"Die Datei lässt sich nicht lesen: {ex.Message}";
+            }
+        });
+    }
+
+    /// <summary>Nach dem Einspielen einer Lizenz: Statusleiste, Titel und Tooltips aktualisieren.</summary>
+    private void ApplyEdition()
+    {
+        _editionBadge.Background = License.IsPro ? Theme.AccentBrush : Theme.HoverBrush;
+        _editionBadge.Child = Theme.Label(License.EditionName, 11, true, License.IsPro ? Brushes.White : Theme.TextBrush);
+        _editionBadge.ToolTip = License.Summary;
+        OnSessionChanged();
+    }
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {

@@ -8,7 +8,8 @@ namespace TrackMaster.App;
 
 /// <summary>
 /// Zeichenfläche des Gleisplans. Weltkoordinaten in mm; Ansicht = Verschiebung + Zoom (Pixel je mm).
-/// Linke Maustaste: wählen, ziehen, Rahmen. Rechte/mittlere Taste oder Leertaste: Ansicht verschieben. Mausrad: zoomen.
+/// Linke Maustaste: wählen, ziehen, Rahmen – oder das gewählte Werkzeug (Gelände, Gebäude, Baum, Einspeisung, Trennstelle, Signal).
+/// Rechte/mittlere Taste oder Leertaste: Ansicht verschieben. Mausrad: zoomen.
 /// </summary>
 public sealed class PlanCanvas : FrameworkElement
 {
@@ -17,17 +18,20 @@ public sealed class PlanCanvas : FrameworkElement
     private bool _fitted;
 
     // Zwischengespeicherte Geometrie, neu bei jeder Planänderung
-    private StreamGeometry? _bed, _rails, _stops, _selected;
+    private PlanScene? _scene;
     private double _gauge;
 
-    private enum DragMode { None, Pan, Move, Band }
+    private enum DragMode { None, Pan, Move, Band, Create }
     private DragMode _drag;
     private Point _dragStartScreen;
     private Point _dragStartWorld;
+    private Point _lastWorld;
     private double _panStartX, _panStartY;
     private bool _moved;
     private Rect? _band;
     private bool _spaceDown;
+    private readonly List<(double X, double Y)> _polygon = [];
+    private readonly Random _random = new(7);
 
     public event Action? ViewChanged;
     public event Action<Point?>? CursorMoved;
@@ -42,8 +46,15 @@ public sealed class PlanCanvas : FrameworkElement
         ClipToBounds = true;
         AllowDrop = true;
         SnapsToDevicePixels = true;
-        session.Changed += () => { _bed = null; InvalidateVisual(); };
+        session.Changed += () => { _scene = null; InvalidateVisual(); };
         SizeChanged += (_, _) => { if (!_fitted && ActualWidth > 0) { _fitted = true; Fit(); } };
+    }
+
+    /// <summary>Zeichnung neu aufbauen (z. B. nach Umschalten der Stromkreis-Ansicht).</summary>
+    public void Rebuild()
+    {
+        _scene = null;
+        InvalidateVisual();
     }
 
     // ---------- Ansicht ----------
@@ -92,43 +103,81 @@ public sealed class PlanCanvas : FrameworkElement
         ViewChanged?.Invoke();
     }
 
+    // ---------- Vieleck zeichnen (Höhenfläche, Gewässer) ----------
+
+    public bool IsDrawingPolygon => _polygon.Count > 0;
+
+    /// <summary>Schließt das gerade gezeichnete Vieleck ab (Doppelklick oder Eingabetaste).</summary>
+    public void FinishPolygon()
+    {
+        if (_polygon.Count < 3)
+        {
+            if (_polygon.Count > 0) _session.Say("Eine Fläche braucht mindestens drei Punkte.");
+            return;
+        }
+        var water = _session.Tool == CanvasTool.Water;
+        _session.AddScenery(new SceneryItem
+        {
+            Kind = water ? SceneryKind.Water : SceneryKind.Terrain,
+            Points = [.. _polygon],
+            Height = water ? 10 : Math.Round(_gauge * 4 / 5) * 5,
+        });
+        _polygon.Clear();
+        _session.Say(water ? "Gewässer angelegt. Tiefe und Name stehen in den Eigenschaften." : "Höhenfläche angelegt. Höhe und Name stehen in den Eigenschaften.");
+        InvalidateVisual();
+    }
+
+    public void CancelPolygon()
+    {
+        _polygon.Clear();
+        InvalidateVisual();
+    }
+
     // ---------- Zeichnen ----------
 
-    private void EnsureGeometry()
+    private PlanScene Scene()
     {
-        if (_bed is not null) return;
-        var plan = _session.Plan;
-        _gauge = plan.Gauge.TrackWidth;
-        var all = plan.Pieces.SelectMany(p => p.WorldLegs()).ToList();
-        _bed = TrackDrawing.Build(all, 0);
-        _rails = TrackDrawing.Build(all, _gauge / 2, -_gauge / 2);
-        _stops = TrackDrawing.Stops(plan.Pieces.Where(p => p.Def.Kind == PieceKind.Buffer).Select(p => p.WorldLegs()[0]), _gauge);
-        _selected = TrackDrawing.Build(plan.Pieces.Where(p => _session.Selection.Contains(p.Id)).SelectMany(p => p.WorldLegs()), 0);
+        if (_scene is not null) return _scene;
+        _gauge = _session.Plan.Gauge.TrackWidth;
+        return _scene = new PlanScene(_session.Plan, _session.Selection, _session.ShowSections);
     }
 
     protected override void OnRender(DrawingContext dc)
     {
         var plan = _session.Plan;
-        EnsureGeometry();
+        var scene = Scene();
         dc.DrawRectangle(Theme.CanvasBrush, null, new Rect(RenderSize));
-        double z = _zoom, g = _gauge;
+        double z = _zoom;
 
         dc.PushTransform(new MatrixTransform(z, 0, 0, z, _ox, _oy));
         var board = new Rect(0, 0, plan.BoardWidth, plan.BoardHeight);
-        dc.DrawRoundedRectangle(Theme.BoardBrush, new Pen(Theme.BoardStrokeBrush, 1.2 / z), board, 4 / z, 4 / z);
-        if (_session.ShowGrid) DrawGrid(dc, board);
-        if (_session.Selection.Count > 0)
-            dc.DrawGeometry(null, new Pen(Theme.SelectionBrush, Math.Max(g * 4, 10 / z)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, _selected);
-        dc.DrawGeometry(null, TrackDrawing.BedPen(g), _bed);
-        dc.DrawGeometry(null, TrackDrawing.SleeperPen(g), _bed);
-        dc.DrawGeometry(null, TrackDrawing.RailPen(g), _rails);
-        dc.DrawGeometry(null, TrackDrawing.StopPen(g), _stops);
+        scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject),
+            d => { if (_session.ShowGrid) DrawGrid(d, board); });
+        DrawToolPreview(dc);
         dc.Pop();
 
         DrawDimensions(dc, plan);
         if (_session.ShowLabels) DrawLabels(dc, plan);
+        if (_session.ShowHeights) DrawHeights(dc, plan);
+        if (_session.ShowScenery) DrawSceneryNames(dc, plan);
+        DrawSignalNames(dc, plan);
         DrawConnectors(dc);
+        DrawIssues(dc);
         if (_band is { } band) dc.DrawRectangle(Theme.BandBrush, new Pen(Theme.AccentBrush, 1) { DashStyle = DashStyles.Dash }, band);
+    }
+
+    private void DrawToolPreview(DrawingContext dc)
+    {
+        var z = _zoom;
+        if (_polygon.Count > 0)
+        {
+            var pts = _polygon.Append((_lastWorld.X, _lastWorld.Y)).ToList();
+            var fill = _session.Tool == CanvasTool.Water ? new SolidColorBrush(Color.FromArgb(0x60, 0x86, 0xBC, 0xE6)) : new SolidColorBrush(Color.FromArgb(0x60, 0x9C, 0xB8, 0x7E));
+            dc.DrawGeometry(fill, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, PlanScene.Polygon(pts));
+            foreach (var p in _polygon) dc.DrawEllipse(Brushes.White, new Pen(Theme.AccentBrush, 1.5 / z), new Point(p.X, p.Y), 4 / z, 4 / z);
+        }
+        if (_drag == DragMode.Create && _session.Tool == CanvasTool.Building && _moved)
+            dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x80, 0xB8, 0x5C, 0x45)), new Pen(Theme.AccentBrush, 1.5 / z), new Rect(_dragStartWorld, _lastWorld));
     }
 
     private void DrawGrid(DrawingContext dc, Rect board)
@@ -153,8 +202,24 @@ public sealed class PlanCanvas : FrameworkElement
         if (100 * _zoom >= 8) Lines(100, Theme.GridMajorBrush, 1);
     }
 
-    private FormattedText Text(string s, double size, Brush brush)
-        => new(s, CultureInfo.GetCultureInfo("de-DE"), FlowDirection.LeftToRight, new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal), size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+    private FormattedText Text(string s, double size, Brush brush, bool bold = false)
+        => new(s, CultureInfo.GetCultureInfo("de-DE"), FlowDirection.LeftToRight, new Typeface(Theme.Font, FontStyles.Normal, bold ? FontWeights.SemiBold : FontWeights.Normal, FontStretches.Normal), size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+    private static readonly Brush LabelBack = Frozen(new SolidColorBrush(Color.FromArgb(0xD8, 0xFF, 0xFF, 0xFF)));
+
+    private static Brush Frozen(Brush b)
+    {
+        b.Freeze();
+        return b;
+    }
+
+    private void DrawTag(DrawingContext dc, string text, Point center, Brush? brush = null, double size = 10.5)
+    {
+        var t = Text(text, size, brush ?? Theme.TextBrush);
+        var r = new Rect(center.X - t.Width / 2 - 3, center.Y - t.Height / 2, t.Width + 6, t.Height);
+        dc.DrawRoundedRectangle(LabelBack, null, r, 3, 3);
+        dc.DrawText(t, new Point(r.X + 3, r.Y));
+    }
 
     private void DrawDimensions(DrawingContext dc, LayoutPlan plan)
     {
@@ -185,10 +250,50 @@ public sealed class PlanCanvas : FrameworkElement
         {
             var m = p.Middle();
             var s = ToScreen(m.X, m.Y);
-            var t = Text(p.Def.Number, 10.5, Theme.TextBrush);
-            var r = new Rect(s.X - t.Width / 2 - 3, s.Y - _gauge * 1.6 * _zoom - t.Height, t.Width + 6, t.Height);
-            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0xD8, 0xFF, 0xFF, 0xFF)), null, r, 3, 3);
-            dc.DrawText(t, new Point(r.X + 3, r.Y));
+            DrawTag(dc, p.Def.Number + (p.Address is { } a ? $" · {a}" : ""), new Point(s.X, s.Y - _gauge * 1.6 * _zoom - 8));
+        }
+    }
+
+    private void DrawHeights(DrawingContext dc, LayoutPlan plan)
+    {
+        foreach (var p in plan.Pieces)
+        {
+            var g = p.EffectiveGrade;
+            if (Math.Abs(p.Height) < 0.5 && Math.Abs(g) < 1e-6) continue;
+            if (p.Def.TrackLength * _zoom < 70) continue;
+            var m = p.Middle();
+            var s = ToScreen(m.X, m.Y);
+            var mid = p.HeightAt(0, 0.5);
+            var text = Math.Abs(g) < 1e-6 ? $"{Fmt.Num(mid, 0)} mm" : $"{Fmt.Num(mid, 0)} mm · {(g > 0 ? "↗" : "↘")} {Fmt.Num(Math.Abs(g) * 100, 1)} %";
+            DrawTag(dc, text, new Point(s.X, s.Y + _gauge * 1.6 * _zoom + 8), Math.Abs(g) * 100 > PlanCheck.WarnGradePercent ? Theme.DangerBrush : Theme.AccentBrush, 10);
+        }
+    }
+
+    private void DrawSceneryNames(DrawingContext dc, LayoutPlan plan)
+    {
+        foreach (var s in plan.Scenery.Where(s => s.Kind != SceneryKind.Tree))
+        {
+            var outline = s.Outline();
+            var w = (outline.Max(p => p.X) - outline.Min(p => p.X)) * _zoom;
+            if (w < 60) continue;
+            var (cx, cy) = s.Center();
+            var text = s.Kind switch
+            {
+                SceneryKind.Water => s.Name,
+                _ => $"{s.Name} · {Fmt.Num(s.Height, 0)} mm",
+            };
+            DrawTag(dc, text, ToScreen(cx, cy), Theme.TextSecondaryBrush, 10);
+        }
+    }
+
+    private void DrawSignalNames(DrawingContext dc, LayoutPlan plan)
+    {
+        if (_zoom < 0.25) return;
+        foreach (var s in plan.Signals.Where(s => s.Name.Length > 0))
+        {
+            var (x, y, _) = Electrics.SignalPose(plan, s);
+            var p = ToScreen(x, y);
+            DrawTag(dc, s.Name + (s.Address is { } a ? $" ({a})" : ""), new Point(p.X, p.Y - 14), Theme.TextBrush, 10);
         }
     }
 
@@ -196,12 +301,13 @@ public sealed class PlanCanvas : FrameworkElement
     {
         var white = new Pen(Brushes.White, 1.5);
         var active = _session.ActiveConnector;
+        var tool = _session.Tool;
         foreach (var c in _session.Connections.All)
         {
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             if (!c.IsOpen)
             {
-                if (_session.Selection.Contains(c.PieceId)) dc.DrawEllipse(Theme.SuccessBrush, white, s, 3.5, 3.5);
+                if (_session.Selection.Contains(c.PieceId) || tool is CanvasTool.Isolation or CanvasTool.Signal) dc.DrawEllipse(Theme.SuccessBrush, white, s, 3.5, 3.5);
                 continue;
             }
             if (c == active)
@@ -219,13 +325,26 @@ public sealed class PlanCanvas : FrameworkElement
         }
     }
 
+    private void DrawIssues(DrawingContext dc)
+    {
+        foreach (var i in _session.Issues.Where(i => i.Level != IssueLevel.Hinweis))
+        {
+            var s = ToScreen(i.X, i.Y);
+            var brush = i.Level == IssueLevel.Fehler ? Theme.DangerBrush : Theme.OpenEndBrush;
+            dc.DrawEllipse(null, new Pen(brush, 2.5), s, 16, 16);
+            dc.DrawEllipse(brush, new Pen(Brushes.White, 1.5), new Point(s.X + 12, s.Y - 12), 8, 8);
+            var t = Text("!", 11, Brushes.White, true);
+            dc.DrawText(t, new Point(s.X + 12 - t.Width / 2, s.Y - 12 - t.Height / 2));
+        }
+    }
+
     // ---------- Treffer ----------
 
-    private ConnectorRef? HitConnector(Point screen)
+    private ConnectorRef? HitConnector(Point screen, bool openOnly = true, double radius = 9)
     {
         ConnectorRef? best = null;
-        var bestD = 9.0;
-        foreach (var c in _session.Connections.Open)
+        var bestD = radius;
+        foreach (var c in openOnly ? _session.Connections.Open : _session.Connections.All)
         {
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             var d = (s - screen).Length;
@@ -243,10 +362,44 @@ public sealed class PlanCanvas : FrameworkElement
             foreach (var l in p.WorldLegs())
             {
                 var d = l.DistanceTo(world.X, world.Y);
-                if (d < bestD) { bestD = d; best = p; }
+                // Bei gleichem Abstand gewinnt das höher liegende Gleis (Brücke)
+                if (d < bestD - 0.01 || (Math.Abs(d - bestD) < 0.01 && best is not null && p.Height > best.Height)) { bestD = d; best = p; }
             }
         return best;
     }
+
+    /// <summary>Kleine Objekte (Signal, Einspeisung, Trennstelle) nach Bildschirmabstand, dann Bäume und Gebäude.</summary>
+    private int? HitSmallObject(Point screen, Point world)
+    {
+        var plan = _session.Plan;
+        int? best = null;
+        var bestD = 11.0;
+        void Try(int id, double x, double y)
+        {
+            var d = (ToScreen(x, y) - screen).Length;
+            if (d < bestD) { bestD = d; best = id; }
+        }
+        foreach (var s in plan.Signals) { var (x, y, _) = Electrics.SignalPose(plan, s); Try(s.Id, x, y); }
+        foreach (var f in plan.Feeders)
+            if (plan.Find(f.PieceId) is { } p)
+            {
+                var m = p.Middle();
+                Try(f.Id, m.X - Math.Sin(m.HeadingRad) * _gauge * 2.2, m.Y + Math.Cos(m.HeadingRad) * _gauge * 2.2);
+            }
+        foreach (var i in plan.Isolations)
+            if (plan.Find(i.PieceId) is { } p && i.Index < p.WorldConnectors().Count)
+            {
+                var c = p.WorldConnectors()[i.Index];
+                Try(i.Id, c.X, c.Y);
+            }
+        if (best is not null || !_session.ShowScenery) return best;
+        return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
+    }
+
+    private int? HitArea(Point world)
+        => _session.ShowScenery
+            ? _session.Plan.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
+            : null;
 
     // ---------- Maus ----------
 
@@ -256,13 +409,14 @@ public sealed class PlanCanvas : FrameworkElement
         Focus();
         var screen = e.GetPosition(this);
         var world = ToWorld(screen);
-        CaptureMouse();
         _dragStartScreen = screen;
         _dragStartWorld = world;
+        _lastWorld = world;
         _moved = false;
 
         if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || _spaceDown || _session.Tool == CanvasTool.Pan)
         {
+            CaptureMouse();
             _drag = DragMode.Pan;
             _panStartX = _ox; _panStartY = _oy;
             Cursor = Cursors.ScrollAll;
@@ -270,10 +424,48 @@ public sealed class PlanCanvas : FrameworkElement
         }
         if (e.ChangedButton != MouseButton.Left) return;
 
+        switch (_session.Tool)
+        {
+            case CanvasTool.Terrain:
+            case CanvasTool.Water:
+                if (e.ClickCount == 2) { FinishPolygon(); return; }
+                _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
+                InvalidateVisual();
+                return;
+            case CanvasTool.Building:
+                CaptureMouse();
+                _drag = DragMode.Create;
+                return;
+            case CanvasTool.Tree:
+                var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
+                _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = "Baum" });
+                return;
+            case CanvasTool.Feeder:
+                if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
+                else _session.Say("Für eine Einspeisung bitte direkt auf ein Gleis klicken.");
+                return;
+            case CanvasTool.Isolation:
+                if (HitConnector(screen, openOnly: false, radius: 14) is { } ic) _session.ToggleIsolation(ic.PieceId, ic.Index);
+                else _session.Say("Für eine Trennstelle bitte auf eine Gleisverbindung (grüner Punkt) klicken.");
+                return;
+            case CanvasTool.Signal:
+                if (HitConnector(screen, openOnly: false, radius: 14) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
+                else _session.Say("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung klicken.");
+                return;
+        }
+
+        CaptureMouse();
         if (HitConnector(screen) is { } conn)
         {
             _session.SetActive(conn.PieceId, conn.Index);
             _drag = DragMode.None;
+            return;
+        }
+        if (HitSmallObject(screen, world) is { } obj)
+        {
+            _session.SelectObject(obj);
+            _session.BeginMove();
+            _drag = DragMode.Move;
             return;
         }
         if (HitPiece(world) is { } piece)
@@ -289,6 +481,13 @@ public sealed class PlanCanvas : FrameworkElement
             _drag = DragMode.Move;
             return;
         }
+        if (HitArea(world) is { } area && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            _session.SelectObject(area);
+            _session.BeginMove();
+            _drag = DragMode.Move;
+            return;
+        }
         _drag = DragMode.Band;
     }
 
@@ -297,7 +496,9 @@ public sealed class PlanCanvas : FrameworkElement
         base.OnMouseMove(e);
         var screen = e.GetPosition(this);
         var world = ToWorld(screen);
+        _lastWorld = world;
         CursorMoved?.Invoke(world);
+        if (_polygon.Count > 0) InvalidateVisual();
         switch (_drag)
         {
             case DragMode.Pan:
@@ -316,6 +517,11 @@ public sealed class PlanCanvas : FrameworkElement
                 _band = new Rect(_dragStartScreen, screen);
                 InvalidateVisual();
                 break;
+            case DragMode.Create:
+                if ((screen - _dragStartScreen).Length < 4) return;
+                _moved = true;
+                InvalidateVisual();
+                break;
         }
     }
 
@@ -325,7 +531,7 @@ public sealed class PlanCanvas : FrameworkElement
         ReleaseMouseCapture();
         var mode = _drag;
         _drag = DragMode.None;
-        Cursor = _session.Tool == CanvasTool.Pan ? Cursors.Hand : null;
+        Cursor = _session.Tool == CanvasTool.Pan ? Cursors.Hand : _session.Tool is CanvasTool.Select ? null : Cursors.Cross;
         switch (mode)
         {
             case DragMode.Move:
@@ -343,6 +549,18 @@ public sealed class PlanCanvas : FrameworkElement
                 var rect = new Rect(a, b);
                 var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); return rect.Contains(m.X, m.Y); }).Select(p => p.Id).ToList();
                 _session.Select(ids, add: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                break;
+            case DragMode.Create:
+                var end = ToWorld(e.GetPosition(this));
+                var r = new Rect(_dragStartWorld, end);
+                if (!_moved || r.Width < 5 || r.Height < 5)
+                    r = new Rect(_dragStartWorld.X - _gauge * 6, _dragStartWorld.Y - _gauge * 4, _gauge * 12, _gauge * 8);
+                _session.AddScenery(new SceneryItem
+                {
+                    Kind = SceneryKind.Building, X = Math.Round(r.X + r.Width / 2), Y = Math.Round(r.Y + r.Height / 2),
+                    Width = Math.Round(r.Width), Depth = Math.Round(r.Height), Height = Math.Round(_gauge * 6),
+                });
+                InvalidateVisual();
                 break;
         }
     }

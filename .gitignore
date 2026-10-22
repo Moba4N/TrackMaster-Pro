@@ -4,3 +4,7 @@ artifacts/
 .vs/
 *.user
 TestResults/
+
+# Lizenzen und privater Schlüssel gehören nie ins Repository
+*.private.pem
+*.lic

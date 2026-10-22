@@ -1,20 +1,26 @@
 namespace TrackMaster.Core;
 
 /// <summary>Ein Anschluss eines verlegten Gleises. Link ist der passende Anschluss eines anderen Gleises, falls verbunden.</summary>
-public sealed class ConnectorRef(int pieceId, int index, Pose pose)
+public sealed class ConnectorRef(int pieceId, int index, Pose pose, double z = 0)
 {
     public int PieceId { get; } = pieceId;
     public int Index { get; } = index;
     public Pose Pose { get; } = pose;
+    /// <summary>Höhe der Schienenoberkante an diesem Anschluss.</summary>
+    public double Z { get; } = z;
     public ConnectorRef? Link { get; internal set; }
     public bool IsOpen => Link is null;
 }
 
-/// <summary>Welche Gleisenden aufeinandertreffen. Zwei Anschlüsse gelten als verbunden bei unter 1 mm Abstand und entgegengesetzter Richtung (±2°).</summary>
+/// <summary>
+/// Welche Gleisenden aufeinandertreffen. Zwei Anschlüsse gelten als verbunden bei unter 1 mm Abstand, entgegengesetzter Richtung (±2°)
+/// und gleicher Höhe (±2 mm) – übereinanderliegende Gleise einer Gleiswendel sind also nicht verbunden.
+/// </summary>
 public sealed class Connectivity
 {
     public const double PositionTolerance = 1.0;
     public const double AngleTolerance = 2.0;
+    public const double HeightTolerance = 2.0;
 
     public IReadOnlyList<ConnectorRef> All { get; }
     public IReadOnlyList<ConnectorRef> Open { get; }
@@ -36,9 +42,10 @@ public sealed class Connectivity
         foreach (var p in plan.Pieces)
         {
             var conns = p.WorldConnectors();
+            var heights = p.ConnectorHeights();
             for (var k = 0; k < conns.Count; k++)
             {
-                var c = new ConnectorRef(p.Id, k, conns[k]);
+                var c = new ConnectorRef(p.Id, k, conns[k], heights[k]);
                 all.Add(c);
                 var key = Cell(c.Pose);
                 if (!cells.TryGetValue(key, out var list)) cells[key] = list = [];
@@ -56,7 +63,7 @@ public sealed class Connectivity
                     foreach (var o in list)
                     {
                         if (o == c || o.PieceId == c.PieceId || o.Link is not null) continue;
-                        if (Matches(c.Pose, o.Pose))
+                        if (Matches(c.Pose, o.Pose) && Math.Abs(c.Z - o.Z) < HeightTolerance)
                         {
                             c.Link = o;
                             o.Link = c;

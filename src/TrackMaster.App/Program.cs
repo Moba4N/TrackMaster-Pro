@@ -4,12 +4,14 @@ using System.Windows.Controls.Ribbon;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using TrackMaster.Licensing;
 
 namespace TrackMaster.App;
 
 /// <summary>
 /// Startpunkt. Aufruf: TrackMasterPro.exe [Plan.trackmaster.json]
-/// Für den Build: --screenshot Datei.png [--tab Gleise] [--select] erzeugt ein Bildschirmfoto und beendet sich.
+/// Für den Build: --screenshot Datei.png [--tab Gleise] [--select] [--pro] [--3d orbit|ride|evening]
+/// erzeugt ein Bildschirmfoto und beendet sich. --pro schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.
 /// </summary>
 public static class Program
 {
@@ -30,7 +32,14 @@ public static class Program
         MainWindow window;
         try
         {
-            window = new MainWindow();
+#if DEBUG
+            const bool developer = true;
+#else
+            const bool developer = false;
+#endif
+            var license = new LicenseManager(LicenseManager.DefaultLicensePath, LicensePublicKey.Pem,
+                developerMode: developer || (screenshot is not null && args.Contains("--pro")));
+            window = new MainWindow(license);
         }
         catch (Exception ex) when (screenshot is not null)
         {
@@ -38,7 +47,7 @@ public static class Program
             return 1;
         }
 
-        var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && File.Exists(a));
+        var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && a != ArgumentAfter(args, "--3d") && File.Exists(a));
         if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
 
         if (screenshot is not null)
@@ -61,20 +70,55 @@ public static class Program
                     var piece = window.Session.Plan.Pieces.FirstOrDefault(p => p.Def.Kind == Core.PieceKind.Switch);
                     if (piece is not null) window.Session.Select([piece.Id], add: false);
                 };
-            window.ContentRendered += (_, _) =>
-                window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            if (ArgumentAfter(args, "--3d") is { } mode3D)
+            {
+                var mode = mode3D switch { "ride" => View3DMode.Ride, "evening" => View3DMode.Evening, _ => View3DMode.Orbit };
+                window.ContentRendered += (_, _) =>
                 {
-                    try
+                    var view = new View3DWindow(window.Session.Plan, window.Session.Plan.Pieces.FirstOrDefault()?.Id, mode)
                     {
-                        Capture(window, screenshot);
-                        app.Shutdown(0);
-                    }
-                    catch (Exception ex)
+                        Owner = window, WindowStartupLocation = WindowStartupLocation.Manual, Left = 0, Top = 0,
+                    };
+                    view.ContentRendered += (_, _) =>
                     {
-                        WriteError(screenshot, ex);
-                        app.Shutdown(1);
-                    }
-                });
+                        // Beim Mitfahren ein Stück fahren lassen, bevor das Bild entsteht
+                        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(mode == View3DMode.Ride ? 2.5 : 0.5) };
+                        timer.Tick += (_, _) =>
+                        {
+                            timer.Stop();
+                            try
+                            {
+                                Capture(view, screenshot);
+                                app.Shutdown(0);
+                            }
+                            catch (Exception ex)
+                            {
+                                WriteError(screenshot, ex);
+                                app.Shutdown(1);
+                            }
+                        };
+                        timer.Start();
+                    };
+                    view.Show();
+                };
+            }
+            else
+            {
+                window.ContentRendered += (_, _) =>
+                    window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+                    {
+                        try
+                        {
+                            Capture(window, screenshot);
+                            app.Shutdown(0);
+                        }
+                        catch (Exception ex)
+                        {
+                            WriteError(screenshot, ex);
+                            app.Shutdown(1);
+                        }
+                    });
+            }
         }
         return app.Run(window);
     }

@@ -98,6 +98,16 @@ public sealed class MainWindow : Window
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
         FontSize = 13;
         Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF3, 0xF3));
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage("de-DE");
+        // Platzhalter der Datumsauswahl ist sonst je nach Windows-Sprache englisch
+        _expires.Loaded += (_, _) =>
+        {
+            if (_expires.Template.FindName("PART_TextBox", _expires) is System.Windows.Controls.Primitives.DatePickerTextBox box)
+            {
+                box.ApplyTemplate();
+                if (box.Template.FindName("PART_Watermark", box) is ContentControl watermark) watermark.Content = "Datum wählen";
+            }
+        };
 
         var root = new DockPanel { Margin = new Thickness(20) };
         var head = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
@@ -157,7 +167,8 @@ public sealed class MainWindow : Window
         Grid.SetColumn(right, 2);
         main.Children.Add(right);
         root.Children.Add(main);
-        Content = root;
+        // Hintergrund am Inhalt, damit auch das Bildschirmfoto ihn hat
+        Content = new Border { Background = Background, Child = root };
 
         _search.TextChanged += (_, _) => FillList();
         LoadKey(LoadedKey.Locate(_settings.KeyPath));

@@ -45,6 +45,25 @@ jobs:
           if (Test-Path "artifacts/screenshot-auswahl.png.error.txt") { Get-Content "artifacts/screenshot-auswahl.png.error.txt"; throw "Fehler beim Start" }
           if (-not (Test-Path "artifacts/screenshot-auswahl.png")) { throw "Kein Bildschirmfoto erzeugt (Exitcode $($p.ExitCode))" }
 
+      - name: Vorschau für die Prüfung (verkleinert, Base64)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          foreach ($name in "screenshot", "screenshot-auswahl") {
+            $img = [System.Drawing.Image]::FromFile("$PWD/artifacts/$name.png")
+            $w = [int]($img.Width * 0.6); $h = [int]($img.Height * 0.6)
+            $bmp = New-Object System.Drawing.Bitmap $img, $w, $h
+            $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
+            $params = New-Object System.Drawing.Imaging.EncoderParameters 1
+            $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality), 75L
+            $ms = New-Object System.IO.MemoryStream
+            $bmp.Save($ms, $codec, $params)
+            $b64 = [Convert]::ToBase64String($ms.ToArray())
+            Write-Output "PREVIEW-$name-BEGIN"
+            for ($i = 0; $i -lt $b64.Length; $i += 2000) { Write-Output $b64.Substring($i, [Math]::Min(2000, $b64.Length - $i)) }
+            Write-Output "PREVIEW-$name-END"
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: TrackMasterPro-win-x64

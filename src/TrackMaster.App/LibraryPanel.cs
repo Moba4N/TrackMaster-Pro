@@ -97,24 +97,39 @@ public sealed class LibraryPanel : DockPanel
             if ((e.GetPosition(_items) - _pressPoint).Length < 5) return;
             var key = _pressKey;
             _pressKey = null;
+            if (key == FlexTag) return;
             DragDrop.DoDragDrop(_items, new DataObject(DataFormats.StringFormat, key), DragDropEffects.Copy);
         };
         _items.PreviewMouseLeftButtonUp += (_, _) =>
         {
-            if (_pressKey is { } key) _session.Attach(key, _viewCenter());
+            if (_pressKey is { } key) Use(key);
             _pressKey = null;
         };
         _items.KeyDown += (_, e) =>
         {
             if (e.Key == Key.Enter && _items.SelectedItem is ListBoxItem { Tag: string key })
             {
-                _session.Attach(key, _viewCenter());
+                Use(key);
                 e.Handled = true;
             }
         };
 
         session.Changed += () => { if (_shownGauge != _session.Plan.GaugeId) Refresh(); };
         Refresh();
+    }
+
+    private const string FlexTag = "flex";
+
+    private void Use(string key)
+    {
+        if (key != FlexTag)
+        {
+            _session.Attach(key, _viewCenter());
+            return;
+        }
+        var gauge = _session.Plan.Gauge;
+        if (Window.GetWindow(this) is { } owner && Dialogs.AskFlex(owner, gauge, Catalog.Flex(gauge, _session.CurrentSystem)) is { } flex)
+            _session.AttachFlex(flex, _viewCenter());
     }
 
     public void FocusSearch()
@@ -160,7 +175,7 @@ public sealed class LibraryPanel : DockPanel
         var sys = _session.CurrentSystem;
         _headerRight.Text = sys.Name;
         _warning.Visibility = sys.Verified ? Visibility.Collapsed : Visibility.Visible;
-        var cats = new[] { "Alle" }.Concat(sys.Pieces.Select(p => p.Category).Distinct()).ToList();
+        var cats = new[] { "Alle" }.Concat(sys.Pieces.Select(p => p.Category).Distinct()).Append("Flexgleis").Distinct().ToList();
         if (!cats.Contains(_category)) _category = "Alle";
         _categories.Children.Clear();
         foreach (var c in cats)
@@ -186,6 +201,29 @@ public sealed class LibraryPanel : DockPanel
         var list = sys.Pieces.Where(p => (_category == "Alle" || p.Category == _category)
                                          && (q.Length == 0 || $"{p.Number} {p.Name} {p.Spec}".Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
         _items.Items.Clear();
+        var gauge = _session.Plan.Gauge;
+        var stock = Catalog.Flex(gauge, sys);
+        var flexText = $"Flexgleis {stock.Number} {stock.Name}";
+        var showFlex = _category is "Alle" or "Flexgleis" && (q.Length == 0 || flexText.Contains(q, StringComparison.OrdinalIgnoreCase));
+        if (showFlex)
+        {
+            var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
+            var row = new DockPanel { Margin = new Thickness(2) };
+            row.Children.Add(new Border
+            {
+                Width = 52, Height = 38, CornerRadius = new CornerRadius(4), Background = Theme.CanvasBrush, Margin = new Thickness(0, 0, 10, 0),
+                Child = new System.Windows.Controls.Image { Source = TrackDrawing.Thumbnail(sample), Stretch = Stretch.Uniform, Margin = new Thickness(4) },
+            });
+            var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            texts.Children.Add(Theme.Label("Flexgleis…", 12, true));
+            texts.Children.Add(Theme.Secondary($"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · Stück {Fmt.Num(stock.Length, 0)} mm"));
+            row.Children.Add(texts);
+            _items.Items.Add(new ListBoxItem
+            {
+                Content = row, Tag = FlexTag, Padding = new Thickness(4), Cursor = Cursors.Hand,
+                ToolTip = $"Flexgleis {stock.Name} · Stücke zu {Fmt.Num(stock.Length, 0)} mm\nKlicken: Länge oder Bogen wählen und am aktiven Gleisende ansetzen",
+            });
+        }
         foreach (var p in list)
         {
             var row = new DockPanel { Margin = new Thickness(2) };
@@ -205,6 +243,7 @@ public sealed class LibraryPanel : DockPanel
                 ToolTip = $"{p.Name} · {p.Spec} · {sys.Name}\nKlicken: am aktiven Gleisende ansetzen\nZiehen: frei auf der Platte platzieren",
             });
         }
-        _count.Text = list.Count == 0 ? "Keine passenden Gleise" : $"{list.Count} Artikel";
+        var total = list.Count + (showFlex ? 1 : 0);
+        _count.Text = total == 0 ? "Keine passenden Gleise" : $"{total} Artikel";
     }
 }

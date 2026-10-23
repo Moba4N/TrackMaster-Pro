@@ -177,7 +177,7 @@ public sealed class MainActivity : Activity
         Add("switchR", "Weiche rechts", () => _session.Quick(PieceKind.Switch, true, _canvas.CenterWorld()));
         Add("buffer", "Prellbock", () => _session.Quick(PieceKind.Buffer, null, _canvas.CenterWorld()));
         Add("crossing", "Kreuzung", () => _session.Quick(PieceKind.Crossing, null, _canvas.CenterWorld()));
-        Add("flex", "Flexgleis", () => Dialogs.AskFlex(this, _session.Plan.Gauge, key => _session.AttachFlex(key, _canvas.CenterWorld())));
+        Add("flex", "Flexgleis", () => Dialogs.AskFlex(this, _session.Plan.Gauge, Catalog.Flex(_session.Plan.Gauge, _session.CurrentSystem), key => _session.AttachFlex(key, _canvas.CenterWorld())));
         Add("board", "Anlagenplatte", () => { _session.ClearSelection(); Dialogs.ShowProperties(this, _session, Run); });
         Add("grid", "Raster", () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", "Gleisenden", () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));

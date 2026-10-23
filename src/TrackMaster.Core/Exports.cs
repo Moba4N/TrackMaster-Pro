@@ -17,17 +17,18 @@ public static class BillOfMaterials
             .Select(g => new BomRow(Catalog.Get(g.Key), g.Count()))
             .OrderBy(r => r.Def.SystemName).ThenBy(r => r.Def.Category).ThenBy(r => r.Def.Number, StringComparer.Ordinal)
             .ToList();
-        var flex = plan.Pieces.Where(p => p.Def.IsFlex).Sum(p => p.Def.TrackLength);
-        if (flex > 0)
+        foreach (var group in plan.Pieces.Where(p => p.Def.IsFlex).GroupBy(p => p.Def.SystemId).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
-            var stock = plan.Gauge.FlexStockLength;
+            var flex = group.Sum(p => p.Def.TrackLength);
+            var stock = Catalog.FlexOf(plan.GaugeId, group.Key) ?? Catalog.Flex(plan.Gauge, null);
             var def = new TrackPieceDef
             {
-                Number = "Flexgleis", Kind = PieceKind.Straight, Length = flex, Category = "Flexgleis",
-                Name = $"Flexgleis, Stücke zu {Fmt.Num(stock, 0)} mm", Spec = $"gesamt {Fmt.Num(flex / 1000, 2)} m",
-                GaugeId = plan.GaugeId, SystemId = Catalog.FlexSystemId, SystemName = "Flexgleis", Verified = true, Key = $"{plan.GaugeId}|{Catalog.FlexSystemId}|summe",
+                Number = stock.Number, Kind = PieceKind.Straight, Length = flex, Category = "Flexgleis",
+                Name = $"Flexgleis, Stücke zu {Fmt.Num(stock.Length, 0)} mm", Spec = $"gesamt {Fmt.Num(flex / 1000, 2)} m",
+                GaugeId = plan.GaugeId, SystemId = group.Key, SystemName = group.First().Def.SystemName, Verified = group.First().Def.Verified,
+                Key = $"{plan.GaugeId}|{group.Key}|summe",
             };
-            rows.Add(new BomRow(def, (int)Math.Ceiling(flex * 1.05 / stock)));
+            rows.Add(new BomRow(def, (int)Math.Ceiling(flex * 1.05 / stock.Length)));
         }
         return rows;
     }

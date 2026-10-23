@@ -23,7 +23,7 @@ public sealed class LibraryPanel : LinearLayout
     private string _shownGauge = "";
     private bool _updatingSystems;
 
-    private static readonly string[] Categories = ["Alle", "Gerade", "Bögen", "Weichen", "Kreuzungen", "Sonstige"];
+    private static readonly string[] Categories = ["Alle", "Gerade", "Bögen", "Weichen", "Kreuzungen", "Flexgleis", "Sonstige"];
 
     public LibraryPanel(Context c, PlanSession session, Func<(double X, double Y)> center) : base(c)
     {
@@ -110,6 +110,7 @@ public sealed class LibraryPanel : LinearLayout
         "Bögen" => d.Kind == PieceKind.Curve,
         "Weichen" => d.Kind == PieceKind.Switch,
         "Kreuzungen" => d.Kind == PieceKind.Crossing,
+        "Flexgleis" => false,
         "Sonstige" => d.Kind is not (PieceKind.Straight or PieceKind.Curve or PieceKind.Switch or PieceKind.Crossing),
         _ => true,
     };
@@ -118,6 +119,15 @@ public sealed class LibraryPanel : LinearLayout
     {
         _pieces.RemoveAllViews();
         var system = _session.CurrentSystem;
+        if (_category is "Alle" or "Flexgleis")
+        {
+            var gauge = _session.Plan.Gauge;
+            var stock = Catalog.Flex(gauge, system);
+            var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
+            var flex = new PieceTile(Context!, sample, "Flexgleis…", $"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
+            flex.Click += (_, _) => Dialogs.AskFlex(Context!, gauge, stock, key => _session.AttachFlex(key, _center()));
+            _pieces.AddView(flex, new LayoutParams(Ui.Dp(112), Ui.Dp(92)));
+        }
         foreach (var def in system.Pieces.Where(Matches))
         {
             var key = def.Key;
@@ -136,14 +146,18 @@ public sealed class LibraryPanel : LinearLayout
 public sealed class PieceTile : View
 {
     private readonly TrackPieceDef _def;
+    private readonly string _title;
+    private readonly string _subtitle;
     private readonly Paint _text = new(PaintFlags.AntiAlias);
 
-    public PieceTile(Context c, TrackPieceDef def) : base(c)
+    public PieceTile(Context c, TrackPieceDef def, string? title = null, string? subtitle = null) : base(c)
     {
         _def = def;
+        _title = title ?? def.Number;
+        _subtitle = subtitle ?? def.Spec;
         Clickable = true;
         Background = Ui.Rounded(Color.Rgb(0xFA, 0xFA, 0xFA), Ui.Border);
-        ContentDescription = $"{def.Name} {def.Number}";
+        ContentDescription = $"{def.Name} {_title}";
     }
 
     protected override void OnDraw(Canvas canvas)
@@ -161,11 +175,11 @@ public sealed class PieceTile : View
         _text.TextSize = 12 * sd;
         _text.FakeBoldText = true;
         _text.TextAlign = Paint.Align.Center;
-        canvas.DrawText(Ellipsize(_def.Number, w - Ui.Dp(8)), w / 2f, thumbH + 13 * sd, _text);
+        canvas.DrawText(Ellipsize(_title, w - Ui.Dp(8)), w / 2f, thumbH + 13 * sd, _text);
         _text.FakeBoldText = false;
         _text.Color = Ui.TextSecondary;
         _text.TextSize = 10.5f * sd;
-        canvas.DrawText(Ellipsize(_def.Spec, w - Ui.Dp(8)), w / 2f, thumbH + 27 * sd, _text);
+        canvas.DrawText(Ellipsize(_subtitle, w - Ui.Dp(8)), w / 2f, thumbH + 27 * sd, _text);
     }
 
     private string Ellipsize(string s, float max)

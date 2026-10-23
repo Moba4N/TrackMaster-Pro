@@ -780,7 +780,8 @@ public sealed class MainWindow : Window
 
     private void AddFlex()
     {
-        if (Dialogs.AskFlex(this, Session.Plan.Gauge) is { } key) Session.AttachFlex(key, Canvas.CenterWorld());
+        var gauge = Session.Plan.Gauge;
+        if (Dialogs.AskFlex(this, gauge, Catalog.Flex(gauge, Session.CurrentSystem)) is { } key) Session.AttachFlex(key, Canvas.CenterWorld());
     }
 
     private void AskGradient()

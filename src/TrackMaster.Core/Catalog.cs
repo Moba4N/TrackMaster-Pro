@@ -42,7 +42,7 @@ public sealed class TrackPieceDef
         : Paths is { } p ? p[0].Sum(s => s.Turn == 0 ? s.Length : s.Radius * s.Angle * Math.PI / 180) : Length;
     public bool CanFlip => Kind is PieceKind.Curve or PieceKind.Switch or PieceKind.Crossing;
     /// <summary>Flexgleis mit frei gewählter Länge bzw. Radius und Winkel.</summary>
-    public bool IsFlex => SystemId == Catalog.FlexSystemId;
+    public bool IsFlex => Catalog.IsFlexSystem(SystemId);
     /// <summary>Einfache Weiche aus Gerade und Bogen (für Schnellwahl und Eigenschaften).</summary>
     public bool IsSimpleSwitch => Kind == PieceKind.Switch && Paths is null;
     /// <summary>Doppelte Kreuzungsweiche: zwei Antriebe.</summary>
@@ -59,8 +59,14 @@ public sealed class TrackSystem
     public bool Verified { get; init; }
     /// <summary>Mittelleiter (Märklin H0): Kehrschleifen brauchen keine Sonderschaltung.</summary>
     public bool ThreeRail { get; init; }
+    /// <summary>Flexgleis des Herstellers: Artikelnummer (falls bekannt) und Länge eines Stücks. Ohne Angabe gilt das allgemeine Flexgleis der Spur.</summary>
+    public string? FlexNumber { get; init; }
+    public double? FlexLength { get; init; }
     public required IReadOnlyList<TrackPieceDef> Pieces { get; init; }
 }
+
+/// <summary>Flexgleis, wie es im Handel verkauft wird: Systemschlüssel für den Katalog, Artikel, Länge eines Stücks.</summary>
+public sealed record FlexStock(string SystemId, string Number, double Length, string Name);
 
 public sealed class Gauge
 {
@@ -147,7 +153,7 @@ public static class Catalog
     [
         new() { Id = "Z", ClearanceHeight = 30, FlexStockLength = 600, Scale = "1:220", TrackWidth = 6.5, DefaultBoardWidth = 900, DefaultBoardHeight = 500, Systems =
         [
-            new() { Id = "mini", Name = "Märklin mini-club", Pieces =
+            new() { Id = "mini", Name = "Märklin mini-club", FlexLength = 660, Pieces =
             [
                 S("8500", 110), S("G110", 110), S("G55", 55), S("G27,5", 27.5), S("G220", 220),
                 C("8510", 145, 45, "R1"), C("8520", 195, 45, "R2"), C("8530", 220, 30, "R3"),
@@ -173,7 +179,7 @@ public static class Catalog
                 .. WW("EP718-15L", "EP718-15R", 186, 718, 15, "#6"),
                 X("X124-15", 124, 15), X("X186-15", 186, 15), P("E62", 62),
             ] },
-            new() { Id = "picc", Name = "Fleischmann piccolo", Pieces =
+            new() { Id = "picc", Name = "Fleischmann piccolo", FlexLength = 730, Pieces =
             [
                 S("G222", 222), S("G111", 111), S("G104", 104.2), S("G55,5", 55.5), S("G27,75", 27.75),
                 C("R1", 192, 30, "R1"), C("R1-45", 192, 45, "R1"), C("R1-15", 192, 15, "R1"),
@@ -183,7 +189,7 @@ public static class Catalog
                 S("EG55,5", 55.5, "Entkupplungsgleis"), W3("DWW", 111, 225.6, 15),
                 X("K15", 111, 15), X("K30", 111, 30), X("DKW15", 111, 15, doubleSlip: true), P("PB", 40),
             ] },
-            new() { Id = "rf-n", Name = "Roco/Fleischmann ohne Bettung", Pieces =
+            new() { Id = "rf-n", Name = "Roco/Fleischmann ohne Bettung", FlexLength = 730, Pieces =
             [
                 S("G222", 222), S("G111", 111), S("G104,2", 104.2), S("G55,5", 55.5), S("G27,75", 27.75),
                 C("R1-30", 192, 30, "R1"), C("R1-15", 192, 15, "R1"), C("R2-30", 225.6, 30, "R2"), C("R2-15", 225.6, 15, "R2"),
@@ -193,7 +199,7 @@ public static class Catalog
                 S("EG55,5", 55.5, "Entkupplungsgleis"),
                 X("K15", 111, 15), X("K30", 111, 30), X("DKW15", 111, 15, doubleSlip: true), P("PB", 40),
             ] },
-            new() { Id = "minitrix", Name = "Minitrix", Pieces =
+            new() { Id = "minitrix", Name = "Minitrix", FlexLength = 750, Pieces =
             [
                 S("14903", 312.6), S("14904", 104.2), S("G54,2", 54.2), S("G50,7", 50.7), S("G33,6", 33.6),
                 C("14912", 192, 30, "R1"), C("R1-15", 192, 15, "R1"), C("R2", 228, 30, "R2"), C("R2-15", 228, 15, "R2"),
@@ -201,7 +207,7 @@ public static class Catalog
                 .. WW("14938", "14939", 104.2, 228, 15), .. WW("WL-S", "WR-S", 104.2, 490, 15, "schlank"),
                 X("K15", 104.2, 15), X("DKW15", 104.2, 15, doubleSlip: true), P("PB", 54.2),
             ] },
-            new() { Id = "peco-n", Name = "Peco Streamline N (Code 55)", Pieces =
+            new() { Id = "peco-n", Name = "Peco Streamline N (Code 55)", FlexNumber = "SL-300F", FlexLength = 914, Pieces =
             [
                 S("G110", 110), S("G55", 55),
                 .. WW("WL-M", "WR-M", 111, 305, 12, "mittel"), .. WW("WL-K", "WR-K", 111, 228, 15, "kurz"),
@@ -211,7 +217,7 @@ public static class Catalog
         ] },
         new() { Id = "TT", ClearanceHeight = 60, FlexStockLength = 890, Scale = "1:120", TrackWidth = 12, DefaultBoardWidth = 2000, DefaultBoardHeight = 1000, Systems =
         [
-            new() { Id = "tillig", Name = "Tillig Modellgleis", Pieces =
+            new() { Id = "tillig", Name = "Tillig Modellgleis", FlexLength = 890, Pieces =
             [
                 S("G1", 166), S("G2", 83), S("G3", 41.5), S("G4", 43), S("G5", 207.5),
                 C("R11", 267, 30, "R11"), C("R12", 310, 30, "R12"), C("R13", 353, 30, "R13"), C("R14", 396, 30, "R14"),
@@ -231,7 +237,7 @@ public static class Catalog
         [
             new() { Id = "mc", Name = "Märklin C-Gleis", Verified = true, ThreeRail = true, Pieces = CGleis("24", true) },
             new() { Id = "tc", Name = "Trix C-Gleis", Verified = true, Pieces = CGleis("62", false) },
-            new() { Id = "mk", Name = "Märklin K-Gleis", ThreeRail = true, Pieces =
+            new() { Id = "mk", Name = "Märklin K-Gleis", ThreeRail = true, FlexNumber = "2205", FlexLength = 900, Pieces =
             [
                 S("2200", 180), S("2201", 90), S("G45", 45), S("G33,5", 33.5), S("G30", 30), S("G168,9", 168.9),
                 C("2221", 295.4, 30, "R1"), C("R1-15", 295.4, 15, "R1"), C("2231", 360, 30, "R2"), C("R2-15", 360, 15, "R2"), C("R2-7,5", 360, 7.5, "R2"),
@@ -249,7 +255,7 @@ public static class Catalog
                 .. BWW("BWL", "BWR", 481.2, 30, 419.6, 30), W3("DWW", 230, 873.5, 10),
                 X("K10", 230, 10), X("DKW10", 230, 10, doubleSlip: true), P("PB", 100),
             ] },
-            new() { Id = "rocoline", Name = "Roco Line (ohne Bettung)", Pieces =
+            new() { Id = "rocoline", Name = "Roco Line (ohne Bettung)", FlexNumber = "42400", FlexLength = 920, Pieces =
             [
                 S("G230", 230), S("G115", 115), S("G57,5", 57.5), S("G185", 185),
                 C("R2", 358, 30, "R2"), C("R3", 419.6, 30, "R3"), C("R4", 481.2, 30, "R4"), C("R5", 542.8, 30, "R5"), C("R6", 604.4, 30, "R6"),
@@ -257,7 +263,7 @@ public static class Catalog
                 .. BWW("BWL", "BWR", 542.8, 30, 481.2, 30), W3("DWW", 230, 873.5, 10), Y("Y", 1600, 6),
                 X("K10", 230, 10), X("DKW10", 230, 10, doubleSlip: true), P("PB", 57.5),
             ] },
-            new() { Id = "piko", Name = "Piko A-Gleis", Pieces =
+            new() { Id = "piko", Name = "Piko A-Gleis", FlexLength = 940, Pieces =
             [
                 S("G231", 231), S("G119", 119), S("G62", 61.9), S("G239", 239.07), S("G115", 115.5), S("G107", 107.32),
                 C("R1", 360, 30, "R1"), C("R2", 421.9, 30, "R2"), C("R3", 483.8, 30, "R3"), C("R4", 545.6, 30, "R4"),
@@ -266,7 +272,7 @@ public static class Catalog
                 W3("W3", 239.1, 908, 15), .. BWW("BWL", "BWR", 483.8, 30, 421.9, 30), Y("WY", 908, 7.5),
                 X("K15", 239.1, 15), X("K30", 119.5, 30), X("DKW15", 239.1, 15, doubleSlip: true), P("PB", 62),
             ] },
-            new() { Id = "profi", Name = "Fleischmann Profi-Gleis", Pieces =
+            new() { Id = "profi", Name = "Fleischmann Profi-Gleis", FlexLength = 750, Pieces =
             [
                 S("G200", 200), S("G105,6", 105.6), S("G100", 100), S("G50", 50),
                 C("R1", 356.5, 30, "R1"), C("R2", 420, 30, "R2"), C("R2-15", 420, 15, "R2"), C("R3", 483.6, 30, "R3"), C("R4", 547, 30, "R4"),
@@ -274,7 +280,7 @@ public static class Catalog
                 .. BWW("BWL", "BWR", 420, 30, 356.5, 30), W3("DWW", 200, 356.5, 18),
                 X("K18", 200, 18), X("DKW18", 200, 18, doubleSlip: true), P("PB", 50),
             ] },
-            new() { Id = "peco-h0", Name = "Peco Streamline H0 (Code 75)", Pieces =
+            new() { Id = "peco-h0", Name = "Peco Streamline H0 (Code 75)", FlexNumber = "SL-100F", FlexLength = 914, Pieces =
             [
                 S("G228", 228), S("G114", 114),
                 .. WW("WL-M", "WR-M", 220, 610, 12, "mittel"), .. WW("WL-L", "WR-L", 258, 1524, 12, "lang"),
@@ -282,7 +288,7 @@ public static class Catalog
                 .. BWW("BWL", "BWR", 1524, 15, 762, 22.5),
                 X("K12", 258, 12), X("DKW12", 258, 12, doubleSlip: true), P("PB", 40),
             ] },
-            new() { Id = "tillig-h0", Name = "Tillig Elite H0", Pieces =
+            new() { Id = "tillig-h0", Name = "Tillig Elite H0", FlexLength = 1000, Pieces =
             [
                 S("G228", 228), S("G114", 114),
                 .. WW("EW1 L", "EW1 R", 228, 866, 12, "EW1"), .. WW("EW3 L", "EW3 R", 314, 2500, 6.5, "EW3"),
@@ -365,35 +371,56 @@ public static class Catalog
          : FlexCache.GetOrAdd(key, ParseFlex);
     public static TrackPieceDef Get(string key) => Find(key) ?? throw new KeyNotFoundException($"Unbekanntes Gleis „{key}“.");
 
-    /// <summary>Schlüssel für ein gerades Flexgleis, z. B. „H0|flex|L500“.</summary>
-    public static string FlexStraightKey(string gaugeId, double length)
-        => $"{gaugeId}|{FlexSystemId}|L{Math.Round(length, 1).ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+    public static bool IsFlexSystem(string systemId) => systemId == FlexSystemId || systemId.StartsWith(FlexSystemId + "-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Flexgleis für ein Gleissystem: das des Herstellers (Systemschlüssel „flex-&lt;System&gt;“), sonst das allgemeine der Spur („flex“).
+    /// </summary>
+    public static FlexStock Flex(Gauge gauge, TrackSystem? system)
+        => system is { FlexLength: { } len }
+            ? new FlexStock($"{FlexSystemId}-{system.Id}", system.FlexNumber ?? "Flexgleis", len, system.Name)
+            : new FlexStock(FlexSystemId, "Flexgleis", gauge.FlexStockLength, $"Spur {gauge.Id} allgemein");
+
+    /// <summary>Flexgleis zu einem Systemschlüssel aus der Plandatei („flex“ oder „flex-&lt;System&gt;“).</summary>
+    public static FlexStock? FlexOf(string gaugeId, string flexSystemId)
+    {
+        var gauge = Gauges.FirstOrDefault(g => g.Id == gaugeId);
+        if (gauge is null) return null;
+        if (flexSystemId == FlexSystemId) return Flex(gauge, null);
+        if (!flexSystemId.StartsWith(FlexSystemId + "-", StringComparison.Ordinal)) return null;
+        var system = gauge.Systems.FirstOrDefault(s => s.Id == flexSystemId[(FlexSystemId.Length + 1)..]);
+        return system?.FlexLength is null ? null : Flex(gauge, system);
+    }
+
+    /// <summary>Schlüssel für ein gerades Flexgleis, z. B. „H0|flex|L500“ oder „H0|flex-mk|L500“.</summary>
+    public static string FlexStraightKey(string gaugeId, double length, string flexSystemId = FlexSystemId)
+        => $"{gaugeId}|{flexSystemId}|L{Math.Round(length, 1).ToString(System.Globalization.CultureInfo.InvariantCulture)}";
 
     /// <summary>Schlüssel für ein gebogenes Flexgleis (Linksbogen, beim Verlegen spiegelbar), z. B. „H0|flex|R600A30“.</summary>
-    public static string FlexCurveKey(string gaugeId, double radius, double angle)
+    public static string FlexCurveKey(string gaugeId, double radius, double angle, string flexSystemId = FlexSystemId)
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        return $"{gaugeId}|{FlexSystemId}|R{Math.Round(radius, 1).ToString(inv)}A{Math.Round(angle, 2).ToString(inv)}";
+        return $"{gaugeId}|{flexSystemId}|R{Math.Round(radius, 1).ToString(inv)}A{Math.Round(angle, 2).ToString(inv)}";
     }
 
     private static TrackPieceDef? ParseFlex(string key)
     {
         var parts = key.Split('|');
-        if (parts.Length != 3 || parts[1] != FlexSystemId || Gauges.All(g => g.Id != parts[0])) return null;
+        if (parts.Length != 3 || FlexOf(parts[0], parts[1]) is not { } stock) return null;
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         var spec = parts[2];
         TrackPieceDef? def = null;
         if (spec.StartsWith('L') && double.TryParse(spec[1..], System.Globalization.NumberStyles.Float, inv, out var len) && len is >= 5 and <= 5000)
-            def = new TrackPieceDef { Number = "Flex", Kind = PieceKind.Straight, Length = len, Name = "Flexgleis gerade", Spec = $"{Fmt.Num(len)} mm", Category = "Flexgleis" };
+            def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Straight, Length = len, Name = "Flexgleis gerade", Spec = $"{Fmt.Num(len)} mm", Category = "Flexgleis" };
         else if (spec.StartsWith('R') && spec.IndexOf('A') is > 1 and var a
                  && double.TryParse(spec[1..a], System.Globalization.NumberStyles.Float, inv, out var r) && r is >= 50 and <= 20000
                  && double.TryParse(spec[(a + 1)..], System.Globalization.NumberStyles.Float, inv, out var ang) && ang is > 0 and <= 180)
-            def = new TrackPieceDef { Number = "Flex", Kind = PieceKind.Curve, Radius = r, Angle = ang, Name = $"Flexgleis Bogen {Fmt.Num(ang)}°", Spec = $"R {Fmt.Num(r)} mm", Category = "Flexgleis" };
+            def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Curve, Radius = r, Angle = ang, Name = $"Flexgleis Bogen {Fmt.Num(ang)}°", Spec = $"R {Fmt.Num(r)} mm", Category = "Flexgleis" };
         if (def is null) return null;
         def.GaugeId = parts[0];
-        def.SystemId = FlexSystemId;
-        def.SystemName = "Flexgleis";
-        def.Verified = true;
+        def.SystemId = parts[1];
+        def.SystemName = parts[1] == FlexSystemId ? "Flexgleis" : $"Flexgleis {stock.Name}";
+        def.Verified = parts[1] == FlexSystemId || GetSystem(parts[0], parts[1][(FlexSystemId.Length + 1)..])?.Verified == true;
         def.Key = key;
         return def;
     }

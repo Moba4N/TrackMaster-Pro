@@ -97,6 +97,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   H0: Märklin C, Trix C, Märklin K, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Peco, Tillig Elite ·
   0: Standard, Lenz · Spur 1: Märklin · G: LGB.
   Weichen gibt es als einfache, schlanke, Dreiwege-, Bogen- und Y-Weichen, dazu Kreuzungen und DKW.
+  Jedes Gleissystem hat in der Bibliothek einen Eintrag „Flexgleis…“: Systeme mit eigenem Flexgleis (z. B. Märklin K 2205,
+  Roco Line 42400, Peco SL-100F) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
   Märklin C-Gleis und Trix C-Gleis sind mit Katalogmaßen und Artikelnummern geprüft (außer den Bogenweichen).
   Die anderen Systeme haben vorläufige Maße und sind in der Bibliothek markiert; wo die Artikelnummer nicht gesichert ist,
   steht eine Kurzbezeichnung wie „G230“ oder „R2-15“.

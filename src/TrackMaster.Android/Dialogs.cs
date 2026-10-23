@@ -388,10 +388,10 @@ public static class Dialogs
 
     // ---------- Gleise ----------
 
-    public static void AskFlex(Context c, Gauge gauge, Action<string> attach)
+    public static void AskFlex(Context c, Gauge gauge, FlexStock stock, Action<string> attach)
     {
         var body = Ui.Column(c, 8);
-        body.AddView(Hint(c, $"Flexgleis wird am aktiven Gleisende angesetzt. Bögen lassen sich danach spiegeln. In der Stückliste wird die Gesamtlänge in Stücke zu {Fmt.Num(gauge.FlexStockLength, 0)} mm umgerechnet."));
+        body.AddView(Hint(c, $"Flexgleis {stock.Name}{(stock.Number == "Flexgleis" ? "" : $" ({stock.Number})")}. Es wird am aktiven Gleisende angesetzt; Bögen lassen sich danach spiegeln. In der Stückliste wird die Gesamtlänge in Stücke zu {Fmt.Num(stock.Length, 0)} mm umgerechnet."));
         var kinds = new RadioGroup(c) { Orientation = Orientation.Horizontal };
         var straight = new RadioButton(c) { Text = "Gerade", Id = 1 };
         var curve = new RadioButton(c) { Text = "Bogen", Id = 2 };
@@ -399,7 +399,7 @@ public static class Dialogs
         kinds.AddView(curve);
         kinds.Check(1);
         body.AddView(kinds);
-        var length = Ui.Number(c, Math.Round(gauge.FlexStockLength / 2));
+        var length = Ui.Number(c, Math.Round(stock.Length / 2));
         var radius = Ui.Number(c, Math.Round(gauge.TrackWidth * 30));
         var angle = Ui.Number(c, 30);
         var lengthField = Ui.Field(c, "Länge (mm)", length);
@@ -421,13 +421,13 @@ public static class Dialogs
             string? key = null;
             if (straight.Checked)
             {
-                if (Read(length, "Länge", 5, 5000, errors, out var l)) key = Catalog.FlexStraightKey(gauge.Id, l);
+                if (Read(length, "Länge", 5, 5000, errors, out var l)) key = Catalog.FlexStraightKey(gauge.Id, l, stock.SystemId);
             }
             else
             {
                 var okR = Read(radius, "Radius", 50, 20000, errors, out var r);
                 var okA = Read(angle, "Winkel", 1, 180, errors, out var a);
-                if (okR && okA) key = Catalog.FlexCurveKey(gauge.Id, r, a);
+                if (okR && okA) key = Catalog.FlexCurveKey(gauge.Id, r, a, stock.SystemId);
             }
             SetError(error, errors);
             if (errors.Count > 0 || key is null) return false;

@@ -101,3 +101,51 @@ public class CatalogTests
         Assert.True(path.Length > 188);
     }
 }
+
+public class FlexTests
+{
+    [Fact]
+    public void Jedes_Gleissystem_hat_ein_Flexgleis()
+    {
+        foreach (var g in Catalog.Gauges)
+            foreach (var s in g.Systems)
+            {
+                var stock = Catalog.Flex(g, s);
+                Assert.True(stock.Length > 0, $"{g.Id} {s.Name}");
+                var def = Catalog.Get(Catalog.FlexStraightKey(g.Id, 300, stock.SystemId));
+                Assert.True(def.IsFlex);
+                Assert.Equal(300, def.Length);
+            }
+    }
+
+    [Fact]
+    public void Flexgleis_des_Herstellers_traegt_dessen_Artikelnummer()
+    {
+        var stock = Catalog.Flex(Catalog.GetGauge("H0"), Catalog.GetSystem("H0", "mk"));
+        Assert.Equal("2205", stock.Number);
+        Assert.Equal(900, stock.Length);
+        var def = Catalog.Get(Catalog.FlexCurveKey("H0", 600, 20, stock.SystemId));
+        Assert.Equal("2205", def.Number);
+        Assert.Equal(PieceKind.Curve, def.Kind);
+    }
+
+    [Fact]
+    public void Allgemeines_Flexgleis_aus_alten_Plaenen_gilt_weiter()
+    {
+        var def = Catalog.Get("H0|flex|L500");
+        Assert.True(def.IsFlex);
+        Assert.Equal(500, def.Length);
+    }
+
+    [Fact]
+    public void Stueckliste_trennt_Flexgleise_nach_Hersteller()
+    {
+        var plan = LayoutPlan.Empty("H0");
+        plan.Add(Catalog.FlexStraightKey("H0", 1000, "flex-mk"));
+        plan.Add(Catalog.FlexStraightKey("H0", 500));
+        var rows = BillOfMaterials.Build(plan).Where(r => r.Def.IsFlex).ToList();
+        Assert.Equal(2, rows.Count);
+        var k = rows.Single(r => r.Def.Number == "2205");
+        Assert.Equal(2, k.Count); // 1050 mm mit Verschnitt → 2 Stücke zu 900 mm
+    }
+}

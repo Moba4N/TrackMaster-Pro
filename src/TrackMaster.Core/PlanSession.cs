@@ -1,7 +1,4 @@
-using System.IO;
-using TrackMaster.Core;
-
-namespace TrackMaster.App;
+namespace TrackMaster.Core;
 
 public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal }
 
@@ -100,7 +97,7 @@ public sealed class PlanSession
         Selection.Clear();
         Active = null;
         Commit();
-        Say("Neuer Plan angelegt. Strg+Z holt den vorherigen zurück.");
+        Say("Neuer Plan angelegt. Rückgängig holt den vorherigen zurück.");
     }
 
     public void LoadSample()
@@ -118,6 +115,23 @@ public sealed class PlanSession
         var plan = PlanSerializer.FromJson(File.ReadAllText(path), out var skipped);
         Replace(plan, path);
         Say($"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}.");
+    }
+
+    /// <summary>Öffnet einen Plan aus JSON (z. B. vom Android-Dateiauswahldialog).</summary>
+    public void OpenJson(string json, string? name)
+    {
+        var plan = PlanSerializer.FromJson(json, out var skipped);
+        Replace(plan, name);
+        Say($"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}.");
+    }
+
+    /// <summary>Nach dem Speichern über einen Dateidialog ohne festen Pfad.</summary>
+    public void MarkSaved(string name)
+    {
+        FilePath = name;
+        Dirty = false;
+        Changed?.Invoke();
+        Say($"Gespeichert: {name}");
     }
 
     public void Save(string path)
@@ -184,7 +198,7 @@ public sealed class PlanSession
             Plan.RemoveObject(obj);
             SelectedObject = null;
             Commit();
-            Say("Gelöscht. Strg+Z macht es rückgängig.");
+            Say("Gelöscht. Rückgängig holt es zurück.");
             return;
         }
         var n = Selection.Count;
@@ -193,7 +207,7 @@ public sealed class PlanSession
         Plan.RemovePieces(Selection);
         Selection.Clear();
         Commit();
-        Say($"{n} {(n == 1 ? "Gleis" : "Gleise")} gelöscht. Strg+Z macht es rückgängig.");
+        Say($"{n} {(n == 1 ? "Gleis" : "Gleise")} gelöscht. Rückgängig holt sie zurück.");
     }
 
     public void Duplicate()

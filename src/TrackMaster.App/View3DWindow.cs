@@ -39,9 +39,7 @@ public sealed class View3DWindow : Window
     private (double Yaw, double Pitch, Point3D Target) _dragOrigin;
 
     // Mitfahren
-    private List<(double X, double Y, double Z)> _path = [];
-    private double[] _distances = [];
-    private bool _pathClosed;
+    private RidePath? _path;
     private double _position;
     private TimeSpan _lastFrame;
     private readonly int? _startPiece;
@@ -136,28 +134,17 @@ public sealed class View3DWindow : Window
     private void ApplyTime()
     {
         var h = _time.Value;
-        _timeText.Text = $"{(int)h:00}:{(int)((h - (int)h) * 60):00} Uhr";
-        // Sonnenhöhe: Aufgang 6 Uhr, Höchststand 13 Uhr, Untergang 20 Uhr
-        var dayPhase = Math.Clamp((h - 6) / 14, 0, 1);
-        var elevation = Math.Sin(dayPhase * Math.PI);
-        var night = h < 6 || h > 20.5;
-        var azimuth = (h - 13) / 14 * Math.PI;
-        var warm = 1 - Math.Clamp(elevation * 2.2, 0, 1);
-        Color Mix(Color a, Color b, double t) => Color.FromRgb((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
-        var sunColor = night ? Color.FromRgb(0x30, 0x3A, 0x60) : Mix(Color.FromRgb(0xFF, 0xF6, 0xE8), Color.FromRgb(0xFF, 0xA8, 0x60), warm);
-        var intensity = night ? 0.35 : 0.45 + 0.55 * elevation;
-        _sun.Color = Scale(sunColor, intensity);
-        _sun.Direction = new Vector3D(-Math.Sin(azimuth), -Math.Max(elevation, 0.15), -Math.Cos(azimuth) * 0.6 - 0.4);
-        _fill.Color = Scale(night ? Color.FromRgb(0x20, 0x28, 0x48) : Color.FromRgb(0x90, 0xA0, 0xB8), night ? 0.4 : 0.35);
-        _fill.Direction = new Vector3D(0.6, -0.5, 0.7);
-        _ambient.Color = night ? Color.FromRgb(0x22, 0x26, 0x3A) : Scale(Mix(Color.FromRgb(0x70, 0x74, 0x7A), Color.FromRgb(0x6A, 0x58, 0x50), warm), 0.6 + 0.4 * elevation);
-        var skyTop = night ? Color.FromRgb(0x08, 0x0C, 0x20) : Mix(Color.FromRgb(0x5E, 0x9C, 0xE0), Color.FromRgb(0x3A, 0x4A, 0x80), warm);
-        var skyBottom = night ? Color.FromRgb(0x1C, 0x24, 0x40) : Mix(Color.FromRgb(0xCF, 0xE4, 0xF7), Color.FromRgb(0xF4, 0xA2, 0x6A), warm);
-        _sky.Background = new LinearGradientBrush(skyTop, skyBottom, 90);
-        _scene.WindowGlow.Color = h > 19 || h < 7 ? Color.FromRgb(0xFF, 0xD0, 0x70) : Colors.Black;
+        _timeText.Text = DayLight.TimeText(h);
+        var light = DayLight.At(h);
+        static Color C(Rgb c) => Color.FromRgb(c.R, c.G, c.B);
+        _sun.Color = C(light.Sun);
+        _sun.Direction = new Vector3D(light.SunDirection.X, light.SunDirection.Y, light.SunDirection.Z);
+        _fill.Color = C(light.Fill);
+        _fill.Direction = new Vector3D(light.FillDirection.X, light.FillDirection.Y, light.FillDirection.Z);
+        _ambient.Color = C(light.Ambient);
+        _sky.Background = new LinearGradientBrush(C(light.SkyTop), C(light.SkyBottom), 90);
+        _scene.WindowGlow.Color = light.WindowsLit ? C(DayLight.WindowGlow) : Colors.Black;
     }
-
-    private static Color Scale(Color c, double f) => Color.FromRgb((byte)Math.Min(255, c.R * f), (byte)Math.Min(255, c.G * f), (byte)Math.Min(255, c.B * f));
 
     // ---------- Kamera ----------
 
@@ -210,14 +197,14 @@ public sealed class View3DWindow : Window
 
     private void StartRide()
     {
-        if (_path.Count == 0) BuildPath();
-        if (_path.Count < 2)
+        _path ??= RidePath.Build(_plan, _startPiece);
+        if (_path.IsEmpty)
         {
             _status.Text = "Keine Gleise zum Mitfahren.";
             _rideButton.IsChecked = false;
             return;
         }
-        _status.Text = _pathClosed ? "Rundkurs – Esc schließt das Fenster" : "Die Fahrt wendet an Prellböcken und Gleisenden.";
+        _status.Text = _path.Closed ? "Rundkurs – Esc schließt das Fenster" : "Die Fahrt wendet an Prellböcken und Gleisenden.";
         _lastFrame = TimeSpan.Zero;
         CompositionTarget.Rendering -= OnFrame;
         CompositionTarget.Rendering += OnFrame;
@@ -239,123 +226,20 @@ public sealed class View3DWindow : Window
         if (_lastFrame == TimeSpan.Zero) { _lastFrame = now; return; }
         var dt = Math.Min((now - _lastFrame).TotalSeconds, 0.1);
         _lastFrame = now;
-        // Vorbildgeschwindigkeit im Maßstab: km/h → mm/s geteilt durch den Maßstab
-        var scale = ScaleDivisor(_plan.Gauge.Scale);
-        _position += _speed.Value / 3.6 * 1000 / scale * dt;
-        var total = _distances[^1];
-        if (_position >= total) _position = _pathClosed ? _position % total : 0;
+        // Vorbildgeschwindigkeit im Maßstab
+        _position += RidePath.ModelSpeed(_speed.Value, _plan.Gauge.Scale) * dt;
+        if (_path is { } path && _position >= path.Length) _position = path.Closed ? _position % path.Length : 0;
         PlaceRideCamera();
-    }
-
-    private static double ScaleDivisor(string scale)
-        => double.TryParse(scale.Split(':').Last().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 87;
-
-    private (double X, double Y, double Z) PointAt(double s)
-    {
-        var total = _distances[^1];
-        if (_pathClosed) s = ((s % total) + total) % total;
-        else s = Math.Clamp(s, 0, total);
-        var i = Array.BinarySearch(_distances, s);
-        if (i < 0) i = ~i;
-        i = Math.Clamp(i, 1, _distances.Length - 1);
-        var seg = _distances[i] - _distances[i - 1];
-        var t = seg <= 0 ? 0 : (s - _distances[i - 1]) / seg;
-        var a = _path[i - 1];
-        var b = _path[i];
-        return (a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t, a.Z + (b.Z - a.Z) * t);
     }
 
     private void PlaceRideCamera()
     {
-        var g = _plan.Gauge.TrackWidth;
-        var eye = PointAt(_position);
-        var ahead = PointAt(_position + g * 14);
-        var eyeHeight = g * 2.6;
+        if (_path is null) return;
+        var (eye, target) = _path.Camera(_position, _plan.Gauge.TrackWidth);
         _camera.FieldOfView = 65;
-        _camera.Position = new Point3D(eye.X, eye.Z + eyeHeight, eye.Y);
-        var look = new Point3D(ahead.X, ahead.Z + eyeHeight * 0.85, ahead.Y) - _camera.Position;
+        _camera.Position = new Point3D(eye.X, eye.Y, eye.Z);
+        var look = new Vector3D(target.X - eye.X, target.Y - eye.Y, target.Z - eye.Z);
         if (look.Length > 0.001) _camera.LookDirection = look;
         _camera.UpDirection = new Vector3D(0, 1, 0);
-    }
-
-    /// <summary>Fahrweg ab dem gewählten Gleis: an Weichen geradeaus, an Prellböcken und offenen Enden wenden.</summary>
-    private void BuildPath()
-    {
-        var plan = _plan;
-        if (plan.Pieces.Count == 0) return;
-        var conn = Connectivity.Analyze(plan);
-        var piece = (_startPiece is { } id ? plan.Find(id) : null) ?? plan.Pieces.FirstOrDefault(p => p.Def.Kind == PieceKind.Straight) ?? plan.Pieces[0];
-        var entry = 0;
-        var limit = plan.Pieces.Sum(p => p.Def.TrackLength) * 3 + 1000;
-        double length = 0;
-        var visits = new HashSet<(int, int)>();
-        var points = new List<(double, double, double)>();
-        var step = plan.Gauge.TrackWidth;
-        var startState = (piece.Id, entry);
-        while (length < limit)
-        {
-            if (!visits.Add((piece.Id, entry)) && (piece.Id, entry) == startState)
-            {
-                _pathClosed = true;
-                break;
-            }
-            var d = piece.Def;
-            var count = TrackGeometry.LocalConnectors(d, piece.Flipped).Count;
-            var exit = d.Kind switch
-            {
-                PieceKind.Crossing => entry switch { 0 => 1, 1 => 0, 2 => 3, _ => 2 },
-                PieceKind.Buffer => 0,
-                _ when count == 1 => 0,
-                _ => entry == 0 ? 1 : 0,
-            };
-            var (leg, forward) = d.Kind switch
-            {
-                PieceKind.Switch => entry == 0 ? (exit - 1, true) : (entry - 1, false),
-                PieceKind.Crossing => (entry / 2, entry % 2 == 0),
-                PieceKind.Buffer => (0, true),
-                _ => (0, entry == 0),
-            };
-            var l = piece.WorldLegs()[leg];
-            var n = Math.Max(2, (int)Math.Ceiling(l.TrackLength / step));
-            for (var i = 0; i <= n; i++)
-            {
-                var t = forward ? (double)i / n : 1 - (double)i / n;
-                var q = l.At(t);
-                points.Add((q.X, q.Y, piece.HeightAt(leg, t)));
-            }
-            if (d.Kind == PieceKind.Buffer)
-            {
-                // Am Prellbock zurück
-                for (var i = n; i >= 0; i--)
-                {
-                    var q = l.At((double)i / n);
-                    points.Add((q.X, q.Y, piece.HeightAt(leg, (double)i / n)));
-                }
-            }
-            length += l.TrackLength;
-            if (conn.Find(piece.Id, exit)?.Link is { } next)
-            {
-                piece = plan.Find(next.PieceId)!;
-                entry = next.Index;
-            }
-            else
-            {
-                // Offenes Ende: auf demselben Gleis zurückfahren
-                entry = exit;
-            }
-        }
-        // Doppelte Punkte entfernen und Längen aufaddieren
-        var path = new List<(double X, double Y, double Z)>();
-        foreach (var p in points)
-            if (path.Count == 0 || Math.Abs(path[^1].X - p.Item1) + Math.Abs(path[^1].Y - p.Item2) > 0.01) path.Add(p);
-        _path = path;
-        _distances = new double[path.Count];
-        for (var i = 1; i < path.Count; i++)
-        {
-            var a = path[i - 1];
-            var b = path[i];
-            _distances[i] = _distances[i - 1] + Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y) + (b.Z - a.Z) * (b.Z - a.Z));
-        }
-        _position = 0;
     }
 }

@@ -17,6 +17,37 @@ Voraussetzung ist die **.NET 8 Desktop Runtime (x64)**. Fehlt sie, bietet Window
 
 Eine Plandatei lässt sich direkt öffnen: `TrackMasterPro.exe MeineAnlage.trackmaster.json`.
 
+## Android (APK)
+
+Es gibt eine Android-Version als einzelne APK-Datei zum direkten Installieren, ohne Play Store (ab Android 8.0).
+
+1. Unter **Actions** den letzten erfolgreichen Lauf von „Build“ öffnen und das Artefakt **TrackMasterPro-Android** herunterladen.
+2. ZIP entpacken und `TrackMasterPro.apk` aufs Gerät kopieren (USB, Cloud oder E-Mail).
+3. Die Datei auf dem Gerät antippen. Beim ersten Mal fragt Android, ob die App (z. B. „Dateien“ oder der Browser)
+   **unbekannte Apps installieren** darf; das einmal erlauben und die Installation bestätigen.
+
+Die App kann dasselbe wie das Windows-Programm: Menüband mit Start, Gleise, Gelände, Elektrik, Ansicht, 3D und Datei,
+Gleisbibliothek als Leiste unten, Eigenschaften, Planprüfung, Stückliste, 3D-Ansicht mit Mitfahren und Tageszeit.
+Pläne (`.trackmaster.json`) sind zwischen Windows und Android austauschbar. Der aktuelle Plan wird automatisch gesichert.
+
+Bedienung:
+
+| Geste | Wirkung |
+|---|---|
+| Teil in der Bibliothek antippen | am aktiven Gleisende ansetzen |
+| Antippen | auswählen, freies Gleisende aktiv setzen |
+| Ziehen | Ansicht verschieben; auf einem ausgewählten Teil: Teil verschieben |
+| Zwei Finger | zoomen und verschieben |
+| Lange drücken | Teil zur Auswahl hinzufügen; auf freier Fläche: Auswahlrahmen |
+| Doppelt tippen | Eigenschaften; auf freier Fläche: ganzen Plan zeigen |
+
+Basis und Pro gelten genauso: Unter **Datei › Lizenz** wird die Lizenzdatei gewählt. Dort steht auch die **Gerätekennung**,
+falls eine Lizenz an ein Gerät gebunden werden soll (in der Lizenzverwaltung als Rechnerkennung eintragen).
+
+Die APK wird mit `src/TrackMaster.Android/trackmaster.keystore` signiert, damit Updates sich über die installierte
+Version installieren lassen. Wer einen eigenen Schlüssel nutzen will, legt die Secrets `ANDROID_KEYSTORE_BASE64`
+und `ANDROID_KEYSTORE_PASSWORD` (Alias `trackmaster`) an; dann muss die App einmal neu installiert werden.
+
 ## Basis und Pro
 
 Ohne Lizenz läuft die **Basisversion**. Mit einer gültigen, signierten Lizenzdatei wird daraus **Pro**.
@@ -124,6 +155,7 @@ src/
   TrackMaster.Licensing     Lizenzdatei, Signaturprüfung, Basis/Pro, Werkzeuge zum Ausstellen
   TrackMaster.App           Hauptfenster (TrackMasterPro.exe): Ribbon, Zeichenfläche, Eigenschaften, Dialoge,
                             Drucken, 3D-Ansicht
+  TrackMaster.Android       Android-App (APK): Zeichenfläche, Menüband, Gesten, Dialoge, 3D mit OpenGL ES
 tools/
   TrackMaster.Lizenzverwaltung   Lizenzen ausstellen (Oberfläche)
   TrackMaster.LicenseTool        Lizenzen ausstellen und prüfen (Kommandozeile)
@@ -145,3 +177,10 @@ GitHub Actions baut bei jedem Push auf `windows-latest`, führt die Tests aus, v
 als Artefakte und erzeugt zur Kontrolle Bildschirmfotos:
 `TrackMasterPro.exe --screenshot datei.png [--pro] [--tab Gleise] [--select] [--3d orbit|ride|evening]`.
 `--pro` schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.
+
+Die Android-App braucht das .NET 10 SDK mit `dotnet workload install android` und ist deshalb nicht in der
+Projektmappe. Sie wird in GitHub Actions auf `ubuntu-latest` gebaut, signiert, im Emulator gestartet und fotografiert:
+
+```
+dotnet publish src/TrackMaster.Android -c Release -f net10.0-android -p:AndroidKeyStore=true ...
+```

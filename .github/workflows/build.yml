@@ -87,3 +87,106 @@ jobs:
             artifacts/*.png
             artifacts/*.error.txt
           if-no-files-found: ignore
+
+  android:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Android-Workload
+        run: dotnet workload install android
+
+      - name: Android-SDK-Bestandteile
+        run: >
+          dotnet build src/TrackMaster.Android -t:InstallAndroidDependencies -f net10.0-android
+          -p:AndroidSdkDirectory=$ANDROID_HOME -p:JavaSdkDirectory=$JAVA_HOME -p:AcceptAndroidSDKLicenses=True
+
+      - name: Schlüssel zum Signieren
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "KEYSTORE=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
+            echo "KEYPASS=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
+          else
+            echo "KEYSTORE=$PWD/src/TrackMaster.Android/trackmaster.keystore" >> $GITHUB_ENV
+            echo "KEYPASS=trackmaster-android" >> $GITHUB_ENV
+          fi
+
+      - name: APK bauen (Release, signiert)
+        run: >
+          dotnet publish src/TrackMaster.Android -c Release -f net10.0-android
+          -p:AndroidSdkDirectory=$ANDROID_HOME -p:JavaSdkDirectory=$JAVA_HOME
+          -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=$KEYSTORE -p:AndroidSigningKeyAlias=trackmaster
+          -p:AndroidSigningKeyPass=$KEYPASS -p:AndroidSigningStorePass=$KEYPASS
+          -o artifacts/android
+
+      - name: APK bauen (Debug, für die Prüfung)
+        run: >
+          dotnet build src/TrackMaster.Android -c Debug -f net10.0-android
+          -p:AndroidSdkDirectory=$ANDROID_HOME -p:JavaSdkDirectory=$JAVA_HOME
+          -p:EmbedAssembliesIntoApk=true -p:RuntimeIdentifier=android-x64
+          -o artifacts/android-debug
+
+      - name: APK-Dateien
+        run: |
+          ls -la artifacts/android artifacts/android-debug
+          mkdir -p artifacts/apk
+          cp artifacts/android/*-Signed.apk artifacts/apk/TrackMasterPro.apk
+          ls -la artifacts/apk
+
+      - name: KVM aktivieren
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Im Emulator prüfen
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash .github/scripts/android-smoke.sh artifacts/apk/TrackMasterPro.apk "$(ls artifacts/android-debug/*-Signed.apk | head -1)" artifacts/android-shots
+
+      - name: Vorschau für die Prüfung (verkleinert, Base64)
+        if: always()
+        run: |
+          sudo apt-get install -y imagemagick >/dev/null 2>&1 || true
+          for f in artifacts/android-shots/*.png; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f" .png)
+            echo "PREVIEW-$name-BEGIN"
+            convert "$f" -resize 45% -quality 70 jpg:- | base64 -w 2000
+            echo
+            echo "PREVIEW-$name-END"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrackMasterPro-Android
+          path: artifacts/apk/TrackMasterPro.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-Bildschirmfotos
+          path: artifacts/android-shots
+          if-no-files-found: ignore

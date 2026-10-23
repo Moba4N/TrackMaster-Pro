@@ -391,7 +391,7 @@ public static partial class Dialogs
         Grid.SetColumn(pro, 2);
         editions.Children.Add(pro);
         body.Children.Add(editions);
-        var machine = new TextBox { Text = MachineFingerprint.Current, IsReadOnly = true };
+        var machine = new TextBox { Text = license.MachineId, IsReadOnly = true };
         var machineRow = new DockPanel { Margin = new Thickness(0, 0, 6, 0) };
         var copy = Theme.Button("Kopieren", "Copy");
         copy.Margin = new Thickness(6, 0, 0, 8);

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TrackMaster.Mobile</RootNamespace>
+    <AssemblyName>TrackMasterPro.Android</AssemblyName>
+    <ApplicationId>de.moba4n.trackmaster</ApplicationId>
+    <ApplicationTitle>TrackMaster Pro</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <!-- Eine einzelne APK zum direkten Installieren, kein App-Bundle für den Store -->
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>
+    <!-- Plan- und Lizenzdateien werden per Reflexion gelesen; Kern und Lizenz werden nicht gekürzt -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <TrimMode>partial</TrimMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TrackMaster.Core\TrackMaster.Core.csproj" />
+    <ProjectReference Include="..\TrackMaster.Licensing\TrackMaster.Licensing.csproj" />
+  </ItemGroup>
+</Project>

@@ -9,18 +9,22 @@ public sealed class LicenseManager
     private readonly string _publicKeyPem;
     private readonly Func<DateTimeOffset> _clock;
 
-    public LicenseManager(string licensePath, string publicKeyPem, bool developerMode, Func<DateTimeOffset>? clock = null)
+    public LicenseManager(string licensePath, string publicKeyPem, bool developerMode, Func<DateTimeOffset>? clock = null, string? machineId = null)
     {
+        MachineId = machineId ?? MachineFingerprint.Current;
         LicensePath = licensePath;
         _publicKeyPem = publicKeyPem;
         _clock = clock ?? (() => DateTimeOffset.Now);
         Result = File.Exists(licensePath)
-            ? LicenseCodec.Verify(File.ReadAllText(licensePath), publicKeyPem, _clock(), MachineFingerprint.Current)
+            ? LicenseCodec.Verify(File.ReadAllText(licensePath), publicKeyPem, _clock(), MachineId)
             : new LicenseCheckResult(LicenseStatus.Missing, null);
         IsDeveloperMode = developerMode && !Result.IsValid;
     }
 
     public static string DefaultLicensePath => Path.Combine(AppFolders.Data, AppFolders.LicenseFileName);
+
+    /// <summary>Rechnerkennung für rechnergebundene Lizenzen (unter Android die Gerätekennung).</summary>
+    public string MachineId { get; }
 
     public LicenseCheckResult Result { get; private set; }
     public bool IsDeveloperMode { get; private set; }
@@ -34,7 +38,7 @@ public sealed class LicenseManager
     /// <summary>Prüft eine neue Lizenzdatei und übernimmt sie bei Erfolg.</summary>
     public LicenseCheckResult Install(string licenseText)
     {
-        var result = LicenseCodec.Verify(licenseText, _publicKeyPem, _clock(), MachineFingerprint.Current);
+        var result = LicenseCodec.Verify(licenseText, _publicKeyPem, _clock(), MachineId);
         if (result.IsValid)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(LicensePath)!);

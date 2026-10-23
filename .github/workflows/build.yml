@@ -177,15 +177,23 @@ jobs:
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         if: always()
         run: |
-          sudo apt-get install -y imagemagick >/dev/null 2>&1 || true
-          for f in artifacts/android-shots/*.png; do
-            [ -f "$f" ] || continue
-            name=$(basename "$f" .png)
-            echo "PREVIEW-$name-BEGIN"
-            convert "$f" -resize 45% -quality 70 jpg:- | base64 -w 2000
-            echo
-            echo "PREVIEW-$name-END"
-          done
+          python3 -c "import PIL" 2>/dev/null || python3 -m pip install --quiet --user --break-system-packages pillow
+          python3 - <<'PY'
+          import base64, glob, io, os
+          from PIL import Image
+          for f in sorted(glob.glob("artifacts/android-shots/*.png")):
+              name = os.path.splitext(os.path.basename(f))[0]
+              try:
+                  img = Image.open(f).convert("RGB")
+              except Exception as e:
+                  print(f"PREVIEW-{name}-FEHLER {e}"); continue
+              img = img.resize((int(img.width * 0.45), int(img.height * 0.45)))
+              buf = io.BytesIO(); img.save(buf, "JPEG", quality=70)
+              b64 = base64.b64encode(buf.getvalue()).decode()
+              print(f"PREVIEW-{name}-BEGIN")
+              for i in range(0, len(b64), 2000): print(b64[i:i + 2000])
+              print(f"PREVIEW-{name}-END")
+          PY
 
       - uses: actions/upload-artifact@v4
         with:

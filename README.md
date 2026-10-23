@@ -92,8 +92,14 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 ## Funktionen
 
 **Gleise (Basis)**
-- Spur wählen (Z, N, TT, H0, 0, G) und das Gleissystem des Herstellers. Märklin C-Gleis (H0) ist mit Katalogmaßen geprüft,
-  die anderen Systeme haben vorläufige Maße und sind in der Bibliothek markiert.
+- Spur wählen (Z, N, TT, H0, 0, Spur 1, G) und das Gleissystem des Herstellers:
+  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Fleischmann piccolo, Minitrix, Peco · TT: Tillig, Piko ·
+  H0: Märklin C, Trix C, Märklin K, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Peco, Tillig Elite ·
+  0: Standard, Lenz · Spur 1: Märklin · G: LGB.
+  Weichen gibt es als einfache, schlanke, Dreiwege-, Bogen- und Y-Weichen, dazu Kreuzungen und DKW.
+  Märklin C-Gleis und Trix C-Gleis sind mit Katalogmaßen und Artikelnummern geprüft (außer den Bogenweichen).
+  Die anderen Systeme haben vorläufige Maße und sind in der Bibliothek markiert; wo die Artikelnummer nicht gesichert ist,
+  steht eine Kurzbezeichnung wie „G230“ oder „R2-15“.
 - Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder frei ziehen; Gleise rasten an freien Enden ein.
 - **Flexgleis** mit freier Länge oder freiem Radius und Winkel; in der Stückliste als ganze Stangen mit 5 % Verschnitt.
 - Drehen, Spiegeln, Anschluss wechseln, Duplizieren, Löschen, Verschieben mit Pfeiltasten, Rückgängig und Wiederholen.

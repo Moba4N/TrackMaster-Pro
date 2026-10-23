@@ -351,8 +351,8 @@ public sealed class PlanSession
     /// <summary>Schnellbefehle im Ribbon: erstes passendes Teil des gewählten Systems ansetzen.</summary>
     public void Quick(PieceKind kind, bool? rightHand, (double X, double Y) fallbackCenter)
     {
-        var def = CurrentSystem.Pieces.FirstOrDefault(p => p.Kind == kind && (rightHand is null || p.RightHand == rightHand))
-                  ?? Plan.Gauge.Systems.SelectMany(s => s.Pieces).FirstOrDefault(p => p.Kind == kind && (rightHand is null || p.RightHand == rightHand));
+        bool Fits(TrackPieceDef p) => p.Kind == kind && (rightHand is null || p.RightHand == rightHand) && (kind != PieceKind.Switch || p.IsSimpleSwitch) && !p.IsDoubleSlip;
+        var def = CurrentSystem.Pieces.FirstOrDefault(Fits) ?? Plan.Gauge.Systems.SelectMany(s => s.Pieces).FirstOrDefault(Fits);
         if (def is null) { Say("Dieses Gleissystem hat kein passendes Teil."); return; }
         Attach(def.Key, fallbackCenter);
     }

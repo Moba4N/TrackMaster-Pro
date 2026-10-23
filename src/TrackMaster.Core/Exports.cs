@@ -35,7 +35,7 @@ public static class BillOfMaterials
     public static IReadOnlyList<AccessoryRow> Accessories(LayoutPlan plan)
     {
         var rows = new List<AccessoryRow>();
-        var drives = plan.Pieces.Count(p => p.Def.Kind == PieceKind.Switch) + plan.Pieces.Count(p => p.Def.Kind == PieceKind.Crossing && p.Def.Name.StartsWith("DKW")) * 2;
+        var drives = plan.Pieces.Sum(p => p.Def.Drives);
         if (drives > 0) rows.Add(new("Weichenantrieb", "je Weiche einer, DKW zwei", drives));
         foreach (var g in plan.Signals.GroupBy(s => s.Type).OrderBy(g => g.Key))
             rows.Add(new(Signal.TypeName(g.Key), "Lichtsignal", g.Count()));

@@ -176,6 +176,7 @@ public static class Dialogs
         body.AddView(d.Kind switch
         {
             PieceKind.Curve => Rows(c, ("Radius", $"{Fmt.Num(d.Radius)} mm", null), ("Winkel", $"{Fmt.Num(d.Angle)}°", null), ("Bogenlänge", $"{Fmt.Num(d.TrackLength)} mm", null), ("Richtung", leftHanded ? "links" : "rechts", null)),
+            PieceKind.Switch when !d.IsSimpleSwitch => Rows(c, ("Maße", d.Spec, null), ("Stränge", $"{d.Paths!.Count}", null), ("Antriebe", $"{d.Drives}", null)),
             PieceKind.Switch => Rows(c, ("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Abzweig", $"R {Fmt.Num(d.Radius)} · {Fmt.Num(d.Angle)}°", null), ("Richtung", leftHanded ? "links" : "rechts", null)),
             PieceKind.Crossing => Rows(c, ("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Kreuzungswinkel", $"{Fmt.Num(d.Angle)}°", null)),
             _ => Rows(c, ("Länge", $"{Fmt.Num(d.Length)} mm", null)),
@@ -195,7 +196,7 @@ public static class Dialogs
         var tunnel = new CheckBox(c) { Text = "liegt im Tunnel", Checked = p.Tunnel, Enabled = pro };
         body.AddView(tunnel);
         EditText? address = null;
-        if (d.Kind == PieceKind.Switch || (d.Kind == PieceKind.Crossing && d.Name.StartsWith("DKW")))
+        if (d.Drives > 0)
         {
             body.AddView(Section(c, "Digital" + (pro ? "" : " (Pro)")));
             address = Ui.Number(c, p.Address ?? 0);

@@ -8,8 +8,9 @@ public readonly record struct Pose(double X, double Y, double Heading)
 
 /// <summary>
 /// Ein Abschnitt der Gleismitte: gerade (Länge) oder Bogen (Radius, Winkel, Drehsinn Turn = +1 rechts / −1 links).
+/// <paramref name="From"/> ist der Weg von Anschluss 0 bis zum Anfang des Abschnitts (bei Weichensträngen aus mehreren Abschnitten).
 /// </summary>
-public sealed record Leg(double X, double Y, double Heading, bool IsArc, double Length, double Radius = 0, double Angle = 0, int Turn = 1)
+public sealed record Leg(double X, double Y, double Heading, bool IsArc, double Length, double Radius = 0, double Angle = 0, int Turn = 1, double From = 0)
 {
     public Pose Start => new(X, Y, Heading);
     public Pose End => At(1);
@@ -88,7 +89,13 @@ public static class Angles
 public static class TrackGeometry
 {
     /// <summary>Abschnitte eines Gleisstücks in eigenen Koordinaten: Anschluss 0 liegt im Ursprung, Fahrtrichtung nach rechts.</summary>
-    public static IReadOnlyList<Leg> LocalLegs(TrackPieceDef d, bool flipped)
+    public static IReadOnlyList<Leg> LocalLegs(TrackPieceDef d, bool flipped) => LocalPaths(d, flipped).SelectMany(p => p).ToList();
+
+    /// <summary>
+    /// Fahrwege eines Gleisstücks, jeweils als Folge von Abschnitten. Gerade, Bogen und Prellbock haben einen Fahrweg,
+    /// Weichen einen je Strang (alle beginnen an Anschluss 0), Kreuzungen zwei sich kreuzende Fahrwege.
+    /// </summary>
+    public static IReadOnlyList<IReadOnlyList<Leg>> LocalPaths(TrackPieceDef d, bool flipped)
     {
         var f = flipped ? -1 : 1;
         var turn = (d.RightHand ? 1 : -1) * f;
@@ -96,33 +103,64 @@ public static class TrackGeometry
         {
             case PieceKind.Straight:
             case PieceKind.Buffer:
-                return [new Leg(0, 0, 0, false, d.Length)];
+                return [[new Leg(0, 0, 0, false, d.Length)]];
             case PieceKind.Curve:
-                return [new Leg(0, 0, 0, true, 0, d.Radius, d.Angle, turn)];
+                return [[new Leg(0, 0, 0, true, 0, d.Radius, d.Angle, turn)]];
+            case PieceKind.Switch when d.Paths is { } paths:
+                return paths.Select(p => Chain(p, f)).ToList();
             case PieceKind.Switch:
-                return [new Leg(0, 0, 0, false, d.Length), new Leg(0, 0, 0, true, 0, d.Radius, d.Angle, turn)];
+                return [[new Leg(0, 0, 0, false, d.Length)], [new Leg(0, 0, 0, true, 0, d.Radius, d.Angle, turn)]];
             case PieceKind.Crossing:
                 var c = d.Length / 2;
                 var a = d.Angle * f;
                 var ar = a * Math.PI / 180;
-                return [new Leg(0, 0, 0, false, d.Length), new Leg(c - c * Math.Cos(ar), -c * Math.Sin(ar), a, false, d.Length)];
+                return [[new Leg(0, 0, 0, false, d.Length)], [new Leg(c - c * Math.Cos(ar), -c * Math.Sin(ar), a, false, d.Length)]];
             default:
                 return [];
         }
     }
 
+    /// <summary>Abschnitte eines Weichenstrangs aneinanderhängen; <paramref name="f"/> = −1 spiegelt.</summary>
+    private static IReadOnlyList<Leg> Chain(IReadOnlyList<Segment> segments, int f)
+    {
+        var legs = new List<Leg>();
+        var pose = new Pose(0, 0, 0);
+        double from = 0;
+        foreach (var s in segments)
+        {
+            var leg = s.Turn == 0
+                ? new Leg(pose.X, pose.Y, pose.Heading, false, s.Length, From: from)
+                : new Leg(pose.X, pose.Y, pose.Heading, true, 0, s.Radius, s.Angle, s.Turn * f, from);
+            legs.Add(leg);
+            pose = leg.End;
+            from += leg.TrackLength;
+        }
+        return legs;
+    }
+
+    /// <summary>Weglänge von Anschluss 0 bis zum Ende des Fahrwegs <paramref name="path"/>.</summary>
+    public static double PathLength(TrackPieceDef d, int path) => LocalPaths(d, false)[path].Sum(l => l.TrackLength);
+
     /// <summary>Anschlüsse in eigenen Koordinaten; die Richtung zeigt jeweils aus dem Gleis heraus.</summary>
     public static IReadOnlyList<Pose> LocalConnectors(TrackPieceDef d, bool flipped)
     {
-        var legs = LocalLegs(d, flipped);
+        var paths = LocalPaths(d, flipped);
         var origin = new Pose(0, 0, 180);
         return d.Kind switch
         {
-            PieceKind.Straight or PieceKind.Curve => [origin, legs[0].End],
+            PieceKind.Straight or PieceKind.Curve => [origin, paths[0][^1].End],
             PieceKind.Buffer => [origin],
-            PieceKind.Switch => [origin, legs[0].End, legs[1].End],
-            PieceKind.Crossing => [origin, legs[0].End, new Pose(legs[1].X, legs[1].Y, legs[1].Heading + 180), legs[1].End],
+            PieceKind.Switch => [origin, .. paths.Select(p => p[^1].End)],
+            PieceKind.Crossing => [origin, paths[0][0].End, new Pose(paths[1][0].X, paths[1][0].Y, paths[1][0].Heading + 180), paths[1][0].End],
             _ => [origin],
         };
     }
+
+    /// <summary>Zu welchem Fahrweg ein Anschluss gehört und ob er an dessen Ende liegt.</summary>
+    public static (int Path, bool AtEnd) PathOf(TrackPieceDef d, int index) => d.Kind switch
+    {
+        PieceKind.Switch => index == 0 ? (0, false) : (index - 1, true),
+        PieceKind.Crossing => (index / 2, index % 2 == 1),
+        _ => (0, index == 1),
+    };
 }

@@ -39,11 +39,11 @@ public static class PlanEditing
     /// <summary>Abstand entlang des Gleises von Anschluss 0 zu Anschluss <paramref name="index"/>.</summary>
     public static double DistanceFromOrigin(PlacedPiece piece, int index)
     {
-        var legs = TrackGeometry.LocalLegs(piece.Def, piece.Flipped);
+        var paths = TrackGeometry.LocalPaths(piece.Def, piece.Flipped);
         return piece.Def.Kind switch
         {
-            PieceKind.Straight or PieceKind.Curve when index == 1 => legs[0].TrackLength,
-            PieceKind.Switch when index is 1 or 2 => legs[index - 1].TrackLength,
+            PieceKind.Straight or PieceKind.Curve when index == 1 => paths[0][0].TrackLength,
+            PieceKind.Switch when index >= 1 && index <= paths.Count => paths[index - 1].Sum(l => l.TrackLength),
             _ => 0,
         };
     }

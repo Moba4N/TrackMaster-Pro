@@ -419,31 +419,38 @@ public sealed class RidePath
                 _ when count == 1 => 0,
                 _ => entry == 0 ? 1 : 0,
             };
-            var (leg, forward) = d.Kind switch
+            var (way, forward) = d.Kind switch
             {
                 PieceKind.Switch => entry == 0 ? (exit - 1, true) : (entry - 1, false),
                 PieceKind.Crossing => (entry / 2, entry % 2 == 0),
                 PieceKind.Buffer => (0, true),
                 _ => (0, entry == 0),
             };
-            var l = piece.WorldLegs()[leg];
-            var n = Math.Max(2, (int)Math.Ceiling(l.TrackLength / step));
-            for (var i = 0; i <= n; i++)
+            var all = piece.WorldLegs();
+            var paths = piece.WorldPaths();
+            var first = paths.Take(way).Sum(p => p.Count);
+            var order = Enumerable.Range(first, paths[way].Count);
+            foreach (var leg in forward ? order : order.Reverse())
             {
-                var t = forward ? (double)i / n : 1 - (double)i / n;
-                var q = l.At(t);
-                points.Add((q.X, q.Y, piece.HeightAt(leg, t)));
-            }
-            if (d.Kind == PieceKind.Buffer)
-            {
-                // Am Prellbock zurück
-                for (var i = n; i >= 0; i--)
+                var l = all[leg];
+                var n = Math.Max(2, (int)Math.Ceiling(l.TrackLength / step));
+                for (var i = 0; i <= n; i++)
                 {
-                    var q = l.At((double)i / n);
-                    points.Add((q.X, q.Y, piece.HeightAt(leg, (double)i / n)));
+                    var t = forward ? (double)i / n : 1 - (double)i / n;
+                    var q = l.At(t);
+                    points.Add((q.X, q.Y, piece.HeightAt(leg, t)));
                 }
+                if (d.Kind == PieceKind.Buffer)
+                {
+                    // Am Prellbock zurück
+                    for (var i = n; i >= 0; i--)
+                    {
+                        var q = l.At((double)i / n);
+                        points.Add((q.X, q.Y, piece.HeightAt(leg, (double)i / n)));
+                    }
+                }
+                length += l.TrackLength;
             }
-            length += l.TrackLength;
             if (conn.Find(piece.Id, exit)?.Link is { } next)
             {
                 piece = plan.Find(next.PieceId)!;

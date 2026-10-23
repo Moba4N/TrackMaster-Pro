@@ -81,11 +81,12 @@ public static class Electrics
         }
         foreach (var p in plan.Pieces)
         {
-            var legs = TrackGeometry.LocalLegs(p.Def, p.Flipped).Count;
-            for (var l = 0; l < legs; l++)
+            var paths = TrackGeometry.LocalPaths(p.Def, p.Flipped).Count;
+            for (var l = 0; l < paths; l++)
                 if (!edges.ContainsKey((p.Id, l))) edges[(p.Id, l)] = [];
-            // Weichen: beide Stränge beginnen an Anschluss 0, links bleibt links
-            if (p.Def.Kind == PieceKind.Switch) Edge((p.Id, 0), (p.Id, 1), false);
+            // Weichen: alle Stränge beginnen an Anschluss 0, links bleibt links
+            if (p.Def.Kind == PieceKind.Switch)
+                for (var l = 1; l < paths; l++) Edge((p.Id, 0), (p.Id, l), false);
         }
         foreach (var c in conn.All)
         {
@@ -145,12 +146,7 @@ public static class Electrics
     }
 
     /// <summary>Zu welchem Abschnitt ein Anschluss gehört und ob er an dessen Ende liegt.</summary>
-    private static (int Leg, bool AtEnd) LegOf(PlacedPiece p, int index) => p.Def.Kind switch
-    {
-        PieceKind.Switch => index == 0 ? (0, false) : (index - 1, true),
-        PieceKind.Crossing => (index / 2, index % 2 == 1),
-        _ => (0, index == 1),
-    };
+    private static (int Leg, bool AtEnd) LegOf(PlacedPiece p, int index) => TrackGeometry.PathOf(p.Def, index);
 
     public static ElectricReport Analyze(LayoutPlan plan)
     {
@@ -191,11 +187,11 @@ public static class Electrics
         foreach (var p in plan.Pieces)
         {
             var d = p.Def;
-            if (d.Kind == PieceKind.Switch || (d.Kind == PieceKind.Crossing && d.Name.StartsWith("DKW")))
+            if (d.Drives > 0)
             {
                 var m = p.Middle();
                 var kind = d.Kind == PieceKind.Switch ? "Weiche" : "DKW";
-                list.Add(new SwitchingItem(kind, $"{kind} {d.Number} (Nr. {p.Id})", p.Id, null, p.Address, kind == "DKW" ? 2 : 1, m.X, m.Y));
+                list.Add(new SwitchingItem(kind, $"{kind} {d.Number} (Nr. {p.Id})", p.Id, null, p.Address, d.Drives, m.X, m.Y));
             }
         }
         foreach (var s in plan.Signals)

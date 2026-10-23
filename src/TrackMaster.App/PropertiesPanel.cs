@@ -183,6 +183,9 @@ public sealed class PropertiesPanel : DockPanel
             case PieceKind.Curve:
                 Rows(("Radius", $"{Fmt.Num(d.Radius)} mm", null), ("Winkel", $"{Fmt.Num(d.Angle)}°", null), ("Bogenlänge", $"{Fmt.Num(d.TrackLength)} mm", null), ("Richtung", leftHanded ? "links" : "rechts", null));
                 break;
+            case PieceKind.Switch when !d.IsSimpleSwitch:
+                Rows(("Maße", d.Spec, null), ("Stränge", $"{d.Paths!.Count}", null), ("Antriebe", $"{d.Drives}", null));
+                break;
             case PieceKind.Switch:
                 Rows(("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Abzweig", $"R {Fmt.Num(d.Radius)} · {Fmt.Num(d.Angle)}°", null), ("Richtung", leftHanded ? "links" : "rechts", null));
                 break;
@@ -210,7 +213,7 @@ public sealed class PropertiesPanel : DockPanel
         var tunnel = new CheckBox { Content = "liegt im Tunnel", IsChecked = p.Tunnel, IsEnabled = _session.IsPro(), Margin = new Thickness(0, 0, 0, 8) };
         tunnel.Click += (_, _) => _session.Edit(() => p.Tunnel = tunnel.IsChecked == true);
         _body.Children.Add(tunnel);
-        if (d.Kind == PieceKind.Switch || (d.Kind == PieceKind.Crossing && d.Name.StartsWith("DKW")))
+        if (d.Drives > 0)
         {
             Section("Digital" + proNote);
             var addr = NumberBox(p.Address ?? 0, v => p.Address = v >= 1 ? (int)Math.Round(v) : null, 0, pro: true);

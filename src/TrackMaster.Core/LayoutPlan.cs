@@ -25,6 +25,10 @@ public sealed class PlacedPiece
 
     public IReadOnlyList<Leg> WorldLegs() => TrackGeometry.LocalLegs(Def, Flipped).Select(l => l.Transform(X, Y, Rotation)).ToList();
 
+    /// <summary>Fahrwege in Weltkoordinaten (siehe <see cref="TrackGeometry.LocalPaths"/>).</summary>
+    public IReadOnlyList<IReadOnlyList<Leg>> WorldPaths()
+        => TrackGeometry.LocalPaths(Def, Flipped).Select(p => (IReadOnlyList<Leg>)p.Select(l => l.Transform(X, Y, Rotation)).ToList()).ToList();
+
     public IReadOnlyList<Pose> WorldConnectors() => TrackGeometry.LocalConnectors(Def, Flipped).Select(ToWorld).ToList();
 
     /// <summary>Höhe der Schienenoberkante an jedem Anschluss.</summary>
@@ -32,11 +36,11 @@ public sealed class PlacedPiece
     {
         var d = Def;
         var g = EffectiveGrade;
-        var legs = TrackGeometry.LocalLegs(d, Flipped);
+        var paths = TrackGeometry.LocalPaths(d, Flipped);
         return d.Kind switch
         {
-            PieceKind.Straight or PieceKind.Curve => [Height, Height + g * legs[0].TrackLength],
-            PieceKind.Switch => [Height, Height + g * legs[0].TrackLength, Height + g * legs[1].TrackLength],
+            PieceKind.Straight or PieceKind.Curve => [Height, Height + g * paths[0][0].TrackLength],
+            PieceKind.Switch => [Height, .. paths.Select(p => Height + g * p.Sum(l => l.TrackLength))],
             PieceKind.Crossing => [Height, Height, Height, Height],
             _ => [Height],
         };
@@ -46,7 +50,7 @@ public sealed class PlacedPiece
     public double HeightAt(int leg, double t)
     {
         var legs = TrackGeometry.LocalLegs(Def, Flipped);
-        return Height + EffectiveGrade * legs[leg].TrackLength * t;
+        return Height + EffectiveGrade * (legs[leg].From + legs[leg].TrackLength * t);
     }
 
     public Pose ToWorld(Pose local)

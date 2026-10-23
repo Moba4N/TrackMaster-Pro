@@ -93,7 +93,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 
 **Gleise (Basis)**
 - Spur wählen (Z, N, TT, H0, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (piccolo), Minitrix, Peco · TT: Tillig, Piko ·
+  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Fleischmann piccolo, Roco/Fleischmann ohne Bettung, Minitrix, Peco · TT: Tillig, Piko ·
   H0: Märklin C, Trix C, Märklin K, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Peco, Tillig Elite ·
   0: Standard, Lenz · Spur 1: Märklin · G: LGB.
   Weichen gibt es als einfache, schlanke, Dreiwege-, Bogen- und Y-Weichen, dazu Kreuzungen und DKW.

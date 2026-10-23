@@ -173,14 +173,15 @@ public static class Catalog
                 .. WW("EP718-15L", "EP718-15R", 186, 718, 15, "#6"),
                 X("X124-15", 124, 15), X("X186-15", 186, 15), P("E62", 62),
             ] },
-            new() { Id = "picc", Name = "Fleischmann piccolo", Pieces =
+            new() { Id = "picc", Name = "Roco/Fleischmann N ohne Bettung (piccolo)", Pieces =
             [
                 S("G222", 222), S("G111", 111), S("G104", 104.2), S("G55,5", 55.5), S("G27,75", 27.75),
                 C("R1", 192, 30, "R1"), C("R1-45", 192, 45, "R1"), C("R1-15", 192, 15, "R1"),
                 C("R2", 225.6, 30, "R2"), C("R2-45", 225.6, 45, "R2"), C("R2-15", 225.6, 15, "R2"), C("R3-45", 258.6, 45, "R3"), C("R4-45", 291.6, 45, "R4"),
                 W("WL", false, 111, 225.6, 15), W("WR", true, 111, 225.6, 15),
                 .. WW("WL-S", "WR-S", 111, 430, 15, "schlank"), .. BWW("BWL", "BWR", 225.6, 30, 192, 30),
-                X("K15", 111, 15), X("DKW15", 111, 15, doubleSlip: true), P("PB", 40),
+                S("EG55,5", 55.5, "Entkupplungsgleis"), W3("DWW", 111, 225.6, 15),
+                X("K15", 111, 15), X("K30", 111, 30), X("DKW15", 111, 15, doubleSlip: true), P("PB", 40),
             ] },
             new() { Id = "minitrix", Name = "Minitrix", Pieces =
             [

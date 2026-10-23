@@ -169,6 +169,7 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
+          profile: pixel_6
           disable-animations: true
           disk-size: 3000M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
@@ -187,7 +188,7 @@ jobs:
                   img = Image.open(f).convert("RGB")
               except Exception as e:
                   print(f"PREVIEW-{name}-FEHLER {e}"); continue
-              img = img.resize((int(img.width * 0.45), int(img.height * 0.45)))
+              img = img.resize((int(img.width * 0.3), int(img.height * 0.3)))
               buf = io.BytesIO(); img.save(buf, "JPEG", quality=70)
               b64 = base64.b64encode(buf.getvalue()).decode()
               print(f"PREVIEW-{name}-BEGIN")

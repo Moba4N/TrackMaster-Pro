@@ -29,7 +29,8 @@ public sealed class View3DActivity : Activity
     private LayoutPlan _plan = null!;
     private GLSurfaceView _view = null!;
     private SceneRenderer _renderer = null!;
-    private ToggleButton _ride = null!;
+    private Button _ride = null!;
+    private bool _riding;
     private SeekBar _time = null!, _speed = null!;
     private TextView _timeText = null!, _speedText = null!, _status = null!;
     private RidePath? _path;
@@ -73,10 +74,7 @@ public sealed class View3DActivity : Activity
         bar.SetPadding(Ui.Dp(10), Ui.Dp(6), Ui.Dp(10), Ui.Dp(6));
         var row1 = Ui.Row(this, 8);
         row1.AddView(Ui.Button(this, "Rundumsicht", StopRide));
-        _ride = new ToggleButton(this) { TextOn = "Mitfahren", TextOff = "Mitfahren", Checked = false };
-        _ride.SetAllCaps(false);
-        _ride.Background = Ui.Rounded(Color.Rgb(0xFD, 0xFD, 0xFD), Color.Rgb(0xD1, 0xD1, 0xD1));
-        _ride.Click += (_, _) => { if (_ride.Checked) StartRide(); else StopRide(); };
+        _ride = Ui.Button(this, "Mitfahren", () => { if (_riding) StopRide(); else StartRide(); });
         row1.AddView(_ride);
         _status = Ui.Label(this, "", 12.5, color: Ui.TextSecondary);
         row1.AddView(_status, Ui.Weight(1, vertical: false));
@@ -115,7 +113,7 @@ public sealed class View3DActivity : Activity
 
         _scale = new ScaleGestureDetector(this, new Zoom(this));
         _view.Touch += OnTouch;
-        if (mode == View3DMode.Ride) _view.Post(() => { _ride.Checked = true; StartRide(); });
+        if (mode == View3DMode.Ride) _view.Post(StartRide);
     }
 
     private double Hour => 5 + _time.Progress * 0.25;
@@ -171,7 +169,7 @@ public sealed class View3DActivity : Activity
     {
         var ev = e.Event!;
         e.Handled = true;
-        if (_ride.Checked) return;
+        if (_riding) return;
         _scale.OnTouchEvent(ev);
         switch (ev.ActionMasked)
         {
@@ -225,16 +223,23 @@ public sealed class View3DActivity : Activity
 
     // ---------- Mitfahren ----------
 
+    private void SetRiding(bool on)
+    {
+        _riding = on;
+        Ui.SetButtonState(_ride, false, on);
+    }
+
     private void StartRide()
     {
         _path ??= RidePath.Build(_plan, _startPiece);
         if (_path.IsEmpty)
         {
             _status.Text = "Keine Gleise zum Mitfahren.";
-            _ride.Checked = false;
+            SetRiding(false);
             return;
         }
         _status.Text = _path.Closed ? "Rundkurs" : "Die Fahrt wendet an Prellböcken und Gleisenden.";
+        SetRiding(true);
         _lastFrame = 0;
         _renderer.Frame = OnFrame;
         _view.RenderMode = Rendermode.Continuously;
@@ -244,7 +249,7 @@ public sealed class View3DActivity : Activity
     {
         _renderer.Frame = null;
         _view.RenderMode = Rendermode.WhenDirty;
-        _ride.Checked = false;
+        SetRiding(false);
         _status.Text = "";
         UpdateCamera();
     }

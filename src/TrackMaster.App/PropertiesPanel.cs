@@ -132,7 +132,29 @@ public sealed class PropertiesPanel : DockPanel
         Section("Anlagenplatte");
         _boardWidth = NumberBox(plan.BoardWidth, v => plan.BoardWidth = Math.Clamp(v, 100, 50000), 0);
         var height = NumberBox(plan.BoardHeight, v => plan.BoardHeight = Math.Clamp(v, 100, 50000), 0);
-        _body.Children.Add(Columns(2, Theme.Field("Breite (mm)", _boardWidth), Theme.Field("Tiefe (mm)", height)));
+        var shape = new ComboBox();
+        foreach (var f in BoardGeometry.All) shape.Items.Add(new ComboBoxItem { Content = BoardGeometry.Name(f), Tag = f, IsSelected = f == plan.BoardShape });
+        shape.SelectionChanged += (_, _) =>
+        {
+            if (shape.SelectedItem is not ComboBoxItem { Tag: BoardShape f } || f == plan.BoardShape) return;
+            _session.Edit(() =>
+            {
+                plan.BoardShape = f;
+                plan.BoardDepth = BoardGeometry.Depth(f, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn);
+            });
+        };
+        _body.Children.Add(Theme.Field("Form", shape));
+        _body.Children.Add(Columns(2, Theme.Field("Breite außen (mm)", _boardWidth), Theme.Field("Tiefe außen (mm)", height)));
+        if (BoardGeometry.HasLegs(plan.BoardShape))
+        {
+            var depth = NumberBox(BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn),
+                v => plan.BoardDepth = BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, v, plan.BoardTurn), 0);
+            var turn = new ComboBox();
+            foreach (var (t, i) in new[] { "Grundstellung", "90° gedreht", "180° gedreht", "270° gedreht" }.Select((t, i) => (t, i)))
+                turn.Items.Add(new ComboBoxItem { Content = t, Tag = i, IsSelected = i == plan.BoardTurn });
+            turn.SelectionChanged += (_, _) => { if (turn.SelectedItem is ComboBoxItem { Tag: int t } && t != plan.BoardTurn) _session.Edit(() => plan.BoardTurn = t); };
+            _body.Children.Add(Columns(2, Theme.Field("Schenkeltiefe (mm)", depth), Theme.Field("Ausrichtung", turn)));
+        }
 
         Section("Übersicht");
         Rows(("Spur", $"{gauge.Id} · {gauge.Scale} · {Fmt.Num(gauge.TrackWidth)} mm", null),

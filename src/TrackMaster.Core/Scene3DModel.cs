@@ -103,8 +103,11 @@ public sealed class Scene3DModel
         var g = _g;
         // Platte
         var thickness = Math.Max(g * 1.5, 15);
-        Mesh(new Rgb(0x8E, 0xA8, 0x6E)).Box(P(0, 0, -thickness), P(plan.BoardWidth, plan.BoardHeight, 0));
-        Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(-2, -2, -thickness * 1.6), P(plan.BoardWidth + 2, plan.BoardHeight + 2, -thickness));
+        foreach (var r in BoardGeometry.Rects(plan))
+        {
+            Mesh(new Rgb(0x8E, 0xA8, 0x6E)).Box(P(r.X0, r.Y0, -thickness), P(r.X1, r.Y1, 0));
+            Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, -thickness * 1.6), P(r.X1 + 2, r.Y1 + 2, -thickness));
+        }
 
         foreach (var s in plan.Scenery)
             switch (s.Kind)

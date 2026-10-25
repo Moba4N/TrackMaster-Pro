@@ -98,13 +98,26 @@ public sealed class PlanScene
         return g;
     }
 
+    /// <summary>Umriss der Anlagenplatte (L-, U-, Ring-Form usw.; beim Ring mit offener Mitte).</summary>
+    public static Geometry BoardOutline(LayoutPlan plan)
+    {
+        var g = new StreamGeometry { FillRule = FillRule.EvenOdd };
+        using (var ctx = g.Open())
+            foreach (var outline in BoardGeometry.Outlines(plan))
+            {
+                ctx.BeginFigure(new Point(outline[0].X, outline[0].Y), true, true);
+                ctx.PolyLineTo(outline.Skip(1).Select(q => new Point(q.X, q.Y)).ToList(), true, false);
+            }
+        g.Freeze();
+        return g;
+    }
+
     /// <summary>Zeichnet alles in Weltkoordinaten. <paramref name="zoom"/> = Pixel je mm, für Mindest-Strichstärken.</summary>
     public void Draw(DrawingContext dc, double zoom, RenderOptions o, Action<DrawingContext>? afterBoard = null)
     {
         var plan = _plan;
         double z = zoom, g = _gauge;
-        var board = new Rect(0, 0, plan.BoardWidth, plan.BoardHeight);
-        dc.DrawRoundedRectangle(Theme.BoardBrush, new Pen(Theme.BoardStrokeBrush, 1.2 / z), board, 4 / z, 4 / z);
+        dc.DrawGeometry(Theme.BoardBrush, new Pen(Theme.BoardStrokeBrush, 1.2 / z) { LineJoin = PenLineJoin.Round }, BoardOutline(plan));
         var selPen = new Pen(Theme.AccentBrush, Math.Max(2.5 / z, g * 0.25));
 
         if (o.Scenery)

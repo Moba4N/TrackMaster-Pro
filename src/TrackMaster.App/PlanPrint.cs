@@ -21,7 +21,7 @@ public static class PlanPrint
         var title = T(plan.Name, 18, face);
         dc.DrawText(title, new Point(margin, margin));
         var stats = plan.Statistics();
-        var sub = T($"Spur {plan.GaugeId} ({plan.Gauge.Scale}) · Platte {Fmt.Num(plan.BoardWidth, 0)} × {Fmt.Num(plan.BoardHeight, 0)} mm · {stats.Pieces} Gleise, " +
+        var sub = T($"Spur {plan.GaugeId} ({plan.Gauge.Scale}) · Platte {BoardGeometry.Describe(plan)} · {stats.Pieces} Gleise, " +
                     $"{Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · {DateTime.Now:dd.MM.yyyy}", 10, regular, Brushes.DimGray);
         dc.DrawText(sub, new Point(margin, margin + title.Height + 2));
 

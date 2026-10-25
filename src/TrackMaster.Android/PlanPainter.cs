@@ -86,6 +86,16 @@ public sealed class PlanPainter
         return p;
     }
 
+    /// <summary>Umriss der Anlagenplatte (L-, U-, Ring-Form usw.; beim Ring mit offener Mitte).</summary>
+    public static Path BoardPath(LayoutPlan plan)
+    {
+        var path = new Path();
+        path.SetFillType(Path.FillType.EvenOdd!);
+        foreach (var outline in BoardGeometry.Outlines(plan))
+            path.AddPath(Polygon(outline));
+        return path;
+    }
+
     public static Path Polygon(IReadOnlyList<(double X, double Y)> pts, bool close = true)
     {
         var p = new Path();
@@ -149,9 +159,9 @@ public sealed class PlanPainter
     {
         var plan = _plan;
         float z = zoom, g = _g;
-        var board = new RectF(0, 0, (float)plan.BoardWidth, (float)plan.BoardHeight);
-        c.DrawRoundRect(board, 4 / z, 4 / z, Fill(Ui.Board));
-        c.DrawRoundRect(board, 4 / z, 4 / z, Stroke(Ui.BoardStroke, 1.2f * Ui.Density / z));
+        var board = BoardPath(plan);
+        c.DrawPath(board, Fill(Ui.Board));
+        c.DrawPath(board, Stroke(Ui.BoardStroke, 1.2f * Ui.Density / z));
         var selWidth = Math.Max(2.5f * Ui.Density / z, g * 0.25f);
 
         if (scenery)

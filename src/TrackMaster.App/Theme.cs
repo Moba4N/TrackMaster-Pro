@@ -145,4 +145,15 @@ public static class Theme
         System.Windows.Automation.AutomationProperties.SetName(box, label);
         return panel;
     }
+
+    /// <summary>Auswahlliste mit Beschriftung darüber.</summary>
+    public static StackPanel Field(string label, ComboBox box)
+    {
+        box.Height = 28;
+        var panel = new StackPanel { Margin = new Thickness(0, 0, 6, 8) };
+        panel.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 3) });
+        panel.Children.Add(box);
+        System.Windows.Automation.AutomationProperties.SetName(box, label);
+        return panel;
+    }
 }

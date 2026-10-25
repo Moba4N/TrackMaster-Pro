@@ -89,7 +89,7 @@ public static class PlanCheck
         }
 
         // Außerhalb der Platte
-        var outside = samples.Where(s => s.X < -0.5 || s.Y < -0.5 || s.X > plan.BoardWidth + 0.5 || s.Y > plan.BoardHeight + 0.5).GroupBy(s => s.PieceId).ToList();
+        var outside = samples.Where(s => !BoardGeometry.Contains(plan, s.X, s.Y)).GroupBy(s => s.PieceId).ToList();
         if (outside.Count > 0)
         {
             var first = outside[0].First();

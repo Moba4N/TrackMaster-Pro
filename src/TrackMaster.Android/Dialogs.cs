@@ -9,7 +9,7 @@ using TrackMaster.Licensing;
 namespace TrackMaster.Mobile;
 
 /// <summary>Dialoge der Android-Version (Gegenstück zu Dialogs/ProDialogs unter Windows).</summary>
-public static class Dialogs
+public static partial class Dialogs
 {
     /// <summary>Dialog mit eigenem Inhalt. <paramref name="ok"/> gibt false zurück, wenn er offen bleiben soll (Eingabefehler).</summary>
     public static AlertDialog Show(Context c, string title, View body, string? okText = "OK", Func<bool>? ok = null, string? cancelText = "Abbrechen", (string Text, Action Click)? neutral = null)
@@ -128,9 +128,19 @@ public static class Dialogs
         var name = Ui.TextField(c, plan.Name);
         body.AddView(Ui.Field(c, "Planname", name));
         body.AddView(Section(c, "Anlagenplatte"));
+        var shapes = BoardGeometry.All;
+        var shape = Choice(c, shapes.Select(BoardGeometry.Name).ToList(), shapes.ToList().IndexOf(plan.BoardShape));
+        body.AddView(Ui.Field(c, "Form", shape));
         var w = Ui.Number(c, plan.BoardWidth);
         var h = Ui.Number(c, plan.BoardHeight);
-        body.AddView(Columns(c, Ui.Field(c, "Breite (mm)", w), Ui.Field(c, "Tiefe (mm)", h)));
+        body.AddView(Columns(c, Ui.Field(c, "Breite außen (mm)", w), Ui.Field(c, "Tiefe außen (mm)", h)));
+        var depth = Ui.Number(c, BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn));
+        var turn = Choice(c, BoardTurns, plan.BoardTurn);
+        var legs = Columns(c, Ui.Field(c, "Schenkeltiefe (mm)", depth), Ui.Field(c, "Ausrichtung", turn));
+        body.AddView(legs);
+        void SyncLegs() => legs.Visibility = BoardGeometry.HasLegs(shapes[Math.Max(0, shape.SelectedItemPosition)]) ? ViewStates.Visible : ViewStates.Gone;
+        shape.ItemSelected += (_, _) => SyncLegs();
+        SyncLegs();
         body.AddView(Section(c, "Übersicht"));
         body.AddView(Rows(c,
             ("Spur", $"{gauge.Id} · {gauge.Scale} · {Fmt.Num(gauge.TrackWidth)} mm", null),
@@ -150,10 +160,22 @@ public static class Dialogs
             var errors = new List<string>();
             Read(w, "Breite", 100, 50000, errors, out var bw);
             Read(h, "Tiefe", 100, 50000, errors, out var bh);
+            var newShape = shapes[Math.Max(0, shape.SelectedItemPosition)];
+            var bd = plan.BoardDepth;
+            if (BoardGeometry.HasLegs(newShape)) Read(depth, "Schenkeltiefe", 50, 50000, errors, out bd);
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
             var n = (name.Text ?? "").Trim();
-            if (n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight)
-                session.Edit(() => { if (n.Length > 0) plan.Name = n; plan.BoardWidth = bw; plan.BoardHeight = bh; });
+            var t = turn.SelectedItemPosition;
+            if (n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn)
+                session.Edit(() =>
+                {
+                    if (n.Length > 0) plan.Name = n;
+                    plan.BoardWidth = bw;
+                    plan.BoardHeight = bh;
+                    plan.BoardShape = newShape;
+                    plan.BoardTurn = t;
+                    plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);
+                });
             return true;
         }, neutral: ("Stückliste", () => run("bom")));
     }
@@ -502,20 +524,6 @@ public static class Dialogs
             SetError(error, errors);
             if (errors.Count > 0) return false;
             build(ordered[Math.Max(0, curve.SelectedItemPosition)].Key, t, r, direction.SelectedItemPosition == 1);
-            return true;
-        });
-    }
-
-    public static void AskNewPlan(Context c, string currentGauge, Action<string> create)
-    {
-        var body = Ui.Column(c, 8);
-        body.AddView(Hint(c, "Der aktuelle Plan wird verworfen; Rückgängig holt ihn zurück."));
-        var gauges = Catalog.Gauges.ToList();
-        var choice = Choice(c, gauges.Select(g => $"Spur {g.Id} ({g.Scale})").ToList(), gauges.FindIndex(g => g.Id == currentGauge));
-        body.AddView(Ui.Field(c, "Spur", choice));
-        Show(c, "Neuer Plan", body, "Anlegen", () =>
-        {
-            create(gauges[Math.Max(0, choice.SelectedItemPosition)].Id);
             return true;
         });
     }

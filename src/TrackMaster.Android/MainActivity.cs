@@ -142,10 +142,9 @@ public sealed class MainActivity : Activity
 
     private void RegisterCommands()
     {
-        Add("new", "Neu", () => Dialogs.AskNewPlan(this, _session.Plan.GaugeId, gauge =>
+        Add("new", "Neu", () => Dialogs.AskNewPlan(this, _session.Plan.GaugeId, setup =>
         {
-            _session.NewPlan();
-            _session.SetGauge(gauge);
+            _session.NewPlan(setup);
             _library.Refresh(force: true);
             _canvas.Fit();
         }));

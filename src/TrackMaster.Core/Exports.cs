@@ -100,7 +100,7 @@ public static class SvgExport
         return $"""
 <svg xmlns="http://www.w3.org/2000/svg" width="{N(w + 2 * m)}mm" height="{N(h + 2 * m)}mm" viewBox="{N(-m)} {N(-m)} {N(w + 2 * m)} {N(h + 2 * m)}">
 <title>{title} – Spur {plan.GaugeId}</title>
-<rect x="0" y="0" width="{N(w)}" height="{N(h)}" fill="#E3EBD7" stroke="#8FA67A" stroke-width="1"/>
+<path d="{string.Concat(BoardGeometry.Outlines(plan).Select(o => "M" + string.Join("L", o.Select(q => $"{N(q.X)} {N(q.Y)}")) + "Z"))}" fill="#E3EBD7" fill-rule="evenodd" stroke="#8FA67A" stroke-width="1"/>
 <path d="{bed}" fill="none" stroke="#CFC3AF" stroke-width="{N(g * 2.4)}"/>
 <path d="{bed}" fill="none" stroke="#8C7B66" stroke-width="{N(g * 1.9)}" stroke-dasharray="{N(g * 0.16)} {N(g * 0.3)}"/>
 <path d="{rails}" fill="none" stroke="#4E5257" stroke-width="{N(Math.Max(g * 0.11, 0.5))}"/>

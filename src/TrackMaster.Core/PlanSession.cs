@@ -100,6 +100,24 @@ public sealed class PlanSession
         Say("Neuer Plan angelegt. Rückgängig holt den vorherigen zurück.");
     }
 
+    /// <summary>Neuer Plan mit Spur und Plattenform.</summary>
+    public void NewPlan(BoardSetup setup)
+    {
+        var (gaugeId, shape, width, height, depth, turn) = setup;
+        Record();
+        Plan = LayoutPlan.Empty(gaugeId);
+        Plan.BoardShape = shape;
+        Plan.BoardWidth = Math.Clamp(width, 100, 50000);
+        Plan.BoardHeight = Math.Clamp(height, 100, 50000);
+        Plan.BoardDepth = BoardGeometry.Depth(shape, Plan.BoardWidth, Plan.BoardHeight, depth, turn);
+        Plan.BoardTurn = ((turn % 4) + 4) % 4;
+        FilePath = null;
+        Selection.Clear();
+        Active = null;
+        Commit();
+        Say($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}. Rückgängig holt den vorherigen zurück.");
+    }
+
     public void LoadSample()
     {
         if (Plan.Pieces.Count > 0) Record();

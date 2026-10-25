@@ -228,8 +228,11 @@ public sealed class PlanView : View
             paint.StrokeCap = Paint.Cap.Butt;
             c.DrawPath(path, paint);
         }
+        c.Save();
+        c.ClipPath(PlanPainter.BoardPath(plan));
         if (10 * _zoom >= 8 * Ui.Density) Lines(10, Ui.GridMinor);
         if (100 * _zoom >= 10 * Ui.Density) Lines(100, Ui.GridMajor);
+        c.Restore();
     }
 
     private Paint TextPaint(float sizeSp, Color color, bool bold = false)

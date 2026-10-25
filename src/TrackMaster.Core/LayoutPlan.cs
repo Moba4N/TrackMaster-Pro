@@ -187,6 +187,12 @@ public sealed class LayoutPlan
     public string GaugeId { get; set; } = "H0";
     public double BoardWidth { get; set; } = 2000;
     public double BoardHeight { get; set; } = 1250;
+    /// <summary>Grundform der Platte; Breite und Tiefe sind die äußeren Maße (siehe <see cref="BoardGeometry"/>).</summary>
+    public BoardShape BoardShape { get; set; } = BoardShape.Rechteck;
+    /// <summary>Schenkeltiefe bei L-, U-, T-, Z-Form und Ring in mm.</summary>
+    public double BoardDepth { get; set; } = 600;
+    /// <summary>Ausrichtung der Form in Vierteldrehungen im Uhrzeigersinn (0…3).</summary>
+    public int BoardTurn { get; set; }
     public List<PlacedPiece> Pieces { get; } = [];
     public List<SceneryItem> Scenery { get; } = [];
     public List<Feeder> Feeders { get; } = [];

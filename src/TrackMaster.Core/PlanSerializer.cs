@@ -66,6 +66,9 @@ public static class PlanSerializer
     {
         [JsonPropertyName("w")] public double W { get; set; }
         [JsonPropertyName("h")] public double H { get; set; }
+        [JsonPropertyName("shape"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Shape { get; set; }
+        [JsonPropertyName("depth"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Depth { get; set; }
+        [JsonPropertyName("turn"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Turn { get; set; }
     }
 
     private sealed class PieceDto
@@ -96,7 +99,13 @@ public static class PlanSerializer
         {
             Name = plan.Name,
             Gauge = plan.GaugeId,
-            Board = new BoardDto { W = plan.BoardWidth, H = plan.BoardHeight },
+            Board = new BoardDto
+            {
+                W = plan.BoardWidth, H = plan.BoardHeight,
+                Shape = plan.BoardShape == BoardShape.Rechteck ? null : plan.BoardShape.ToString(),
+                Depth = plan.BoardShape == BoardShape.Rechteck ? null : plan.BoardDepth,
+                Turn = plan.BoardShape == BoardShape.Rechteck || plan.BoardTurn == 0 ? null : plan.BoardTurn,
+            },
             Pieces = plan.Pieces.Select(p => new PieceDto
             {
                 Id = needIds ? p.Id : null,
@@ -142,6 +151,9 @@ public static class PlanSerializer
             GaugeId = gauge.Id,
             BoardWidth = dto.Board is { W: > 0 } ? dto.Board.W : gauge.DefaultBoardWidth,
             BoardHeight = dto.Board is { H: > 0 } ? dto.Board.H : gauge.DefaultBoardHeight,
+            BoardShape = Enum.TryParse<BoardShape>(dto.Board?.Shape, out var shape) ? shape : BoardShape.Rechteck,
+            BoardDepth = dto.Board?.Depth is double depth && depth > 0 ? depth : 600,
+            BoardTurn = Math.Clamp(dto.Board?.Turn ?? 0, 0, 3),
         };
         skipped = 0;
         // Gleise ohne Kennung bekommen neue Kennungen oberhalb aller in der Datei vorhandenen

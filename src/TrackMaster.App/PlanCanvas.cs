@@ -152,7 +152,13 @@ public sealed class PlanCanvas : FrameworkElement
         dc.PushTransform(new MatrixTransform(z, 0, 0, z, _ox, _oy));
         var board = new Rect(0, 0, plan.BoardWidth, plan.BoardHeight);
         scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject),
-            d => { if (_session.ShowGrid) DrawGrid(d, board); });
+            d =>
+            {
+                if (!_session.ShowGrid) return;
+                d.PushClip(PlanScene.BoardOutline(plan));
+                DrawGrid(d, board);
+                d.Pop();
+            });
         DrawToolPreview(dc);
         dc.Pop();
 

@@ -111,7 +111,12 @@ public sealed class MainWindow : Window
         void Add(string id, Action run, Func<bool>? can = null) => _commands[id] = new RelayCommand(run, can);
         bool HasSelection() => Session.Selection.Count > 0;
 
-        Add("new", () => { if (ConfirmDiscard()) Session.NewPlan(); });
+        Add("new", () =>
+        {
+            if (!ConfirmDiscard() || Dialogs.AskNewPlan(this, Session.Plan.GaugeId) is not { } setup) return;
+            Session.NewPlan(setup);
+            Canvas.Fit();
+        });
         Add("open", OpenFile);
         Add("save", () => SaveFile(false));
         Add("saveAs", () => SaveFile(true));

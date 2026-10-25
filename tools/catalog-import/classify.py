@@ -69,7 +69,7 @@ def classify(block):
     rs = [r if r['da'] <= r['db'] else reverse_route(r) for r in rs]
 
     if 'flex' in tl and nE == 2 and len(rs) == 1:
-        return {'flex': True, 'number': number, 'len': length(rs[0]['prims'])}, None
+        return {'flex': True, 'number': number, 'len': length(rs[0]['prims']), 'desc': desc}, None
 
     def place(r_list, origin_route, decor=()):
         o = origin_route['prims'][0]

@@ -50,7 +50,7 @@ public static partial class Catalog
                 .. WW("8565", "8566", 110, 490, 13), W("WL", false, 110, 490, 13), W("WR", true, 110, 490, 13), .. BWW("BWL", "BWR", 220, 30, 195, 30),
                 X("K13", 110, 13), X("DKW13", 110, 13, doubleSlip: true), P("PB", 27)
             ] },
-            new() { Id = "rokuhan", Name = "Rokuhan", Verified = true, Source = "XTrackCAD Z-Rokuhan.xtp", FlexNumber = "R016", FlexLength = 330, Pieces =
+            new() { Id = "rokuhan", Name = "Rokuhan", Verified = true, Source = "XTrackCAD Z-Rokuhan.xtp", FlexNumber = "R016", FlexLength = 330, MoreFlex = [("R017", 135, "kurz")], Pieces =
             [
                 S("A013", 1),
                 S("R0XX", 25),
@@ -265,7 +265,7 @@ public static partial class Catalog
                 .. WW("EP718-15L", "EP718-15R", 186, 718, 15, "#6"),
                 X("X124-15", 124, 15), X("X186-15", 186, 15), P("E62", 62)
             ] },
-            new() { Id = "rf-n", Name = "Roco/Fleischmann ohne Bettung", Verified = true, Source = "XTrackCAD N-fl.xtp", FlexNumber = "22200", FlexLength = 730, Pieces =
+            new() { Id = "rf-n", Name = "Roco/Fleischmann ohne Bettung", Verified = true, Source = "XTrackCAD N-fl.xtp", FlexNumber = "22200", FlexLength = 730, MoreFlex = [("22201", 730, "starr")], Pieces =
             [
                 S("22202", 312.6),
                 S("22203", 104.2),
@@ -663,7 +663,7 @@ public static partial class Catalog
         ] },
         new() { Id = "TT", ClearanceHeight = 60, FlexStockLength = 890, Scale = "1:120", TrackWidth = 12, DefaultBoardWidth = 2000, DefaultBoardHeight = 1000, Systems =
         [
-            new() { Id = "tillig", Name = "Tillig Modellgleis", Verified = true, Source = "XTrackCAD TilligTTModellGS.xtp", FlexNumber = "83125", FlexLength = 664, Pieces =
+            new() { Id = "tillig", Name = "Tillig Modellgleis", Verified = true, Source = "XTrackCAD TilligTTModellGS.xtp", FlexNumber = "83125", FlexLength = 664, MoreFlex = [("83136", 520, "Stahlschwellenflexgleis"), ("83134", 520, "Betonschwellenflexgleis"), ("83025", 220, "Flex-Schwellenband"), ("83034", 125, "Flex-Schwellenband"), ("83036", 80, "Flex-Schwellenband")], Pieces =
             [
                 S("83001", 166),
                 S("83101", 166),
@@ -1231,7 +1231,7 @@ public static partial class Catalog
                 S("6014-1", 102, "Entkupplungsgleis"),
                 P("6014-2", 55),
             ] },
-            new() { Id = "tillig-h0", Name = "Tillig Elite H0", Verified = true, Source = "XTrackCAD TilligH0EliteCode83.xtp", FlexNumber = "85125", FlexLength = 890, Pieces =
+            new() { Id = "tillig-h0", Name = "Tillig Elite H0", Verified = true, Source = "XTrackCAD TilligH0EliteCode83.xtp", FlexNumber = "85125", FlexLength = 890, MoreFlex = [("85134", 470, "Betonschwellen-Flexgleis"), ("85136", 470, "Stahlschwellen-Flexgleis"), ("85025", 220, "Flex-Schwellenband")], Pieces =
             [
                 S("85018", 228),
                 S("85034", 110),

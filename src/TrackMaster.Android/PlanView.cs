@@ -23,7 +23,7 @@ public sealed class PlanView : View
     private readonly Paint _p = new(PaintFlags.AntiAlias);
     private readonly Random _random = new(7);
 
-    private enum DragMode { None, Pan, Move, Band, Building }
+    private enum DragMode { None, Pan, Move, Band, Building, FlexDraw, FlexEnd }
     private DragMode _drag;
     private float _downX, _downY;
     private (double X, double Y) _downWorld, _lastWorld;
@@ -32,6 +32,11 @@ public sealed class PlanView : View
     private bool _multiTouch;
     private RectF? _band;
     private readonly List<(double X, double Y)> _polygon = [];
+    // Flexgleis: neu ziehen bzw. ein Ende nachformen
+    private FlexDraft? _flexDraft;
+    private ConnectorRef? _flexEnd;
+    private bool _reshaping;
+    private IReadOnlyList<Segment> _reshapeLast = [];
 
     /// <summary>Doppeltippen auf ein Gleis oder Objekt: Eigenschaften zeigen.</summary>
     public event Action? PropertiesRequested;
@@ -204,6 +209,13 @@ public sealed class PlanView : View
                 c.DrawCircle((float)p.X, (float)p.Y, 6 * Ui.Density / z, Fill(Color.White));
                 c.DrawCircle((float)p.X, (float)p.Y, 6 * Ui.Density / z, Stroke(Ui.Accent, 2 * Ui.Density / z));
             }
+        }
+        if (_flexDraft is { Segments.Count: > 0 } draft)
+        {
+            var path = PlanPainter.Build(draft.Legs, 0);
+            c.DrawPath(path, Stroke(Color.Argb(0x70, 0xE0, 0x8A, 0x2E), Math.Max(_gauge * 2.6f, 6 * Ui.Density / z)));
+            c.DrawPath(path, Stroke(Ui.Accent, 2 * Ui.Density / z));
+            if (draft.Target is { } t) c.DrawCircle((float)t.Pose.X, (float)t.Pose.Y, 14 * Ui.Density / z, Stroke(Ui.Accent, 2.5f * Ui.Density / z));
         }
         if (_drag == DragMode.Building && _moved)
         {
@@ -395,6 +407,30 @@ public sealed class PlanView : View
         return best;
     }
 
+    /// <summary>Ende eines Flexgleises zum Nachformen: offene Enden immer, verbundene nur, wenn das Flexgleis gewählt ist.</summary>
+    private ConnectorRef? HitFlexEnd(float sx, float sy)
+    {
+        ConnectorRef? best = null;
+        var bestD = 22 * Ui.Density;
+        foreach (var c in _session.Connections.All)
+        {
+            if (_session.Plan.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
+            var s = ToScreen(c.Pose.X, c.Pose.Y);
+            var d = (float)Math.Sqrt((s.X - sx) * (s.X - sx) + (s.Y - sy) * (s.Y - sy));
+            if (d < bestD) { bestD = d; best = c; }
+        }
+        return best;
+    }
+
+    private void EndFlex()
+    {
+        if (_reshaping) _session.EndReshape(_reshapeLast);
+        _reshaping = false;
+        _reshapeLast = [];
+        _flexEnd = null;
+        _flexDraft = null;
+    }
+
     private PlacedPiece? HitPiece((double X, double Y) world)
     {
         var tol = Math.Max(_gauge * 1.4, 16 * Ui.Density / _zoom);
@@ -455,8 +491,10 @@ public sealed class PlanView : View
             {
                 _multiTouch = true;
                 if (_drag == DragMode.Move) _session.EndMove(Ui.Dp(20) / _zoom);
+                EndFlex();
                 _drag = DragMode.None;
                 _band = null;
+                Invalidate();
             }
             return true;
         }
@@ -497,6 +535,24 @@ public sealed class PlanView : View
                     case DragMode.Building:
                         Invalidate();
                         break;
+                    case DragMode.FlexDraw when _flexDraft is { } draft:
+                        draft.Update(world.X, world.Y, _session.FlexTarget(world.X, world.Y, Ui.Dp(26) / _zoom, exclude: draft.From));
+                        if (draft.Segments.Count > 0) _session.Say(FlexTrack.Describe(draft.Segments) + (draft.Target is not null ? " – rastet am Gleisende ein" : ""));
+                        Invalidate();
+                        break;
+                    case DragMode.FlexEnd when _flexEnd is { } fe:
+                        if (!_reshaping)
+                        {
+                            if (!_session.BeginReshape(fe.PieceId, fe.Index)) { _drag = DragMode.Pan; break; }
+                            _reshaping = true;
+                        }
+                        var shaped = _session.Reshape(world.X, world.Y, _session.FlexTarget(world.X, world.Y, Ui.Dp(26) / _zoom, fe.PieceId));
+                        if (shaped.Count > 0)
+                        {
+                            _reshapeLast = shaped;
+                            _session.Say(FlexTrack.Describe(shaped));
+                        }
+                        break;
                 }
                 return true;
             case MotionEventActions.Up:
@@ -506,6 +562,7 @@ public sealed class PlanView : View
                 return true;
             case MotionEventActions.Cancel:
                 if (_drag == DragMode.Move) _session.EndMove(Ui.Dp(20) / _zoom);
+                EndFlex();
                 _drag = DragMode.None;
                 _band = null;
                 Invalidate();
@@ -527,7 +584,12 @@ public sealed class PlanView : View
             case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal:
                 _drag = DragMode.Pan;
                 return;
+            case CanvasTool.Flex:
+                _flexDraft = _session.BeginFlexDraw(world.X, world.Y, _session.FlexTarget(world.X, world.Y, Ui.Dp(26) / _zoom));
+                _drag = DragMode.FlexDraw;
+                return;
         }
+        if (HitFlexEnd(x, y) is { } fe) { _flexEnd = fe; _reshaping = false; _drag = DragMode.FlexEnd; return; }
         if (HitConnector(x, y) is not null) { _drag = DragMode.Pan; return; }
         if (HitSmallObject(x, y, world) is { } obj && obj == _session.SelectedObject) { _session.BeginMove(); _drag = DragMode.Move; return; }
         if (HitPiece(world) is { } piece && _session.Selection.Contains(piece.Id)) { _session.BeginMove(); _drag = DragMode.Move; return; }
@@ -568,6 +630,17 @@ public sealed class PlanView : View
                 return;
             case DragMode.Pan:
                 if (!_moved) Tap(x, y, world);
+                return;
+            case DragMode.FlexDraw:
+                if (_moved && _flexDraft is { } draft) _session.FinishFlexDraw(draft);
+                else _session.Say("Flexgleis ziehen: an einem offenen Gleisende (oder frei) aufsetzen und mit dem Finger ziehen.");
+                EndFlex();
+                Invalidate();
+                return;
+            case DragMode.FlexEnd:
+                var shaped = _reshaping;
+                EndFlex();
+                if (!shaped) Tap(x, y, world);
                 return;
         }
     }

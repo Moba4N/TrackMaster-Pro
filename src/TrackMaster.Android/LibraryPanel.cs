@@ -122,11 +122,19 @@ public sealed class LibraryPanel : LinearLayout
         if (_category is "Alle" or "Flexgleis")
         {
             var gauge = _session.Plan.Gauge;
-            var stock = Catalog.Flex(gauge, system);
-            var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
-            var flex = new PieceTile(Context!, sample, "Flexgleis…", $"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
-            flex.Click += (_, _) => Dialogs.AskFlex(Context!, gauge, stock, key => _session.AttachFlex(key, _center()));
-            _pieces.AddView(flex, new LayoutParams(Ui.Dp(112), Ui.Dp(92)));
+            var stocks = Catalog.Flexes(gauge, system);
+            foreach (var stock in stocks)
+            {
+                var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
+                var flex = new PieceTile(Context!, sample, stocks.Count > 1 ? $"Flexgleis {stock.Number}…" : "Flexgleis…", $"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
+                flex.Click += (_, _) =>
+                {
+                    // Dieses Flexgleis gilt ab jetzt auch für „Flexgleis ziehen“ und „Lücke schließen“
+                    _session.CurrentFlex = stock;
+                    Dialogs.AskFlex(Context!, gauge, stock, key => _session.AttachFlex(key, _center()));
+                };
+                _pieces.AddView(flex, new LayoutParams(Ui.Dp(112), Ui.Dp(92)));
+            }
         }
         foreach (var def in system.Pieces.Where(Matches))
         {

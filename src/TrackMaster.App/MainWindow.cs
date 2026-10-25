@@ -131,6 +131,8 @@ public sealed class MainWindow : Window
         Add("check", () => ShowCheck(false));
         Pro("elecCheck", "Elektrik prüfen", () => ShowCheck(true));
         Add("flex", AddFlex);
+        Add("toolFlex", () => SetTool(CanvasTool.Flex));
+        Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
         Pro("gradient", "Steigung", AskGradient, HasSelection);
         Pro("helix", "Gleiswendel", AskHelix);
         Pro("tunnel", "Tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -203,6 +205,7 @@ public sealed class MainWindow : Window
         CanvasTool.Tree => "Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug.",
         CanvasTool.Feeder => "Einspeisung: Auf ein Gleis klicken. Den Stromkreis stellt man in den Eigenschaften ein.",
         CanvasTool.Isolation => "Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder.",
+        CanvasTool.Flex => "Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug.",
         CanvasTool.Signal => "Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren.",
         _ => "",
     };
@@ -405,6 +408,10 @@ public sealed class MainWindow : Window
                 Large("Gerade", "Straight", "qStraight", "Gerade des gewählten Systems am aktiven Gleisende ansetzen."), Large("Bogen", "Curve", "qCurve"),
                 Large("Weiche links", "SwitchLeft", "qSwitchL"), Large("Weiche rechts", "SwitchRight", "qSwitchR"),
                 Small("Prellbock", "Buffer", "qBuffer"), Small("Kreuzung", "Crossing", "qCrossing"), Small("Flexgleis…", "Flex", "flex", "Gerade oder Bogen mit frei gewählten Maßen.")),
+            Group("Flexgleis",
+                Toggle("Flexgleis ziehen", "Flex", true, () => Session.Tool == CanvasTool.Flex, on => SetTool(on ? CanvasTool.Flex : CanvasTool.Select),
+                    "Wie in WinTrack: am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit. Bei verlegten Flexgleisen ein Ende anfassen und ziehen, um sie nachzuformen."),
+                Large("Lücke schließen", "Connector", "flexConnect", "Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis.")),
             Group("Höhe",
                 ProLarge("Steigung…", "Slope", "gradient", "Gleichmäßige Steigung über die gewählten Gleise legen."),
                 ProLarge("Gleis­wendel…", "Helix", "helix", "Wendel aus Bögen mit mehreren Windungen bauen."),
@@ -786,7 +793,7 @@ public sealed class MainWindow : Window
     private void AddFlex()
     {
         var gauge = Session.Plan.Gauge;
-        if (Dialogs.AskFlex(this, gauge, Catalog.Flex(gauge, Session.CurrentSystem)) is { } key) Session.AttachFlex(key, Canvas.CenterWorld());
+        if (Dialogs.AskFlex(this, gauge, Session.CurrentFlex) is { } key) Session.AttachFlex(key, Canvas.CenterWorld());
     }
 
     private void AskGradient()

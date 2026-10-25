@@ -21,7 +21,7 @@ public sealed class PlanCanvas : FrameworkElement
     private PlanScene? _scene;
     private double _gauge;
 
-    private enum DragMode { None, Pan, Move, Band, Create }
+    private enum DragMode { None, Pan, Move, Band, Create, FlexDraw, FlexEnd }
     private DragMode _drag;
     private Point _dragStartScreen;
     private Point _dragStartWorld;
@@ -32,6 +32,11 @@ public sealed class PlanCanvas : FrameworkElement
     private bool _spaceDown;
     private readonly List<(double X, double Y)> _polygon = [];
     private readonly Random _random = new(7);
+    // Flexgleis: neu ziehen bzw. ein Ende nachformen
+    private FlexDraft? _flexDraft;
+    private ConnectorRef? _flexEnd;
+    private bool _reshaping;
+    private IReadOnlyList<Segment> _reshapeLast = [];
 
     public event Action? ViewChanged;
     public event Action<Point?>? CursorMoved;
@@ -181,6 +186,13 @@ public sealed class PlanCanvas : FrameworkElement
             var fill = _session.Tool == CanvasTool.Water ? new SolidColorBrush(Color.FromArgb(0x60, 0x86, 0xBC, 0xE6)) : new SolidColorBrush(Color.FromArgb(0x60, 0x9C, 0xB8, 0x7E));
             dc.DrawGeometry(fill, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, PlanScene.Polygon(pts));
             foreach (var p in _polygon) dc.DrawEllipse(Brushes.White, new Pen(Theme.AccentBrush, 1.5 / z), new Point(p.X, p.Y), 4 / z, 4 / z);
+        }
+        if (_flexDraft is { Segments.Count: > 0 } draft)
+        {
+            var geo = TrackDrawing.Build(draft.Legs, 0);
+            dc.DrawGeometry(null, new Pen(new SolidColorBrush(Color.FromArgb(0x70, 0xE0, 0x8A, 0x2E)), Math.Max(_gauge * 2.6, 4 / z)) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, geo);
+            dc.DrawGeometry(null, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, geo);
+            if (draft.Target is { } t) dc.DrawEllipse(null, new Pen(Theme.AccentBrush, 2 / z), new Point(t.Pose.X, t.Pose.Y), 10 / z, 10 / z);
         }
         if (_drag == DragMode.Create && _session.Tool == CanvasTool.Building && _moved)
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x80, 0xB8, 0x5C, 0x45)), new Pen(Theme.AccentBrush, 1.5 / z), new Rect(_dragStartWorld, _lastWorld));
@@ -359,6 +371,20 @@ public sealed class PlanCanvas : FrameworkElement
         return best;
     }
 
+    /// <summary>Ende eines Flexgleises zum Nachformen: offene Enden immer, verbundene nur, wenn das Flexgleis gewählt ist.</summary>
+    private ConnectorRef? HitFlexEnd(Point screen)
+    {
+        ConnectorRef? best = null;
+        var bestD = 9.0;
+        foreach (var c in _session.Connections.All)
+        {
+            if (_session.Plan.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
+            var d = (ToScreen(c.Pose.X, c.Pose.Y) - screen).Length;
+            if (d < bestD) { bestD = d; best = c; }
+        }
+        return best;
+    }
+
     private PlacedPiece? HitPiece(Point world)
     {
         var tol = Math.Max(_gauge * 1.4, 7 / _zoom);
@@ -458,9 +484,22 @@ public sealed class PlanCanvas : FrameworkElement
                 if (HitConnector(screen, openOnly: false, radius: 14) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
                 else _session.Say("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung klicken.");
                 return;
+            case CanvasTool.Flex:
+                CaptureMouse();
+                _flexDraft = _session.BeginFlexDraw(world.X, world.Y, _session.FlexTarget(world.X, world.Y, 12 / _zoom));
+                _drag = DragMode.FlexDraw;
+                return;
         }
 
         CaptureMouse();
+        if (HitFlexEnd(screen) is { } fe)
+        {
+            if (fe.IsOpen) _session.SetActive(fe.PieceId, fe.Index);
+            _flexEnd = fe;
+            _reshaping = false;
+            _drag = DragMode.FlexEnd;
+            return;
+        }
         if (HitConnector(screen) is { } conn)
         {
             _session.SetActive(conn.PieceId, conn.Index);
@@ -528,6 +567,28 @@ public sealed class PlanCanvas : FrameworkElement
                 _moved = true;
                 InvalidateVisual();
                 break;
+            case DragMode.FlexDraw when _flexDraft is { } draft:
+                if (!_moved && (screen - _dragStartScreen).Length < 4) return;
+                _moved = true;
+                draft.Update(world.X, world.Y, _session.FlexTarget(world.X, world.Y, 14 / _zoom, exclude: draft.From));
+                if (draft.Segments.Count > 0) _session.Say(FlexTrack.Describe(draft.Segments) + (draft.Target is not null ? " – rastet am Gleisende ein" : ""));
+                InvalidateVisual();
+                break;
+            case DragMode.FlexEnd when _flexEnd is { } fe:
+                if (!_moved && (screen - _dragStartScreen).Length < 3) return;
+                _moved = true;
+                if (!_reshaping)
+                {
+                    if (!_session.BeginReshape(fe.PieceId, fe.Index)) { _drag = DragMode.None; return; }
+                    _reshaping = true;
+                }
+                var shaped = _session.Reshape(world.X, world.Y, _session.FlexTarget(world.X, world.Y, 14 / _zoom, fe.PieceId));
+                if (shaped.Count > 0)
+                {
+                    _reshapeLast = shaped;
+                    _session.Say(FlexTrack.Describe(shaped));
+                }
+                break;
         }
     }
 
@@ -567,6 +628,19 @@ public sealed class PlanCanvas : FrameworkElement
                     Width = Math.Round(r.Width), Depth = Math.Round(r.Height), Height = Math.Round(_gauge * 6),
                 });
                 InvalidateVisual();
+                break;
+            case DragMode.FlexDraw:
+                var draft = _flexDraft;
+                _flexDraft = null;
+                if (_moved && draft is not null) _session.FinishFlexDraw(draft);
+                else _session.Say("Flexgleis ziehen: an einem offenen Gleisende (oder frei) drücken und mit gedrückter Maustaste ziehen.");
+                InvalidateVisual();
+                break;
+            case DragMode.FlexEnd:
+                if (_reshaping) _session.EndReshape(_reshapeLast);
+                _reshaping = false;
+                _reshapeLast = [];
+                _flexEnd = null;
                 break;
         }
     }

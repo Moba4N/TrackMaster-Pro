@@ -82,6 +82,8 @@ public sealed class TrackSystem
     /// <summary>Flexgleis des Herstellers: Artikelnummer (falls bekannt) und Länge eines Stücks. Ohne Angabe gilt das allgemeine Flexgleis der Spur.</summary>
     public string? FlexNumber { get; init; }
     public double? FlexLength { get; init; }
+    /// <summary>Weitere Flexgleise des Herstellers (z. B. halbstarre Ausführung): Artikelnummer, Länge eines Stücks, Zusatz zum Namen.</summary>
+    public IReadOnlyList<(string Number, double Length, string Label)> MoreFlex { get; init; } = [];
     /// <summary>Herkunft der Maße (Datei der XTrackCAD-Bibliothek), leer bei von Hand gepflegten Systemen.</summary>
     public string? Source { get; init; }
     public required IReadOnlyList<TrackPieceDef> Pieces { get; init; }
@@ -240,26 +242,34 @@ public static partial class Catalog
             ? new FlexStock($"{FlexSystemId}-{system.Id}", system.FlexNumber ?? "Flexgleis", len, system.Name)
             : new FlexStock(FlexSystemId, "Flexgleis", gauge.FlexStockLength, $"Spur {gauge.Id} allgemein");
 
-    /// <summary>Flexgleis zu einem Systemschlüssel aus der Plandatei („flex“ oder „flex-&lt;System&gt;“).</summary>
+    /// <summary>Alle Flexgleise eines Systems: das Standard-Flexgleis und weitere Ausführungen („flex-&lt;System&gt;~&lt;Artikel&gt;“).</summary>
+    public static IReadOnlyList<FlexStock> Flexes(Gauge gauge, TrackSystem? system)
+        => [Flex(gauge, system), .. (system?.MoreFlex ?? []).Select(m => new FlexStock($"{FlexSystemId}-{system!.Id}~{m.Number}", m.Number, m.Length, $"{system.Name}, {m.Label}"))];
+
+    /// <summary>Flexgleis zu einem Systemschlüssel aus der Plandatei („flex“, „flex-&lt;System&gt;“ oder „flex-&lt;System&gt;~&lt;Artikel&gt;“).</summary>
     public static FlexStock? FlexOf(string gaugeId, string flexSystemId)
     {
         var gauge = Gauges.FirstOrDefault(g => g.Id == gaugeId);
         if (gauge is null) return null;
         if (flexSystemId == FlexSystemId) return Flex(gauge, null);
         if (!flexSystemId.StartsWith(FlexSystemId + "-", StringComparison.Ordinal)) return null;
-        var system = gauge.Systems.FirstOrDefault(s => s.Id == flexSystemId[(FlexSystemId.Length + 1)..]);
-        return system?.FlexLength is null ? null : Flex(gauge, system);
+        var rest = flexSystemId[(FlexSystemId.Length + 1)..];
+        var tilde = rest.IndexOf('~');
+        var system = gauge.Systems.FirstOrDefault(s => s.Id == (tilde < 0 ? rest : rest[..tilde]));
+        if (system is null) return null;
+        if (tilde >= 0) return Flexes(gauge, system).FirstOrDefault(f => f.SystemId == flexSystemId);
+        return system.FlexLength is null ? null : Flex(gauge, system);
     }
 
     /// <summary>Schlüssel für ein gerades Flexgleis, z. B. „H0|flex|L500“ oder „H0|flex-mk|L500“.</summary>
     public static string FlexStraightKey(string gaugeId, double length, string flexSystemId = FlexSystemId)
-        => $"{gaugeId}|{flexSystemId}|L{Math.Round(length, 1).ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        => $"{gaugeId}|{flexSystemId}|L{Math.Round(length, 2).ToString(System.Globalization.CultureInfo.InvariantCulture)}";
 
     /// <summary>Schlüssel für ein gebogenes Flexgleis (Linksbogen, beim Verlegen spiegelbar), z. B. „H0|flex|R600A30“.</summary>
     public static string FlexCurveKey(string gaugeId, double radius, double angle, string flexSystemId = FlexSystemId)
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        return $"{gaugeId}|{flexSystemId}|R{Math.Round(radius, 1).ToString(inv)}A{Math.Round(angle, 2).ToString(inv)}";
+        return $"{gaugeId}|{flexSystemId}|R{Math.Round(radius, 2).ToString(inv)}A{Math.Round(angle, 3).ToString(inv)}";
     }
 
     private static TrackPieceDef? ParseFlex(string key)
@@ -269,17 +279,28 @@ public static partial class Catalog
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         var spec = parts[2];
         TrackPieceDef? def = null;
-        if (spec.StartsWith('L') && double.TryParse(spec[1..], System.Globalization.NumberStyles.Float, inv, out var len) && len is >= 5 and <= 5000)
+        if (spec.StartsWith('L') && double.TryParse(spec[1..], System.Globalization.NumberStyles.Float, inv, out var len) && len is >= 5 and <= 20000)
             def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Straight, Length = len, Name = "Flexgleis gerade", Spec = $"{Fmt.Num(len)} mm", Category = "Flexgleis" };
         else if (spec.StartsWith('R') && spec.IndexOf('A') is > 1 and var a
-                 && double.TryParse(spec[1..a], System.Globalization.NumberStyles.Float, inv, out var r) && r is >= 50 and <= 20000
-                 && double.TryParse(spec[(a + 1)..], System.Globalization.NumberStyles.Float, inv, out var ang) && ang is > 0 and <= 180)
+                 && double.TryParse(spec[1..a], System.Globalization.NumberStyles.Float, inv, out var r) && r is >= 10 and <= 1_000_000
+                 && double.TryParse(spec[(a + 1)..], System.Globalization.NumberStyles.Float, inv, out var ang) && ang is > 0 and < 360)
             def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Curve, Radius = r, Angle = ang, Name = $"Flexgleis Bogen {Fmt.Num(ang)}°", Spec = $"R {Fmt.Num(r)} mm", Category = "Flexgleis" };
+        else if (spec.StartsWith('P') && FlexTrack.ParsePath(spec[1..]) is { } segments)
+        {
+            var total = FlexTrack.Length(segments);
+            def = new TrackPieceDef
+            {
+                Number = stock.Number, Kind = PieceKind.Straight, Length = total, Routes = [new Route(0, 0, 0, segments)],
+                Name = segments.All(x => x.Turn == 0) ? "Flexgleis gerade" : "Flexgleis geformt",
+                Spec = $"{Fmt.Num(total)} mm" + (FlexTrack.MinRadius(segments) is { } minR ? $" · R ≥ {Fmt.Num(minR, 0)} mm" : ""),
+                Radius = FlexTrack.MinRadius(segments) ?? 0, Category = "Flexgleis",
+            };
+        }
         if (def is null) return null;
         def.GaugeId = parts[0];
         def.SystemId = parts[1];
         def.SystemName = parts[1] == FlexSystemId ? "Flexgleis" : $"Flexgleis {stock.Name}";
-        def.Verified = parts[1] == FlexSystemId || GetSystem(parts[0], parts[1][(FlexSystemId.Length + 1)..])?.Verified == true;
+        def.Verified = parts[1] == FlexSystemId || GetSystem(parts[0], parts[1][(FlexSystemId.Length + 1)..].Split('~')[0])?.Verified == true;
         def.Key = key;
         return def;
     }

@@ -29,7 +29,7 @@ SYSTEMS = [
     ("Z", "rokuhan", "Rokuhan", "Z-Rokuhan.xtp", {}),
     ("N", "kato", "Kato Unitrack", "N-Kato Track and Structures.xtp", {}),
     # 222xx: Fleischmann-Gleis ohne Schotterbett (Flexgleis 22200, 730 mm); 91xx: piccolo-Gleis mit Bettung
-    ("N", "rf-n", "Roco/Fleischmann ohne Bettung", "N-fl.xtp", {"flex": ("22200", 730)}),
+    ("N", "rf-n", "Roco/Fleischmann ohne Bettung", "N-fl.xtp", {"flex": ("22200", 730), "more_flex": [("22201", 730, "starr")]}),
     ("N", "picc", "Roco/Fleischmann piccolo mit Bettung", "flnpicco.xtp", {"flex": ("22200", 730)}),
     ("N", "minitrix", "Minitrix", "minitrix.xtp", {"flex": (None, 750)}),
     ("N", "arnold", "Arnold", "arnold.xtp", {}),
@@ -171,15 +171,28 @@ def main(params, legacy_path, out_path):
             if extra.get("three"):
                 props.append("ThreeRail = true")
             flex = None
+            more = list(extra.get("more_flex", []))
             if d and d['flex']:
                 fx = max(d['flex'], key=lambda x: x['len'])
                 flex = (fx['number'], round(fx['len']))
+                # weitere Flexgleise aus den Daten (andere Schwellen, Schwellenband), je Artikel einmal
+                seen = {fx['number']}
+                for o in sorted(d['flex'], key=lambda x: -x['len']):
+                    if o['number'] in seen:
+                        continue
+                    seen.add(o['number'])
+                    label = re.sub(r'\s*[-,]?\s*(ca\.\s*)?\d+([.,]\d+)?\s*mm.*$', '', o['desc']).strip(' -,') or 'Flexgleis'
+                    if label.lower() in ('straight flex', 'flex'):
+                        label = 'kurz'
+                    more.append((o['number'], round(o['len']), label))
             elif "flex" in extra:
                 flex = extra["flex"]
             if flex:
                 if flex[0]:
                     props.append(f"FlexNumber = {cs(flex[0])}")
                 props.append(f"FlexLength = {f(flex[1])}")
+            if more:
+                props.append("MoreFlex = [" + ", ".join(f"({cs(n)}, {f(l)}, {cs(t)})" for n, l, t in more) + "]")
             lines.append(f"            new() {{ {', '.join(props)}, Pieces =")
             lines.append("            [")
             if d is None:
@@ -205,7 +218,7 @@ def main(params, legacy_path, out_path):
                     lines.append("            ] },")
             else:
                 lines[-1] = "            ] },"
-            report.append(f"{gid:4} {sid:12} {count:4} Teile  Flex {flex}  aus {d['file'] if d else 'Handpflege (vorläufig)'}")
+            report.append(f"{gid:4} {sid:12} {count:4} Teile  Flex {flex} {more}  aus {d['file'] if d else 'Handpflege (vorläufig)'}")
             for t, e in (d['skipped'] if d else []):
                 report.append(f"        übersprungen: {t} ({e})")
         lines.append("        ] },")

@@ -176,7 +176,9 @@ public sealed class MainActivity : Activity
         Add("switchR", "Weiche rechts", () => _session.Quick(PieceKind.Switch, true, _canvas.CenterWorld()));
         Add("buffer", "Prellbock", () => _session.Quick(PieceKind.Buffer, null, _canvas.CenterWorld()));
         Add("crossing", "Kreuzung", () => _session.Quick(PieceKind.Crossing, null, _canvas.CenterWorld()));
-        Add("flex", "Flexgleis", () => Dialogs.AskFlex(this, _session.Plan.Gauge, Catalog.Flex(_session.Plan.Gauge, _session.CurrentSystem), key => _session.AttachFlex(key, _canvas.CenterWorld())));
+        Add("flex", "Flexgleis", () => Dialogs.AskFlex(this, _session.Plan.Gauge, _session.CurrentFlex, key => _session.AttachFlex(key, _canvas.CenterWorld())));
+        Add("toolFlex", "Flexgleis ziehen", () => SetTool(CanvasTool.Flex));
+        Add("flexConnect", "Lücke schließen", () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", "Anlagenplatte", () => { _session.ClearSelection(); Dialogs.ShowProperties(this, _session, Run); });
         Add("grid", "Raster", () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", "Gleisenden", () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
@@ -234,6 +236,7 @@ public sealed class MainActivity : Activity
                    ("Nächstes Gleisende", "nextEnd", false), ("Stückliste", "bom", false), ("Planprüfung", "check", false)]),
         ("Gleise", [("Gerade", "straight", false), ("Bogen", "curve", false), ("Weiche links", "switchL", false), ("Weiche rechts", "switchR", false),
                     ("Kreuzung", "crossing", false), ("Prellbock", "buffer", false), ("Flexgleis…", "flex", false),
+                    ("Flexgleis ziehen", "toolFlex", true), ("Lücke schließen", "flexConnect", false),
                     ("Steigung…", "gradient", false), ("Gleiswendel…", "helix", false), ("Tunnel", "tunnel", false)]),
         ("Gelände", [("Anlagenplatte…", "board", false), ("Gelände formen", "toolTerrain", true), ("Gewässer", "toolWater", true), ("Gebäude", "toolBuilding", true),
                      ("Vegetation", "toolTree", true), ("Gelände zeigen", "scenery", true)]),
@@ -404,6 +407,7 @@ public sealed class MainActivity : Activity
         "heights" => _session.ShowHeights,
         "scenery" => _session.ShowScenery,
         "sections" => _session.ShowSections,
+        "toolFlex" => _session.Tool == CanvasTool.Flex,
         "toolTerrain" => _session.Tool == CanvasTool.Terrain,
         "toolWater" => _session.Tool == CanvasTool.Water,
         "toolBuilding" => _session.Tool == CanvasTool.Building,
@@ -455,6 +459,7 @@ public sealed class MainActivity : Activity
         {
             CanvasTool.Terrain => $"Gelände formen: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“.",
             CanvasTool.Water => $"Gewässer: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“.",
+            CanvasTool.Flex => "Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein.",
             CanvasTool.Building => "Gebäude: antippen oder Rechteck aufziehen.",
             CanvasTool.Tree => "Vegetation: jeder Tipp setzt einen Baum.",
             CanvasTool.Feeder => "Einspeisung: auf ein Gleis tippen.",

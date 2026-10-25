@@ -4,7 +4,7 @@ namespace TrackMaster.Core;
 public sealed class PlacedPiece
 {
     public int Id { get; set; }
-    public required string Key { get; init; }
+    public required string Key { get; set; }
     public double X { get; set; }
     public double Y { get; set; }
     public double Rotation { get; set; }

@@ -115,6 +115,11 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Roco Line 42400, Tillig 85125, Lenz 45013) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
 - Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder frei ziehen; Gleise rasten an freien Enden ein.
 - **Flexgleis** mit freier Länge oder freiem Radius und Winkel; in der Stückliste als ganze Stangen mit 5 % Verschnitt.
+  Wie in WinTrack frei formbar: Werkzeug **Flexgleis ziehen** (Register Gleise) am offenen Gleisende ansetzen und ziehen –
+  das Gleis biegt sich tangential mit und rastet an Gleisenden ein (dann als Doppelbogen, der an beiden Enden passt).
+  Verlegte Flexgleise lassen sich am Ende anfassen und nachformen, das andere Ende bleibt liegen.
+  **Lücke schließen** verbindet das aktive Gleisende mit dem gewählten oder nächsten Gleisende. Hat ein System mehrere
+  Flexgleise (z. B. Roco/Fleischmann N 22200 und 22201), steht jedes einzeln in der Bibliothek.
 - Drehen, Spiegeln, Anschluss wechseln, Duplizieren, Löschen, Verschieben mit Pfeiltasten, Rückgängig und Wiederholen.
 - **Planprüfung** (F7): zu enge Gleisabstände und Überschneidungen (mit Durchfahrtshöhe je Spur), Gleise über den
   Plattenrand, zu starke Steigungen (Warnung ab 3 %, Fehler ab 5 %), Gleise in Gebäuden, im Wasser oder unter dem Gelände

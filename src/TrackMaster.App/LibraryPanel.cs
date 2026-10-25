@@ -97,7 +97,7 @@ public sealed class LibraryPanel : DockPanel
             if ((e.GetPosition(_items) - _pressPoint).Length < 5) return;
             var key = _pressKey;
             _pressKey = null;
-            if (key == FlexTag) return;
+            if (key.StartsWith(FlexTag, StringComparison.Ordinal)) return;
             DragDrop.DoDragDrop(_items, new DataObject(DataFormats.StringFormat, key), DragDropEffects.Copy);
         };
         _items.PreviewMouseLeftButtonUp += (_, _) =>
@@ -118,17 +118,21 @@ public sealed class LibraryPanel : DockPanel
         Refresh();
     }
 
-    private const string FlexTag = "flex";
+    /// <summary>Kennung der Flexgleis-Einträge: „flex:“ + Flex-System des Artikels.</summary>
+    private const string FlexTag = "flex:";
 
     private void Use(string key)
     {
-        if (key != FlexTag)
+        if (!key.StartsWith(FlexTag, StringComparison.Ordinal))
         {
             _session.Attach(key, _viewCenter());
             return;
         }
         var gauge = _session.Plan.Gauge;
-        if (Window.GetWindow(this) is { } owner && Dialogs.AskFlex(owner, gauge, Catalog.Flex(gauge, _session.CurrentSystem)) is { } flex)
+        var stock = Catalog.Flexes(gauge, _session.CurrentSystem).FirstOrDefault(f => f.SystemId == key[FlexTag.Length..]) ?? Catalog.Flex(gauge, _session.CurrentSystem);
+        // Dieses Flexgleis gilt ab jetzt auch für „Flexgleis ziehen“ und „Lücke schließen“
+        _session.CurrentFlex = stock;
+        if (Window.GetWindow(this) is { } owner && Dialogs.AskFlex(owner, gauge, stock) is { } flex)
             _session.AttachFlex(flex, _viewCenter());
     }
 
@@ -202,10 +206,10 @@ public sealed class LibraryPanel : DockPanel
                                          && (q.Length == 0 || $"{p.Number} {p.Name} {p.Spec}".Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
         _items.Items.Clear();
         var gauge = _session.Plan.Gauge;
-        var stock = Catalog.Flex(gauge, sys);
-        var flexText = $"Flexgleis {stock.Number} {stock.Name}";
-        var showFlex = _category is "Alle" or "Flexgleis" && (q.Length == 0 || flexText.Contains(q, StringComparison.OrdinalIgnoreCase));
-        if (showFlex)
+        var flexes = _category is "Alle" or "Flexgleis"
+            ? Catalog.Flexes(gauge, sys).Where(f => q.Length == 0 || $"Flexgleis {f.Number} {f.Name}".Contains(q, StringComparison.OrdinalIgnoreCase)).ToList()
+            : [];
+        foreach (var stock in flexes)
         {
             var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
             var row = new DockPanel { Margin = new Thickness(2) };
@@ -215,13 +219,13 @@ public sealed class LibraryPanel : DockPanel
                 Child = new System.Windows.Controls.Image { Source = TrackDrawing.Thumbnail(sample), Stretch = Stretch.Uniform, Margin = new Thickness(4) },
             });
             var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            texts.Children.Add(Theme.Label("Flexgleis…", 12, true));
+            texts.Children.Add(Theme.Label(flexes.Count > 1 ? $"Flexgleis {stock.Number}…" : "Flexgleis…", 12, true));
             texts.Children.Add(Theme.Secondary($"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · Stück {Fmt.Num(stock.Length, 0)} mm"));
             row.Children.Add(texts);
             _items.Items.Add(new ListBoxItem
             {
-                Content = row, Tag = FlexTag, Padding = new Thickness(4), Cursor = Cursors.Hand,
-                ToolTip = $"Flexgleis {stock.Name} · Stücke zu {Fmt.Num(stock.Length, 0)} mm\nKlicken: Länge oder Bogen wählen und am aktiven Gleisende ansetzen",
+                Content = row, Tag = FlexTag + stock.SystemId, Padding = new Thickness(4), Cursor = Cursors.Hand,
+                ToolTip = $"Flexgleis {stock.Name} · Stücke zu {Fmt.Num(stock.Length, 0)} mm\nKlicken: Länge oder Bogen wählen und am aktiven Gleisende ansetzen\nFrei biegen: Werkzeug „Flexgleis ziehen“ (Register Gleise)",
             });
         }
         foreach (var p in list)
@@ -243,7 +247,7 @@ public sealed class LibraryPanel : DockPanel
                 ToolTip = $"{p.Name} · {p.Spec} · {sys.Name}\nKlicken: am aktiven Gleisende ansetzen\nZiehen: frei auf der Platte platzieren",
             });
         }
-        var total = list.Count + (showFlex ? 1 : 0);
+        var total = list.Count + flexes.Count;
         _count.Text = total == 0 ? "Keine passenden Gleise" : $"{total} Artikel";
     }
 }

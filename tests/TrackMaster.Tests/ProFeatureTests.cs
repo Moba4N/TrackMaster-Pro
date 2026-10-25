@@ -9,7 +9,7 @@ public class ProFeatureTests
     {
         var straight = Catalog.Get(Catalog.FlexStraightKey("H0", 437.26));
         Assert.Equal(PieceKind.Straight, straight.Kind);
-        Assert.Equal(437.3, straight.Length, 3);
+        Assert.Equal(437.26, straight.Length, 3);
         Assert.True(straight.IsFlex);
 
         var curve = Catalog.Get(Catalog.FlexCurveKey("N", 520, 22.5));
@@ -19,7 +19,7 @@ public class ProFeatureTests
         Assert.Same(curve, Catalog.Get(Catalog.FlexCurveKey("N", 520, 22.5)));
 
         Assert.Null(Catalog.Find("H0|flex|L1"));
-        Assert.Null(Catalog.Find("H0|flex|R600A200"));
+        Assert.Null(Catalog.Find("H0|flex|R600A400"));
         Assert.Null(Catalog.Find("XX|flex|L500"));
     }
 

@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal }
+public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex }
 
 /// <summary>
 /// Der geöffnete Plan mit Auswahl, aktivem Gleisende und Rückgängig-Verlauf.
@@ -432,6 +432,151 @@ public sealed class PlanSession
     }
 
     public void AttachFlex(string key, (double X, double Y) fallbackCenter) => Attach(key, fallbackCenter);
+
+    // ---------- Flexgleis formen (wie in WinTrack) ----------
+
+    /// <summary>Flexgleis des aktuellen Gleissystems (bzw. das zuletzt gewählte Flexgleis) für Ziehen und Lücke schließen.</summary>
+    public FlexStock CurrentFlex
+    {
+        get => _flex is { } f && Catalog.FlexOf(Plan.GaugeId, f.SystemId) is not null && Catalog.Flexes(Plan.Gauge, CurrentSystem).Any(x => x.SystemId == f.SystemId)
+            ? f : Catalog.Flex(Plan.Gauge, CurrentSystem);
+        set => _flex = value;
+    }
+    private FlexStock? _flex;
+
+    /// <summary>Legt ein geformtes Flexgleis ab <paramref name="start"/> (Fahrtrichtung). <paramref name="from"/>/<paramref name="to"/> sind die Gleisenden an Anfang und Ende, falls vorhanden.</summary>
+    public PlacedPiece? PlaceFlex(FlexStock stock, Pose start, IReadOnlyList<Segment> segments, ConnectorRef? from, ConnectorRef? to)
+    {
+        if (segments.Count == 0) { Say("Das Flexgleis ist zu kurz."); return null; }
+        var (key, flipped) = FlexTrack.Key(Plan.GaugeId, stock.SystemId, segments);
+        if (Catalog.Find(key) is not { } def) { Say("Diese Form lässt sich nicht als Flexgleis anlegen."); return null; }
+        Record();
+        var piece = Plan.Add(key);
+        piece.Flipped = flipped;
+        PlanEditing.PlaceAt(piece, 0, start.X, start.Y, start.Heading);
+        if (from is not null)
+        {
+            piece.Height = from.Z;
+            if (Plan.Find(from.PieceId) is { } neighbour)
+            {
+                piece.Grade = from.Index == 0 ? -neighbour.EffectiveGrade : neighbour.EffectiveGrade;
+                piece.Tunnel = neighbour.Tunnel;
+            }
+        }
+        if (to is not null) piece.Grade = (to.Z - piece.Height) / def.TrackLength;
+        Selection.Clear();
+        Selection.Add(piece.Id);
+        Active = to is null ? (piece.Id, 1) : null;
+        Commit();
+        Say(FlexMessage(segments) + (to is not null ? " – Lücke geschlossen." : ""));
+        return piece;
+    }
+
+    private string FlexMessage(IReadOnlyList<Segment> segments)
+    {
+        var text = FlexTrack.Describe(segments);
+        var catalogMin = Plan.Gauge.Systems.SelectMany(s => s.Pieces).Where(p => p.Kind == PieceKind.Curve).Select(p => p.Radius).DefaultIfEmpty(0).Min();
+        if (FlexTrack.MinRadius(segments) is { } r && catalogMin > 0 && r < catalogMin * 0.95)
+            text += $". Achtung: enger als der kleinste Katalogradius der Spur ({Fmt.Num(catalogMin, 0)} mm)";
+        return text;
+    }
+
+    /// <summary>
+    /// Lücke mit Flexgleis schließen: vom aktiven Gleisende zum nächsten offenen Ende der gewählten Gleise
+    /// (sonst zum nächsten offenen Ende davor), ohne aktives Ende zwischen den nächsten offenen Enden zweier gewählter Gleise.
+    /// </summary>
+    public void ConnectEnds(FlexStock stock)
+    {
+        var open = Connections.Open;
+        static double Dist(ConnectorRef a, ConnectorRef b) => Math.Sqrt(Math.Pow(a.Pose.X - b.Pose.X, 2) + Math.Pow(a.Pose.Y - b.Pose.Y, 2));
+        ConnectorRef? a = ActiveConnector, b = null;
+        if (a is not null)
+        {
+            b = open.Where(c => c.PieceId != a.PieceId && Selection.Contains(c.PieceId)).MinBy(c => Dist(a, c));
+            if (b is null)
+            {
+                double hx = Math.Cos(a.Pose.HeadingRad), hy = Math.Sin(a.Pose.HeadingRad);
+                b = open.Where(c => c.PieceId != a.PieceId && (c.Pose.X - a.Pose.X) * hx + (c.Pose.Y - a.Pose.Y) * hy > 0).MinBy(c => Dist(a, c));
+            }
+        }
+        else
+        {
+            var ends = open.Where(c => Selection.Contains(c.PieceId)).ToList();
+            var best = double.MaxValue;
+            foreach (var x in ends)
+                foreach (var y in ends)
+                    if (x.PieceId < y.PieceId && Dist(x, y) < best) { best = Dist(x, y); a = x; b = y; }
+        }
+        if (a is null || b is null)
+        {
+            Say("Lücke schließen: ein Gleisende anklicken (orange) und das Zielgleis mit Strg+Klick dazu wählen – oder zwei Gleise mit offenen Enden wählen.");
+            return;
+        }
+        var start = new Pose(a.Pose.X, a.Pose.Y, a.Pose.Heading);
+        var segments = FlexTrack.Connect(start, new Pose(b.Pose.X, b.Pose.Y, b.Pose.Heading + 180));
+        if (segments.Count == 0) { Say("Diese beiden Gleisenden lassen sich nicht mit einem Flexgleis verbinden."); return; }
+        PlaceFlex(stock, start, segments, a, b);
+    }
+
+    /// <summary>
+    /// Nächstes Gleisende, an dem ein Flexgleis einrasten kann (offen oder nur mit <paramref name="ignorePiece"/> verbunden),
+    /// höchstens <paramref name="tolerance"/> mm von (x, y) entfernt.
+    /// </summary>
+    public ConnectorRef? FlexTarget(double x, double y, double tolerance, int? ignorePiece = null, ConnectorRef? exclude = null)
+        => Connections.All
+            .Where(c => c.PieceId != ignorePiece && c != exclude && (c.IsOpen || (ignorePiece is not null && c.Link?.PieceId == ignorePiece)))
+            .Select(c => (c, d: Math.Sqrt(Math.Pow(c.Pose.X - x, 2) + Math.Pow(c.Pose.Y - y, 2))))
+            .Where(t => t.d <= tolerance)
+            .MinBy(t => t.d).c;
+
+    /// <summary>Beginnt ein neues Flexgleis an einem Gleisende (Fahrtrichtung vom Ende weg) oder frei an (x, y).</summary>
+    public FlexDraft BeginFlexDraw(double x, double y, ConnectorRef? from)
+        => from is not null ? new FlexDraft(new Pose(from.Pose.X, from.Pose.Y, from.Pose.Heading), from) : new FlexDraft(new Pose(x, y, 0), null);
+
+    public PlacedPiece? FinishFlexDraw(FlexDraft draft)
+        => draft.Segments.Count == 0 ? null : PlaceFlex(CurrentFlex, draft.Start, draft.Segments, draft.From, draft.Target);
+
+    private (int PieceId, int Fixed, double Z, double Slope)? _reshape;
+
+    /// <summary>Beginnt das Formen eines Flexgleises am Ende <paramref name="movedIndex"/>; das andere Ende bleibt liegen.</summary>
+    public bool BeginReshape(int pieceId, int movedIndex)
+    {
+        if (Plan.Find(pieceId) is not { } p || !p.Def.IsFlex || p.WorldConnectors().Count != 2) return false;
+        Record();
+        var fix = 1 - movedIndex;
+        var z = p.ConnectorHeights()[fix];
+        _reshape = (pieceId, fix, z, fix == 0 ? p.EffectiveGrade : -p.EffectiveGrade);
+        return true;
+    }
+
+    /// <summary>Formt das Flexgleis neu: gebogen durch (x, y) oder passend an das Gleisende <paramref name="target"/>.</summary>
+    public IReadOnlyList<Segment> Reshape(double x, double y, ConnectorRef? target)
+    {
+        if (_reshape is not { } r || Plan.Find(r.PieceId) is not { } piece) return [];
+        var fixedPose = piece.WorldConnectors()[r.Fixed];
+        var start = new Pose(fixedPose.X, fixedPose.Y, fixedPose.Heading + 180);
+        var segments = target is not null
+            ? FlexTrack.Connect(start, new Pose(target.Pose.X, target.Pose.Y, target.Pose.Heading + 180))
+            : FlexTrack.Bend(start, x, y);
+        var (key, flipped) = FlexTrack.Key(Plan.GaugeId, piece.Def.SystemId, segments);
+        if (segments.Count == 0 || Catalog.Find(key) is not { } def) return [];
+        piece.Key = key;
+        piece.Flipped = flipped;
+        PlanEditing.PlaceAt(piece, 0, start.X, start.Y, start.Heading);
+        piece.Height = r.Z;
+        piece.Grade = target is not null ? (target.Z - r.Z) / def.TrackLength : r.Slope;
+        // Ab jetzt liegt das feste Ende an Anschluss 0
+        _reshape = r with { Fixed = 0, Slope = piece.Grade };
+        Commit();
+        return segments;
+    }
+
+    public void EndReshape(IReadOnlyList<Segment> last)
+    {
+        if (_reshape is null) return;
+        _reshape = null;
+        if (last.Count > 0) Say(FlexMessage(last));
+    }
 
     public void SetTunnel(bool on)
     {

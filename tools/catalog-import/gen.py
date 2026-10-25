@@ -28,8 +28,9 @@ SYSTEMS = [
     ("Z", "mini", "Märklin mini-club", "mrklnz.xtp", {"flex": (None, 660)}),
     ("Z", "rokuhan", "Rokuhan", "Z-Rokuhan.xtp", {}),
     ("N", "kato", "Kato Unitrack", "N-Kato Track and Structures.xtp", {}),
-    ("N", "rf-n", "Roco/Fleischmann ohne Bettung", "flnpicco.xtp", {"flex": (None, 730)}),
-    ("N", "picc", "Roco/Fleischmann mit Bettung", "N-fl.xtp", {"flex": (None, 730)}),
+    # 222xx: Fleischmann-Gleis ohne Schotterbett (Flexgleis 22200, 730 mm); 91xx: piccolo-Gleis mit Bettung
+    ("N", "rf-n", "Roco/Fleischmann ohne Bettung", "N-fl.xtp", {"flex": ("22200", 730)}),
+    ("N", "picc", "Roco/Fleischmann piccolo mit Bettung", "flnpicco.xtp", {"flex": ("22200", 730)}),
     ("N", "minitrix", "Minitrix", "minitrix.xtp", {"flex": (None, 750)}),
     ("N", "arnold", "Arnold", "arnold.xtp", {}),
     ("N", "tomix", "Tomix Fine Track", "N-Tomix Track.xtp", {}),
@@ -74,6 +75,24 @@ def side(code):
     return " R" if "rechts" in code else " L" if "links" in code else None
 
 
+CATEGORY_ORDER = {"Gerade": 0, "Bögen": 1, "Weichen": 2, "Kreuzungen": 3, "Sonstige": 4}
+
+
+def sort_key(it):
+    """Bibliotheksreihenfolge: Geraden, Bögen, Weichen, Kreuzungen, Sonstiges; darin nach Artikelnummer."""
+    code = it['code']
+    if code.startswith('P('):
+        cat = "Sonstige"
+    elif code.startswith('G('):
+        cat = re.findall(r'"([^"]*)"', code)[3]
+    elif code.startswith('S('):
+        cat = "Gerade" if code.count('"') == 2 else "Sonstige"
+    else:
+        cat = "Bögen" if 'gebogen"' not in code else "Sonstige"
+    nr = it['number']
+    return (CATEGORY_ORDER.get(cat, 4), [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', nr)])
+
+
 def load(params, fn):
     items, flex, skipped = [], [], []
     for b in parse(os.path.join(params, fn)):
@@ -99,6 +118,7 @@ def load(params, fn):
             used.add(new)
             it['code'] = it['code'].replace(cs(nr), cs(new), 1)
             it['number'] = new
+    items.sort(key=lambda it: [str(x).zfill(8) if isinstance(x, int) else x for x in [sort_key(it)[0]] + sort_key(it)[1]])
     return items, flex, skipped
 
 

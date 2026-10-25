@@ -31,7 +31,7 @@ public class CatalogTests
     public void Katalog_ist_aus_Herstellerdaten_vollstaendig()
     {
         Assert.True(Catalog.Gauges.SelectMany(g => g.Systems).Sum(s => s.Pieces.Count) > 1000);
-        foreach (var nr in new[] { "H0|mc|24071", "H0|mc|24206", "H0|mc|24649", "H0|geo|61140", "H0|piko|55226", "N|rf-n|9100", "TT|tillig|83101", "G|lgb|10000", "H0m|tillig-h0m|85632" })
+        foreach (var nr in new[] { "H0|mc|24071", "H0|mc|24206", "H0|mc|24649", "H0|geo|61140", "H0|piko|55226", "N|picc|9100", "N|rf-n|22202", "TT|tillig|83101", "G|lgb|10000", "H0m|tillig-h0m|85632" })
             Assert.True(Catalog.Find(nr)?.Verified, nr);
     }
 

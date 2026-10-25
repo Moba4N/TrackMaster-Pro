@@ -93,7 +93,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 
 **Gleise (Basis)**
 - Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Roco/Fleischmann ohne und mit Bettung, Minitrix, Arnold, Tomix Fine Track,
+  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Arnold, Tomix Fine Track,
   Peco Streamline Code 55 und Code 80, Peco Setrack · TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Kühn, Piko ·
   H0: Märklin C, Trix C, Märklin K, Märklin M, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Fleischmann Modellgleis,
   Tillig Elite, Peco Code 75 und Code 100, Peco Setrack, Kato Unitrack · H0m: Tillig · H0e: Tillig, Peco ·
@@ -102,7 +102,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Maße und Artikelnummern stammen aus der Gleisbibliothek von XTrackCAD (Ordner `params` des Pakets `xtrkcad-common`),
   umgesetzt mit `tools/catalog-import/gen.py` nach `src/TrackMaster.Core/CatalogData.cs`. Drehscheiben und Schiebebühnen
-  sind nicht übernommen. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
+  sind nicht übernommen. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
   Piko TT und Spur 0 Standard sind von Hand gepflegt, haben vorläufige Maße und sind in der Bibliothek markiert.
   Wo ein Hersteller keinen Prellbock im Datensatz hat, gibt es einen allgemeinen Prellbock „PB“ (ungeprüft).
   Frühere Katalogeinträge bleiben im Hintergrund erhalten, damit ältere Pläne weiter öffnen.

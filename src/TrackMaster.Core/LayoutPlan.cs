@@ -193,6 +193,9 @@ public sealed class LayoutPlan
     public double BoardDepth { get; set; } = 600;
     /// <summary>Ausrichtung der Form in Vierteldrehungen im Uhrzeigersinn (0…3).</summary>
     public int BoardTurn { get; set; }
+    /// <summary>U-Form: Länge des linken bzw. rechten Schenkels in Grundstellung in mm (0 = volle Tiefe).</summary>
+    public double BoardLegLeft { get; set; }
+    public double BoardLegRight { get; set; }
     public List<PlacedPiece> Pieces { get; } = [];
     public List<SceneryItem> Scenery { get; } = [];
     public List<Feeder> Feeders { get; } = [];

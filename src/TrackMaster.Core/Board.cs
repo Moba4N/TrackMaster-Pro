@@ -4,7 +4,9 @@ namespace TrackMaster.Core;
 public enum BoardShape { Rechteck, L, U, T, Z, Ring }
 
 /// <summary>Angaben für einen neuen Plan: Spur und Anlagenplatte.</summary>
-public sealed record BoardSetup(string GaugeId, BoardShape Shape, double Width, double Height, double Depth, int Turn)
+/// <param name="LegLeft">U-Form: Länge des linken Schenkels in Grundstellung (0 = volle Tiefe).</param>
+/// <param name="LegRight">U-Form: Länge des rechten Schenkels in Grundstellung (0 = volle Tiefe).</param>
+public sealed record BoardSetup(string GaugeId, BoardShape Shape, double Width, double Height, double Depth, int Turn, double LegLeft = 0, double LegRight = 0)
 {
     /// <summary>Vorschlag für eine Spur: Rechteck in Standardgröße, Formen mit Schenkeln größer.</summary>
     public static BoardSetup Default(string gaugeId, BoardShape shape = BoardShape.Rechteck)
@@ -59,20 +61,29 @@ public static class BoardGeometry
             BoardShape.Z => Math.Min(w, h / 2),
             _ => Math.Min(w, h),
         };
-        return Math.Clamp(depth, Math.Min(100, max), max * 0.98);
+        // Obergrenze knapp unter dem Maximum, Untergrenze nie darüber (auch bei sehr kleinen oder unfertig eingegebenen Maßen)
+        var hi = Math.Max(0, max * 0.98);
+        var lo = Math.Min(100, hi);
+        return double.IsFinite(depth) ? Math.Clamp(depth, lo, hi) : hi;
     }
 
-    public static IReadOnlyList<BoardRect> Rects(LayoutPlan p) => Rects(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn);
+    /// <summary>Länge eines U-Schenkels: 0 = volle Tiefe, sonst zwischen Schenkeltiefe und Tiefe.</summary>
+    public static double Leg(double leg, double depth, double fullLength)
+        => leg <= 0 || !double.IsFinite(leg) ? fullLength : Math.Clamp(leg, Math.Min(depth, fullLength), fullLength);
 
-    public static IReadOnlyList<BoardRect> Rects(BoardShape shape, double width, double height, double depth, int turn)
+    public static IReadOnlyList<BoardRect> Rects(LayoutPlan p)
+        => Rects(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn, p.BoardLegLeft, p.BoardLegRight);
+
+    public static IReadOnlyList<BoardRect> Rects(BoardShape shape, double width, double height, double depth, int turn, double legLeft = 0, double legRight = 0)
     {
         turn = ((turn % 4) + 4) % 4;
         var (w, h) = turn % 2 == 0 ? (width, height) : (height, width);
         var d = Depth(shape, width, height, depth, turn);
+        double l1 = Leg(legLeft, d, h), l2 = Leg(legRight, d, h);
         BoardRect[] local = shape switch
         {
             BoardShape.L => [new(0, 0, d, h), new(d, h - d, w, h)],
-            BoardShape.U => [new(0, 0, d, h), new(w - d, 0, w, h), new(d, h - d, w - d, h)],
+            BoardShape.U => [new(0, h - l1, d, h), new(w - d, h - l2, w, h), new(d, h - d, w - d, h)],
             BoardShape.T => [new(0, 0, w, d), new((w - d) / 2, d, (w + d) / 2, h)],
             BoardShape.Z => [new(0, 0, (w + d) / 2, d), new((w - d) / 2, d, (w + d) / 2, h - d), new((w - d) / 2, h - d, w, h)],
             BoardShape.Ring => [new(0, 0, w, d), new(0, h - d, w, h), new(0, d, d, h - d), new(w - d, d, w, h - d)],
@@ -88,17 +99,18 @@ public static class BoardGeometry
 
     /// <summary>Umrisse der Platte (beim Ring zwei: außen und die offene Mitte).</summary>
     public static IReadOnlyList<IReadOnlyList<(double X, double Y)>> Outlines(LayoutPlan p)
-        => Outlines(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn);
+        => Outlines(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn, p.BoardLegLeft, p.BoardLegRight);
 
-    public static IReadOnlyList<IReadOnlyList<(double X, double Y)>> Outlines(BoardShape shape, double width, double height, double depth, int turn)
+    public static IReadOnlyList<IReadOnlyList<(double X, double Y)>> Outlines(BoardShape shape, double width, double height, double depth, int turn, double legLeft = 0, double legRight = 0)
     {
         turn = ((turn % 4) + 4) % 4;
         var (w, h) = turn % 2 == 0 ? (width, height) : (height, width);
         var d = Depth(shape, width, height, depth, turn);
+        double l1 = Leg(legLeft, d, h), l2 = Leg(legRight, d, h);
         (double, double)[][] local = shape switch
         {
             BoardShape.L => [[(0, 0), (d, 0), (d, h - d), (w, h - d), (w, h), (0, h)]],
-            BoardShape.U => [[(0, 0), (d, 0), (d, h - d), (w - d, h - d), (w - d, 0), (w, 0), (w, h), (0, h)]],
+            BoardShape.U => [[(0, h - l1), (d, h - l1), (d, h - d), (w - d, h - d), (w - d, h - l2), (w, h - l2), (w, h), (0, h)]],
             BoardShape.T => [[(0, 0), (w, 0), (w, d), ((w + d) / 2, d), ((w + d) / 2, h), ((w - d) / 2, h), ((w - d) / 2, d), (0, d)]],
             BoardShape.Z => [[(0, 0), ((w + d) / 2, 0), ((w + d) / 2, h - d), (w, h - d), (w, h), ((w - d) / 2, h), ((w - d) / 2, d), (0, d)]],
             BoardShape.Ring => [[(0, 0), (w, 0), (w, h), (0, h)], [(d, d), (w - d, d), (w - d, h - d), (d, h - d)]],
@@ -115,9 +127,16 @@ public static class BoardGeometry
     public static string Describe(LayoutPlan p)
     {
         var size = $"{Fmt.Num(p.BoardWidth, 0)} × {Fmt.Num(p.BoardHeight, 0)} mm";
-        return HasLegs(p.BoardShape)
-            ? $"{Name(p.BoardShape).Split(' ')[0]} {size}, Schenkel {Fmt.Num(Depth(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn), 0)} mm"
-            : size;
+        if (!HasLegs(p.BoardShape)) return size;
+        var d = Depth(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn);
+        var text = $"{Name(p.BoardShape).Split(' ')[0]} {size}, Schenkel {Fmt.Num(d, 0)} mm";
+        if (p.BoardShape == BoardShape.U)
+        {
+            var full = p.BoardTurn % 2 == 0 ? p.BoardHeight : p.BoardWidth;
+            double l1 = Leg(p.BoardLegLeft, d, full), l2 = Leg(p.BoardLegRight, d, full);
+            if (Math.Abs(l1 - l2) > 0.5) text += $" · Schenkellängen {Fmt.Num(l1, 0)} / {Fmt.Num(l2, 0)} mm";
+        }
+        return text;
     }
 
     /// <summary>Fläche der Platte in m².</summary>

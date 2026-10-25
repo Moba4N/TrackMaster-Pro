@@ -17,6 +17,8 @@ public static class Fmt
         var t = text.Trim().Replace(" ", "");
         if (t.Contains(','))
             t = t.Replace(".", "").Replace(',', '.');
+        else if (System.Text.RegularExpressions.Regex.IsMatch(t, @"^-?\d{1,3}(\.\d{3})+$"))
+            t = t.Replace(".", ""); // „3.000“ wie angezeigt: Tausenderpunkt
         return double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v) ? v : null;
     }
 }

@@ -138,7 +138,18 @@ public static partial class Dialogs
         var turn = Choice(c, BoardTurns, plan.BoardTurn);
         var legs = Columns(c, Ui.Field(c, "Schenkeltiefe (mm)", depth), Ui.Field(c, "Ausrichtung", turn));
         body.AddView(legs);
-        void SyncLegs() => legs.Visibility = BoardGeometry.HasLegs(shapes[Math.Max(0, shape.SelectedItemPosition)]) ? ViewStates.Visible : ViewStates.Gone;
+        var full0 = plan.BoardTurn % 2 == 0 ? plan.BoardHeight : plan.BoardWidth;
+        var d0 = BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn);
+        var legLeft = Ui.Number(c, BoardGeometry.Leg(plan.BoardLegLeft, d0, full0));
+        var legRight = Ui.Number(c, BoardGeometry.Leg(plan.BoardLegRight, d0, full0));
+        var uLegs = Columns(c, Ui.Field(c, "Linker Schenkel lang (mm)", legLeft), Ui.Field(c, "Rechter Schenkel lang (mm)", legRight));
+        body.AddView(uLegs);
+        void SyncLegs()
+        {
+            var sh = shapes[Math.Max(0, shape.SelectedItemPosition)];
+            legs.Visibility = BoardGeometry.HasLegs(sh) ? ViewStates.Visible : ViewStates.Gone;
+            uLegs.Visibility = sh == BoardShape.U ? ViewStates.Visible : ViewStates.Gone;
+        }
         shape.ItemSelected += (_, _) => SyncLegs();
         SyncLegs();
         body.AddView(Section(c, "Übersicht"));
@@ -163,10 +174,20 @@ public static partial class Dialogs
             var newShape = shapes[Math.Max(0, shape.SelectedItemPosition)];
             var bd = plan.BoardDepth;
             if (BoardGeometry.HasLegs(newShape)) Read(depth, "Schenkeltiefe", 50, 50000, errors, out bd);
+            double l1 = 0, l2 = 0;
+            if (newShape == BoardShape.U)
+            {
+                Read(legLeft, "Linker Schenkel", 50, 50000, errors, out l1);
+                Read(legRight, "Rechter Schenkel", 50, 50000, errors, out l2);
+            }
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
             var n = (name.Text ?? "").Trim();
             var t = turn.SelectedItemPosition;
-            if (n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn)
+            var full = t % 2 == 0 ? bh : bw;
+            l1 = l1 >= full ? 0 : l1;
+            l2 = l2 >= full ? 0 : l2;
+            if (n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn
+                || l1 != plan.BoardLegLeft || l2 != plan.BoardLegRight)
                 session.Edit(() =>
                 {
                     if (n.Length > 0) plan.Name = n;
@@ -175,6 +196,8 @@ public static partial class Dialogs
                     plan.BoardShape = newShape;
                     plan.BoardTurn = t;
                     plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);
+                    plan.BoardLegLeft = l1;
+                    plan.BoardLegRight = l2;
                 });
             return true;
         }, neutral: ("Stückliste", () => run("bom")));

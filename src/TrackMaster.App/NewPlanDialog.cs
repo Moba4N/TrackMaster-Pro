@@ -26,7 +26,11 @@ public static partial class Dialogs
         var width = NumberBox(start.Width, 0);
         var height = NumberBox(start.Height, 0);
         var depth = NumberBox(start.Depth, 0);
+        // Schenkellängen der U-Form: leer = volle Länge
+        var legLeft = new TextBox();
+        var legRight = new TextBox();
         var depthField = Theme.Field("Schenkeltiefe (mm)", depth);
+        var legsRow = Columns2(Theme.Field("Linker Schenkel lang (mm, leer = ganz)", legLeft), Theme.Field("Rechter Schenkel lang (mm, leer = ganz)", legRight));
         var turnField = Theme.Field("Ausrichtung", turnBox);
         var preview = new System.Windows.Shapes.Path { Fill = Theme.BoardBrush, Stroke = Theme.BoardStrokeBrush, StrokeThickness = 1.5, Stretch = Stretch.Uniform, StrokeLineJoin = PenLineJoin.Round };
         var previewBox = new Border
@@ -43,17 +47,19 @@ public static partial class Dialogs
         {
             var shape = Shape();
             depthField.Visibility = turnField.Visibility = BoardGeometry.HasLegs(shape) ? Visibility.Visible : Visibility.Collapsed;
+            legsRow.Visibility = shape == BoardShape.U ? Visibility.Visible : Visibility.Collapsed;
             double w = Fmt.Parse(width.Text) ?? 0, h = Fmt.Parse(height.Text) ?? 0, d = Fmt.Parse(depth.Text) ?? 0;
+            double l1 = Fmt.Parse(legLeft.Text) ?? 0, l2 = Fmt.Parse(legRight.Text) ?? 0;
             if (w < 100 || h < 100) return;
             var geometry = new StreamGeometry { FillRule = FillRule.EvenOdd };
             using (var ctx = geometry.Open())
-                foreach (var o in BoardGeometry.Outlines(shape, w, h, d, turnBox.SelectedIndex))
+                foreach (var o in BoardGeometry.Outlines(shape, w, h, d, turnBox.SelectedIndex, l1, l2))
                 {
                     ctx.BeginFigure(new Point(o[0].X, o[0].Y), true, true);
                     ctx.PolyLineTo(o.Skip(1).Select(q => new Point(q.X, q.Y)).ToList(), true, false);
                 }
             preview.Data = geometry;
-            var area = BoardGeometry.Rects(shape, w, h, d, turnBox.SelectedIndex).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
+            var area = BoardGeometry.Rects(shape, w, h, d, turnBox.SelectedIndex, l1, l2).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
             info.Text = BoardGeometry.HasLegs(shape)
                 ? $"Außenmaße {Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Schenkel {Fmt.Num(BoardGeometry.Depth(shape, w, h, d, turnBox.SelectedIndex), 0)} mm · Fläche {Fmt.Num(area, 2)} m²"
                 : $"{Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Fläche {Fmt.Num(area, 2)} m²";
@@ -72,7 +78,7 @@ public static partial class Dialogs
         gaugeBox.SelectionChanged += (_, _) => Suggest();
         shapeBox.SelectionChanged += (_, _) => Suggest();
         turnBox.SelectionChanged += (_, _) => Update();
-        foreach (var box in new[] { width, height, depth })
+        foreach (var box in new[] { width, height, depth, legLeft, legRight })
             box.TextChanged += (_, _) => { if (!updating) Update(); };
 
         var body = new StackPanel();
@@ -82,6 +88,7 @@ public static partial class Dialogs
         body.Children.Add(previewBox);
         body.Children.Add(Columns2(Theme.Field("Breite außen (mm)", width), Theme.Field("Tiefe außen (mm)", height)));
         body.Children.Add(Columns2(depthField, turnField));
+        body.Children.Add(legsRow);
         body.Children.Add(info);
         body.Children.Add(error);
         Update();
@@ -90,7 +97,7 @@ public static partial class Dialogs
         ok.IsDefault = true;
         var cancel = Theme.Button("Abbrechen");
         cancel.IsCancel = true;
-        var win = Small(owner, "Neuer Plan", body, 520, 640, cancel, ok);
+        var win = Small(owner, "Neuer Plan", body, 520, 700, cancel, ok);
         BoardSetup? result = null;
         ok.Click += (_, _) =>
         {
@@ -99,8 +106,16 @@ public static partial class Dialogs
             Read(height, "Tiefe", 100, 50000, errors, out var h);
             var d = 0.0;
             if (BoardGeometry.HasLegs(Shape())) Read(depth, "Schenkeltiefe", 50, 50000, errors, out d);
+            double l1 = 0, l2 = 0;
+            if (Shape() == BoardShape.U)
+            {
+                if (legLeft.Text.Trim().Length > 0) Read(legLeft, "Linker Schenkel", 50, 50000, errors, out l1);
+                if (legRight.Text.Trim().Length > 0) Read(legRight, "Rechter Schenkel", 50, 50000, errors, out l2);
+            }
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
-            result = new BoardSetup(gauges[Math.Max(0, gaugeBox.SelectedIndex)].Id, Shape(), w, h, d > 0 ? d : 600, turnBox.SelectedIndex);
+            var full = turnBox.SelectedIndex % 2 == 0 ? h : w;
+            result = new BoardSetup(gauges[Math.Max(0, gaugeBox.SelectedIndex)].Id, Shape(), w, h, d > 0 ? d : 600, turnBox.SelectedIndex,
+                l1 >= full ? 0 : l1, l2 >= full ? 0 : l2);
             win.Close();
         };
         win.ShowDialog();

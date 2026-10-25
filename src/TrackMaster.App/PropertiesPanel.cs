@@ -154,6 +154,14 @@ public sealed class PropertiesPanel : DockPanel
                 turn.Items.Add(new ComboBoxItem { Content = t, Tag = i, IsSelected = i == plan.BoardTurn });
             turn.SelectionChanged += (_, _) => { if (turn.SelectedItem is ComboBoxItem { Tag: int t } && t != plan.BoardTurn) _session.Edit(() => plan.BoardTurn = t); };
             _body.Children.Add(Columns(2, Theme.Field("Schenkeltiefe (mm)", depth), Theme.Field("Ausrichtung", turn)));
+            if (plan.BoardShape == BoardShape.U)
+            {
+                var full = plan.BoardTurn % 2 == 0 ? plan.BoardHeight : plan.BoardWidth;
+                var d = BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn);
+                var left = NumberBox(BoardGeometry.Leg(plan.BoardLegLeft, d, full), v => plan.BoardLegLeft = v >= full ? 0 : Math.Max(v, d), 0);
+                var right = NumberBox(BoardGeometry.Leg(plan.BoardLegRight, d, full), v => plan.BoardLegRight = v >= full ? 0 : Math.Max(v, d), 0);
+                _body.Children.Add(Columns(2, Theme.Field("Linker Schenkel lang (mm)", left), Theme.Field("Rechter Schenkel lang (mm)", right)));
+            }
         }
 
         Section("Übersicht");

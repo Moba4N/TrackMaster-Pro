@@ -93,7 +93,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 
 **Gleise (Basis)**
 - **Neuer Plan** (Datei › Neu): Spur und Form der Anlagenplatte wählen – Rechteck, L-, U-, T-, Z-Form oder Ring
-  (rundum mit offener Mitte), mit Außenmaßen, Schenkeltiefe und Ausrichtung in 90°-Schritten; eine Vorschau zeigt die Form.
+  (rundum mit offener Mitte), mit Außenmaßen, Schenkeltiefe und Ausrichtung in 90°-Schritten; bei der U-Form können
+  die beiden Schenkel unterschiedlich lang sein. Eine Vorschau zeigt die Form.
   Form und Maße lassen sich später in den Planeigenschaften ändern. Zeichnung, Raster, 3D-Ansicht, SVG-Export und die
   Planprüfung (Gleise über dem Plattenrand bzw. in der offenen Mitte) folgen der Form.
 - Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:

@@ -69,6 +69,8 @@ public static class PlanSerializer
         [JsonPropertyName("shape"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Shape { get; set; }
         [JsonPropertyName("depth"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Depth { get; set; }
         [JsonPropertyName("turn"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Turn { get; set; }
+        [JsonPropertyName("legL"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LegLeft { get; set; }
+        [JsonPropertyName("legR"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LegRight { get; set; }
     }
 
     private sealed class PieceDto
@@ -105,6 +107,8 @@ public static class PlanSerializer
                 Shape = plan.BoardShape == BoardShape.Rechteck ? null : plan.BoardShape.ToString(),
                 Depth = plan.BoardShape == BoardShape.Rechteck ? null : plan.BoardDepth,
                 Turn = plan.BoardShape == BoardShape.Rechteck || plan.BoardTurn == 0 ? null : plan.BoardTurn,
+                LegLeft = plan.BoardShape == BoardShape.U && plan.BoardLegLeft > 0 ? plan.BoardLegLeft : null,
+                LegRight = plan.BoardShape == BoardShape.U && plan.BoardLegRight > 0 ? plan.BoardLegRight : null,
             },
             Pieces = plan.Pieces.Select(p => new PieceDto
             {
@@ -154,6 +158,8 @@ public static class PlanSerializer
             BoardShape = Enum.TryParse<BoardShape>(dto.Board?.Shape, out var shape) ? shape : BoardShape.Rechteck,
             BoardDepth = dto.Board?.Depth is double depth && depth > 0 ? depth : 600,
             BoardTurn = Math.Clamp(dto.Board?.Turn ?? 0, 0, 3),
+            BoardLegLeft = Math.Max(0, dto.Board?.LegLeft ?? 0),
+            BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
         };
         skipped = 0;
         // Gleise ohne Kennung bekommen neue Kennungen oberhalb aller in der Datei vorhandenen

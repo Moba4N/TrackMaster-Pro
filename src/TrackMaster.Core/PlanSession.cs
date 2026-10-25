@@ -103,7 +103,7 @@ public sealed class PlanSession
     /// <summary>Neuer Plan mit Spur und Plattenform.</summary>
     public void NewPlan(BoardSetup setup)
     {
-        var (gaugeId, shape, width, height, depth, turn) = setup;
+        var (gaugeId, shape, width, height, depth, turn, legLeft, legRight) = setup;
         Record();
         Plan = LayoutPlan.Empty(gaugeId);
         Plan.BoardShape = shape;
@@ -111,6 +111,8 @@ public sealed class PlanSession
         Plan.BoardHeight = Math.Clamp(height, 100, 50000);
         Plan.BoardDepth = BoardGeometry.Depth(shape, Plan.BoardWidth, Plan.BoardHeight, depth, turn);
         Plan.BoardTurn = ((turn % 4) + 4) % 4;
+        Plan.BoardLegLeft = shape == BoardShape.U ? Math.Max(0, legLeft) : 0;
+        Plan.BoardLegRight = shape == BoardShape.U ? Math.Max(0, legRight) : 0;
         FilePath = null;
         Selection.Clear();
         Active = null;

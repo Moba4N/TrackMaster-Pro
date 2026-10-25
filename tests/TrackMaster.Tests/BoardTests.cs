@@ -73,4 +73,42 @@ public class BoardTests
         Assert.Equal(1, s.Plan.BoardTurn);
         Assert.True(s.Plan.BoardDepth < 1000);
     }
+
+    [Fact]
+    public void Beliebige_Masse_beim_Eintippen_stuerzen_nicht_ab()
+    {
+        // Werte, wie sie beim Tippen Ziffer für Ziffer entstehen (auch knapp über 100 mm und 0)
+        var values = new double[] { 0, 1, 3, 30, 99, 100, 101, 102, 150, 300, 2000, 3000, 50000 };
+        foreach (var shape in BoardGeometry.All)
+            foreach (var w in values)
+                foreach (var h in values)
+                    foreach (var d in new double[] { 0, 6, 60, 600, 6000, double.NaN })
+                        for (var t = 0; t < 4; t++)
+                        {
+                            BoardGeometry.Rects(shape, w, h, d, t, 50, 0);
+                            BoardGeometry.Outlines(shape, w, h, d, t, 0, 5000);
+                        }
+    }
+
+    [Fact]
+    public void Tausenderpunkt_wird_gelesen()
+    {
+        Assert.Equal(3000, Fmt.Parse("3.000"));
+        Assert.Equal(12500, Fmt.Parse("12.500"));
+        Assert.Equal(1.5, Fmt.Parse("1.5"));
+    }
+
+    [Fact]
+    public void U_Form_mit_kuerzerem_Schenkel()
+    {
+        var plan = new LayoutPlan { BoardShape = BoardShape.U, BoardWidth = 3000, BoardHeight = 2000, BoardDepth = 600, BoardLegRight = 1200 };
+        Assert.True(BoardGeometry.Contains(plan, 2700, 1000));   // rechter Schenkel unten
+        Assert.False(BoardGeometry.Contains(plan, 2700, 500));   // oberhalb des kurzen Schenkels frei
+        Assert.True(BoardGeometry.Contains(plan, 300, 200));     // linker Schenkel voll
+        var outline = BoardGeometry.Outlines(plan)[0];
+        Assert.Equal(BoardGeometry.Area(plan) * 1e6, PolygonArea(outline), 3);
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(plan), out _);
+        Assert.Equal(1200, back.BoardLegRight);
+        Assert.Equal(0, back.BoardLegLeft);
+    }
 }

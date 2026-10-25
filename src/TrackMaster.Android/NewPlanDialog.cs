@@ -32,6 +32,16 @@ public static partial class Dialogs
         body.AddView(Columns(c, Ui.Field(c, "Breite außen (mm)", w), Ui.Field(c, "Tiefe außen (mm)", h)));
         var legs = Columns(c, Ui.Field(c, "Schenkeltiefe (mm)", d), Ui.Field(c, "Ausrichtung", turn));
         body.AddView(legs);
+        // Schenkellängen der U-Form: leer = volle Länge
+        var legLeft = Ui.TextField(c, "", "ganz");
+        var legRight = Ui.TextField(c, "", "ganz");
+        foreach (var e in new[] { legLeft, legRight })
+        {
+            e.InputType = Android.Text.InputTypes.ClassNumber | Android.Text.InputTypes.NumberFlagDecimal;
+            e.KeyListener = Android.Text.Method.DigitsKeyListener.GetInstance("0123456789,.");
+        }
+        var uLegs = Columns(c, Ui.Field(c, "Linker Schenkel lang (mm)", legLeft), Ui.Field(c, "Rechter Schenkel lang (mm)", legRight));
+        body.AddView(uLegs);
         var info = Ui.Label(c, "", 12.5, color: Ui.TextSecondary);
         body.AddView(info);
         var error = Error(c);
@@ -43,11 +53,12 @@ public static partial class Dialogs
         {
             var s = Shape();
             legs.Visibility = BoardGeometry.HasLegs(s) ? ViewStates.Visible : ViewStates.Gone;
-            double bw = Ui.Parse(w, 0), bh = Ui.Parse(h, 0), bd = Ui.Parse(d, 0);
+            uLegs.Visibility = s == BoardShape.U ? ViewStates.Visible : ViewStates.Gone;
+            double bw = Ui.Parse(w, 0), bh = Ui.Parse(h, 0), bd = Ui.Parse(d, 0), l1 = Ui.Parse(legLeft, 0), l2 = Ui.Parse(legRight, 0);
             if (bw < 100 || bh < 100) return;
             var t = turn.SelectedItemPosition;
-            preview.Outlines = BoardGeometry.Outlines(s, bw, bh, bd, t);
-            var area = BoardGeometry.Rects(s, bw, bh, bd, t).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
+            preview.Outlines = BoardGeometry.Outlines(s, bw, bh, bd, t, l1, l2);
+            var area = BoardGeometry.Rects(s, bw, bh, bd, t, l1, l2).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
             info.Text = BoardGeometry.HasLegs(s)
                 ? $"Außenmaße {Fmt.Num(bw, 0)} × {Fmt.Num(bh, 0)} mm · Schenkel {Fmt.Num(BoardGeometry.Depth(s, bw, bh, bd, t), 0)} mm · Fläche {Fmt.Num(area, 2)} m²"
                 : $"{Fmt.Num(bw, 0)} × {Fmt.Num(bh, 0)} mm · Fläche {Fmt.Num(area, 2)} m²";
@@ -66,7 +77,7 @@ public static partial class Dialogs
         gauge.ItemSelected += (_, _) => { if (firstGauge) { firstGauge = false; return; } Suggest(); };
         shape.ItemSelected += (_, _) => Suggest();
         turn.ItemSelected += (_, _) => Update();
-        foreach (var box in new[] { w, h, d }) box.AfterTextChanged += (_, _) => Update();
+        foreach (var box in new[] { w, h, d, legLeft, legRight }) box.AfterTextChanged += (_, _) => Update();
         Update();
 
         Show(c, "Neuer Plan", body, "Anlegen", () =>
@@ -76,9 +87,17 @@ public static partial class Dialogs
             Read(h, "Tiefe", 100, 50000, errors, out var bh);
             var bd = 600.0;
             if (BoardGeometry.HasLegs(Shape())) Read(d, "Schenkeltiefe", 50, 50000, errors, out bd);
+            double l1 = 0, l2 = 0;
+            if (Shape() == BoardShape.U)
+            {
+                if ((legLeft.Text ?? "").Trim().Length > 0) Read(legLeft, "Linker Schenkel", 50, 50000, errors, out l1);
+                if ((legRight.Text ?? "").Trim().Length > 0) Read(legRight, "Rechter Schenkel", 50, 50000, errors, out l2);
+            }
             SetError(error, errors);
             if (errors.Count > 0) return false;
-            create(new BoardSetup(gauges[Math.Max(0, gauge.SelectedItemPosition)].Id, Shape(), bw, bh, bd, turn.SelectedItemPosition));
+            var t = turn.SelectedItemPosition;
+            var full = t % 2 == 0 ? bh : bw;
+            create(new BoardSetup(gauges[Math.Max(0, gauge.SelectedItemPosition)].Id, Shape(), bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2));
             return true;
         });
     }

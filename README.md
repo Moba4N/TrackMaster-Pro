@@ -139,7 +139,10 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 **Elektrik (Pro)**
 - Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.
 - Kehrschleifen-Erkennung im Zweileiter-System (beim Märklin-Mittelleiter entfällt sie).
-- Signale (Haupt-, Vor-, Ausfahr-, Sperr- und Blocksignal), Decoder-Adressen automatisch vergeben, Konflikte erkennen.
+- Signale (Haupt-, Vor-, Ausfahr-, Sperr- und Blocksignal) als H/V-Lichtsignale der DB mit echtem Lampenbild im Haltbegriff
+  (Hp 0, Hp 00, Vr 0, Sh 0) und weiß-rot-weißem Mastschild, im Plan, in der 3D-Ansicht und in der Auswahl.
+  Einspeisungen und Signale lassen sich wählen und löschen; mit dem jeweiligen Werkzeug entfernt ein Klick sie wieder.
+  Decoder-Adressen automatisch vergeben, Konflikte erkennen.
 - **Kabelplan** als Text mit Abschnitten, Einspeisungen, Trennstellen und Decoderbelegung.
 
 **3D (Pro)**

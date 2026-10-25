@@ -208,23 +208,70 @@ public sealed class PlanScene
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            var r = Math.Max(g * 0.7, 4 / z);
-            var h = heading * Math.PI / 180;
-            // Mast quer zum Gleis, Schirm zeigt dem ankommenden Zug entgegen
-            var foot = new Point(x + Math.Sin(h) * g * 1.2, y - Math.Cos(h) * g * 1.2);
-            dc.DrawLine(new Pen(Brushes.Black, Math.Max(g * 0.15, 1 / z)), foot, new Point(x, y));
-            var head = SignalColors(s.Type);
-            dc.DrawEllipse(Brushes.Black, s.Id == o.SelectedObject ? selPen : null, new Point(x, y), r * 1.25, r * 1.25);
-            dc.DrawEllipse(head.Top, null, new Point(x - Math.Cos(h) * r * 0.45, y - Math.Sin(h) * r * 0.45), r * 0.5, r * 0.5);
-            dc.DrawEllipse(head.Bottom, null, new Point(x + Math.Cos(h) * r * 0.45, y + Math.Sin(h) * r * 0.45), r * 0.5, r * 0.5);
+            var face = SignalFace.For(s.Type);
+            var scale = SignalFace.PlanScale(g, z);
+            var (m11, m12, m21, m22, ox, oy) = SignalFace.PlanTransform(x, y, heading, scale, face);
+            dc.PushTransform(new MatrixTransform(m11, m12, m21, m22, ox, oy));
+            DrawSignalFace(dc, face, s.Id == o.SelectedObject ? new Pen(Theme.AccentBrush, Math.Max(2.5 / z, g * 0.25) / scale) : null, 1 / (z * scale));
+            dc.Pop();
         }
     }
 
-    public static (Brush Top, Brush Bottom) SignalColors(SignalType t) => t switch
+    private static SolidColorBrush B(Rgb c, byte alpha = 0xFF)
     {
-        SignalType.Vorsignal => (Brushes.Gold, Brushes.LimeGreen),
-        SignalType.Sperrsignal => (Brushes.White, Brushes.Red),
-        SignalType.Blocksignal => (Brushes.LimeGreen, Brushes.Red),
-        _ => (Brushes.Red, Brushes.LimeGreen),
-    };
+        var b = new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
+        b.Freeze();
+        return b;
+    }
+
+    /// <summary>
+    /// Zeichnet ein Signalbild in Schirmkoordinaten (Ursprung Mitte der Schirmoberkante, y nach unten, 1 = Schirmbreite).
+    /// <paramref name="hairline"/> = Breite einer Bildschirmlinie in diesen Einheiten.
+    /// </summary>
+    public static void DrawSignalFace(DrawingContext dc, SignalFace f, Pen? selection, double hairline)
+    {
+        var line = Math.Min(hairline, 0.06);
+        // Mast mit Mastschild
+        dc.DrawRectangle(B(SignalFace.MastColor), null, new Rect(-0.06, f.Height, 0.12, f.Mast));
+        if (f.MastPlate)
+        {
+            var top = f.Height + SignalFace.PlateGap;
+            var w = SignalFace.PlateWidth;
+            dc.DrawRectangle(B(SignalFace.PlateWhite), new Pen(B(SignalFace.ShieldColor), line), new Rect(-w / 2, top, w, SignalFace.PlateHeight));
+            // weiß-rot-weiß-rot-weiß
+            for (var i = 1; i <= 3; i += 2)
+                dc.DrawRectangle(B(SignalFace.PlateRed), null, new Rect(-w / 2 + line / 2, top + SignalFace.PlateHeight * i / 5, w - line, SignalFace.PlateHeight / 5));
+        }
+        // Schirm
+        var shield = new Rect(-f.Width / 2, 0, f.Width, f.Height);
+        dc.DrawRoundedRectangle(B(SignalFace.ShieldColor), new Pen(B(new Rgb(0x55, 0x55, 0x55)), line), shield, f.Corner, f.Corner);
+        foreach (var l in f.Lamps)
+        {
+            var c = new Point(l.X, l.Y);
+            if (l.Lit) dc.DrawEllipse(B(l.Color, 0x50), null, c, l.R * 1.45, l.R * 1.45);
+            dc.DrawEllipse(B(SignalFace.Shown(l)), new Pen(B(new Rgb(0x60, 0x60, 0x60)), line * 0.8), c, l.R, l.R);
+            if (l.Lit) dc.DrawEllipse(B(new Rgb(0xFF, 0xFF, 0xFF), 0x90), null, new Point(l.X - l.R * 0.3, l.Y - l.R * 0.3), l.R * 0.28, l.R * 0.28);
+        }
+        if (selection is not null)
+            dc.DrawRoundedRectangle(null, selection, new Rect(shield.X - 0.12, -0.12, shield.Width + 0.24, f.TotalHeight + 0.24), f.Corner + 0.1, f.Corner + 0.1);
+    }
+
+    /// <summary>Signalbild als Symbol, z. B. für Menüs und Eigenschaften.</summary>
+    public static ImageSource SignalImage(SignalType type)
+    {
+        var face = SignalFace.For(type);
+        var group = new DrawingGroup();
+        using (var dc = group.Open())
+        {
+            // gleiche Höhe für alle Arten, damit die Größen vergleichbar bleiben
+            dc.DrawRectangle(Brushes.Transparent, null, new Rect(-0.8, -0.1, 1.6, 4.2));
+            dc.PushTransform(new TranslateTransform(0, 4.1 - face.TotalHeight));
+            DrawSignalFace(dc, face, null, 0.03);
+            dc.Pop();
+        }
+        var image = new DrawingImage(group);
+        image.Freeze();
+        return image;
+    }
+
 }

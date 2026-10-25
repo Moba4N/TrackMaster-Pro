@@ -148,12 +148,6 @@ public sealed class PlanPainter
     private static readonly Color FeederColor = Color.Rgb(0xC4, 0x2B, 0x1C);
     private static readonly Color IsolationColor = Color.Rgb(0xE0, 0x6C, 0x00);
 
-    public static (Color Top, Color Bottom) SignalColors(SignalType t)
-    {
-        var (a, b) = Scene3DModel.SignalLamps(t);
-        return (Color.Rgb(a.R, a.G, a.B), Color.Rgb(b.R, b.G, b.B));
-    }
-
     /// <summary>Zeichnet alles in Weltkoordinaten; die Canvas ist bereits skaliert. <paramref name="zoom"/> = Pixel je mm.</summary>
     public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null)
     {
@@ -263,17 +257,79 @@ public sealed class PlanPainter
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            var r = Math.Max(g * 0.7f, 4 * d / z);
-            var h = heading * Math.PI / 180;
-            var fx = (float)(x + Math.Sin(h) * g * 1.2);
-            var fy = (float)(y - Math.Cos(h) * g * 1.2);
-            c.DrawLine(fx, fy, (float)x, (float)y, Stroke(Color.Black, Math.Max(g * 0.15f, 1 / z)));
-            var (top, bottom) = SignalColors(s.Type);
-            c.DrawCircle((float)x, (float)y, r * 1.25f, Fill(Color.Black));
-            if (s.Id == selectedObject) c.DrawCircle((float)x, (float)y, r * 1.25f, Stroke(Ui.Accent, 2.5f * d / z));
-            c.DrawCircle((float)(x - Math.Cos(h) * r * 0.45), (float)(y - Math.Sin(h) * r * 0.45), r * 0.5f, Fill(top));
-            c.DrawCircle((float)(x + Math.Cos(h) * r * 0.45), (float)(y + Math.Sin(h) * r * 0.45), r * 0.5f, Fill(bottom));
+            var face = SignalFace.For(s.Type);
+            var scale = SignalFace.PlanScale(g, z, 6 * d);
+            var (m11, m12, m21, m22, ox, oy) = SignalFace.PlanTransform(x, y, heading, scale, face);
+            var m = new Matrix();
+            m.SetValues([(float)m11, (float)m21, (float)ox, (float)m12, (float)m22, (float)oy, 0, 0, 1]);
+            c.Save();
+            c.Concat(m);
+            DrawSignalFace(c, face, s.Id == selectedObject ? (float)(2.5 * d / z / scale) : 0, (float)(1 / (z * scale)));
+            c.Restore();
         }
+    }
+
+    private static Color C(Rgb c, int alpha = 0xFF) => Color.Argb(alpha, c.R, c.G, c.B);
+
+    /// <summary>
+    /// Zeichnet ein Signalbild in Schirmkoordinaten (Ursprung Mitte der Schirmoberkante, y nach unten, 1 = Schirmbreite).
+    /// <paramref name="selection"/> &gt; 0 zeichnet einen Auswahlrahmen dieser Breite; <paramref name="hairline"/> = Breite einer Bildschirmlinie.
+    /// </summary>
+    public static void DrawSignalFace(Canvas c, SignalFace f, float selection, float hairline)
+    {
+        using var p = new Paint(PaintFlags.AntiAlias);
+        var line = Math.Min(hairline, 0.06f);
+        void Fill(Rgb col, int alpha = 0xFF) { p.SetStyle(Paint.Style.Fill); p.Color = C(col, alpha); }
+        void Stroke(Rgb col, float w) { p.SetStyle(Paint.Style.Stroke); p.Color = C(col); p.StrokeWidth = w; }
+        float H = (float)f.Height, W = (float)f.Width;
+        Fill(SignalFace.MastColor);
+        c.DrawRect(-0.06f, H, 0.06f, (float)f.TotalHeight, p);
+        if (f.MastPlate)
+        {
+            var top = H + (float)SignalFace.PlateGap;
+            float w = (float)SignalFace.PlateWidth, ph = (float)SignalFace.PlateHeight;
+            Fill(SignalFace.PlateWhite);
+            c.DrawRect(-w / 2, top, w / 2, top + ph, p);
+            Fill(SignalFace.PlateRed);
+            for (var i = 1; i <= 3; i += 2) c.DrawRect(-w / 2, top + ph * i / 5, w / 2, top + ph * (i + 1) / 5, p);
+            Stroke(SignalFace.ShieldColor, line);
+            c.DrawRect(-w / 2, top, w / 2, top + ph, p);
+        }
+        var shield = new RectF(-W / 2, 0, W / 2, H);
+        var corner = (float)f.Corner;
+        Fill(SignalFace.ShieldColor);
+        c.DrawRoundRect(shield, corner, corner, p);
+        Stroke(new Rgb(0x55, 0x55, 0x55), line);
+        c.DrawRoundRect(shield, corner, corner, p);
+        foreach (var l in f.Lamps)
+        {
+            float x = (float)l.X, y = (float)l.Y, r = (float)l.R;
+            if (l.Lit) { Fill(l.Color, 0x50); c.DrawCircle(x, y, r * 1.45f, p); }
+            Fill(SignalFace.Shown(l));
+            c.DrawCircle(x, y, r, p);
+            Stroke(new Rgb(0x60, 0x60, 0x60), line * 0.8f);
+            c.DrawCircle(x, y, r, p);
+            if (l.Lit) { Fill(new Rgb(0xFF, 0xFF, 0xFF), 0x90); c.DrawCircle(x - r * 0.3f, y - r * 0.3f, r * 0.28f, p); }
+        }
+        if (selection > 0)
+        {
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = Ui.Accent;
+            p.StrokeWidth = selection;
+            c.DrawRoundRect(new RectF(-W / 2 - 0.12f, -0.12f, W / 2 + 0.12f, (float)f.TotalHeight + 0.12f), corner + 0.1f, corner + 0.1f, p);
+        }
+    }
+
+    /// <summary>Signalbild als kleines Symbol, eingepasst in <paramref name="width"/> × <paramref name="height"/> (gleicher Maßstab für alle Arten).</summary>
+    public static void SignalIcon(Canvas c, SignalType type, float width, float height)
+    {
+        var face = SignalFace.For(type);
+        var scale = height / 4.3f;
+        c.Save();
+        c.Translate(width / 2, height - scale * (float)(face.TotalHeight + 0.1));
+        c.Scale(scale, scale);
+        DrawSignalFace(c, face, 0, 1.2f / scale);
+        c.Restore();
     }
 
     /// <summary>Vorschaubild eines Katalogteils für die Bibliothek, eingepasst in <paramref name="size"/>.</summary>

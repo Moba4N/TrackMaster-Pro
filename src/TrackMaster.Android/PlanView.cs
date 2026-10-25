@@ -456,7 +456,11 @@ public sealed class PlanView : View
             var d = Math.Sqrt((s.X - sx) * (s.X - sx) + (s.Y - sy) * (s.Y - sy));
             if (d < bestD) { bestD = d; best = id; }
         }
-        foreach (var s in plan.Signals) { var (x, y, _) = Electrics.SignalPose(plan, s); Try(s.Id, x, y); }
+        foreach (var s in plan.Signals)
+        {
+            var (x, y, heading) = Electrics.SignalPose(plan, s);
+            foreach (var (hx, hy) in SignalFace.PlanHitPoints(x, y, heading, SignalFace.PlanScale(_gauge, _zoom, 6 * Ui.Density), SignalFace.For(s.Type))) Try(s.Id, hx, hy);
+        }
         foreach (var f in plan.Feeders)
             if (plan.Find(f.PieceId) is { } p)
             {
@@ -660,7 +664,9 @@ public sealed class PlanView : View
                 _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = "Baum" });
                 return;
             case CanvasTool.Feeder:
-                if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
+                // Tippen auf eine vorhandene Einspeisung entfernt sie wieder
+                if (HitSmallObject(x, y, world) is { } fo && _session.Plan.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
+                else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
                 else _session.Say("Für eine Einspeisung bitte direkt auf ein Gleis tippen.");
                 return;
             case CanvasTool.Isolation:
@@ -668,7 +674,9 @@ public sealed class PlanView : View
                 else _session.Say("Für eine Trennstelle bitte auf eine Gleisverbindung (grüner Punkt) tippen.");
                 return;
             case CanvasTool.Signal:
-                if (HitConnector(x, y, openOnly: false, radiusDp: 26) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
+                // Tippen auf ein vorhandenes Signal entfernt es wieder
+                if (HitSmallObject(x, y, world) is { } so && _session.Plan.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
+                else if (HitConnector(x, y, openOnly: false, radiusDp: 26) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
                 else _session.Say("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung tippen.");
                 return;
         }

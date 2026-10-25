@@ -365,6 +365,14 @@ public sealed class PropertiesPanel : DockPanel
                 type.SelectionChanged += (_, _) => { if (type.SelectedItem is ComboBoxItem { Tag: SignalType t } && t != g.Type) _session.Edit(() => g.Type = t); };
                 _body.Children.Add(Theme.Label("Art", 11, false, Theme.TextSecondaryBrush));
                 _body.Children.Add(type);
+                var face = SignalFace.For(g.Type);
+                var picture = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+                picture.Children.Add(new System.Windows.Controls.Image { Source = PlanScene.SignalImage(g.Type), Width = 34, Height = 88, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top });
+                var faceText = new StackPanel();
+                faceText.Children.Add(Theme.Label(face.Aspect, 12, true));
+                faceText.Children.Add(new TextBlock { Text = face.Description, TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Foreground = Theme.TextSecondaryBrush });
+                picture.Children.Add(faceText);
+                _body.Children.Add(picture);
                 _body.Children.Add(new Border { Height = 8 });
                 _body.Children.Add(Columns(2, Theme.Field("Adresse (0 = keine)", NumberBox(g.Address ?? 0, v => g.Address = v >= 1 ? (int)Math.Round(v) : null, 0, true))));
                 Rows(("Belegt Adressen", g.AddressCount.ToString(), null), ("Gleis", $"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}", null));

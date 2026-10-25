@@ -65,3 +65,51 @@ public class FlexFuzzTests
         _ = PlanSerializer.FromJson(PlanSerializer.ToJson(plan), out _);
     }
 }
+
+public class SignalTests
+{
+    [Fact]
+    public void Signalbilder_entsprechen_dem_Haltbegriff()
+    {
+        var haupt = SignalFace.For(SignalType.Hauptsignal);
+        Assert.Single(haupt.Lamps, l => l.Lit);
+        Assert.Equal(SignalFace.Red, haupt.Lamps.Single(l => l.Lit).Color);
+        // Ausfahrsignal: Hp 00 = zwei rote Lampen nebeneinander
+        var aus = SignalFace.For(SignalType.Ausfahrsignal).Lamps.Where(l => l.Lit).ToList();
+        Assert.Equal(2, aus.Count);
+        Assert.All(aus, l => Assert.Equal(SignalFace.Red, l.Color));
+        Assert.Equal(aus[0].Y, aus[1].Y);
+        // Vorsignal: Vr 0 = zwei gelbe Lampen nach rechts steigend
+        var vr = SignalFace.For(SignalType.Vorsignal).Lamps.Where(l => l.Lit).OrderBy(l => l.X).ToList();
+        Assert.All(vr, l => Assert.Equal(SignalFace.Yellow, l.Color));
+        Assert.True(vr[1].Y < vr[0].Y);
+        foreach (var t in Enum.GetValues<SignalType>())
+        {
+            var f = SignalFace.For(t);
+            // Lampen liegen im Schirm und überlappen nicht
+            Assert.All(f.Lamps, l => Assert.True(Math.Abs(l.X) + l.R <= f.Width / 2 && l.Y - l.R >= 0 && l.Y + l.R <= f.Height, $"{t} {l.Meaning}"));
+            foreach (var a in f.Lamps)
+                foreach (var b in f.Lamps.Where(b => b != a))
+                    Assert.True(Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2)) >= a.R + b.R - 1e-9, $"{t} {a.Meaning}/{b.Meaning}");
+        }
+    }
+
+    [Fact]
+    public void Einspeisung_und_Signal_lassen_sich_entfernen()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 3000, 2000, 600, 0));
+        var p = s.PlaceFlex(s.CurrentFlex, new Pose(500, 500, 0), [Segment.Line(300)], null, null)!;
+        s.AddFeeder(p.Id);
+        s.AddSignal(p.Id, 1);
+        Assert.NotNull(s.SelectedObject);
+        s.Delete();
+        Assert.Empty(s.Plan.Signals);
+        s.RemoveObject(s.Plan.Feeders.Single().Id);
+        Assert.Empty(s.Plan.Feeders);
+        s.Undo();
+        Assert.Single(s.Plan.Feeders);
+        foreach (var t in Enum.GetValues<SignalType>()) { s.SignalType = t; s.AddSignal(p.Id, 0); }
+        Assert.True(new Scene3DModel(s.Plan).TriangleCount > 0);
+    }
+}

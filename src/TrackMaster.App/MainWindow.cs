@@ -162,7 +162,7 @@ public sealed class MainWindow : Window
         Add("flip", Session.Flip, HasSelection);
         Add("swap", Session.SwapAnchor, () => Session.Selection.Count == 1);
         Add("duplicate", Session.Duplicate, HasSelection);
-        Add("delete", Session.Delete, HasSelection);
+        Add("delete", Session.Delete, () => HasSelection() || Session.SelectedObject is not null);
         Add("selectAll", Session.SelectAll);
         Add("selectNone", Session.ClearSelection);
         Add("nextEnd", () => { if (Session.NextOpenEnd() is { } p) Canvas.Reveal(p.X, p.Y); });
@@ -203,10 +203,10 @@ public sealed class MainWindow : Window
         CanvasTool.Water => "Gewässer: Uferpunkte anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab.",
         CanvasTool.Building => "Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug.",
         CanvasTool.Tree => "Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug.",
-        CanvasTool.Feeder => "Einspeisung: Auf ein Gleis klicken. Den Stromkreis stellt man in den Eigenschaften ein.",
+        CanvasTool.Feeder => "Einspeisung: Auf ein Gleis klicken; ein Klick auf eine Einspeisung entfernt sie wieder. Den Stromkreis stellt man in den Eigenschaften ein.",
         CanvasTool.Isolation => "Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder.",
         CanvasTool.Flex => "Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug.",
-        CanvasTool.Signal => "Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren.",
+        CanvasTool.Signal => "Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder.",
         _ => "",
     };
 
@@ -435,7 +435,7 @@ public sealed class MainWindow : Window
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
         };
         foreach (var t in Enum.GetValues<SignalType>())
-            signalMenu.Items.Add(new RibbonMenuItem { Header = Signal.TypeName(t), Command = _commands["signal" + t] });
+            signalMenu.Items.Add(new RibbonMenuItem { Header = Signal.TypeName(t), ImageSource = PlanScene.SignalImage(t), ToolTip = SignalFace.For(t).Description, Command = _commands["signal" + t] });
         Ribbon.Items.Add(Tab("Elektrik",
             Group("Stromversorgung",
                 ToolToggle("Einspeisung", "Bolt", true, CanvasTool.Feeder, "toolFeeder", "Gleis an einen Stromkreis/Booster anschließen."),

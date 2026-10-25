@@ -409,6 +409,11 @@ public static partial class Dialogs
                 var type = Choice(c, types.Select(Signal.TypeName).ToList(), Array.IndexOf(types, g.Type));
                 type.Enabled = pro;
                 body.AddView(Ui.Field(c, "Art", type));
+                var face = SignalFace.For(g.Type);
+                var picture = Ui.Row(c, 12);
+                picture.AddView(new SignalIconView(c, g.Type), new LinearLayout.LayoutParams(Ui.Dp(36), Ui.Dp(64)));
+                picture.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+                body.AddView(picture);
                 var address = Ui.Number(c, g.Address ?? 0);
                 address.Enabled = pro;
                 body.AddView(Ui.Field(c, "Adresse (0 = keine)", address));
@@ -553,16 +558,35 @@ public static partial class Dialogs
 
     public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)
     {
-        var types = Enum.GetValues<SignalType>();
-        new AlertDialog.Builder(c)
-            .SetTitle("Signal setzen")!
-            .SetSingleChoiceItems(types.Select(Signal.TypeName).ToArray(), Array.IndexOf(types, current), (s, e) =>
-            {
-                pick(types[e.Which]);
-                ((IDialogInterface)s!).Dismiss();
-            })!
-            .SetNegativeButton("Abbrechen", (IDialogInterfaceOnClickListener?)null)!
-            .Show();
+        var body = Ui.Column(c, 6);
+        AlertDialog? dialog = null;
+        foreach (var t in Enum.GetValues<SignalType>())
+        {
+            var type = t;
+            var face = SignalFace.For(t);
+            var row = Ui.Row(c, 12);
+            row.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
+            row.Background = Ui.Rounded(t == current ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), t == current ? Ui.Accent : Ui.Border);
+            row.Clickable = true;
+            row.AddView(new SignalIconView(c, t), new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(64)));
+            var texts = Ui.Column(c, 2);
+            texts.AddView(Ui.Label(c, Signal.TypeName(t), 15, true));
+            texts.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary));
+            row.AddView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+            row.Click += (_, _) => { pick(type); dialog?.Dismiss(); };
+            body.AddView(row);
+        }
+        dialog = Show(c, "Signal setzen", body, okText: null);
+    }
+
+    /// <summary>Kleines Signalbild (H/V-Lichtsignal) für Listen.</summary>
+    private sealed class SignalIconView(Context c, SignalType type) : View(c)
+    {
+        protected override void OnDraw(Canvas canvas)
+        {
+            base.OnDraw(canvas);
+            PlanPainter.SignalIcon(canvas, type, Width, Height);
+        }
     }
 
     // ---------- Prüfen und Listen ----------

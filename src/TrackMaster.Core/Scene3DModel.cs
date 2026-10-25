@@ -80,14 +80,6 @@ public sealed class Scene3DModel
 
     public int TriangleCount => Meshes.Values.Sum(m => m.TriangleCount);
 
-    /// <summary>Signallampen (oben, unten) je Signaltyp.</summary>
-    public static (Rgb Top, Rgb Bottom) SignalLamps(SignalType t) => t switch
-    {
-        SignalType.Vorsignal => (new Rgb(0xFF, 0xD7, 0x00), new Rgb(0x32, 0xCD, 0x32)),
-        SignalType.Sperrsignal => (new Rgb(0xFF, 0xFF, 0xFF), new Rgb(0xFF, 0x00, 0x00)),
-        SignalType.Blocksignal => (new Rgb(0x32, 0xCD, 0x32), new Rgb(0xFF, 0x00, 0x00)),
-        _ => (new Rgb(0xFF, 0x00, 0x00), new Rgb(0x32, 0xCD, 0x32)),
-    };
 
     private SceneMesh Mesh(Rgb c, SurfaceKind kind = SurfaceKind.Matte)
     {
@@ -293,17 +285,52 @@ public sealed class Scene3DModel
         }
     }
 
+    /// <summary>Lichtsignal nach <see cref="SignalFace"/>: Mast, Mastschild, schwarzer Schirm und Lampen an ihrer echten Stelle, dem Zug zugewandt.</summary>
     private void SignalModel(Signal s)
     {
-        var (x, y, _) = Electrics.SignalPose(_plan, s);
+        var (x, y, heading) = Electrics.SignalPose(_plan, s);
         var z = _plan.Find(s.PieceId)?.Height ?? 0;
         var g = _g;
-        var height = s.Type == SignalType.Sperrsignal ? g * 1.2 : g * 4;
-        Mesh(new Rgb(0x50, 0x50, 0x50)).Box(P(x - g * 0.08, y - g * 0.08, z), P(x + g * 0.08, y + g * 0.08, z + height));
-        Mesh(new Rgb(0x20, 0x20, 0x20)).Box(P(x - g * 0.3, y - g * 0.3, z + height - g * 0.2), P(x + g * 0.3, y + g * 0.3, z + height + g * 0.9));
-        var (top, bottom) = SignalLamps(s.Type);
-        Mesh(top, SurfaceKind.Lamp).Box(P(x - g * 0.32, y - g * 0.32, z + height + g * 0.45), P(x + g * 0.32, y + g * 0.32, z + height + g * 0.7));
-        Mesh(bottom, SurfaceKind.Lamp).Box(P(x - g * 0.32, y - g * 0.32, z + height + g * 0.05), P(x + g * 0.32, y + g * 0.32, z + height + g * 0.3));
+        var face = SignalFace.For(s.Type);
+        var low = s.Type == SignalType.Sperrsignal;
+        // Schirmbreite und Höhe der Schirmoberkante über der Schiene
+        var w = low ? g * 0.42 : g * 0.48;
+        var top = low ? face.TotalHeight * w : g * 4.4;
+        var h = heading * Math.PI / 180;
+        double rx = -Math.Sin(h), ry = Math.Cos(h);   // rechts, vom Zug aus gesehen
+        double nx = -Math.Cos(h), ny = -Math.Sin(h);  // Blickrichtung des Schirms (zum Zug hin)
+        Vec3 At(double fx, double fy, double depth)
+            => P(x + rx * fx * w + nx * depth * w, y + ry * fx * w + ny * depth * w, z + top - fy * w);
+        void Block(SceneMesh m, double fx0, double fx1, double fy0, double fy1, double d0, double d1)
+        {
+            Vec3 a = At(fx0, fy0, d1), b = At(fx1, fy0, d1), c = At(fx1, fy1, d1), d = At(fx0, fy1, d1);
+            Vec3 a2 = At(fx0, fy0, d0), b2 = At(fx1, fy0, d0), c2 = At(fx1, fy1, d0), d2 = At(fx0, fy1, d0);
+            m.Quad(a, b, c, d); m.Quad(b2, a2, d2, c2);
+            m.Quad(a2, b2, b, a); m.Quad(d, c, c2, d2);
+            m.Quad(a2, a, d, d2); m.Quad(b, b2, c2, c);
+        }
+        // Mast vom Boden bis unter den Schirm
+        var mastBottom = top / w;
+        Block(Mesh(SignalFace.MastColor), -0.07, 0.07, face.Height - 0.05, mastBottom, -0.2, -0.06);
+        if (face.MastPlate)
+        {
+            var py = face.Height + SignalFace.PlateGap;
+            var pw = SignalFace.PlateWidth / 2;
+            for (var i = 0; i < 5; i++)
+                Block(Mesh(i % 2 == 0 ? SignalFace.PlateWhite : SignalFace.PlateRed), -pw, pw,
+                    py + SignalFace.PlateHeight * i / 5, py + SignalFace.PlateHeight * (i + 1) / 5, -0.06, 0.0);
+        }
+        Block(Mesh(SignalFace.ShieldColor), -face.Width / 2, face.Width / 2, 0, face.Height, -0.18, 0.02);
+        foreach (var l in face.Lamps)
+        {
+            var mesh = l.Lit ? Mesh(l.Color, SurfaceKind.Lamp) : Mesh(SignalFace.Dark);
+            var center = At(l.X, l.Y, 0.05);
+            for (var k = 0; k < 8; k++)
+            {
+                double a0 = k * Math.PI / 4, a1 = (k + 1) * Math.PI / 4;
+                mesh.Triangle(center, At(l.X + Math.Cos(a0) * l.R, l.Y + Math.Sin(a0) * l.R, 0.05), At(l.X + Math.Cos(a1) * l.R, l.Y + Math.Sin(a1) * l.R, 0.05));
+            }
+        }
     }
 }
 

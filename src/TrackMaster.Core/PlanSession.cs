@@ -631,6 +631,17 @@ public sealed class PlanSession
         return item;
     }
 
+    /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
+    public void RemoveObject(int id)
+    {
+        var what = FindObject(id) switch { Feeder => "Einspeisung", Signal => "Signal", Isolation => "Trennstelle", _ => "Objekt" };
+        Record();
+        if (!Plan.RemoveObject(id)) { History.DiscardLast(); return; }
+        if (SelectedObject == id) SelectedObject = null;
+        Commit();
+        Say($"{what} entfernt. Rückgängig holt es zurück.");
+    }
+
     public void AddFeeder(int pieceId)
     {
         Record();

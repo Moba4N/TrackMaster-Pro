@@ -476,7 +476,7 @@ public sealed class PlanSession
     {
         var text = FlexTrack.Describe(segments);
         var catalogMin = Plan.Gauge.Systems.SelectMany(s => s.Pieces).Where(p => p.Kind == PieceKind.Curve).Select(p => p.Radius).DefaultIfEmpty(0).Min();
-        if (FlexTrack.MinRadius(segments) is { } r && catalogMin > 0 && r < catalogMin * 0.95)
+        if (FlexTrack.SmallestRadius(segments) is { } r && catalogMin > 0 && r < catalogMin * 0.95)
             text += $". Achtung: enger als der kleinste Katalogradius der Spur ({Fmt.Num(catalogMin, 0)} mm)";
         return text;
     }
@@ -525,9 +525,8 @@ public sealed class PlanSession
     public ConnectorRef? FlexTarget(double x, double y, double tolerance, int? ignorePiece = null, ConnectorRef? exclude = null)
         => Connections.All
             .Where(c => c.PieceId != ignorePiece && c != exclude && (c.IsOpen || (ignorePiece is not null && c.Link?.PieceId == ignorePiece)))
-            .Select(c => (c, d: Math.Sqrt(Math.Pow(c.Pose.X - x, 2) + Math.Pow(c.Pose.Y - y, 2))))
-            .Where(t => t.d <= tolerance)
-            .MinBy(t => t.d).c;
+            .Where(c => Math.Sqrt(Math.Pow(c.Pose.X - x, 2) + Math.Pow(c.Pose.Y - y, 2)) <= tolerance)
+            .MinBy(c => Math.Pow(c.Pose.X - x, 2) + Math.Pow(c.Pose.Y - y, 2));
 
     /// <summary>Beginnt ein neues Flexgleis an einem Gleisende (Fahrtrichtung vom Ende weg) oder frei an (x, y).</summary>
     public FlexDraft BeginFlexDraw(double x, double y, ConnectorRef? from)

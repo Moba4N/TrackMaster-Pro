@@ -12,7 +12,7 @@ public static class TrackDrawing
         var (x0, y0, x1, y1, r) = leg.Offset(offset);
         ctx.BeginFigure(new Point(x0, y0), false, false);
         if (leg.IsArc)
-            ctx.ArcTo(new Point(x1, y1), new Size(r, r), 0, false, leg.Turn > 0 ? SweepDirection.Clockwise : SweepDirection.Counterclockwise, true, false);
+            ctx.ArcTo(new Point(x1, y1), new Size(r, r), 0, leg.Angle > 180, leg.Turn > 0 ? SweepDirection.Clockwise : SweepDirection.Counterclockwise, true, false);
         else
             ctx.LineTo(new Point(x1, y1), true, false);
     }

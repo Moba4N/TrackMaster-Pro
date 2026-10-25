@@ -10,6 +10,9 @@ namespace TrackMaster.Core;
 public static class FlexTrack
 {
     public const double MinLength = 5;
+    /// <summary>Längstes Flexgleis in einem Stück (wie bei geraden Flexgleisen), kleinster Radius.</summary>
+    public const double MaxLength = 20000;
+    public const double MinRadius = 10;
     /// <summary>Größter Radius, ab dem ein Bogen als Gerade gilt (Abweichung unter 0,1 mm auf 1 m).</summary>
     private const double StraightRadius = 1_000_000;
 
@@ -22,11 +25,14 @@ public static class FlexTrack
         if (chord < MinLength) return [];
         var along = tx * cx + ty * cy;
         var cross = tx * cy - ty * cx;
-        if (along > 0 && Math.Abs(cross) < 1e-9 * chord) return [Segment.Line(chord)];
+        if (along > 0 && Math.Abs(cross) < 1e-9 * chord) return chord <= MaxLength ? [Segment.Line(chord)] : [];
+        // Punkt (fast) genau hinter dem Gleisende: kein sinnvoller Bogen möglich
+        if (Math.Abs(cross) < 1e-6 * chord) return [];
         var r = chord * chord / (2 * Math.Abs(cross));
-        if (r > StraightRadius && along > 0) return [Segment.Line(chord)];
+        if (r > StraightRadius && along > 0) return chord <= MaxLength ? [Segment.Line(chord)] : [];
         var sweep = 2 * Math.Atan2(Math.Abs(cross), along) * 180 / Math.PI;
-        return [new Segment(0, r, sweep, cross > 0 ? 1 : -1)];
+        IReadOnlyList<Segment> arc = [new Segment(0, r, sweep, cross > 0 ? 1 : -1)];
+        return IsValid(arc) ? arc : [];
     }
 
     /// <summary>Gerade vom Punkt (x0, y0) zum Punkt (x1, y1), für ein frei begonnenes Flexgleis.</summary>
@@ -34,7 +40,7 @@ public static class FlexTrack
     {
         var len = Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
         var start = new Pose(x0, y0, Math.Atan2(y1 - y0, x1 - x0) * 180 / Math.PI);
-        return (start, len < MinLength ? [] : [Segment.Line(len)]);
+        return (start, len < MinLength || len > MaxLength ? [] : [Segment.Line(len)]);
     }
 
     /// <summary>Verbindet <paramref name="start"/> mit <paramref name="end"/> (Fahrtrichtung beim Ankommen) durch höchstens zwei Bögen.</summary>
@@ -61,11 +67,25 @@ public static class FlexTrack
         // Verbindungspunkt der beiden Bögen
         var mx = (start.X + d * t1x + end.X - d * t2x) / 2;
         var my = (start.Y + d * t1y + end.Y - d * t2y) / 2;
+        static double Dist(Pose a, double x, double y) => Math.Sqrt((x - a.X) * (x - a.X) + (y - a.Y) * (y - a.Y));
         var first = Bend(start, mx, my);
+        // Ein leerer Bogen ist nur in Ordnung, wenn der Punkt praktisch auf dem Anfang liegt
+        if (first.Count == 0 && Dist(start, mx, my) >= MinLength) return [];
         var mid = first.Count == 0 ? start with { X = mx, Y = my } : EndPose(start, first);
         var second = Bend(mid, end.X, end.Y);
-        return Merge([.. first, .. second]);
+        if (second.Count == 0 && Dist(mid, end.X, end.Y) >= MinLength) return [];
+        if (first.Count == 0 && second.Count == 0) return [];
+        var all = Merge([.. first, .. second]);
+        return IsValid(all) ? all : [];
     }
+
+    /// <summary>Lässt sich die Form als Flexgleis verlegen (endliche Maße, Radius ab 10 mm, höchstens 20 m lang)?</summary>
+    public static bool IsValid(IReadOnlyList<Segment> segments)
+        => segments.Count is > 0 and <= 16
+           && segments.All(s => s.Turn == 0
+               ? double.IsFinite(s.Length) && s.Length > 0
+               : double.IsFinite(s.Radius) && s.Radius >= MinRadius && s.Radius <= StraightRadius && s.Angle > 0 && s.Angle < 360)
+           && Length(segments) <= MaxLength;
 
     /// <summary>Endpunkt und Fahrtrichtung nach den Abschnitten.</summary>
     public static Pose EndPose(Pose start, IReadOnlyList<Segment> segments) => Legs(start, segments) is { Count: > 0 } legs ? legs[^1].End : start;
@@ -91,11 +111,11 @@ public static class FlexTrack
     public static double Length(IReadOnlyList<Segment> segments) => segments.Sum(s => s.Turn == 0 ? s.Length : s.Radius * s.Angle * Math.PI / 180);
 
     /// <summary>Kleinster Radius der Bögen oder null, wenn alles gerade ist.</summary>
-    public static double? MinRadius(IReadOnlyList<Segment> segments) => segments.Where(s => s.Turn != 0).Select(s => (double?)s.Radius).Min();
+    public static double? SmallestRadius(IReadOnlyList<Segment> segments) => segments.Where(s => s.Turn != 0).Select(s => (double?)s.Radius).Min();
 
     /// <summary>Kurzbeschreibung für die Statuszeile: „Flexgleis 812 mm, Radius 430 mm“.</summary>
     public static string Describe(IReadOnlyList<Segment> segments)
-        => $"Flexgleis {Fmt.Num(Length(segments), 0)} mm" + (MinRadius(segments) is { } r ? $", kleinster Radius {Fmt.Num(r, 0)} mm" : ", gerade");
+        => $"Flexgleis {Fmt.Num(Length(segments), 0)} mm" + (SmallestRadius(segments) is { } r ? $", kleinster Radius {Fmt.Num(r, 0)} mm" : ", gerade");
 
     /// <summary>Gerade Stücke zusammenfassen, sehr kurze weglassen.</summary>
     private static IReadOnlyList<Segment> Merge(IReadOnlyList<Segment> segments)
@@ -141,7 +161,7 @@ public static class FlexTrack
             else
                 return null;
         }
-        return list.Count is > 0 and <= 16 ? list : null;
+        return IsValid(list) ? list : null;
     }
 }
 

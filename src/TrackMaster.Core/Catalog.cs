@@ -283,7 +283,8 @@ public static partial class Catalog
             def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Straight, Length = len, Name = "Flexgleis gerade", Spec = $"{Fmt.Num(len)} mm", Category = "Flexgleis" };
         else if (spec.StartsWith('R') && spec.IndexOf('A') is > 1 and var a
                  && double.TryParse(spec[1..a], System.Globalization.NumberStyles.Float, inv, out var r) && r is >= 10 and <= 1_000_000
-                 && double.TryParse(spec[(a + 1)..], System.Globalization.NumberStyles.Float, inv, out var ang) && ang is > 0 and < 360)
+                 && double.TryParse(spec[(a + 1)..], System.Globalization.NumberStyles.Float, inv, out var ang) && ang is > 0 and < 360
+                 && r * ang * Math.PI / 180 <= FlexTrack.MaxLength)
             def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Curve, Radius = r, Angle = ang, Name = $"Flexgleis Bogen {Fmt.Num(ang)}°", Spec = $"R {Fmt.Num(r)} mm", Category = "Flexgleis" };
         else if (spec.StartsWith('P') && FlexTrack.ParsePath(spec[1..]) is { } segments)
         {
@@ -292,8 +293,8 @@ public static partial class Catalog
             {
                 Number = stock.Number, Kind = PieceKind.Straight, Length = total, Routes = [new Route(0, 0, 0, segments)],
                 Name = segments.All(x => x.Turn == 0) ? "Flexgleis gerade" : "Flexgleis geformt",
-                Spec = $"{Fmt.Num(total)} mm" + (FlexTrack.MinRadius(segments) is { } minR ? $" · R ≥ {Fmt.Num(minR, 0)} mm" : ""),
-                Radius = FlexTrack.MinRadius(segments) ?? 0, Category = "Flexgleis",
+                Spec = $"{Fmt.Num(total)} mm" + (FlexTrack.SmallestRadius(segments) is { } minR ? $" · R ≥ {Fmt.Num(minR, 0)} mm" : ""),
+                Radius = FlexTrack.SmallestRadius(segments) ?? 0, Category = "Flexgleis",
             };
         }
         if (def is null) return null;

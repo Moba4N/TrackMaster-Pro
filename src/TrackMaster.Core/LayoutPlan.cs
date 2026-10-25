@@ -39,7 +39,7 @@ public sealed class PlacedPiece
         var paths = TrackGeometry.LocalPaths(d, Flipped);
         return d.Kind switch
         {
-            PieceKind.Straight or PieceKind.Curve => [Height, Height + g * paths[0][0].TrackLength],
+            PieceKind.Straight or PieceKind.Curve => [Height, Height + g * paths[0].Sum(l => l.TrackLength)],
             PieceKind.Switch => [Height, .. paths.Select(p => Height + g * p.Sum(l => l.TrackLength))],
             PieceKind.Crossing => [Height, Height, Height, Height],
             _ => [Height],

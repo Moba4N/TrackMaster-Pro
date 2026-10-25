@@ -88,8 +88,13 @@ public static class Angles
 
 public static class TrackGeometry
 {
-    /// <summary>Abschnitte eines Gleisstücks in eigenen Koordinaten: Anschluss 0 liegt im Ursprung, Fahrtrichtung nach rechts.</summary>
-    public static IReadOnlyList<Leg> LocalLegs(TrackPieceDef d, bool flipped) => LocalPaths(d, flipped).SelectMany(p => p).ToList();
+    /// <summary>Abschnitte eines Gleisstücks in eigenen Koordinaten: Anschluss 0 liegt im Ursprung, Fahrtrichtung nach rechts.
+    /// Enthält auch die nur gezeichneten Abschnitte (Bogenstränge einer Kreuzungsweiche) hinter den Fahrwegen.</summary>
+    public static IReadOnlyList<Leg> LocalLegs(TrackPieceDef d, bool flipped)
+    {
+        var f = flipped ? -1 : 1;
+        return [.. LocalPaths(d, flipped).SelectMany(p => p), .. (d.Decor ?? []).SelectMany(r => Chain(r, f))];
+    }
 
     /// <summary>
     /// Fahrwege eines Gleisstücks, jeweils als Folge von Abschnitten. Gerade, Bogen und Prellbock haben einen Fahrweg,
@@ -99,6 +104,8 @@ public static class TrackGeometry
     {
         var f = flipped ? -1 : 1;
         var turn = (d.RightHand ? 1 : -1) * f;
+        if (d.Routes is { } routes)
+            return routes.Select(r => Chain(r, f)).ToList();
         switch (d.Kind)
         {
             case PieceKind.Straight:
@@ -121,10 +128,14 @@ public static class TrackGeometry
     }
 
     /// <summary>Abschnitte eines Weichenstrangs aneinanderhängen; <paramref name="f"/> = −1 spiegelt.</summary>
-    private static IReadOnlyList<Leg> Chain(IReadOnlyList<Segment> segments, int f)
+    private static IReadOnlyList<Leg> Chain(IReadOnlyList<Segment> segments, int f) => Chain(new Route(0, 0, 0, segments), f);
+
+    /// <summary>Fahrweg ab seinem Anfangspunkt aneinanderhängen; <paramref name="f"/> = −1 spiegelt an der x-Achse.</summary>
+    private static IReadOnlyList<Leg> Chain(Route route, int f)
     {
+        var segments = route.Segments;
         var legs = new List<Leg>();
-        var pose = new Pose(0, 0, 0);
+        var pose = new Pose(route.X, route.Y * f, route.Heading * f);
         double from = 0;
         foreach (var s in segments)
         {
@@ -146,12 +157,13 @@ public static class TrackGeometry
     {
         var paths = LocalPaths(d, flipped);
         var origin = new Pose(0, 0, 180);
+        static Pose Back(Leg l) => new(l.X, l.Y, l.Heading + 180);
         return d.Kind switch
         {
             PieceKind.Straight or PieceKind.Curve => [origin, paths[0][^1].End],
             PieceKind.Buffer => [origin],
             PieceKind.Switch => [origin, .. paths.Select(p => p[^1].End)],
-            PieceKind.Crossing => [origin, paths[0][0].End, new Pose(paths[1][0].X, paths[1][0].Y, paths[1][0].Heading + 180), paths[1][0].End],
+            PieceKind.Crossing => [Back(paths[0][0]), paths[0][^1].End, Back(paths[1][0]), paths[1][^1].End],
             _ => [origin],
         };
     }

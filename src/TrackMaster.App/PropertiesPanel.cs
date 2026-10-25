@@ -184,7 +184,7 @@ public sealed class PropertiesPanel : DockPanel
                 Rows(("Radius", $"{Fmt.Num(d.Radius)} mm", null), ("Winkel", $"{Fmt.Num(d.Angle)}°", null), ("Bogenlänge", $"{Fmt.Num(d.TrackLength)} mm", null), ("Richtung", leftHanded ? "links" : "rechts", null));
                 break;
             case PieceKind.Switch when !d.IsSimpleSwitch:
-                Rows(("Maße", d.Spec, null), ("Stränge", $"{d.Paths!.Count}", null), ("Antriebe", $"{d.Drives}", null));
+                Rows(("Maße", d.Spec, null), ("Stränge", $"{d.RouteCount}", null), ("Antriebe", $"{d.Drives}", null));
                 break;
             case PieceKind.Switch:
                 Rows(("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Abzweig", $"R {Fmt.Num(d.Radius)} · {Fmt.Num(d.Angle)}°", null), ("Richtung", leftHanded ? "links" : "rechts", null));

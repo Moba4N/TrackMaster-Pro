@@ -542,6 +542,7 @@ public sealed class MainActivity : Activity
         var gauge = _session.Plan.Gauge;
         var curves = _session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
         if (curves.Count == 0) curves = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
+        if (curves.Count == 0) { ShowMessage("Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen."); return; }
         Dialogs.AskHelix(this, gauge, curves, _session.ActiveConnector is not null, (key, turns, rise, right) =>
         {
             _session.BuildHelix(key, turns, rise, right, _canvas.CenterWorld());

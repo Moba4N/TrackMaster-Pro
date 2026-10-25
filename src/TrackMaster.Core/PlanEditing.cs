@@ -42,7 +42,7 @@ public static class PlanEditing
         var paths = TrackGeometry.LocalPaths(piece.Def, piece.Flipped);
         return piece.Def.Kind switch
         {
-            PieceKind.Straight or PieceKind.Curve when index == 1 => paths[0][0].TrackLength,
+            PieceKind.Straight or PieceKind.Curve when index == 1 => paths[0].Sum(l => l.TrackLength),
             PieceKind.Switch when index >= 1 && index <= paths.Count => paths[index - 1].Sum(l => l.TrackLength),
             _ => 0,
         };

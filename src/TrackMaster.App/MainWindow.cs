@@ -796,6 +796,11 @@ public sealed class MainWindow : Window
         var gauge = Session.Plan.Gauge;
         var curves = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
         if (curves.Count == 0) curves = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
+        if (curves.Count == 0)
+        {
+            MessageBox.Show(this, "Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen.", "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
         if (Dialogs.AskHelix(this, gauge, curves, Session.ActiveConnector is not null) is { } h)
         {
             Session.BuildHelix(h.CurveKey, h.Turns, h.Rise, h.RightHand, Canvas.CenterWorld());

@@ -19,8 +19,50 @@ public class CatalogTests
     public void Jede_Spur_hat_Geraden_Boegen_Weichen_und_Prellbock()
     {
         foreach (var g in Catalog.Gauges)
-            foreach (var kind in new[] { PieceKind.Straight, PieceKind.Curve, PieceKind.Switch, PieceKind.Buffer })
+        {
+            // Schmalspur H0m/H0e: Hersteller liefern nur Weichen und Flexgleis
+            var kinds = g.Id is "H0m" or "H0e" ? new[] { PieceKind.Switch } : [PieceKind.Straight, PieceKind.Curve, PieceKind.Switch, PieceKind.Buffer];
+            foreach (var kind in kinds)
                 Assert.Contains(g.Systems.SelectMany(s => s.Pieces), p => p.Kind == kind);
+        }
+    }
+
+    [Fact]
+    public void Katalog_ist_aus_Herstellerdaten_vollstaendig()
+    {
+        Assert.True(Catalog.Gauges.SelectMany(g => g.Systems).Sum(s => s.Pieces.Count) > 1000);
+        foreach (var nr in new[] { "H0|mc|24071", "H0|mc|24206", "H0|mc|24649", "H0|geo|61140", "H0|piko|55226", "N|rf-n|9100", "TT|tillig|83101", "G|lgb|10000", "H0m|tillig-h0m|85632" })
+            Assert.True(Catalog.Find(nr)?.Verified, nr);
+    }
+
+    [Fact]
+    public void Weichenstraenge_beginnen_an_Anschluss_0()
+    {
+        foreach (var d in Catalog.Gauges.SelectMany(g => g.Systems).SelectMany(s => s.Pieces).Where(p => p.Kind == PieceKind.Switch))
+            foreach (var path in TrackGeometry.LocalPaths(d, false))
+            {
+                Assert.True(Math.Abs(path[0].X) < 0.5 && Math.Abs(path[0].Y) < 0.5, d.Key);
+                Assert.True(Math.Abs(Angles.Normalize(path[0].Heading)) < 0.5, d.Key);
+            }
+    }
+
+    [Fact]
+    public void Maerklin_C_Weiche_passt_zum_Gegenbogen_R2()
+    {
+        // Abzweig der 24611 endet wie ein Bogen 24224 (R2, 24,3°), dahinter passt der Gegenbogen ins Parallelgleis
+        var w = TrackGeometry.LocalConnectors(Catalog.Get("H0|mc|24611"), false)[2];
+        var b = TrackGeometry.LocalConnectors(Catalog.Get("H0|mc|24224"), false)[1];
+        Assert.Equal(b.X, w.X, 0);
+        Assert.Equal(-Math.Abs(b.Y), w.Y, 0);
+        Assert.Equal(-24.3, w.Heading, 1);
+    }
+
+    [Fact]
+    public void Fruehere_Katalogeintraege_bleiben_ladbar_aber_verborgen()
+    {
+        var alt = Catalog.Get("H0|geo|WL10");
+        Assert.False(alt.Verified);
+        Assert.DoesNotContain(alt, Catalog.GetSystem("H0", "geo")!.Pieces);
     }
 
     [Fact]
@@ -34,7 +76,7 @@ public class CatalogTests
             {
                 PieceKind.Buffer => 1,
                 PieceKind.Crossing => 4,
-                PieceKind.Switch => (d.Paths?.Count ?? 2) + 1,
+                PieceKind.Switch => d.RouteCount + 1,
                 _ => 2,
             };
             Assert.Equal(expected, connectors.Count);
@@ -50,8 +92,8 @@ public class CatalogTests
         Assert.Equal(4, c.Count);
         Assert.Equal(0, c[1].Y, 6);
         Assert.True(c[2].Y < 0 && c[3].Y > 0);
-        Assert.Equal(-22.5, c[2].Heading, 6);
-        Assert.Equal(22.5, c[3].Heading, 6);
+        Assert.Equal(-24.3, c[2].Heading, 1);
+        Assert.Equal(24.3, c[3].Heading, 1);
         Assert.Equal(2, d.Drives);
     }
 

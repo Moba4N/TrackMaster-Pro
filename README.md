@@ -92,16 +92,22 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 ## Funktionen
 
 **Gleise (Basis)**
-- Spur wählen (Z, N, TT, H0, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Fleischmann piccolo, Roco/Fleischmann ohne Bettung, Minitrix, Peco · TT: Tillig, Piko ·
-  H0: Märklin C, Trix C, Märklin K, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Peco, Tillig Elite ·
-  0: Standard, Lenz · Spur 1: Märklin · G: LGB.
-  Weichen gibt es als einfache, schlanke, Dreiwege-, Bogen- und Y-Weichen, dazu Kreuzungen und DKW.
+- Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:
+  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Roco/Fleischmann ohne und mit Bettung, Minitrix, Arnold, Tomix Fine Track,
+  Peco Streamline Code 55 und Code 80, Peco Setrack · TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Kühn, Piko ·
+  H0: Märklin C, Trix C, Märklin K, Märklin M, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Fleischmann Modellgleis,
+  Tillig Elite, Peco Code 75 und Code 100, Peco Setrack, Kato Unitrack · H0m: Tillig · H0e: Tillig, Peco ·
+  0: Standard, Lenz, Peco Bullhead · Spur 1: Märklin · G: LGB, Piko.
+  Zusammen rund 1300 Gleisstücke: Geraden, Bögen, Gegenbögen, Schalt-, Entkupplungs- und Übergangsgleise, einfache, schlanke,
+  Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
+  Die Maße und Artikelnummern stammen aus der Gleisbibliothek von XTrackCAD (Ordner `params` des Pakets `xtrkcad-common`),
+  umgesetzt mit `tools/catalog-import/gen.py` nach `src/TrackMaster.Core/CatalogData.cs`. Drehscheiben und Schiebebühnen
+  sind nicht übernommen. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
+  Piko TT und Spur 0 Standard sind von Hand gepflegt, haben vorläufige Maße und sind in der Bibliothek markiert.
+  Wo ein Hersteller keinen Prellbock im Datensatz hat, gibt es einen allgemeinen Prellbock „PB“ (ungeprüft).
+  Frühere Katalogeinträge bleiben im Hintergrund erhalten, damit ältere Pläne weiter öffnen.
   Jedes Gleissystem hat in der Bibliothek einen Eintrag „Flexgleis…“: Systeme mit eigenem Flexgleis (z. B. Märklin K 2205,
-  Roco Line 42400, Peco SL-100F) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
-  Märklin C-Gleis und Trix C-Gleis sind mit Katalogmaßen und Artikelnummern geprüft (außer den Bogenweichen).
-  Die anderen Systeme haben vorläufige Maße und sind in der Bibliothek markiert; wo die Artikelnummer nicht gesichert ist,
-  steht eine Kurzbezeichnung wie „G230“ oder „R2-15“.
+  Roco Line 42400, Tillig 85125, Lenz 45013) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
 - Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder frei ziehen; Gleise rasten an freien Enden ein.
 - **Flexgleis** mit freier Länge oder freiem Radius und Winkel; in der Stückliste als ganze Stangen mit 5 % Verschnitt.
 - Drehen, Spiegeln, Anschluss wechseln, Duplizieren, Löschen, Verschieben mit Pfeiltasten, Rückgängig und Wiederholen.

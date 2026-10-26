@@ -7,6 +7,7 @@
     <RootNamespace>TrackMaster.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <StartupObject>TrackMaster.App.Program</StartupObject>
+    <ApplicationIcon>TrackMaster.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\TrackMaster.Core\TrackMaster.Core.csproj" />

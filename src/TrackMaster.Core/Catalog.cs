@@ -74,7 +74,10 @@ public sealed class TrackPieceDef
 public sealed class TrackSystem
 {
     public required string Id { get; init; }
-    public required string Name { get; init; }
+    private readonly string _name = "";
+    public required string Name { get => NeutralName ?? _name; init => _name = value; }
+    /// <summary>Neutrale Bezeichnung für Bildschirmfotos (siehe <see cref="Catalog.UseNeutralNames"/>).</summary>
+    internal string? NeutralName { get; set; }
     /// <summary>true = Maße und Artikelnummern aus dem Herstellerkatalog geprüft.</summary>
     public bool Verified { get; init; }
     /// <summary>Mittelleiter (Märklin H0): Kehrschleifen brauchen keine Sonderschaltung.</summary>
@@ -215,6 +218,21 @@ public static partial class Catalog
                     map[key] = piece;
                 }
         return map;
+    }
+
+    /// <summary>
+    /// Ersetzt die Namen der Gleissysteme durch neutrale Bezeichnungen („Gleissystem A“, „B“ …). Nur für Bildschirmfotos
+    /// im Handbuch, das keine Herstellernamen nennt; wirkt bis zum Programmende.
+    /// </summary>
+    public static void UseNeutralNames()
+    {
+        foreach (var gauge in Gauges)
+            for (var i = 0; i < gauge.Systems.Count; i++)
+            {
+                var system = gauge.Systems[i];
+                system.NeutralName = $"Gleissystem {(char)('A' + i % 26)}{(i >= 26 ? (i / 26).ToString() : "")}";
+                foreach (var piece in system.Pieces.Concat(system.Legacy)) piece.SystemName = system.Name;
+            }
     }
 
     public const string FlexSystemId = "flex";

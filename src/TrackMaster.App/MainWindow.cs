@@ -805,6 +805,20 @@ public sealed class MainWindow : Window
         if (Dialogs.AskGradient(this, sel.Count, start) is { } g) Session.ApplyGradient(g.StartHeight, g.Percent, g.Reverse);
     }
 
+    /// <summary>Öffnet für Bildschirmfotos (Handbuch) einen Dialog: helix, holzliste, bom, license, check, new, wiring.</summary>
+    public void OpenForScreenshot(string name)
+    {
+        if (name != "holzliste") { Run(name == "helix" ? "helix" : name); return; }
+        var curves = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).OrderBy(p => p.Radius).ToList();
+        if (curves.Count == 0) return;
+        var inner = curves[Math.Min(1, curves.Count - 1)];
+        var gauge = Session.Plan.Gauge;
+        var spacing = Helix.DefaultSpacing(gauge);
+        var spec = new HelixSpec(inner.Key, 3, Math.Round(gauge.TrackWidth * 6.5), true, HelixShape.Rund,
+            Tracks: 2, Spacing: spacing, OuterCurveKey: Helix.OuterCurve(curves, inner, spacing, HelixShape.Rund)?.Key);
+        Dialogs.ShowHelixMaterial(this, Helix.Material(spec, gauge), _ => { });
+    }
+
     private void AskHelix()
     {
         var gauge = Session.Plan.Gauge;

@@ -30,6 +30,43 @@ jobs:
           dotnet publish tools/TrackMaster.Lizenzverwaltung -c Release -r win-x64 --self-contained false -o artifacts/Lizenzwerkzeuge
           dotnet publish tools/TrackMaster.LicenseTool -c Release -r win-x64 --self-contained false -o artifacts/Lizenzwerkzeuge
 
+      - name: Windows-Installer (MSI)
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          dotnet publish src/TrackMaster.App -c Release -r win-x64 --self-contained true -o artifacts/msi-input
+          $manual = 0
+          if (Test-Path docs/TrackMaster-Pro-Handbuch.pdf) {
+            Copy-Item docs/TrackMaster-Pro-Handbuch.pdf artifacts/msi-input/Handbuch.pdf
+            $manual = 1
+          }
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+          New-Item -ItemType Directory -Force artifacts/setup | Out-Null
+          wix build installer/TrackMasterPro.wxs -arch x64 -culture de-DE -ext WixToolset.UI.wixext `
+            -d Version=$v -d "PublishDir=$PWD\artifacts\msi-input" -d HasManual=$manual `
+            -o "artifacts/setup/TrackMasterPro-$v.msi"
+          if ($LASTEXITCODE -ne 0) { throw "wix build fehlgeschlagen" }
+          Remove-Item artifacts/setup/*.wixpdb -ErrorAction SilentlyContinue
+          Get-ChildItem artifacts/setup | Format-Table Name, Length
+
+      - name: Installer prüfen (still installieren, starten, deinstallieren)
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem artifacts/setup/*.msi | Select-Object -First 1).FullName
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v `"$PWD\artifacts\setup-install.log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content artifacts/setup-install.log -Tail 60; throw "Installation fehlgeschlagen ($($p.ExitCode))" }
+          $exe = "$env:ProgramFiles\TrackMaster Pro\TrackMasterPro.exe"
+          if (-not (Test-Path $exe)) { throw "Programm nicht installiert" }
+          $shot = "$PWD/artifacts/screenshot-installiert.png"
+          $app = Start-Process -FilePath $exe -ArgumentList @("--screenshot", $shot) -PassThru
+          if (-not $app.WaitForExit(120000)) { $app.Kill(); throw "Installiertes Programm reagiert nicht" }
+          if (-not (Test-Path $shot)) { throw "Installiertes Programm startet nicht" }
+          Get-ChildItem "$env:ProgramFiles\TrackMaster Pro" -Filter *.pdf
+          $p = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Deinstallation fehlgeschlagen ($($p.ExitCode))" }
+          if (Test-Path $exe) { throw "Programm nach Deinstallation noch vorhanden" }
+
       - name: Bildschirmfotos
         shell: pwsh
         run: |
@@ -48,6 +85,28 @@ jobs:
           Shot $app "screenshot-3d" @("--pro", "--3d", "orbit")
           Shot $app "screenshot-mitfahren" @("--pro", "--3d", "ride")
           Shot "artifacts/Lizenzwerkzeuge/TrackMaster.Lizenzverwaltung.exe" "screenshot-lizenzverwaltung" @()
+          # Bilder für das Handbuch: neutrale Gleissystem-Namen, ohne Herstellerbezeichnungen
+          New-Item -ItemType Directory -Force artifacts/handbuch | Out-Null
+          function Hb($name, [string[]]$more) {
+            try { Shot $app "handbuch/$name" (@("--neutral") + $more) } catch { Write-Warning "Handbuchbild ${name}: $_" }
+          }
+          Hb "start" @()
+          Hb "start-pro" @("--pro")
+          Hb "gleise" @("--tab", "Gleise", "--select")
+          Hb "gelaende" @("--tab", "Gelände")
+          Hb "elektrik" @("--tab", "Elektrik")
+          Hb "ansicht" @("--tab", "Ansicht")
+          Hb "3d" @("--3d", "orbit")
+          Hb "mitfahren" @("--3d", "ride")
+          Hb "abend" @("--3d", "evening")
+          Hb "neu" @("--dialog", "new")
+          Hb "wendel" @("--dialog", "helix")
+          Hb "pruefung" @("--dialog", "check")
+          Hb "kabelplan" @("--dialog", "wiring")
+          Hb "lizenz" @("--dialog", "license")
+          Hb "pro-hinweis" @("--dialog", "save")
+          Hb "stueckliste" @("--pro", "--dialog", "bom")
+          Hb "holzliste" @("--pro", "--dialog", "holzliste")
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh
@@ -76,6 +135,11 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: TrackMasterPro-Setup
+          path: artifacts/setup/*.msi
+
+      - uses: actions/upload-artifact@v4
+        with:
           name: Lizenzwerkzeuge-win-x64
           path: artifacts/Lizenzwerkzeuge
 
@@ -86,6 +150,7 @@ jobs:
           path: |
             artifacts/*.png
             artifacts/*.error.txt
+            artifacts/handbuch
           if-no-files-found: ignore
 
   android:
@@ -207,3 +272,53 @@ jobs:
           name: Android-Bildschirmfotos
           path: artifacts/android-shots
           if-no-files-found: ignore
+
+  release:
+    # Installer, APK und Handbuch als Release zum Herunterladen; Bildschirmfotos für das Handbuch in einen eigenen Zweig
+    needs: [windows, android]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: TrackMasterPro-Setup
+          path: out
+      - uses: actions/download-artifact@v4
+        with:
+          name: TrackMasterPro-Android
+          path: out
+      - uses: actions/download-artifact@v4
+        with:
+          name: Bildschirmfotos
+          path: shots/windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: Android-Bildschirmfotos
+          path: shots/android
+
+      - name: Release aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+          tag="v$v"
+          if [ -f docs/TrackMaster-Pro-Handbuch.pdf ]; then cp docs/TrackMaster-Pro-Handbuch.pdf out/; fi
+          mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
+          ls -la out
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "TrackMaster Pro $v" \
+              --notes "Windows-Installer (MSI), Android-App (APK) und Handbuch. Ohne Lizenz läuft die Basisversion, mit Lizenzdatei Pro."
+          fi
+          gh release upload "$tag" out/* --clobber
+
+      - name: Bildschirmfotos für das Handbuch
+        run: |
+          cd shots
+          git init -q -b handbuch-bilder
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Bildschirmfotos $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY" handbuch-bilder

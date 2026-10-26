@@ -29,6 +29,8 @@ public static class Program
             AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteError(screenshot, e.ExceptionObject as Exception);
         }
 
+        if (screenshot is not null && args.Contains("--neutral")) Core.Catalog.UseNeutralNames();
+
         MainWindow window;
         try
         {
@@ -47,7 +49,7 @@ public static class Program
             return 1;
         }
 
-        var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && a != ArgumentAfter(args, "--3d") && File.Exists(a));
+        var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && a != ArgumentAfter(args, "--3d") && a != ArgumentAfter(args, "--dialog") && File.Exists(a));
         if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
 
         if (screenshot is not null)
@@ -100,6 +102,39 @@ public static class Program
                         timer.Start();
                     };
                     view.Show();
+                };
+            }
+            else if (ArgumentAfter(args, "--dialog") is { } dialog)
+            {
+                window.ContentRendered += (_, _) =>
+                {
+                    // Den Dialog öffnen (er läuft modal) und das erste weitere Fenster aufnehmen, sobald es gezeichnet ist
+                    var ticks = 0;
+                    Window? found = null;
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.4) };
+                    timer.Tick += (_, _) =>
+                    {
+                        var open = app.Windows.OfType<Window>().FirstOrDefault(w => w != window && w.IsVisible);
+                        if (open is null || open != found)
+                        {
+                            found = open;
+                            if (++ticks > 50) { timer.Stop(); WriteError(screenshot, new TimeoutException($"Dialog „{dialog}“ wurde nicht geöffnet.")); app.Shutdown(1); }
+                            return;
+                        }
+                        timer.Stop();
+                        try
+                        {
+                            Capture(open, screenshot);
+                            app.Shutdown(0);
+                        }
+                        catch (Exception ex)
+                        {
+                            WriteError(screenshot, ex);
+                            app.Shutdown(1);
+                        }
+                    };
+                    timer.Start();
+                    window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => window.OpenForScreenshot(dialog));
                 };
             }
             else

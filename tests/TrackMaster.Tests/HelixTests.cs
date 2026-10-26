@@ -75,3 +75,33 @@ public class HelixTests
         Assert.Throws<InvalidOperationException>(() => Helix.Build(plan, new HelixSpec(curve.Key, 1, 100, false, HelixShape.Oval, "H0|mc|24188", 1), null, (1000, 1000)));
     }
 }
+
+public class HelixGradientTests
+{
+    [Theory]
+    [InlineData(HelixShape.Oval)]
+    [InlineData(HelixShape.Rund)]
+    public void Steigung_nachtraeglich_aendern_passt_beide_Gleise_an(HelixShape shape)
+    {
+        var plan = new LayoutPlan { GaugeId = "H0", BoardWidth = 4000, BoardHeight = 4000 };
+        var spec = new HelixSpec("H0|mc|24230", 2, 100, false, shape, "H0|mc|24188", 2, 2, 77.5, "H0|mc|24330");
+        var (inner, outer) = Helix.Build(plan, spec, null, (1500, 1500));
+        var ids = inner.Concat(outer).Select(p => p.Id).ToHashSet();
+        var r = PlanEditing.ApplyGradient(plan, ids, 0, 4);
+        Assert.Equal(ids.Count, r.Pieces);
+        var innerEnd = inner[^1].ConnectorHeights()[1];
+        var outerEnd = outer[^1].ConnectorHeights()[1];
+        // Inneres Gleis mit 4 %, äußeres endet auf derselben Höhe
+        Assert.Equal(Helix.TurnLength(spec, spec.Curve.Radius) * 2 * 0.04, innerEnd, 0);
+        Assert.Equal(innerEnd, outerEnd, 1);
+        Assert.Equal(0, outer[0].ConnectorHeights()[0], 1);
+        Assert.Equal(4, Connectivity.Analyze(plan).Open.Count);
+        Assert.DoesNotContain(PlanCheck.Run(plan), i => i.Level == IssueLevel.Fehler);
+        // Auch rückwärts: das äußere Gleis beginnt oben wie das innere
+        PlanEditing.ApplyGradient(plan, ids, 0, 4, reverse: true);
+        // Das innere (steilere) Gleis bekommt die eingegebenen 4 %
+        Assert.Equal(-0.04, inner[0].EffectiveGrade, 4);
+        Assert.Equal(inner[^1].ConnectorHeights()[1], outer[^1].ConnectorHeights()[1], 1);
+        Assert.Equal(inner[0].ConnectorHeights()[0], outer[0].ConnectorHeights()[0], 1);
+    }
+}

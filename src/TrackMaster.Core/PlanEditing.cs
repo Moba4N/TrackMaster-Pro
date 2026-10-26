@@ -144,8 +144,10 @@ public static class PlanEditing
     }
 
     /// <summary>
-    /// Legt eine gleichmäßige Steigung über eine zusammenhängende Gleisfolge. Beginnt an einem Ende der Auswahl
-    /// (bei <paramref name="reverse"/> am anderen) mit der Höhe <paramref name="startHeight"/>.
+    /// Legt eine gleichmäßige Steigung über die gewählten Gleisfolgen. Die erste Folge beginnt an einem Ende der Auswahl
+    /// (bei <paramref name="reverse"/> am anderen) mit der Höhe <paramref name="startHeight"/> und bekommt die Steigung.
+    /// Weitere gewählte Folgen (z. B. das zweite Gleis einer zweigleisigen Wendel oder Rampe) beginnen an ihrem Ende nächst dem
+    /// Anfang der ersten; liegen sie parallel daneben, steigen sie so, dass sie auf derselben Höhe enden, sonst mit derselben Steigung.
     /// </summary>
     /// <param name="gradePercent">Steigung in Prozent; negativ = Gefälle.</param>
     public static GradientResult ApplyGradient(LayoutPlan plan, IReadOnlySet<int> ids, double startHeight, double gradePercent, bool reverse = false)
@@ -155,11 +157,48 @@ public static class PlanEditing
         // Enden der Auswahl: Anschlüsse ohne Verbindung zu einem anderen gewählten Gleis
         var ends = conn.All.Where(c => ids.Contains(c.PieceId) && !(c.Link is { } l && ids.Contains(l.PieceId))).ToList();
         if (ends.Count == 0) return new GradientResult(0, startHeight, 0, "Die Auswahl hat kein Ende – bitte eine offene Gleisfolge wählen, keinen geschlossenen Kreis.");
-        var start = reverse ? ends[^1] : ends[0];
         var visited = new HashSet<int>();
+        var first = reverse ? ends[^1] : ends[0];
+        var gauge = plan.Gauge.TrackWidth;
+        ConnectorRef? Partner(ConnectorRef from, HashSet<int> done)
+            => ends.Where(e => !done.Contains(e.PieceId)).MinBy(e => Dist(e, from) + Math.Abs(e.Z - from.Z));
+        {
+            // Bei parallelen Gleisen bekommt das kürzere (innere, steilere) Gleis die eingegebene Steigung
+            var probe = new HashSet<int>();
+            var (_, firstLength) = Walk(plan, conn, ids, probe, first, startHeight, g, apply: false);
+            if (Partner(first, probe) is { } other && Dist(other, first) < gauge * 10)
+            {
+                var (_, otherLength) = Walk(plan, conn, ids, [.. probe], other, startHeight, g, apply: false);
+                if (otherLength < firstLength && otherLength > firstLength * 0.5) first = other;
+            }
+        }
+        var (endZ, length) = Walk(plan, conn, ids, visited, first, startHeight, g, apply: true);
+        var chains = 1;
+        var parallel = 0;
+        // Bei Wendeln liegen Anfang und Ende eines Gleises übereinander: die bisherige Höhe entscheidet, welches Ende passt
+        while (Partner(first, visited) is { } next)
+        {
+            // Erst die Länge der Folge bestimmen, dann die Steigung setzen
+            var (_, len) = Walk(plan, conn, ids, [.. visited], next, startHeight, g, apply: false);
+            var isParallel = Dist(next, first) < gauge * 10 && len > 0 && Math.Abs(len - length) < length * 0.5;
+            var grade = isParallel ? (endZ - startHeight) / len : g;
+            Walk(plan, conn, ids, visited, next, startHeight, grade, apply: true);
+            chains++;
+            if (isParallel) parallel++;
+        }
+        var note = chains == 1 ? null
+            : parallel > 0 ? $"{chains} Gleise angepasst, alle enden auf {Fmt.Num(endZ, 0)} mm (das längere Außengleis steigt entsprechend flacher)."
+            : $"{chains} Gleisfolgen mit derselben Steigung angepasst.";
+        return new GradientResult(visited.Count, endZ, length, note);
+    }
+
+    private static double Dist(ConnectorRef a, ConnectorRef b) => Math.Sqrt(Math.Pow(a.Pose.X - b.Pose.X, 2) + Math.Pow(a.Pose.Y - b.Pose.Y, 2));
+
+    /// <summary>Folgt der Gleisfolge ab <paramref name="start"/> durch die gewählten Gleise; setzt Höhe und Steigung, wenn <paramref name="apply"/>.</summary>
+    private static (double EndZ, double Length) Walk(LayoutPlan plan, Connectivity conn, IReadOnlySet<int> ids, HashSet<int> visited, ConnectorRef start, double z, double g, bool apply)
+    {
         var piece = plan.Find(start.PieceId)!;
         var entry = start.Index;
-        var z = startHeight;
         double length = 0;
         while (true)
         {
@@ -177,14 +216,12 @@ public static class PlanEditing
 
             if (d.Kind is PieceKind.Crossing or PieceKind.Buffer)
             {
-                piece.Height = z;
-                piece.Grade = 0;
+                if (apply) { piece.Height = z; piece.Grade = 0; }
                 length += d.TrackLength;
             }
             else if (entry == 0)
             {
-                piece.Height = z;
-                piece.Grade = g;
+                if (apply) { piece.Height = z; piece.Grade = g; }
                 var run = exit is { } x ? DistanceFromOrigin(piece, x) : d.TrackLength;
                 z += g * run;
                 length += run;
@@ -192,17 +229,15 @@ public static class PlanEditing
             else
             {
                 var run = DistanceFromOrigin(piece, entry);
-                piece.Height = z + g * run;
-                piece.Grade = -g;
-                z = piece.Height;
+                if (apply) { piece.Height = z + g * run; piece.Grade = -g; }
+                z += g * run;
                 length += run;
             }
             if (exit is not { } ex || Next(ex) is not { } next) break;
             piece = plan.Find(next.PieceId)!;
             entry = next.Index;
         }
-        var skipped = ids.Count(id => !visited.Contains(id));
-        return new GradientResult(visited.Count, z, length, skipped > 0 ? $"{skipped} gewählte Gleise liegen nicht auf der Strecke und wurden nicht verändert." : null);
+        return (z, length);
     }
 
     /// <summary>

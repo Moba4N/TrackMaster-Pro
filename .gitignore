@@ -8,3 +8,4 @@ TestResults/
 # Lizenzen und privater Schlüssel gehören nie ins Repository
 *.private.pem
 *.lic
+docs/handbuch/img/

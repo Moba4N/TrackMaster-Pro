@@ -10,7 +10,7 @@
     <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von TrackMaster Pro ist bereits installiert." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
-    <Icon Id="AppIcon" SourceFile="..\src\TrackMaster.App\TrackMaster.ico" />
+    <Icon Id="AppIcon" SourceFile="$(sys.SOURCEFILEDIR)..\src\TrackMaster.App\TrackMaster.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/Moba4N/TrackMaster-Pro" />
 
@@ -53,6 +53,6 @@
     </Feature>
 
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
-    <WixVariable Id="WixUILicenseRtf" Value="Lizenz.rtf" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(sys.SOURCEFILEDIR)Lizenz.rtf" />
   </Package>
 </Wix>

@@ -5,15 +5,20 @@ Oberfläche im Stil von Windows 11 mit Ribbon-Leiste, Gleisbibliothek, Zeichenfl
 
 Technik: C# / .NET 8 / WPF (`System.Windows.Controls.Ribbon`), aufgebaut wie GleisMatrix Pro (Moba4N).
 
-## Starten
+## Installieren
 
-Das Programm braucht keine Installation.
+Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, die Android-App
+`TrackMasterPro-<Version>.apk` und das Handbuch `TrackMaster-Pro-Handbuch.pdf`.
 
-1. Unter **Actions** den letzten erfolgreichen Lauf von „Build“ öffnen und das Artefakt **TrackMasterPro-win-x64** herunterladen.
-2. ZIP entpacken und `TrackMasterPro.exe` starten.
+Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
+Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.0.0.msi /qn`.
 
-Voraussetzung ist die **.NET 8 Desktop Runtime (x64)**. Fehlt sie, bietet Windows beim ersten Start den Download an
-(oder direkt bei Microsoft: „.NET 8.0 Desktop Runtime“).
+Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
+`TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
+
+Das Handbuch entsteht aus den Bildschirmfotos des Builds (Zweig `handbuch-bilder`, neutrale Gleissystem-Namen)
+und liegt unter `docs/TrackMaster-Pro-Handbuch.pdf`; der Installer nimmt es mit.
 
 Eine Plandatei lässt sich direkt öffnen: `TrackMasterPro.exe MeineAnlage.trackmaster.json`.
 
@@ -21,9 +26,9 @@ Eine Plandatei lässt sich direkt öffnen: `TrackMasterPro.exe MeineAnlage.track
 
 Es gibt eine Android-Version als einzelne APK-Datei zum direkten Installieren, ohne Play Store (ab Android 8.0).
 
-1. Unter **Actions** den letzten erfolgreichen Lauf von „Build“ öffnen und das Artefakt **TrackMasterPro-Android** herunterladen.
-2. ZIP entpacken und `TrackMasterPro.apk` aufs Gerät kopieren (USB, Cloud oder E-Mail).
-3. Die Datei auf dem Gerät antippen. Beim ersten Mal fragt Android, ob die App (z. B. „Dateien“ oder der Browser)
+1. Die APK aus den **Releases** laden (oder unter **Actions** das Artefakt **TrackMasterPro-Android**) und aufs Gerät
+   kopieren (USB, Cloud oder E-Mail).
+2. Die Datei auf dem Gerät antippen. Beim ersten Mal fragt Android, ob die App (z. B. „Dateien“ oder der Browser)
    **unbekannte Apps installieren** darf; das einmal erlauben und die Installation bestätigen.
 
 Die App kann dasselbe wie das Windows-Programm: Menüband mit Start, Gleise, Gelände, Elektrik, Ansicht, 3D und Datei,

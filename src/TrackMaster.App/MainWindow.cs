@@ -118,40 +118,40 @@ public sealed class MainWindow : Window
             Canvas.Fit();
         });
         Add("open", OpenFile);
-        Add("save", () => SaveFile(false));
-        Add("saveAs", () => SaveFile(true));
+        Pro("save", "Speichern", () => SaveFile(false));
+        Pro("saveAs", "Speichern", () => SaveFile(true));
         Add("sample", () => { if (ConfirmDiscard()) { Session.LoadSample(); Canvas.Fit(); } });
-        Add("bom", () => Dialogs.ShowBillOfMaterials(this, Session.Plan, () => Run("csv")));
+        Pro("bom", "Stückliste", () => Dialogs.ShowBillOfMaterials(this, Session.Plan, () => Run("csv")));
         // Pro-Funktionen fragen erst die Lizenz ab
         void Pro(string id, string feature, Action run, Func<bool>? can = null) => Add(id, () => { if (Session.RequirePro(feature)) run(); }, can);
         Pro("csv", "Stückliste als CSV", ExportCsv);
         Pro("svg", "SVG-Export", ExportSvg);
-        Add("print", PrintPlan);
+        Pro("print", "Drucken", PrintPlan);
         Add("license", ShowLicense);
         Add("check", () => ShowCheck(false));
-        Pro("elecCheck", "Elektrik prüfen", () => ShowCheck(true));
+        Add("elecCheck", () => ShowCheck(true));
         Add("flex", AddFlex);
         Add("toolFlex", () => SetTool(CanvasTool.Flex));
         Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
-        Pro("gradient", "Steigung", AskGradient, HasSelection);
-        Pro("helix", "Gleiswendel", AskHelix);
-        Pro("tunnel", "Tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
-        Pro("toolTerrain", "Gelände formen", () => SetTool(CanvasTool.Terrain));
-        Pro("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
-        Pro("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
-        Pro("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
-        Pro("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
-        Pro("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
+        Add("gradient", AskGradient, HasSelection);
+        Add("helix", AskHelix);
+        Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
+        Add("toolTerrain", () => SetTool(CanvasTool.Terrain));
+        Add("toolWater", () => SetTool(CanvasTool.Water));
+        Add("toolBuilding", () => SetTool(CanvasTool.Building));
+        Add("toolTree", () => SetTool(CanvasTool.Tree));
+        Add("toolFeeder", () => SetTool(CanvasTool.Feeder));
+        Add("toolIsolation", () => SetTool(CanvasTool.Isolation));
         foreach (var t in Enum.GetValues<SignalType>())
         {
             var type = t;
-            Pro("signal" + type, "Signal setzen", () => { Session.SignalType = type; SetTool(CanvasTool.Signal); });
+            Add("signal" + type, () => { Session.SignalType = type; SetTool(CanvasTool.Signal); });
         }
-        Pro("addresses", "Decoder und Adressen", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
-        Pro("wiring", "Kabelplan", ShowWiring);
-        Pro("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
-        Pro("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
-        Pro("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
+        Add("addresses", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
+        Add("wiring", ShowWiring);
+        Add("view3d", () => Open3D(View3DMode.Orbit));
+        Add("ride", () => Open3D(View3DMode.Ride));
+        Add("daytime", () => Open3D(View3DMode.Evening));
         Add("exit", Close);
         Add("undo", Session.Undo, () => Session.History.CanUndo);
         Add("redo", Session.Redo, () => Session.History.CanRedo);
@@ -308,14 +308,13 @@ public sealed class MainWindow : Window
         return b;
     }
 
-    /// <summary>Werkzeug-Schalter: ein Klick wählt das Werkzeug (Pro-Werkzeuge über ihren Befehl mit Lizenzabfrage).</summary>
+    /// <summary>Werkzeug-Schalter: ein Klick wählt das Werkzeug über seinen Befehl.</summary>
     private RibbonToggleButton ToolToggle(string label, string icon, bool large, CanvasTool tool, string command, string description)
     {
         var b = new RibbonToggleButton
         {
             Label = label, SmallImageSource = Icons.Get(icon), LargeImageSource = large ? Icons.Get(icon) : null,
-            ToolTipTitle = label, ToolTipDescription = description, ToolTipFooterTitle = "Pro-Funktion",
-            ToolTipFooterDescription = License.IsPro ? "In dieser Version freigeschaltet." : "Braucht eine Pro-Lizenz (Datei › Lizenz).",
+            ToolTipTitle = label, ToolTipDescription = description,
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = large ? RibbonImageSize.Large : RibbonImageSize.Small, IsLabelVisible = true },
         };
         b.Click += (_, _) =>
@@ -398,9 +397,9 @@ public sealed class MainWindow : Window
                 Small("15° links drehen", "RotateLeft", "rotL", "Umschalt+R"), Small("15° rechts drehen", "RotateRight", "rotR", "R"), Small("Spiegeln", "Mirror", "flip", "Bögen, Weichen und Kreuzungen spiegeln (F)."),
                 Small("Anschluss wechseln", "Swap", "swap", "Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A)."), Small("Duplizieren", "Copy", "duplicate", "Strg+D"), Small("Löschen", "Delete", "delete", "Entf")),
             Group("Auswahl", Small("Alles auswählen", "SelectAll", "selectAll", "Strg+A"), Small("Auswahl aufheben", "SelectNone", "selectNone", "Esc"), Small("Nächstes Gleisende", "Connector", "nextEnd", "Springt zum nächsten offenen Gleisende (E).")),
-            Group("Prüfen", Large("Stückliste", "List", "bom", "Alle Gleise nach Artikel gezählt, mit Zubehör."),
+            Group("Prüfen", ProLarge("Stückliste", "List", "bom", "Alle Gleise nach Artikel gezählt, mit Zubehör."),
                 Large("Kollisions­prüfung", "Shield", "check", "Prüft Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen und Gelände (F7).")),
-            Group("Datei", Small("Drucken", "Print", "print", "Plan auf eine Seite drucken (Strg+P)."), Small("Lizenz", "Shield", "license", "Basis oder Pro, Lizenz einspielen."))));
+            Group("Datei", ProSmall("Drucken", "Print", "print", "Plan auf eine Seite drucken (Strg+P)."), Small("Lizenz", "Shield", "license", "Basis oder Pro, Lizenz einspielen."))));
 
         Ribbon.Items.Add(Tab("Gleise",
             Group("Bibliothek", Large("Gleis suchen", "Search", "search", "Springt in das Suchfeld der Gleisbibliothek.")),
@@ -413,15 +412,15 @@ public sealed class MainWindow : Window
                     "Wie in WinTrack: am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit. Bei verlegten Flexgleisen ein Ende anfassen und ziehen, um sie nachzuformen."),
                 Large("Lücke schließen", "Connector", "flexConnect", "Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis.")),
             Group("Höhe",
-                ProLarge("Steigung…", "Slope", "gradient", "Gleichmäßige Steigung über die gewählten Gleise legen."),
-                ProLarge("Gleis­wendel…", "Helix", "helix", "Wendel aus Bögen mit mehreren Windungen bauen."),
-                ProSmall("Tunnel", "Tunnel", "tunnel", "Gewählte Gleise als Tunnel markieren oder die Markierung aufheben."))));
+                Large("Steigung…", "Slope", "gradient", "Gleichmäßige Steigung über die gewählten Gleise legen."),
+                Large("Gleis­wendel…", "Helix", "helix", "Wendel aus Bögen mit mehreren Windungen bauen."),
+                Small("Tunnel", "Tunnel", "tunnel", "Gewählte Gleise als Tunnel markieren oder die Markierung aufheben."))));
 
         Ribbon.Items.Add(Tab("Gelände",
             Group("Grundplatte", Large("Anlagen­platte", "Board", "board", "Breite und Tiefe der Anlagenplatte einstellen.")),
             Group("Landschaft",
                 ToolToggle("Gelände formen", "Terrain", true, CanvasTool.Terrain, "toolTerrain", "Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen."),
-                ProLarge("Tunnel", "Tunnel", "tunnel", "Gewählte Gleise als Tunnel markieren."),
+                Large("Tunnel", "Tunnel", "tunnel", "Gewählte Gleise als Tunnel markieren."),
                 ToolToggle("Gewässer", "Water", false, CanvasTool.Water, "toolWater", "See oder Fluss als Vieleck zeichnen."),
                 ToolToggle("Gebäude", "Building", false, CanvasTool.Building, "toolBuilding", "Gebäude als Rechteck aufziehen."),
                 ToolToggle("Vegetation", "Tree", false, CanvasTool.Tree, "toolTree", "Bäume mit Klicks setzen.")),
@@ -440,12 +439,12 @@ public sealed class MainWindow : Window
             Group("Stromversorgung",
                 ToolToggle("Einspeisung", "Bolt", true, CanvasTool.Feeder, "toolFeeder", "Gleis an einen Stromkreis/Booster anschließen."),
                 ToolToggle("Trennstelle", "Isolate", false, CanvasTool.Isolation, "toolIsolation", "Isolierte Schienenverbinder an einer Gleisverbindung setzen."),
-                Toggle("Stromkreise zeigen", "Grid", false, () => Session.ShowSections, on => { if (on && !Session.RequirePro("Stromkreise zeigen")) { SyncToggles(); return; } Session.ShowSections = on; Canvas.Rebuild(); }),
-                ProSmall("Elektrik prüfen", "Shield", "elecCheck", "Abschnitte ohne Einspeisung, Kehrschleifen, doppelte Adressen.")),
+                Toggle("Stromkreise zeigen", "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
+                Small("Elektrik prüfen", "Shield", "elecCheck", "Abschnitte ohne Einspeisung, Kehrschleifen, doppelte Adressen.")),
             Group("Digital",
-                ProLarge("Decoder", "Chip", "addresses", "Digitaladressen für Weichen und Signale vergeben."),
+                Large("Decoder", "Chip", "addresses", "Digitaladressen für Weichen und Signale vergeben."),
                 signalMenu,
-                ProSmall("Kabelplan", "Wire", "wiring", "Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste."))));
+                Small("Kabelplan", "Wire", "wiring", "Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste."))));
 
         Ribbon.Items.Add(Tab("Ansicht",
             Group("Zoom", Large("Ganze Anlage", "Fit", "fit", "Taste 0"), Small("Vergrößern", "ZoomIn", "zoomIn", "+"), Small("Verkleinern", "ZoomOut", "zoomOut", "-")),
@@ -458,9 +457,9 @@ public sealed class MainWindow : Window
             Group("Hilfe", Large("Tasten­kürzel", "Help", "help", "Alle Maus- und Tastaturbefehle (F1)."))));
 
         Ribbon.Items.Add(Tab("3D",
-            Group("3D", ProLarge("3D-Ansicht", "Cube", "view3d", "Die Anlage räumlich ansehen: ziehen dreht, Mausrad zoomt."),
-                ProLarge("Mitfahren", "Train", "ride", "Im Führerstand über die Gleise fahren, ab dem gewählten Gleis."),
-                ProLarge("Tageszeit", "Sun", "daytime", "3D-Ansicht mit Licht nach Uhrzeit, vom Morgen bis zur Nacht."))));
+            Group("3D", Large("3D-Ansicht", "Cube", "view3d", "Die Anlage räumlich ansehen: ziehen dreht, Mausrad zoomt."),
+                Large("Mitfahren", "Train", "ride", "Im Führerstand über die Gleise fahren, ab dem gewählten Gleis."),
+                Large("Tageszeit", "Sun", "daytime", "3D-Ansicht mit Licht nach Uhrzeit, vom Morgen bis zur Nacht."))));
     }
 
     private void SyncToggles()
@@ -701,6 +700,9 @@ public sealed class MainWindow : Window
     private bool ConfirmDiscard()
     {
         if (!Session.Dirty) return true;
+        if (!Session.IsPro())
+            return MessageBox.Show(this, $"„{Session.Plan.Name}“ wurde geändert. Speichern ist in der Basis-Version nicht enthalten (Datei › Lizenz).\n\nÄnderungen verwerfen?",
+                "TrackMaster Pro", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK;
         var answer = MessageBox.Show(this, $"Änderungen an „{Session.Plan.Name}“ speichern?", "TrackMaster Pro", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (answer == MessageBoxResult.Cancel) return false;
         if (answer == MessageBoxResult.Yes) return SaveFile(false);
@@ -819,7 +821,9 @@ public sealed class MainWindow : Window
             && Session.BuildHelix(h, Canvas.CenterWorld()) is { } material)
         {
             Canvas.Fit();
-            Dialogs.ShowHelixMaterial(this, material, csv => ExportTo("Holzliste speichern", "CSV-Datei (*.csv)|*.csv", $"{SafeName} – Holzliste Gleiswendel.csv", csv));
+            // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
+            if (Session.RequirePro("Holzliste der Gleiswendel"))
+                Dialogs.ShowHelixMaterial(this, material, csv => ExportTo("Holzliste speichern", "CSV-Datei (*.csv)|*.csv", $"{SafeName} – Holzliste Gleiswendel.csv", csv));
         }
     }
 
@@ -827,7 +831,7 @@ public sealed class MainWindow : Window
     {
         var text = Electrics.WiringPlan(Session.Plan);
         Dialogs.ShowText(this, "Kabelplan", text, "Als Textdatei speichern…",
-            () => ExportTo("Kabelplan speichern", "Textdatei (*.txt)|*.txt", $"{SafeName} – Kabelplan.txt", text));
+            () => { if (Session.RequirePro("Kabelplan speichern")) ExportTo("Kabelplan speichern", "Textdatei (*.txt)|*.txt", $"{SafeName} – Kabelplan.txt", text); });
     }
 
     private void Open3D(View3DMode mode)

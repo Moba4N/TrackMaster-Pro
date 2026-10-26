@@ -51,16 +51,18 @@ und `ANDROID_KEYSTORE_PASSWORD` (Alias `trackmaster`) an; dann muss die App einm
 ## Basis und Pro
 
 Ohne Lizenz läuft die **Basisversion**. Mit einer gültigen, signierten Lizenzdatei wird daraus **Pro**.
-Pro-Funktionen sind im Tooltip als „Pro-Funktion“ gekennzeichnet; in der Basisversion erklärt ein Klick darauf, was Pro bietet.
-Pläne mit Gelände, Elektrik oder Höhen lassen sich auch in der Basisversion öffnen und speichern, ohne dass etwas verloren geht.
+Die Basisversion enthält alle Planungsfunktionen – Gleise, Höhen, Gleiswendel, Gelände, Elektrik, Signale und 3D.
+Pro schaltet die Ergebnisse frei: **Speichern**, die **Stückliste der Gleise**, die **Holzliste der Gleiswendel** und
+das **Drucken** (dazu die Exporte als CSV, SVG und Text). Diese Befehle sind im Tooltip als „Pro-Funktion“ gekennzeichnet;
+in der Basisversion erklärt ein Klick darauf, was Pro bietet. Öffnen funktioniert in beiden Versionen.
 
 | Basis | Pro (zusätzlich) |
 |---|---|
-| Gleisplanung in allen Spuren mit allen Gleissystemen | Höhenplanung: Steigung, Gleiswendel, Höhen je Gleis |
-| Flexgleis, Weichen, Kreuzungen, Prellböcke | Gelände: Höhenflächen, Gewässer, Gebäude, Vegetation, Tunnel |
-| Bearbeiten, Rückgängig, Speichern und Öffnen | Elektrik: Einspeisungen, Trennstellen, Kehrschleifen-Erkennung, Signale, Decoder-Adressen, Kabelplan |
-| Kollisions- und Planprüfung | 3D-Ansicht mit Mitfahren und Tageszeit |
-| Stückliste und Drucken | Export: Stückliste als CSV, Gleisplan als SVG im Maßstab 1:1 |
+| Gleisplanung in allen Spuren mit allen Gleissystemen, Flexgleis | Speichern und Speichern unter |
+| Höhenplanung: Steigung, Gleiswendel rund/oval, ein-/zweigleisig | Stückliste der Gleise, auch als CSV |
+| Gelände, Gewässer, Gebäude, Vegetation, Tunnel | Holzliste der Gleiswendel mit allen Zuschnitten |
+| Elektrik: Einspeisungen, Trennstellen, Signale, Decoder, Kabelplan | Drucken |
+| 3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung, Öffnen | Export: SVG 1:1, Kabelplan als Text |
 
 Die Lizenz wird unter **Datei › Lizenz** eingespielt und liegt dann in `%APPDATA%\TrackMaster Pro\trackmaster.lic`.
 Dort steht auch die **Rechnerkennung**, falls eine Lizenz an einen PC gebunden werden soll.
@@ -91,7 +93,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 
 ## Funktionen
 
-**Gleise (Basis)**
+**Gleise**
 - **Neuer Plan** (Datei › Neu): Spur und Form der Anlagenplatte wählen – Rechteck, L-, U-, T-, Z-Form oder Ring
   (rundum mit offener Mitte), mit Außenmaßen, Schenkeltiefe und Ausrichtung in 90°-Schritten; bei der U-Form können
   die beiden Schenkel unterschiedlich lang sein. Eine Vorschau zeigt die Form.
@@ -124,9 +126,9 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 - **Planprüfung** (F7): zu enge Gleisabstände und Überschneidungen (mit Durchfahrtshöhe je Spur), Gleise über den
   Plattenrand, zu starke Steigungen (Warnung ab 3 %, Fehler ab 5 %), Gleise in Gebäuden, im Wasser oder unter dem Gelände
   ohne Tunnel, offene Gleisenden. Ein Klick auf einen Eintrag zeigt die Stelle.
-- Stückliste mit Zubehör (Weichenantriebe, Signale, Einspeisungen, Isolierverbinder, Decoder) und **Drucken** (Strg+P).
+- Stückliste mit Zubehör (Weichenantriebe, Signale, Einspeisungen, Isolierverbinder, Decoder) und **Drucken** (Strg+P) – beides Pro.
 
-**Höhen (Pro)**
+**Höhen**
 - Höhe und Steigung je Gleis, Höhenangaben im Plan, Darstellung nach Ebenen.
 - **Steigung**: gleichmäßige Rampe über eine gewählte Gleisfolge mit Start-Höhe und Prozentwert.
 - **Gleiswendel** rund oder oval (Halbkreise mit Geraden an den Längsseiten), ein- oder zweigleisig: Windungen aus einem
@@ -134,14 +136,14 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   im gewählten Abstand. Übereinanderliegende Windungen verbinden sich nicht.
   Danach folgt die **Holzliste**: Trassensegmente (Kreisringe) und gerade Bretter aus Sperrholz mit Zuschnittmaßen,
   Randaufmaß und Sägezugabe, Stoßlaschen, Grundplatte, Gewindestangen mit Muttern und Scheiben, Plattenbedarf und lichte Höhe –
-  zum Kopieren oder als CSV.
+  zum Kopieren oder als CSV (Pro).
 - **Tunnel** für gewählte Gleise.
 
-**Gelände (Pro)**
+**Gelände**
 - Höhenflächen und Gewässer als Vielecke zeichnen (Klicks setzen Punkte, Enter schließt, Esc bricht ab).
 - Gebäude aufziehen, Bäume setzen; Name, Größe, Höhe und Drehung im Eigenschaftenfeld.
 
-**Elektrik (Pro)**
+**Elektrik**
 - Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.
 - Kehrschleifen-Erkennung im Zweileiter-System (beim Märklin-Mittelleiter entfällt sie).
 - Signale (Haupt-, Vor-, Ausfahr-, Sperr- und Blocksignal) als H/V-Lichtsignale der DB mit echtem Lampenbild im Haltbegriff
@@ -150,14 +152,14 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Decoder-Adressen automatisch vergeben, Konflikte erkennen.
 - **Kabelplan** als Text mit Abschnitten, Einspeisungen, Trennstellen und Decoderbelegung.
 
-**3D (Pro)**
+**3D**
 - 3D-Ansicht mit Gelände, Gebäuden, Bäumen, Schotter, Schienen, Pfeilern, Tunnelportalen und Signalen.
 - **Mitfahren** im Führerstand mit einstellbarer Geschwindigkeit (km/h im Vorbild).
 - **Tageszeit** von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.
 
 **Export (Pro)**: Stückliste als CSV (für Excel), Gleisplan als SVG im Maßstab 1:1.
 
-Speichern und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
+Speichern (Pro) und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
 ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
 
 ### Tastenkürzel

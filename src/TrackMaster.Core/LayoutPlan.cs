@@ -235,11 +235,6 @@ public sealed class LayoutPlan
     public bool RemoveObject(int id)
         => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) > 0;
 
-    /// <summary>Gibt es Inhalte, die nur die Pro-Version bearbeiten kann?</summary>
-    public bool HasProContent
-        => Scenery.Count > 0 || Feeders.Count > 0 || Isolations.Count > 0 || Signals.Count > 0
-           || Pieces.Any(p => p.Tunnel || p.Address is not null || Math.Abs(p.Height) > 0.01 || Math.Abs(p.Grade) > 1e-6);
-
     public PlanStatistics Statistics(Connectivity? connectivity = null)
     {
         var defs = Pieces.Select(p => p.Def).ToList();

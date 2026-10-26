@@ -206,7 +206,6 @@ public static partial class Dialogs
     private static void PieceProperties(Context c, PlanSession session, PlacedPiece p, Action<string> run)
     {
         var d = p.Def;
-        var pro = session.IsPro();
         var body = Ui.Column(c, 8);
         body.AddView(Ui.Label(c, d.Name, 16, true));
         body.AddView(Ui.Label(c, $"{d.SystemName} · {d.Number}", 13, color: Ui.TextSecondary));
@@ -231,21 +230,19 @@ public static partial class Dialogs
         var y = Ui.Number(c, p.Y, 1, true);
         var rot = Ui.Number(c, p.Rotation, 1, true);
         body.AddView(Columns(c, Ui.Field(c, "X (mm)", x), Ui.Field(c, "Y (mm)", y), Ui.Field(c, "Drehung (°)", rot)));
-        body.AddView(Section(c, "Höhe" + (pro ? "" : " (Pro)")));
+        body.AddView(Section(c, "Höhe"));
         var height = Ui.Number(c, p.Height, 1, true);
         var grade = Ui.Number(c, p.EffectiveGrade * 100, 2, true);
-        height.Enabled = grade.Enabled = pro;
         body.AddView(Columns(c, Ui.Field(c, "Höhe Anfang (mm)", height), Ui.Field(c, "Steigung (%)", grade)));
         var heights = p.ConnectorHeights();
         if (heights.Count > 1) body.AddView(Rows(c, ("Höhe am Ende", $"{Fmt.Num(heights[1], 1)} mm", null)));
-        var tunnel = new CheckBox(c) { Text = "liegt im Tunnel", Checked = p.Tunnel, Enabled = pro };
+        var tunnel = new CheckBox(c) { Text = "liegt im Tunnel", Checked = p.Tunnel };
         body.AddView(tunnel);
         EditText? address = null;
         if (d.Drives > 0)
         {
-            body.AddView(Section(c, "Digital" + (pro ? "" : " (Pro)")));
+            body.AddView(Section(c, "Digital"));
             address = Ui.Number(c, p.Address ?? 0);
-            address.Enabled = pro;
             body.AddView(Ui.Field(c, "Adresse (0 = keine)", address));
         }
         var conns = session.Connections.Of(p.Id).ToList();
@@ -279,13 +276,10 @@ public static partial class Dialogs
                 session.Edit(() =>
                 {
                     p.X = vx; p.Y = vy; p.Rotation = Angles.Normalize(vr);
-                    if (pro)
-                    {
-                        p.Height = vh;
-                        if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
-                        p.Tunnel = tunnel.Checked;
-                        p.Address = addr;
-                    }
+                    p.Height = vh;
+                    if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
+                    p.Tunnel = tunnel.Checked;
+                    p.Address = addr;
                 });
             return true;
         });
@@ -314,7 +308,6 @@ public static partial class Dialogs
     private static void ObjectProperties(Context c, PlanSession session, object o, Action<string> run)
     {
         var plan = session.Plan;
-        var pro = session.IsPro();
         var body = Ui.Column(c, 8);
         AlertDialog? dialog = null;
         void DeleteButton() => body.AddView(Ui.Button(c, "Löschen", () => { dialog?.Dismiss(); run("delete"); }), Ui.Wrap());
@@ -323,13 +316,11 @@ public static partial class Dialogs
             case SceneryItem s:
             {
                 var name = Ui.TextField(c, s.Name);
-                name.Enabled = pro;
                 body.AddView(Ui.Field(c, "Name", name));
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
                 EditText Num(double v, string label, double min, double max, Action<double> apply)
                 {
                     var e = Ui.Number(c, v, 0, min < 0);
-                    e.Enabled = pro;
                     fields.Add((e, label, min, max, apply));
                     return e;
                 }
@@ -361,7 +352,6 @@ public static partial class Dialogs
                 body.AddView(Hint(c, "Ein gewähltes Objekt lässt sich mit dem Finger verschieben."));
                 dialog = Show(c, SceneryItem.KindName(s.Kind), body, "Übernehmen", () =>
                 {
-                    if (!pro) return true;
                     var errors = new List<string>();
                     var values = fields.Select(f => (f, ok: Read(f.Box, f.Name, f.Min, f.Max, errors, out var v), v)).ToList();
                     if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
@@ -378,7 +368,7 @@ public static partial class Dialogs
             case Feeder f:
             {
                 var circuits = plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct().ToList();
-                var circuit = new AutoCompleteTextView(c) { Text = f.Circuit, Threshold = 0, Enabled = pro };
+                var circuit = new AutoCompleteTextView(c) { Text = f.Circuit, Threshold = 0 };
                 circuit.Adapter = new ArrayAdapter<string>(c, global::Android.Resource.Layout.SimpleDropDownItem1Line, circuits);
                 circuit.Click += (_, _) => circuit.ShowDropDown();
                 body.AddView(Ui.Field(c, "Stromkreis / Booster", circuit));
@@ -389,7 +379,7 @@ public static partial class Dialogs
                 dialog = Show(c, "Einspeisung", body, "Übernehmen", () =>
                 {
                     var t = (circuit.Text ?? "").Trim();
-                    if (pro && t.Length > 0 && t != f.Circuit) session.Edit(() => f.Circuit = t);
+                    if (t.Length > 0 && t != f.Circuit) session.Edit(() => f.Circuit = t);
                     return true;
                 });
                 break;
@@ -403,11 +393,9 @@ public static partial class Dialogs
             case Signal g:
             {
                 var name = Ui.TextField(c, g.Name);
-                name.Enabled = pro;
                 body.AddView(Ui.Field(c, "Name", name));
                 var types = Enum.GetValues<SignalType>();
                 var type = Choice(c, types.Select(Signal.TypeName).ToList(), Array.IndexOf(types, g.Type));
-                type.Enabled = pro;
                 body.AddView(Ui.Field(c, "Art", type));
                 var face = SignalFace.For(g.Type);
                 var picture = Ui.Row(c, 12);
@@ -415,13 +403,11 @@ public static partial class Dialogs
                 picture.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
                 body.AddView(picture);
                 var address = Ui.Number(c, g.Address ?? 0);
-                address.Enabled = pro;
                 body.AddView(Ui.Field(c, "Adresse (0 = keine)", address));
                 body.AddView(Rows(c, ("Belegt Adressen", g.AddressCount.ToString(), null), ("Gleis", $"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}", null)));
                 DeleteButton();
                 dialog = Show(c, "Signal", body, "Übernehmen", () =>
                 {
-                    if (!pro) return true;
                     var errors = new List<string>();
                     Read(address, "Adresse", 0, 2048, errors, out var a);
                     if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }

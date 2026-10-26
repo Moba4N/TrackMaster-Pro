@@ -74,9 +74,9 @@ public sealed class PropertiesPanel : DockPanel
         _body.Children.Add(grid);
     }
 
-    private TextBox NumberBox(double value, Action<double> apply, int decimals = 1, bool pro = false)
+    private TextBox NumberBox(double value, Action<double> apply, int decimals = 1)
     {
-        var box = new TextBox { Text = Fmt.Num(value, decimals), IsEnabled = !pro || _session.IsPro() };
+        var box = new TextBox { Text = Fmt.Num(value, decimals) };
         void Commit()
         {
             var v = Fmt.Parse(box.Text);
@@ -232,21 +232,20 @@ public sealed class PropertiesPanel : DockPanel
             Theme.Field("X (mm)", NumberBox(p.X, v => p.X = v)),
             Theme.Field("Y (mm)", NumberBox(p.Y, v => p.Y = v)),
             Theme.Field("Drehung (°)", NumberBox(p.Rotation, v => p.Rotation = Angles.Normalize(v)))));
-        var proNote = _session.IsPro() ? "" : " (Pro)";
-        Section("Höhe" + proNote);
+        Section("Höhe");
         var heights = p.ConnectorHeights();
         _body.Children.Add(Columns(2,
-            Theme.Field("Schienenoberkante Anfang (mm)", NumberBox(p.Height, v => p.Height = v, 1, pro: true)),
-            Theme.Field("Steigung (%)", NumberBox(p.EffectiveGrade * 100, v => p.Grade = v / 100, 2, pro: true))));
+            Theme.Field("Schienenoberkante Anfang (mm)", NumberBox(p.Height, v => p.Height = v, 1)),
+            Theme.Field("Steigung (%)", NumberBox(p.EffectiveGrade * 100, v => p.Grade = v / 100, 2))));
         if (heights.Count > 1)
             Rows(("Höhe am Ende", $"{Fmt.Num(heights[1], 1)} mm", null));
-        var tunnel = new CheckBox { Content = "liegt im Tunnel", IsChecked = p.Tunnel, IsEnabled = _session.IsPro(), Margin = new Thickness(0, 0, 0, 8) };
+        var tunnel = new CheckBox { Content = "liegt im Tunnel", IsChecked = p.Tunnel, Margin = new Thickness(0, 0, 0, 8) };
         tunnel.Click += (_, _) => _session.Edit(() => p.Tunnel = tunnel.IsChecked == true);
         _body.Children.Add(tunnel);
         if (d.Drives > 0)
         {
-            Section("Digital" + proNote);
-            var addr = NumberBox(p.Address ?? 0, v => p.Address = v >= 1 ? (int)Math.Round(v) : null, 0, pro: true);
+            Section("Digital");
+            var addr = NumberBox(p.Address ?? 0, v => p.Address = v >= 1 ? (int)Math.Round(v) : null, 0);
             _body.Children.Add(Columns(2, Theme.Field("Adresse (0 = keine)", addr)));
         }
 
@@ -277,12 +276,11 @@ public sealed class PropertiesPanel : DockPanel
     private void ObjectView(object o)
     {
         var plan = _session.Plan;
-        var pro = _session.IsPro();
         switch (o)
         {
             case SceneryItem s:
                 _headerRight.Text = SceneryItem.KindName(s.Kind);
-                var name = new TextBox { Text = s.Name, IsEnabled = pro };
+                var name = new TextBox { Text = s.Name };
                 void CommitName()
                 {
                     var n = name.Text.Trim();
@@ -295,24 +293,24 @@ public sealed class PropertiesPanel : DockPanel
                 switch (s.Kind)
                 {
                     case SceneryKind.Terrain:
-                        _body.Children.Add(Columns(2, Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, -500, 3000), 0, true))));
+                        _body.Children.Add(Columns(2, Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, -500, 3000), 0))));
                         Rows(("Eckpunkte", s.Points.Count.ToString(), null), ("Fläche", $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
                         break;
                     case SceneryKind.Water:
-                        _body.Children.Add(Columns(2, Theme.Field("Tiefe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0, 200), 0, true))));
+                        _body.Children.Add(Columns(2, Theme.Field("Tiefe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0, 200), 0))));
                         Rows(("Fläche", $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
                         break;
                     case SceneryKind.Building:
                         _body.Children.Add(Columns(3,
-                            Theme.Field("Breite (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, 5, 5000), 0, true)),
-                            Theme.Field("Tiefe (mm)", NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 5, 5000), 0, true)),
-                            Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0, true))));
-                        _body.Children.Add(Columns(3, Theme.Field("Drehung (°)", NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0, true))));
+                            Theme.Field("Breite (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, 5, 5000), 0)),
+                            Theme.Field("Tiefe (mm)", NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 5, 5000), 0)),
+                            Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0))));
+                        _body.Children.Add(Columns(3, Theme.Field("Drehung (°)", NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
                         break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
-                            Theme.Field("Durchmesser (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0, true)),
-                            Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0, true))));
+                            Theme.Field("Durchmesser (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
+                            Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0))));
                         break;
                 }
                 _body.Children.Add(Buttons(Cmd("Löschen", "Delete", "delete", danger: true)));
@@ -321,7 +319,7 @@ public sealed class PropertiesPanel : DockPanel
 
             case Feeder f:
                 _headerRight.Text = "Einspeisung";
-                var circuit = new ComboBox { IsEditable = true, Text = f.Circuit, Height = 28, IsEnabled = pro };
+                var circuit = new ComboBox { IsEditable = true, Text = f.Circuit, Height = 28 };
                 foreach (var c in plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct())
                     circuit.Items.Add(c);
                 void CommitCircuit()
@@ -350,7 +348,7 @@ public sealed class PropertiesPanel : DockPanel
 
             case Signal g:
                 _headerRight.Text = "Signal";
-                var sname = new TextBox { Text = g.Name, IsEnabled = pro };
+                var sname = new TextBox { Text = g.Name };
                 void CommitSignalName()
                 {
                     var n = sname.Text.Trim();
@@ -360,7 +358,7 @@ public sealed class PropertiesPanel : DockPanel
                 sname.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitSignalName(); Keyboard.ClearFocus(); } };
                 sname.LostKeyboardFocus += (_, _) => { CommitSignalName(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
                 _body.Children.Add(Theme.Field("Name", sname));
-                var type = new ComboBox { Height = 28, IsEnabled = pro };
+                var type = new ComboBox { Height = 28 };
                 foreach (var t in Enum.GetValues<SignalType>()) type.Items.Add(new ComboBoxItem { Content = Signal.TypeName(t), Tag = t, IsSelected = t == g.Type });
                 type.SelectionChanged += (_, _) => { if (type.SelectedItem is ComboBoxItem { Tag: SignalType t } && t != g.Type) _session.Edit(() => g.Type = t); };
                 _body.Children.Add(Theme.Label("Art", 11, false, Theme.TextSecondaryBrush));
@@ -374,7 +372,7 @@ public sealed class PropertiesPanel : DockPanel
                 picture.Children.Add(faceText);
                 _body.Children.Add(picture);
                 _body.Children.Add(new Border { Height = 8 });
-                _body.Children.Add(Columns(2, Theme.Field("Adresse (0 = keine)", NumberBox(g.Address ?? 0, v => g.Address = v >= 1 ? (int)Math.Round(v) : null, 0, true))));
+                _body.Children.Add(Columns(2, Theme.Field("Adresse (0 = keine)", NumberBox(g.Address ?? 0, v => g.Address = v >= 1 ? (int)Math.Round(v) : null, 0))));
                 Rows(("Belegt Adressen", g.AddressCount.ToString(), null), ("Gleis", $"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}", null));
                 _body.Children.Add(Buttons(Cmd("Löschen", "Delete", "delete", danger: true)));
                 break;

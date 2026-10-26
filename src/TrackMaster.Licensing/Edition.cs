@@ -20,20 +20,22 @@ public static class EditionInfo
     public static readonly string[] Basis =
     [
         "Gleisplanung in allen Spuren (Z, N, TT, H0, 0, G) mit allen Gleissystemen",
-        "Flexgleis, Weichen, Kreuzungen, Prellböcke",
-        "Bearbeiten, Rückgängig, Speichern und Öffnen",
-        "Kollisions- und Planprüfung",
-        "Stückliste und Drucken",
+        "Flexgleis, Weichen, Kreuzungen, Prellböcke, Bearbeiten und Rückgängig",
+        "Höhenplanung: Steigung, Gleiswendel rund und oval, ein- und zweigleisig",
+        "Gelände, Gewässer, Gebäude, Vegetation und Tunnel",
+        "Elektrik: Einspeisungen, Trennstellen, Signale, Decoder-Adressen, Kabelplan",
+        "3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung",
+        "Gleispläne öffnen",
     ];
 
     public static readonly string[] Pro =
     [
         "Alles aus Basis",
-        "Höhenplanung: Steigung, Gleiswendel, Höhen je Gleis",
-        "Gelände: Höhenflächen, Gewässer, Gebäude, Vegetation, Tunnel",
-        "Elektrik: Einspeisungen, Trennstellen, Kehrschleifen-Erkennung, Signale, Decoder-Adressen, Kabelplan",
-        "3D-Ansicht mit Mitfahren und Tageszeit",
-        "Export: Stückliste als CSV, Gleisplan als SVG im Maßstab 1:1",
+        "Speichern und Speichern unter",
+        "Stückliste der Gleise, auch als CSV",
+        "Holzliste der Gleiswendel mit allen Zuschnitten",
+        "Drucken des Gleisplans",
+        "Export: Gleisplan als SVG im Maßstab 1:1, Kabelplan als Text",
     ];
 }
 

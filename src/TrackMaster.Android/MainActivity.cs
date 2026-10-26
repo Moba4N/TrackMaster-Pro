@@ -149,7 +149,7 @@ public sealed class MainActivity : Activity
             _canvas.Fit();
         }));
         Add("open", "Öffnen", () => Pick(RequestOpen));
-        Add("save", "Speichern", SavePlan);
+        Pro("save", "Speichern", SavePlan);
         Add("sample", "Beispielanlage", () => { _session.LoadSample(); _library.Refresh(force: true); _canvas.Fit(); });
         Add("license", "Lizenz", ShowLicense);
         Add("help", "Bedienung", () => Dialogs.ShowHelp(this));
@@ -165,7 +165,7 @@ public sealed class MainActivity : Activity
         Add("selectNone", "Auswahl aufheben", _session.ClearSelection);
         Add("nextEnd", "Nächstes Gleisende", () => { if (_session.NextOpenEnd() is { } p) _canvas.Reveal(p.X, p.Y); });
         Add("props", "Eigenschaften", () => Dialogs.ShowProperties(this, _session, Run));
-        Add("bom", "Stückliste", () => Dialogs.ShowBillOfMaterials(this, _session.Plan, _license.IsPro, () => Run("csv")));
+        Pro("bom", "Stückliste", () => Dialogs.ShowBillOfMaterials(this, _session.Plan, _license.IsPro, () => Run("csv")));
         Add("check", "Planprüfung", ShowCheck);
         Add("fit", "Einpassen", _canvas_Fit);
         Add("zoomIn", "Vergrößern", () => _canvas.ZoomBy(1.3f));
@@ -186,25 +186,25 @@ public sealed class MainActivity : Activity
         Add("snap", "Einrasten", () => Toggle(() => _session.SnapEnabled = !_session.SnapEnabled));
         Add("toolSelect", "Auswählen", () => SetTool(CanvasTool.Select));
 
-        Pro("heights", "Höhen zeigen", () => Toggle(() => _session.ShowHeights = !_session.ShowHeights));
-        Pro("scenery", "Gelände zeigen", () => Toggle(() => _session.ShowScenery = !_session.ShowScenery));
-        Pro("sections", "Stromkreise zeigen", () => Toggle(() => _session.ShowSections = !_session.ShowSections));
-        Pro("gradient", "Steigung", AskGradient, HasSelection);
-        Pro("helix", "Gleiswendel", AskHelix);
-        Pro("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
-        Pro("toolTerrain", "Gelände formen", () => SetTool(CanvasTool.Terrain));
-        Pro("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
-        Pro("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
-        Pro("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
-        Pro("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
-        Pro("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
-        Pro("toolSignal", "Signal setzen", () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
-        Pro("elecCheck", "Elektrik prüfen", ShowElectricCheck);
-        Pro("addresses", "Decoder und Adressen", () => Dialogs.ShowAddresses(this, _session, ShowWiring));
-        Pro("wiring", "Kabelplan", ShowWiring);
-        Pro("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
-        Pro("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
-        Pro("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
+        Add("heights", "Höhen zeigen", () => Toggle(() => _session.ShowHeights = !_session.ShowHeights));
+        Add("scenery", "Gelände zeigen", () => Toggle(() => _session.ShowScenery = !_session.ShowScenery));
+        Add("sections", "Stromkreise zeigen", () => Toggle(() => _session.ShowSections = !_session.ShowSections));
+        Add("gradient", "Steigung", AskGradient, HasSelection);
+        Add("helix", "Gleiswendel", AskHelix);
+        Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
+        Add("toolTerrain", "Gelände formen", () => SetTool(CanvasTool.Terrain));
+        Add("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
+        Add("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
+        Add("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
+        Add("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
+        Add("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
+        Add("toolSignal", "Signal setzen", () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
+        Add("elecCheck", "Elektrik prüfen", ShowElectricCheck);
+        Add("addresses", "Decoder und Adressen", () => Dialogs.ShowAddresses(this, _session, ShowWiring));
+        Add("wiring", "Kabelplan", ShowWiring);
+        Add("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
+        Add("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
+        Add("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
         Pro("csv", "Export als CSV", () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", $"{SafeName} – Stückliste.csv"));
         Pro("svg", "Export als SVG", () => Export(SvgExport.Build(_session.Plan), "image/svg+xml", $"{SafeName}.svg"));
     }
@@ -553,7 +553,9 @@ public sealed class MainActivity : Activity
         {
             if (_session.BuildHelix(spec, _canvas.CenterWorld()) is not { } material) return;
             _canvas.Fit();
-            Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", $"{SafeName} – Holzliste Gleiswendel.csv"));
+            // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
+            if (_session.RequirePro("Holzliste der Gleiswendel"))
+                Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", $"{SafeName} – Holzliste Gleiswendel.csv"));
         });
     }
 

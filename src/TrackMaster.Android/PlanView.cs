@@ -225,7 +225,7 @@ public sealed class PlanView : View
     }
 
     /// <summary>Kompass oben rechts, solange die Ansicht gedreht ist; Tippen darauf richtet sie wieder gerade aus.</summary>
-    private PointF CompassCenter => new(Width - Ui.Dp(36), Ui.Dp(36));
+    private PointF CompassCenter => new(Width - Ui.Dp(36), Ui.Dp(92)); // unter der Werkzeugleiste
 
     private bool HitCompass(float x, float y)
     {

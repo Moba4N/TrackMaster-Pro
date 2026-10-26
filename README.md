@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.0.0.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.1.0.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
@@ -164,6 +164,13 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 
 **Export (Pro)**: Stückliste als CSV (für Excel), Gleisplan als SVG im Maßstab 1:1.
 
+**Ansicht und Darstellung**
+- Ansicht frei drehbar: Strg+Mausrad (5°, mit Umschalt 1°), Ansicht › Drehen (15° links/rechts, genauer Winkel,
+  gerade ausrichten); ein Kompass zeigt die Drehung, ein Klick darauf richtet die Ansicht gerade aus. Android: mit zwei Fingern drehen.
+- Auswahl frei um einen beliebigen Winkel drehen (Start › Frei drehen…).
+- Fünf Designs (Logo-Grün, Klassisch Blau, Blaupause, Hoher Kontrast, Werkstatt), sieben Schriftarten, vier Schriftgrößen
+  (Ansicht › Design und Schrift). Logo und Programmbilder erzeugt `tools/branding/make_assets.py` aus `docs/branding/TrackPlan-Logo.png`.
+
 Speichern (Pro) und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
 ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
 
@@ -181,6 +188,7 @@ ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
 | A / E | Anschluss wechseln / nächstes Gleisende |
 | Pfeiltasten | Auswahl verschieben |
 | + / − / 0 | Vergrößern / Verkleinern / Einpassen |
+| Strg+Mausrad | Ansicht drehen |
 | F7 | Planprüfung |
 | Enter / Esc | Fläche abschließen / Werkzeug beenden |
 | F1 | Hilfe |

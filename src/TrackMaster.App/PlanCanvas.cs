@@ -226,7 +226,7 @@ public sealed class PlanCanvas : FrameworkElement
     }
 
     /// <summary>Kompass oben rechts, solange die Ansicht gedreht ist; ein Klick darauf richtet sie wieder gerade aus.</summary>
-    private Point CompassCenter => new(ActualWidth - 34, 34);
+    private Point CompassCenter => new(ActualWidth - 34, 92); // unter dem Hinweisband
 
     private void DrawCompass(DrawingContext dc)
     {

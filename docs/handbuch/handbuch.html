@@ -6,7 +6,7 @@
 <style>
   @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
   @page :first { margin: 0; }
-  :root { --accent: #0067C0; --accent-soft: #E8F1FB; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #0067C0; }
+  :root { --accent: #437E1E; --accent-soft: #EEF5E4; --logo: #76AD33; --logo-dark: #1F2428; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #437E1E; }
   * { box-sizing: border-box; }
   html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
   body { margin: 0; }
@@ -27,7 +27,10 @@
   figure img { width: 100%; border: 0.6pt solid var(--line); border-radius: 2mm; display: block; }
   figure.half img { width: 72%; margin: 0 auto; }
   figure.third img { width: 56%; margin: 0 auto; }
+  body { counter-reset: fig; }
+  figure { counter-increment: fig; }
   figcaption { font-size: 8.8pt; color: var(--muted); margin-top: 1.6mm; text-align: center; }
+  figcaption::before { content: "Abbildung " counter(fig) " – "; }
   table { width: 100%; border-collapse: collapse; margin: 2mm 0 5mm; font-size: 9.4pt; break-inside: auto; }
   th, td { text-align: left; vertical-align: top; padding: 1.6mm 2.4mm; border-bottom: 0.6pt solid var(--line); }
   th { background: var(--accent-soft); font-weight: 600; }
@@ -45,9 +48,10 @@
   .keep { break-inside: avoid; }
 
   /* Titelseite */
-  .cover { height: 297mm; padding: 0; position: relative; background: linear-gradient(160deg, #0067C0 0%, #004A8C 100%); color: #fff; overflow: hidden; }
+  .cover { height: 297mm; padding: 0; position: relative; background: linear-gradient(160deg, #76AD33 0%, #437E1E 55%, #2B5410 100%); color: #fff; overflow: hidden; }
   .cover .inner { position: absolute; left: 22mm; right: 22mm; top: 62mm; }
-  .cover img.logo { width: 34mm; height: 34mm; border-radius: 7mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.25); }
+  .cover .logocard { display: inline-block; background: #fff; border-radius: 7mm; padding: 6mm 8mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.25); }
+  .cover .logocard img { width: 74mm; display: block; }
   .cover h1 { border: none; color: #fff; font-size: 38pt; margin: 10mm 0 2mm; padding: 0; break-before: auto; letter-spacing: -.01em; }
   .cover .sub { font-size: 15pt; opacity: .92; margin-bottom: 14mm; }
   .cover .what { font-size: 11pt; opacity: .9; max-width: 140mm; line-height: 1.6; }
@@ -73,13 +77,13 @@
 <section class="cover">
   <div class="rails"></div><div class="rails2"></div>
   <div class="inner">
-    <img class="logo" src="img/icon.png" alt="">
+    <div class="logocard"><img src="img/logo.png" alt=""></div>
     <h1>TrackMaster Pro</h1>
-    <div class="sub">Handbuch · Version 1.0</div>
+    <div class="sub">Handbuch · Version 1.1</div>
     <div class="what">Gleisplanung für Modellbahnanlagen in allen gängigen Spurweiten – mit Höhenplanung, Gleiswendel und
       Holzliste, Landschaft, Elektrik und Signalen, Planprüfung und 3D-Ansicht. Für Windows und Android.</div>
   </div>
-  <div class="foot"><span>TrackMaster Pro 1.0 · Basis und Pro</span><span>Stand: Oktober 2026</span></div>
+  <div class="foot"><span>TrackMaster Pro 1.1 · Basis und Pro</span><span>Stand: Oktober 2026</span></div>
 </section>
 
 <section class="toc">
@@ -107,6 +111,7 @@ Anlage und sehen sich das Ergebnis in 3D an – bevor die erste Schiene gekauft 
     vorbildgerechtem Signalbild, Decoder-Adressen und Kabelplan.</li>
   <li><b>Planprüfung:</b> Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen, Gelände und offene Gleisenden.</li>
   <li><b>3D-Ansicht:</b> die Anlage von allen Seiten, Mitfahren im Führerstand und Licht je nach Tageszeit.</li>
+  <li><b>Eigene Arbeitsweise:</b> Ansicht in jedem Winkel drehbar, fünf Designs, sieben Schriftarten in vier Größen.</li>
   <li><b>Ergebnisse</b> <span class="badge">PRO</span> Speichern, Stückliste der Gleise, Holzliste der Gleiswendel, Drucken und Exporte.</li>
 </ul>
 
@@ -206,7 +211,7 @@ lässt sich nicht verändern; das Programm prüft sie bei jedem Start, ohne Verb
   <li>Der Dialog zeigt nun <b>Pro</b>, den Namen des Lizenznehmers und gegebenenfalls das Ablaufdatum. Die Anzeige unten links
       in der Statusleiste wechselt von „Basis“ zu „Pro“.</li>
 </ol>
-<figure class="half"><img src="img/lizenz.png" alt=""><figcaption>Abbildung 1 – Der Lizenzdialog zeigt die Ausbaustufe und den Inhalt von Basis und Pro.</figcaption></figure>
+<figure class="half"><img src="img/lizenz.png" alt=""><figcaption>Der Lizenzdialog zeigt die Ausbaustufe und den Inhalt von Basis und Pro.</figcaption></figure>
 <p>Die Lizenz wird in den Benutzerdaten abgelegt (<i>%APPDATA%\TrackMaster Pro\trackmaster.lic</i>) und gilt ab sofort bei jedem Start.
 Unter Android spielen Sie die Lizenz über <span class="ui">Datei › Lizenz</span> ebenso ein; die Datei wählen Sie aus dem Speicher des Geräts.</p>
 
@@ -225,7 +230,7 @@ neuen Plan beginnen oder einen anderen öffnen, fragt TrackMaster Pro nach, ob d
 <!-- ======================================================= -->
 <section>
 <h1 id="k4"><span class="no">4</span>Die Arbeitsoberfläche</h1>
-<figure><img src="img/start.png" alt=""><figcaption>Abbildung 2 – Das Hauptfenster mit dem Beispielplan „Bahnhof Neustadt“.</figcaption></figure>
+<figure><img src="img/start.png" alt=""><figcaption>Das Hauptfenster mit dem Beispielplan „Bahnhof Neustadt“.</figcaption></figure>
 <p>Das Hauptfenster ist in fünf Bereiche geteilt:</p>
 <table>
   <tr><th style="width:26%">Bereich</th><th>Aufgabe</th></tr>
@@ -244,11 +249,45 @@ neuen Plan beginnen oder einen anderen öffnen, fragt TrackMaster Pro nach, ob d
   <li><b>Ganze Anlage zeigen:</b> Taste <kbd>0</kbd> oder <span class="ui">Ansicht › Ganze Anlage</span>.</li>
 </ul>
 
-<h2 id="k4-2">Register Ansicht</h2>
+<h2 id="k4-2">Ansicht frei drehen</h2>
+<p>Der Gleisplan lässt sich auf dem Bildschirm in jedem beliebigen Winkel drehen – etwa damit die Anlage so liegt, wie Sie
+später davorstehen. Gedreht wird nur die Ansicht: Gleise, Maße, Stückliste und Ausdruck bleiben unverändert.</p>
+<ul>
+  <li><b>Mit der Maus:</b> <kbd>Strg</kbd> gedrückt halten und am Mausrad drehen – in 5°-Schritten, mit zusätzlich <kbd>Umschalt</kbd> in 1°-Schritten.</li>
+  <li><b>Über das Menüband:</b> <span class="ui">Ansicht › Drehen</span> mit <span class="ui">15° links</span>, <span class="ui">15° rechts</span>
+    und <span class="ui">Ansicht drehen…</span> für einen genauen Winkel.</li>
+  <li><b>Zurück:</b> Solange die Ansicht gedreht ist, zeigt oben rechts ein Kompass die Nordrichtung des Plans und den Winkel.
+    Ein Klick darauf – oder <span class="ui">Ansicht › Gerade ausrichten</span> – stellt die Ansicht wieder gerade.</li>
+</ul>
+<p>Die Maßketten an der Platte drehen mit; ihre Beschriftung bleibt immer lesbar.</p>
+<figure><img src="img/gedreht.png" alt=""><figcaption>Um 30° gedrehte Ansicht mit Kompass oben rechts.</figcaption></figure>
+
+<h2 id="k4-3">Design und Schrift</h2>
+<p>Unter <span class="ui">Ansicht › Design und Schrift</span> (auch im Menü <span class="ui">Datei › Darstellung…</span>) wählen Sie das Aussehen des Programms.
+Die Auswahl wird gespeichert und gilt auch beim nächsten Start. Nach <span class="ui">Übernehmen</span> baut sich das Fenster kurz neu auf; der geöffnete Plan bleibt dabei erhalten.</p>
+<table>
+  <tr><th style="width:24%">Design</th><th>Aussehen</th></tr>
+  <tr><td><b>Logo-Grün</b></td><td>Standard: Grün und Anthrazit aus dem Logo, heller Arbeitsbereich.</td></tr>
+  <tr><td><b>Klassisch Blau</b></td><td>Blaue Akzente, heller Arbeitsbereich.</td></tr>
+  <tr><td><b>Blaupause</b></td><td>Der Plan als technische Zeichnung: weiße Gleise auf blauem Grund.</td></tr>
+  <tr><td><b>Hoher Kontrast</b></td><td>Schwarze Gleise auf weißer Platte – gut lesbar, auch bei hellem Licht.</td></tr>
+  <tr><td><b>Werkstatt</b></td><td>Warme Holztöne: Platte wie Sperrholz, Akzente in Kupfer.</td></tr>
+</table>
+<p>Als <b>Schriftart</b> stehen sieben Schriften zur Wahl – von der Standardschrift über eine schmale technische Schrift bis zu einer Schrift mit Serifen
+und einer Schreibmaschinenschrift. Die <b>Schriftgröße</b> lässt sich in vier Stufen (Klein, Normal, Groß, Sehr groß) einstellen;
+eine Vorschau im Dialog zeigt die Wirkung sofort.</p>
+<figure class="half"><img src="img/darstellung.png" alt=""><figcaption>Dialog Darstellung mit Designs, Schriftart und Schriftgröße.</figcaption></figure>
+<div class="cols">
+  <figure><img src="img/design-blaupause.png" alt=""><figcaption>Design Blaupause.</figcaption></figure>
+  <figure><img src="img/design-werkstatt.png" alt=""><figcaption>Design Werkstatt mit schmaler Schrift.</figcaption></figure>
+</div>
+
+<h2 id="k4-4">Register Ansicht</h2>
 <p>Im Register <span class="ui">Ansicht</span> schalten Sie ein, was die Zeichenfläche zeigt: <b>Raster</b>, <b>Gleisenden</b>,
 <b>Artikelnummern</b> an jedem Gleis, <b>Höhen</b> (Schienenoberkante an den Gleisenden) und <b>Gelände</b>.
+Dazu kommen die Gruppen <b>Drehen</b> und <b>Darstellung</b> (siehe oben) sowie <span class="ui">Über das Programm</span> mit Version und Ausbaustufe.
 <span class="ui">Tastenkürzel</span> (<kbd>F1</kbd>) zeigt alle Maus- und Tastaturbefehle auf einen Blick.</p>
-<figure><img src="img/ansicht.png" alt=""><figcaption>Abbildung 3 – Register Ansicht.</figcaption></figure>
+<figure><img src="img/ansicht.png" alt=""><figcaption>Register Ansicht.</figcaption></figure>
 </section>
 
 <!-- ======================================================= -->
@@ -264,7 +303,7 @@ neuen Plan beginnen oder einen anderen öffnen, fragt TrackMaster Pro nach, ob d
   <li>Bestätigen Sie mit <span class="ui">Plan anlegen</span>.</li>
   <li>Den Namen des Plans tragen Sie danach in den Eigenschaften unter <span class="ui">Planname</span> ein.</li>
 </ol>
-<figure class="half"><img src="img/neu.png" alt=""><figcaption>Abbildung 4 – Neuer Plan: Spur, Plattenform und Maße.</figcaption></figure>
+<figure class="half"><img src="img/neu.png" alt=""><figcaption>Neuer Plan: Spur, Plattenform und Maße.</figcaption></figure>
 <table>
   <tr><th style="width:24%">Plattenform</th><th>Maße und Besonderheiten</th></tr>
   <tr><td>Rechteck</td><td>Breite und Tiefe</td></tr>
@@ -304,7 +343,7 @@ Sie eignet sich gut, um alle Funktionen auszuprobieren.</p>
 <!-- ======================================================= -->
 <section>
 <h1 id="k6"><span class="no">6</span>Gleise verlegen und bearbeiten</h1>
-<figure><img src="img/gleise.png" alt=""><figcaption>Abbildung 5 – Register Gleise mit gewählter Weiche; die Eigenschaften zeigen ihre Maße, Höhe und Digitaladresse.</figcaption></figure>
+<figure><img src="img/gleise.png" alt=""><figcaption>Register Gleise mit gewählter Weiche; die Eigenschaften zeigen ihre Maße, Höhe und Digitaladresse.</figcaption></figure>
 
 <h2 id="k6-1">Gleisbibliothek</h2>
 <ul>
@@ -332,6 +371,7 @@ vorläufigen Maßen hinterlegt und in der Bibliothek gekennzeichnet; prüfen Sie
 <table>
   <tr><th style="width:30%">Befehl</th><th style="width:22%">Taste</th><th>Wirkung</th></tr>
   <tr><td>15° links / rechts drehen</td><td><kbd>Umschalt</kbd>+<kbd>R</kbd> / <kbd>R</kbd></td><td>dreht die Auswahl um ihren Mittelpunkt</td></tr>
+  <tr><td>Frei drehen…</td><td>–</td><td>dreht die Auswahl um einen beliebigen Winkel (Schnellwahl ±15°, ±45°, ±90°)</td></tr>
   <tr><td>Spiegeln</td><td><kbd>F</kbd></td><td>Bögen, Weichen und Kreuzungen seitenverkehrt</td></tr>
   <tr><td>Anschluss wechseln</td><td><kbd>A</kbd></td><td>legt das Gleis mit dem nächsten Anschluss an dieselbe Stelle</td></tr>
   <tr><td>Duplizieren</td><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Kopie der Auswahl</td></tr>
@@ -391,7 +431,7 @@ zweigleisigen Rampe oder Wendel –, erhält das innere, kürzere Gleis genau di
 <h2 id="k7-3">Gleiswendel</h2>
 <p>Eine Gleiswendel überwindet große Höhenunterschiede auf kleiner Fläche. TrackMaster Pro baut sie aus Bogengleisen des Katalogs –
 <b>rund</b> oder <b>oval</b>, <b>eingleisig</b> oder <b>zweigleisig</b>.</p>
-<figure class="half"><img src="img/wendel.png" alt=""><figcaption>Abbildung 6 – Dialog Gleiswendel mit Steigung, Gesamthöhe und Platzbedarf.</figcaption></figure>
+<figure class="half"><img src="img/wendel.png" alt=""><figcaption>Dialog Gleiswendel mit Steigung, Gesamthöhe und Platzbedarf.</figcaption></figure>
 <ol class="steps">
   <li>Klicken Sie ein freies Gleisende an, wenn die Wendel dort anschließen soll. Ohne aktives Ende entsteht sie in der Mitte der Ansicht.</li>
   <li>Wählen Sie <span class="ui">Gleise › Gleiswendel…</span>.</li>
@@ -407,7 +447,7 @@ weist darauf hin. Übereinanderliegende Windungen werden nicht miteinander verbu
 <h2 id="k7-4">Holzliste der Gleiswendel <span class="badge">PRO</span></h2>
 <p>Nach dem Bauen zeigt TrackMaster Pro die <b>Holzliste</b> – alles, was Sie für den Unterbau der Wendel brauchen, mit fertigen Zuschnittmaßen.
 Sie lässt sich kopieren oder als CSV-Datei für eine Tabellenkalkulation speichern.</p>
-<figure class="half"><img src="img/holzliste.png" alt=""><figcaption>Abbildung 7 – Holzliste einer zweigleisigen Gleiswendel.</figcaption></figure>
+<figure class="half"><img src="img/holzliste.png" alt=""><figcaption>Holzliste einer zweigleisigen Gleiswendel.</figcaption></figure>
 <table>
   <tr><th style="width:28%">Teil</th><th>Inhalt</th></tr>
   <tr><td>Trassensegmente</td><td>Kreisringsegmente aus Sperrholz mit Zuschnittmaß (Länge × Tiefe × Stärke) sowie Innen- und Außenradius. Je Kreis 4, 6, 8 oder 12 Segmente, so dass keines länger als 1200 mm wird.</td></tr>
@@ -438,7 +478,7 @@ und gelten in der Planprüfung als zulässig unter Gelände.</p>
 <!-- ======================================================= -->
 <section>
 <h1 id="k8"><span class="no">8</span>Landschaft</h1>
-<figure><img src="img/gelaende.png" alt=""><figcaption>Abbildung 8 – Register Gelände mit Hügel, See, Gebäuden und Bäumen.</figcaption></figure>
+<figure><img src="img/gelaende.png" alt=""><figcaption>Register Gelände mit Hügel, See, Gebäuden und Bäumen.</figcaption></figure>
 <table>
   <tr><th style="width:24%">Werkzeug</th><th>So geht es</th></tr>
   <tr><td>Gelände formen</td><td>Klicks setzen die Eckpunkte einer Höhenfläche (Hügel, Berg, Plateau). <kbd>Enter</kbd> schließt die Fläche, <kbd>Esc</kbd> bricht ab. Die Höhe tragen Sie in den Eigenschaften ein.</td></tr>
@@ -453,7 +493,7 @@ blendet die Landschaft aus, wenn Sie nur die Gleise sehen möchten. Die Planprü
 <!-- ======================================================= -->
 <section>
 <h1 id="k9"><span class="no">9</span>Elektrik, Signale und Digital</h1>
-<figure><img src="img/elektrik.png" alt=""><figcaption>Abbildung 9 – Register Elektrik mit Einspeisungen, Trennstellen und Signalen.</figcaption></figure>
+<figure><img src="img/elektrik.png" alt=""><figcaption>Register Elektrik mit Einspeisungen, Trennstellen und Signalen.</figcaption></figure>
 
 <h2 id="k9-1">Einspeisungen und Trennstellen</h2>
 <ul>
@@ -488,7 +528,7 @@ oder automatisch vergeben; Konflikte werden markiert. Weichen mit zwei Antrieben
 <h2 id="k9-5">Kabelplan</h2>
 <p><span class="ui">Elektrik › Kabelplan</span> fasst die Verdrahtung zusammen: Stromabschnitte mit ihren Einspeisungen, alle Trennstellen und die
 Decoderbelegung. Als Textdatei speichern lässt er sich in der Pro-Version.</p>
-<figure class="half"><img src="img/kabelplan.png" alt=""><figcaption>Abbildung 10 – Kabelplan.</figcaption></figure>
+<figure class="half"><img src="img/kabelplan.png" alt=""><figcaption>Kabelplan.</figcaption></figure>
 </section>
 
 <!-- ======================================================= -->
@@ -496,7 +536,7 @@ Decoderbelegung. Als Textdatei speichern lässt er sich in der Pro-Version.</p>
 <h1 id="k10"><span class="no">10</span>Planprüfung</h1>
 <p><span class="ui">Start › Kollisionsprüfung</span> (<kbd>F7</kbd>) untersucht den ganzen Plan und listet alle Auffälligkeiten als Fehler, Warnung oder Hinweis.
 Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.</p>
-<figure class="half"><img src="img/pruefung.png" alt=""><figcaption>Abbildung 11 – Ergebnis der Planprüfung.</figcaption></figure>
+<figure class="half"><img src="img/pruefung.png" alt=""><figcaption>Ergebnis der Planprüfung.</figcaption></figure>
 <table>
   <tr><th style="width:32%">Prüfung</th><th>Was gemeldet wird</th></tr>
   <tr><td>Gleisabstand und Überschneidung</td><td>Gleise, die sich berühren oder zu eng nebeneinander liegen; bei Kreuzungen in verschiedenen Höhen wird die Durchfahrtshöhe der Spur berücksichtigt</td></tr>
@@ -510,15 +550,15 @@ Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.<
 <!-- ======================================================= -->
 <section>
 <h1 id="k11"><span class="no">11</span>3D-Ansicht</h1>
-<figure><img src="img/3d.png" alt=""><figcaption>Abbildung 12 – Die Anlage in 3D mit Gelände, Gebäuden, Bäumen und Signalen.</figcaption></figure>
+<figure><img src="img/3d.png" alt=""><figcaption>Die Anlage in 3D mit Gelände, Gebäuden, Bäumen und Signalen.</figcaption></figure>
 <ul>
   <li><span class="ui">3D › 3D-Ansicht</span>: Ziehen mit der Maus dreht die Anlage, das Mausrad zoomt.</li>
   <li><span class="ui">3D › Mitfahren</span>: Sie fahren im Führerstand über die Gleise, beginnend am gewählten Gleis. Die Geschwindigkeit stellen Sie in km/h des Vorbilds ein.</li>
   <li><span class="ui">3D › Tageszeit</span>: Licht von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.</li>
 </ul>
 <div class="cols">
-  <figure><img src="img/mitfahren.png" alt=""><figcaption>Abbildung 13 – Mitfahren im Führerstand.</figcaption></figure>
-  <figure><img src="img/abend.png" alt=""><figcaption>Abbildung 14 – Abendstimmung.</figcaption></figure>
+  <figure><img src="img/mitfahren.png" alt=""><figcaption>Mitfahren im Führerstand.</figcaption></figure>
+  <figure><img src="img/abend.png" alt=""><figcaption>Abendstimmung.</figcaption></figure>
 </div>
 <p>Die 3D-Ansicht zeigt Schotterbett, Schienen, Pfeiler unter hochliegenden Gleisen, Tunnelportale, Gelände, Gewässer, Gebäude, Bäume und Signale.</p>
 </section>
@@ -538,7 +578,7 @@ austauschbar. Eine Plandatei lässt sich auch mit „Öffnen mit“ oder als Sta
 <p><span class="ui">Start › Stückliste</span> zählt alle Gleise nach Artikelnummer, mit Bezeichnung und Menge, und ergänzt das Zubehör: Weichenantriebe,
 Signale, Einspeisungen, Isolierverbinder und Decoder. Flexgleis wird in ganzen Stangen gerechnet. Mit <span class="ui">Als CSV speichern</span>
 übernehmen Sie die Liste in eine Tabellenkalkulation oder in Ihre Einkaufsliste.</p>
-<figure class="half"><img src="img/stueckliste.png" alt=""><figcaption>Abbildung 15 – Stückliste mit Zubehör.</figcaption></figure>
+<figure class="half"><img src="img/stueckliste.png" alt=""><figcaption>Stückliste mit Zubehör.</figcaption></figure>
 
 <h2 id="k12-3">Drucken <span class="badge">PRO</span></h2>
 <p><span class="ui">Datei › Drucken…</span> (<kbd>Strg</kbd>+<kbd>P</kbd>) druckt den Plan mit Titel, Anlagenplatte und Zusammenfassung maßstäblich auf eine Seite.
@@ -559,13 +599,15 @@ Signale, Einspeisungen, Isolierverbinder und Decoder. Flexgleis wird in ganzen S
 <h1 id="k13"><span class="no">13</span>Die Android-App</h1>
 <p class="lead">Die App bietet dieselben Funktionen wie das Windows-Programm, angepasst an die Bedienung mit dem Finger.</p>
 <p>Oben liegt das Menüband mit den Registern <b>Start, Gleise, Gelände, Elektrik, Ansicht, 3D</b> und <b>Datei</b>, unten die Gleisbibliothek als Leiste.
-Eigenschaften, Planprüfung, Gleiswendel, Signale und die 3D-Ansicht öffnen sich als eigene Fenster. Pro-Funktionen tragen in der Basisversion ein Schloss.</p>
+Eigenschaften, Planprüfung, Gleiswendel, Signale und die 3D-Ansicht öffnen sich als eigene Fenster. Pro-Funktionen tragen in der Basisversion ein Schloss.
+Design, Schriftart und Schriftgröße wählen Sie unter <span class="ui">Ansicht › Design und Schrift</span> – mit denselben Designs wie unter Windows.</p>
 <table>
   <tr><th style="width:38%">Geste</th><th>Wirkung</th></tr>
   <tr><td>Teil in der Bibliothek antippen</td><td>am aktiven Gleisende ansetzen</td></tr>
   <tr><td>Antippen</td><td>auswählen; ein freies Gleisende aktiv setzen</td></tr>
   <tr><td>Ziehen</td><td>Ansicht verschieben; auf einem ausgewählten Teil: Teil verschieben</td></tr>
   <tr><td>Zwei Finger</td><td>zoomen und verschieben</td></tr>
+  <tr><td>Zwei Finger drehen</td><td>Ansicht frei drehen; Antippen des Kompasses richtet sie wieder gerade aus</td></tr>
   <tr><td>Lange drücken</td><td>Teil zur Auswahl hinzufügen; auf freier Fläche: Auswahlrahmen</td></tr>
   <tr><td>Doppelt tippen</td><td>Eigenschaften; auf freier Fläche: ganzen Plan zeigen</td></tr>
 </table>
@@ -608,6 +650,8 @@ von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich 
   <tr><td>Rechte / mittlere Maustaste</td><td>Ansicht verschieben</td></tr>
   <tr><td><kbd>Leertaste</kbd> + Ziehen</td><td>Ansicht verschieben</td></tr>
   <tr><td>Mausrad</td><td>zoomen</td></tr>
+  <tr><td><kbd>Strg</kbd> + Mausrad</td><td>Ansicht drehen (5°, mit <kbd>Umschalt</kbd> 1°)</td></tr>
+  <tr><td>Klick auf den Kompass</td><td>Ansicht gerade ausrichten</td></tr>
 </table>
 </div>
 </section>

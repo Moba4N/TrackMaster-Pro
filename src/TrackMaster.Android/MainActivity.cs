@@ -547,10 +547,13 @@ public sealed class MainActivity : Activity
         var curves = _session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
         if (curves.Count == 0) curves = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
         if (curves.Count == 0) { ShowMessage("Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen."); return; }
-        Dialogs.AskHelix(this, gauge, curves, _session.ActiveConnector is not null, (key, turns, rise, right) =>
+        var straights = _session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
+        if (straights.Count == 0) straights = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
+        Dialogs.AskHelix(this, gauge, curves, straights, _session.ActiveConnector is not null, spec =>
         {
-            _session.BuildHelix(key, turns, rise, right, _canvas.CenterWorld());
+            if (_session.BuildHelix(spec, _canvas.CenterWorld()) is not { } material) return;
             _canvas.Fit();
+            Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", $"{SafeName} – Holzliste Gleiswendel.csv"));
         });
     }
 

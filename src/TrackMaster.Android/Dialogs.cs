@@ -511,15 +511,32 @@ public static partial class Dialogs
         });
     }
 
-    public static void AskHelix(Context c, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, bool fromEnd, Action<string, double, double, bool> build)
+    /// <summary>Gleiswendel rund oder oval, ein- oder zweigleisig. <paramref name="build"/> bekommt die Angaben.</summary>
+    public static void AskHelix(Context c, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd, Action<HelixSpec> build)
     {
-        var ordered = curves.OrderBy(x => x.Radius).ToList();
         var body = Ui.Column(c, 8);
-        body.AddView(Hint(c, fromEnd
+        body.AddView(Hint(c, (fromEnd
             ? "Die Wendel beginnt am aktiven Gleisende und steigt gleichmäßig an."
-            : "Die Wendel entsteht in der Mitte der Ansicht. Tipp: Vorher ein Gleisende antippen, dann schließt sie dort an."));
-        var curve = Choice(c, ordered.Select(x => $"{x.Number} – R {Fmt.Num(x.Radius)} mm, {Fmt.Num(x.Angle)}°").ToList(), Math.Min(1, ordered.Count - 1));
-        body.AddView(Ui.Field(c, "Bogengleis", curve));
+            : "Die Wendel entsteht in der Mitte der Ansicht. Tipp: Vorher ein Gleisende antippen, dann schließt sie dort an.") + " Nach dem Bauen folgt die Holzliste."));
+        var shape = Choice(c, ["Rund", "Oval"], 0);
+        var tracks = Choice(c, ["eingleisig", "zweigleisig"], 0);
+        body.AddView(Columns(c, Ui.Field(c, "Form", shape), Ui.Field(c, "Gleise", tracks)));
+        var curve = Choice(c, [], 0);
+        body.AddView(Ui.Field(c, "Bogengleis (innen)", curve));
+        var straightList = straights.OrderBy(x => x.Length).ToList();
+        var straight = Choice(c, straightList.Select(x => $"{x.Number} – {Fmt.Num(x.Length)} mm").ToList(),
+            straightList.Count == 0 ? 0 : straightList.IndexOf(straightList.MinBy(x => Math.Abs(x.Length - gauge.TrackWidth * 11))!));
+        var straightCount = Ui.Number(c, 2);
+        var oval = Ui.Column(c, 8);
+        oval.AddView(Columns(c, Ui.Field(c, "Gerade an den Längsseiten", straight), Ui.Field(c, "Anzahl je Seite", straightCount)));
+        body.AddView(oval);
+        var outer = Choice(c, [], 0);
+        var spacing = Ui.Number(c, Helix.DefaultSpacing(gauge));
+        var spacingField = Ui.Field(c, "Gleisabstand bei Flexgleis (mm)", spacing);
+        var outerPanel = Ui.Column(c, 8);
+        outerPanel.AddView(Ui.Field(c, "Außengleis", outer));
+        outerPanel.AddView(spacingField);
+        body.AddView(outerPanel);
         var turns = Ui.Number(c, 2, 2);
         var rise = Ui.Number(c, gauge.ClearanceHeight + 10);
         body.AddView(Columns(c, Ui.Field(c, "Windungen", turns), Ui.Field(c, "Höhe je Windung (mm)", rise)));
@@ -527,33 +544,99 @@ public static partial class Dialogs
         body.AddView(Ui.Field(c, "Richtung", direction));
         var info = Ui.Label(c, "", 12.5, color: Ui.TextSecondary);
         body.AddView(info);
-        void Update()
-        {
-            if (ordered.Count == 0) return;
-            var d = ordered[Math.Max(0, curve.SelectedItemPosition)];
-            var r = Ui.Parse(rise, 0);
-            var t = Ui.Parse(turns, 0);
-            info.Text = $"Steigung {Fmt.Num(r / (2 * Math.PI * d.Radius) * 100, 1)} % · {Math.Round(360 / d.Angle * t)} Bögen · Gesamthöhe {Fmt.Num(r * t, 0)} mm · Durchmesser {Fmt.Num(2 * d.Radius + gauge.TrackWidth * 3, 0)} mm";
-        }
-        curve.ItemSelected += (_, _) => Update();
-        turns.TextChanged += (_, _) => Update();
-        rise.TextChanged += (_, _) => Update();
-        Update();
         var error = Error(c);
         body.AddView(error);
+
+        HelixShape Shape() => shape.SelectedItemPosition == 1 ? HelixShape.Oval : HelixShape.Rund;
+        var inners = new List<TrackPieceDef>();
+        var outers = new List<TrackPieceDef?>();
+        void SetItems(Spinner sp, IReadOnlyList<string> items, int selected)
+        {
+            sp.Adapter = new ArrayAdapter<string>(c, global::Android.Resource.Layout.SimpleSpinnerDropDownItem, items.ToList());
+            sp.SetSelection(Math.Clamp(selected, 0, Math.Max(0, items.Count - 1)));
+        }
+        TrackPieceDef? Inner() => inners.Count == 0 ? null : inners[Math.Clamp(curve.SelectedItemPosition, 0, inners.Count - 1)];
+        void FillCurves()
+        {
+            var keep = Inner()?.Key;
+            inners = curves.Where(x => Helix.Fits(x, Shape())).OrderBy(x => x.Radius).ToList();
+            var k = inners.FindIndex(x => x.Key == keep);
+            SetItems(curve, inners.Select(x => $"{x.Number} – R {Fmt.Num(x.Radius)} mm, {Fmt.Num(x.Angle)}°").ToList(), k >= 0 ? k : Math.Min(1, inners.Count - 1));
+            FillOuter();
+        }
+        void FillOuter()
+        {
+            outers = [null];
+            if (Inner() is { } inner)
+                outers.AddRange(curves.Where(x => x.Radius > inner.Radius && Helix.Fits(x, Shape())).OrderBy(x => x.Radius));
+            var best = Inner() is { } i ? Helix.OuterCurve(curves, i, Ui.Parse(spacing, Helix.DefaultSpacing(gauge)), Shape()) : null;
+            SetItems(outer, outers.Select(x => x is null ? "Flexgleis mit frei gewähltem Abstand" : $"{x.Number} – R {Fmt.Num(x.Radius)} mm (Abstand {Fmt.Num(x.Radius - Inner()!.Radius)} mm)").ToList(),
+                best is null ? 0 : outers.IndexOf(best));
+            Update();
+        }
+        HelixSpec? Spec(List<string> errors)
+        {
+            if (Inner() is not { } inner) { errors.Add("Dieses Gleissystem hat kein passendes Bogengleis."); return null; }
+            Read(turns, "Windungen", 0.25, 20, errors, out var t);
+            Read(rise, "Höhe je Windung", 10, 1000, errors, out var r);
+            double n = 0, sp = 0;
+            TrackPieceDef? st = null;
+            if (Shape() == HelixShape.Oval)
+            {
+                if (straightList.Count == 0) errors.Add("Dieses Gleissystem hat kein gerades Gleis.");
+                else st = straightList[Math.Clamp(straight.SelectedItemPosition, 0, straightList.Count - 1)];
+                Read(straightCount, "Geraden je Längsseite", 1, 50, errors, out n);
+            }
+            var two = tracks.SelectedItemPosition == 1;
+            var oc = two && outers.Count > 0 ? outers[Math.Clamp(outer.SelectedItemPosition, 0, outers.Count - 1)] : null;
+            if (two && oc is null) Read(spacing, "Gleisabstand", gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
+            if (errors.Count > 0) return null;
+            return new HelixSpec(inner.Key, t, r, direction.SelectedItemPosition == 1, Shape(), st?.Key, (int)Math.Round(n), two ? 2 : 1,
+                oc is not null ? oc.Radius - inner.Radius : sp, oc?.Key);
+        }
+        void Update()
+        {
+            oval.Visibility = Shape() == HelixShape.Oval ? ViewStates.Visible : ViewStates.Gone;
+            outerPanel.Visibility = tracks.SelectedItemPosition == 1 ? ViewStates.Visible : ViewStates.Gone;
+            spacingField.Visibility = outer.SelectedItemPosition <= 0 ? ViewStates.Visible : ViewStates.Gone;
+            if (Spec([]) is not { } spec) { info.Text = ""; return; }
+            var m = Helix.Material(spec, gauge);
+            info.Text = $"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm";
+        }
+        shape.ItemSelected += (_, _) => FillCurves();
+        curve.ItemSelected += (_, _) => FillOuter();
+        foreach (var sp in new[] { tracks, outer, straight, direction }) sp.ItemSelected += (_, _) => Update();
+        foreach (var box in new[] { turns, rise, straightCount, spacing }) box.TextChanged += (_, _) => Update();
+        FillCurves();
         Show(c, "Gleiswendel", body, "Bauen", () =>
         {
             var errors = new List<string>();
-            if (ordered.Count == 0) errors.Add("Dieses Gleissystem hat kein passendes Bogengleis.");
-            Read(turns, "Windungen", 0.25, 20, errors, out var t);
-            Read(rise, "Höhe je Windung", 10, 1000, errors, out var r);
-            if (errors.Count == 0 && r < gauge.ClearanceHeight)
-                errors.Add($"Mit {Fmt.Num(r, 0)} mm passt kein Zug unter die nächste Windung (mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm).");
+            var spec = Spec(errors);
+            if (spec is not null && spec.Rise < gauge.ClearanceHeight)
+                errors.Add($"Mit {Fmt.Num(spec.Rise, 0)} mm passt kein Zug unter die nächste Windung (mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm).");
             SetError(error, errors);
-            if (errors.Count > 0) return false;
-            build(ordered[Math.Max(0, curve.SelectedItemPosition)].Key, t, r, direction.SelectedItemPosition == 1);
+            if (errors.Count > 0 || spec is null) return false;
+            build(spec);
             return true;
         });
+    }
+
+    /// <summary>Holzliste der Gleiswendel; teilen bzw. als CSV speichern.</summary>
+    public static void ShowHelixMaterial(Context c, HelixMaterial m, Action saveCsv)
+    {
+        var body = Ui.Column(c, 6);
+        foreach (var p in m.Parts)
+        {
+            var row = Ui.Column(c, 1);
+            row.SetPadding(0, Ui.Dp(4), 0, Ui.Dp(4));
+            row.AddView(Ui.Label(c, $"{p.Count} × {p.Name}", 14, true));
+            if (p.Size.Length > 0) row.AddView(Ui.Label(c, p.Size, 13));
+            if (p.Note.Length > 0) row.AddView(Ui.Label(c, p.Note, 12, color: Ui.TextSecondary));
+            body.AddView(row);
+        }
+        foreach (var n in m.Notes)
+            body.AddView(Ui.Label(c, "• " + n, 12.5, color: n.StartsWith("Achtung") ? Color.Rgb(0xC4, 0x2B, 0x1C) : Ui.TextSecondary));
+        Show(c, "Holzliste Gleiswendel", body, "Schließen", cancelText: null, neutral: ("Als CSV speichern", saveCsv));
     }
 
     public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)

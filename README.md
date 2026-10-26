@@ -129,7 +129,12 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 **Höhen (Pro)**
 - Höhe und Steigung je Gleis, Höhenangaben im Plan, Darstellung nach Ebenen.
 - **Steigung**: gleichmäßige Rampe über eine gewählte Gleisfolge mit Start-Höhe und Prozentwert.
-- **Gleiswendel**: Windungen aus einem Bogengleis mit Höhe je Windung; übereinanderliegende Windungen verbinden sich nicht.
+- **Gleiswendel** rund oder oval (Halbkreise mit Geraden an den Längsseiten), ein- oder zweigleisig: Windungen aus einem
+  Bogengleis mit Höhe je Windung; das zweite Gleis liegt außen, als Katalogbogen mit passendem Radius oder als Flexgleis
+  im gewählten Abstand. Übereinanderliegende Windungen verbinden sich nicht.
+  Danach folgt die **Holzliste**: Trassensegmente (Kreisringe) und gerade Bretter aus Sperrholz mit Zuschnittmaßen,
+  Randaufmaß und Sägezugabe, Stoßlaschen, Grundplatte, Gewindestangen mit Muttern und Scheiben, Plattenbedarf und lichte Höhe –
+  zum Kopieren oder als CSV.
 - **Tunnel** für gewählte Gleise.
 
 **Gelände (Pro)**

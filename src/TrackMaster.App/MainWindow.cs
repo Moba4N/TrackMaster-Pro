@@ -813,10 +813,13 @@ public sealed class MainWindow : Window
             MessageBox.Show(this, "Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen.", "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-        if (Dialogs.AskHelix(this, gauge, curves, Session.ActiveConnector is not null) is { } h)
+        var straights = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
+        if (straights.Count == 0) straights = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
+        if (Dialogs.AskHelix(this, gauge, curves, straights, Session.ActiveConnector is not null) is { } h
+            && Session.BuildHelix(h, Canvas.CenterWorld()) is { } material)
         {
-            Session.BuildHelix(h.CurveKey, h.Turns, h.Rise, h.RightHand, Canvas.CenterWorld());
             Canvas.Fit();
+            Dialogs.ShowHelixMaterial(this, material, csv => ExportTo("Holzliste speichern", "CSV-Datei (*.csv)|*.csv", $"{SafeName} – Holzliste Gleiswendel.csv", csv));
         }
     }
 

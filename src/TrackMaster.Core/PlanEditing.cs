@@ -210,41 +210,7 @@ public static class PlanEditing
     /// Beginnt am Gleisende <paramref name="start"/> oder, ohne Gleisende, mit Mittelpunkt bei <paramref name="center"/>.
     /// </summary>
     public static List<PlacedPiece> BuildHelix(LayoutPlan plan, string curveKey, double turns, double risePerTurn, bool rightHand, ConnectorRef? start, (double X, double Y) center)
-    {
-        var def = Catalog.Get(curveKey);
-        if (def.Kind != PieceKind.Curve) throw new InvalidOperationException("Für eine Gleiswendel bitte ein Bogengleis wählen.");
-        if (def.GaugeId != plan.GaugeId) throw new InvalidOperationException($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {plan.GaugeId}.");
-        var perTurn = (int)Math.Round(360 / def.Angle);
-        var total = Math.Max(1, (int)Math.Round(perTurn * turns));
-        var grade = risePerTurn / (perTurn * def.TrackLength);
-        Pose at;
-        double z;
-        if (start is not null)
-        {
-            at = start.Pose;
-            z = start.Z;
-        }
-        else
-        {
-            // Untere Mitte des Kreises, Fahrtrichtung nach rechts (bei Linksbögen gegen den Uhrzeigersinn)
-            at = new Pose(center.X, center.Y + (rightHand ? -def.Radius : def.Radius), 0);
-            z = 0;
-        }
-        var flip = def.RightHand != rightHand;
-        var pieces = new List<PlacedPiece>();
-        for (var i = 0; i < total; i++)
-        {
-            var p = plan.Add(curveKey);
-            p.Flipped = flip;
-            PlaceAt(p, 0, at.X, at.Y, at.Heading);
-            p.Height = z;
-            p.Grade = grade;
-            z = p.ConnectorHeights()[1];
-            at = p.WorldConnectors()[1];
-            pieces.Add(p);
-        }
-        return pieces;
-    }
+        => Helix.Build(plan, new HelixSpec(curveKey, turns, risePerTurn, rightHand), start, center).Inner;
 }
 
 public sealed record GradientResult(int Pieces, double EndHeight, double Length, string? Note);

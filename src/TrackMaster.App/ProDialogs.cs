@@ -126,38 +126,118 @@ public static partial class Dialogs
         return result;
     }
 
-    public sealed record HelixInput(string CurveKey, double Turns, double Rise, bool RightHand);
-
-    public static HelixInput? AskHelix(Window owner, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, bool fromEnd)
+    /// <summary>Gleiswendel: rund oder oval, ein- oder zweigleisig. Liefert die Angaben zum Bauen oder null.</summary>
+    public static HelixSpec? AskHelix(Window owner, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd)
     {
+        var shape = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = "Rund" }, new ComboBoxItem { Content = "Oval (mit Geraden an den Längsseiten)" } }, SelectedIndex = 0 };
+        var tracks = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = "eingleisig" }, new ComboBoxItem { Content = "zweigleisig" } }, SelectedIndex = 0 };
         var curveBox = new ComboBox { Height = 28 };
-        foreach (var c in curves.OrderBy(c => c.Radius))
-            curveBox.Items.Add(new ComboBoxItem { Content = $"{c.Number} – R {Fmt.Num(c.Radius)} mm, {Fmt.Num(c.Angle)}° ({c.SystemName})", Tag = c });
-        // Voreinstellung: zweitkleinster Radius, falls vorhanden
-        curveBox.SelectedIndex = Math.Min(1, curveBox.Items.Count - 1);
+        var straightBox = new ComboBox { Height = 28 };
+        foreach (var st in straights.OrderBy(x => x.Length))
+            straightBox.Items.Add(new ComboBoxItem { Content = $"{st.Number} – {Fmt.Num(st.Length)} mm ({st.SystemName})", Tag = st });
+        straightBox.SelectedIndex = straightBox.Items.Count == 0 ? -1 : straightBox.Items.Cast<ComboBoxItem>().Select((x, k) => (x, k)).MinBy(t => Math.Abs(((TrackPieceDef)t.x.Tag).Length - gauge.TrackWidth * 11)).k;
+        var straightCount = NumberBox(2, 0);
+        var outerBox = new ComboBox { Height = 28 };
+        var spacing = NumberBox(Helix.DefaultSpacing(gauge), 1);
         var turns = NumberBox(2);
         var rise = NumberBox(gauge.ClearanceHeight + 10, 0);
         var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = "links herum (gegen den Uhrzeigersinn)" }, new ComboBoxItem { Content = "rechts herum (im Uhrzeigersinn)" } }, SelectedIndex = 0 };
         var info = Theme.Secondary("");
         var error = ErrorText();
+        var ovalPanel = new StackPanel();
+        ovalPanel.Children.Add(Theme.Label("Gerades Gleis an den Längsseiten", 11, false, Theme.TextSecondaryBrush));
+        ovalPanel.Children.Add(straightBox);
+        ovalPanel.Children.Add(new Border { Height = 6 });
+        ovalPanel.Children.Add(Theme.Field("Anzahl Geraden je Längsseite", straightCount));
+        var outerPanel = new StackPanel();
+        outerPanel.Children.Add(Theme.Label("Außengleis", 11, false, Theme.TextSecondaryBrush));
+        outerPanel.Children.Add(outerBox);
+        outerPanel.Children.Add(new Border { Height = 6 });
+        var spacingField = Theme.Field("Gleisabstand bei Flexgleis (mm)", spacing);
+        outerPanel.Children.Add(spacingField);
+
+        HelixShape Shape() => shape.SelectedIndex == 1 ? HelixShape.Oval : HelixShape.Rund;
+        TrackPieceDef? Inner() => curveBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef d } ? d : null;
+        bool updating = false;
+        void FillCurves()
+        {
+            updating = true;
+            var keep = Inner()?.Key;
+            curveBox.Items.Clear();
+            foreach (var c in curves.Where(c => Helix.Fits(c, Shape())).OrderBy(c => c.Radius))
+                curveBox.Items.Add(new ComboBoxItem { Content = $"{c.Number} – R {Fmt.Num(c.Radius)} mm, {Fmt.Num(c.Angle)}° ({c.SystemName})", Tag = c, IsSelected = c.Key == keep });
+            // Voreinstellung: zweitkleinster Radius, falls vorhanden
+            if (curveBox.SelectedIndex < 0) curveBox.SelectedIndex = Math.Min(1, curveBox.Items.Count - 1);
+            updating = false;
+            FillOuter();
+        }
+        void FillOuter()
+        {
+            updating = true;
+            outerBox.Items.Clear();
+            if (Inner() is { } inner)
+            {
+                var sp = Fmt.Parse(spacing.Text) ?? Helix.DefaultSpacing(gauge);
+                var best = Helix.OuterCurve(curves, inner, sp, Shape());
+                foreach (var c in curves.Where(c => c.Radius > inner.Radius && Helix.Fits(c, Shape())).OrderBy(c => c.Radius))
+                    outerBox.Items.Add(new ComboBoxItem { Content = $"{c.Number} – R {Fmt.Num(c.Radius)} mm (Abstand {Fmt.Num(c.Radius - inner.Radius)} mm)", Tag = c, IsSelected = c == best });
+                outerBox.Items.Insert(0, new ComboBoxItem { Content = "Flexgleis mit frei gewähltem Abstand", Tag = null, IsSelected = best is null });
+            }
+            updating = false;
+            Update();
+        }
+        HelixSpec? Spec(List<string>? errors)
+        {
+            errors ??= [];
+            if (Inner() is not { } inner) { errors.Add("Bitte ein Bogengleis wählen."); return null; }
+            Read(turns, "Windungen", 0.25, 20, errors, out var t);
+            Read(rise, "Höhe je Windung", 10, 1000, errors, out var r);
+            var oval = Shape() == HelixShape.Oval;
+            var two = tracks.SelectedIndex == 1;
+            double n = 0, sp = 0;
+            TrackPieceDef? straight = null;
+            if (oval)
+            {
+                straight = straightBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef st } ? st : null;
+                if (straight is null) errors.Add("Bitte ein gerades Gleis wählen.");
+                Read(straightCount, "Geraden je Längsseite", 1, 50, errors, out n);
+            }
+            var outer = two && outerBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef oc } ? oc : null;
+            if (two && outer is null) Read(spacing, "Gleisabstand", gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
+            if (errors.Count > 0) return null;
+            return new HelixSpec(inner.Key, t, r, direction.SelectedIndex == 1, Shape(), straight?.Key, (int)Math.Round(n), two ? 2 : 1,
+                outer is not null ? outer.Radius - inner.Radius : sp, outer?.Key);
+        }
         void Update()
         {
-            if (curveBox.SelectedItem is not ComboBoxItem { Tag: TrackPieceDef d }) return;
-            var circumference = 2 * Math.PI * d.Radius;
-            var r = Fmt.Parse(rise.Text) ?? 0;
-            var t = Fmt.Parse(turns.Text) ?? 0;
-            info.Text = $"Steigung {Fmt.Num(r / circumference * 100, 1)} % · {Math.Round(360 / d.Angle * t)} Bögen · Gesamthöhe {Fmt.Num(r * t, 0)} mm · Durchmesser {Fmt.Num(2 * d.Radius + gauge.TrackWidth * 3, 0)} mm";
+            if (updating) return;
+            ovalPanel.Visibility = Shape() == HelixShape.Oval ? Visibility.Visible : Visibility.Collapsed;
+            outerPanel.Visibility = tracks.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
+            spacingField.Visibility = outerBox.SelectedItem is ComboBoxItem { Tag: null } ? Visibility.Visible : Visibility.Collapsed;
+            if (Spec(null) is not { } spec) { info.Text = ""; return; }
+            var m = Helix.Material(spec, gauge);
+            info.Text = $"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm";
         }
-        curveBox.SelectionChanged += (_, _) => Update();
-        turns.TextChanged += (_, _) => Update();
-        rise.TextChanged += (_, _) => Update();
+        shape.SelectionChanged += (_, _) => FillCurves();
+        curveBox.SelectionChanged += (_, _) => { if (!updating) FillOuter(); };
+        outerBox.SelectionChanged += (_, _) => Update();
+        tracks.SelectionChanged += (_, _) => Update();
+        straightBox.SelectionChanged += (_, _) => Update();
+        foreach (var box in new[] { turns, rise, straightCount }) box.TextChanged += (_, _) => Update();
+        spacing.TextChanged += (_, _) => Update();
+
         var body = new StackPanel();
         body.Children.Add(Hint(fromEnd
-            ? "Die Wendel beginnt am aktiven Gleisende und steigt gleichmäßig an."
-            : "Die Wendel entsteht in der Mitte der Ansicht. Tipp: Vorher ein Gleisende anklicken, dann schließt sie dort an."));
-        body.Children.Add(Theme.Label("Bogengleis", 11, false, Theme.TextSecondaryBrush));
+            ? "Die Wendel beginnt am aktiven Gleisende und steigt gleichmäßig an. Nach dem Bauen folgt die Holzliste."
+            : "Die Wendel entsteht in der Mitte der Ansicht. Tipp: Vorher ein Gleisende anklicken, dann schließt sie dort an. Nach dem Bauen folgt die Holzliste."));
+        body.Children.Add(Columns(shape, tracks));
+        body.Children.Add(new Border { Height = 8 });
+        body.Children.Add(Theme.Label("Bogengleis (innen)", 11, false, Theme.TextSecondaryBrush));
         body.Children.Add(curveBox);
         body.Children.Add(new Border { Height = 8 });
+        body.Children.Add(ovalPanel);
+        body.Children.Add(outerPanel);
+        body.Children.Add(new Border { Height = 4 });
         body.Children.Add(Theme.Field("Windungen", turns));
         body.Children.Add(Theme.Field($"Höhe je Windung (mm, mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm Durchfahrtshöhe)", rise));
         body.Children.Add(Theme.Label("Richtung", 11, false, Theme.TextSecondaryBrush));
@@ -165,26 +245,83 @@ public static partial class Dialogs
         body.Children.Add(new Border { Height = 8 });
         body.Children.Add(info);
         body.Children.Add(error);
-        Update();
+        FillCurves();
         var ok = Theme.Button("Gleiswendel bauen", "Helix", accent: true);
         ok.IsDefault = true;
         var cancel = Theme.Button("Abbrechen");
         cancel.IsCancel = true;
-        var w = Small(owner, "Gleiswendel", body, 520, 560, cancel, ok);
-        HelixInput? result = null;
+        var w = Small(owner, "Gleiswendel", new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, 560, 720, cancel, ok);
+        HelixSpec? result = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
-            if (curveBox.SelectedItem is not ComboBoxItem { Tag: TrackPieceDef d }) errors.Add("Bitte ein Bogengleis wählen.");
-            Read(turns, "Windungen", 0.25, 20, errors, out var t);
-            Read(rise, "Höhe je Windung", 10, 1000, errors, out var r);
-            if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
-            if (r < gauge.ClearanceHeight) { error.Text = $"Mit {Fmt.Num(r, 0)} mm passt kein Zug unter die nächste Windung (mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm)."; return; }
-            result = new HelixInput(((TrackPieceDef)((ComboBoxItem)curveBox.SelectedItem).Tag).Key, t, r, direction.SelectedIndex == 1);
+            var spec = Spec(errors);
+            if (spec is null) { error.Text = string.Join("\n", errors); return; }
+            if (spec.Rise < gauge.ClearanceHeight) { error.Text = $"Mit {Fmt.Num(spec.Rise, 0)} mm passt kein Zug unter die nächste Windung (mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm)."; return; }
+            result = spec;
             w.Close();
         };
         w.ShowDialog();
         return result;
+    }
+
+    private static Grid Columns(UIElement left, UIElement right)
+    {
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        Grid.SetColumn(right, 2);
+        g.Children.Add(left);
+        g.Children.Add(right);
+        return g;
+    }
+
+    /// <summary>Holzliste der Gleiswendel mit allen Zuschnittmaßen; kopieren oder als CSV speichern.</summary>
+    public static void ShowHelixMaterial(Window owner, HelixMaterial m, Action<string> saveCsv)
+    {
+        var body = new StackPanel();
+        var grid = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var width in new[] { 50.0, 190, double.NaN })
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = double.IsNaN(width) ? new GridLength(1, GridUnitType.Star) : new GridLength(width) });
+        void Cell(UIElement e, int row, int col)
+        {
+            if (e is FrameworkElement fe) fe.Margin = new Thickness(0, 6, 8, 6);
+            Grid.SetRow(e, row); Grid.SetColumn(e, col);
+            grid.Children.Add(e);
+        }
+        grid.RowDefinitions.Add(new RowDefinition());
+        string[] heads = ["Anzahl", "Teil", "Maße"];
+        for (var c = 0; c < heads.Length; c++) Cell(Theme.Label(heads[c], 11, true, Theme.TextSecondaryBrush), 0, c);
+        for (var i = 0; i < m.Parts.Count; i++)
+        {
+            var p = m.Parts[i];
+            grid.RowDefinitions.Add(new RowDefinition());
+            var line = new Border { BorderBrush = Theme.BorderBrush, BorderThickness = new Thickness(0, 1, 0, 0) };
+            Grid.SetRow(line, i + 1); Grid.SetColumnSpan(line, 3);
+            grid.Children.Add(line);
+            Cell(Theme.Label(p.Count.ToString(), 12, true), i + 1, 0);
+            Cell(new TextBlock { Text = p.Name, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold }, i + 1, 1);
+            var size = new StackPanel();
+            if (p.Size.Length > 0) size.Children.Add(new TextBlock { Text = p.Size, TextWrapping = TextWrapping.Wrap });
+            if (p.Note.Length > 0) size.Children.Add(new TextBlock { Text = p.Note, TextWrapping = TextWrapping.Wrap, Foreground = Theme.TextSecondaryBrush, FontSize = 11.5 });
+            Cell(size, i + 1, 2);
+        }
+        body.Children.Add(grid);
+        var notes = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        foreach (var n in m.Notes) notes.Children.Add(new TextBlock { Text = "• " + n, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2), Foreground = n.StartsWith("Achtung") ? Theme.DangerBrush : Theme.TextSecondaryBrush });
+        body.Children.Add(notes);
+        var copy = Theme.Button("Kopieren");
+        copy.Click += (_, _) => { try { Clipboard.SetText(m.ToText()); } catch (System.Runtime.InteropServices.COMException) { } };
+        var csv = Theme.Button("Als CSV speichern…");
+        csv.Click += (_, _) => saveCsv(m.ToCsv());
+        var close = Theme.Button("Schließen", accent: true);
+        close.IsCancel = true;
+        var w = Frame(owner, "Holzliste Gleiswendel", new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, copy, csv, close);
+        w.Width = 760;
+        w.Height = 620;
+        close.Click += (_, _) => w.Close();
+        w.Show();
     }
 
     /// <summary>Fragt Maße für ein Flexgleis ab und liefert den Katalogschlüssel.</summary>

@@ -598,23 +598,31 @@ public sealed class PlanSession
     }
 
     public void BuildHelix(string curveKey, double turns, double rise, bool rightHand, (double X, double Y) center)
+        => BuildHelix(new HelixSpec(curveKey, turns, rise, rightHand), center);
+
+    /// <summary>Baut eine Gleiswendel (rund oder oval, ein- oder zweigleisig) und liefert die Holzliste dazu; null bei Fehlern.</summary>
+    public HelixMaterial? BuildHelix(HelixSpec spec, (double X, double Y) center)
     {
         Record();
         try
         {
-            var pieces = PlanEditing.BuildHelix(Plan, curveKey, turns, rise, rightHand, ActiveConnector, center);
+            var (inner, outer) = Helix.Build(Plan, spec, ActiveConnector, center);
             Selection.Clear();
-            foreach (var p in pieces) Selection.Add(p.Id);
-            var last = pieces[^1];
+            foreach (var p in inner.Concat(outer)) Selection.Add(p.Id);
+            var last = inner[^1];
             Active = (last.Id, 1);
             SelectedObject = null;
             Commit();
-            Say($"Gleiswendel mit {pieces.Count} Bögen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm.");
+            var shape = spec.Shape == HelixShape.Oval ? "Ovale" : "Runde";
+            var tracks = spec.Tracks == 2 ? "zweigleisige" : "eingleisige";
+            Say($"{shape} {tracks} Gleiswendel mit {inner.Count + outer.Count} Gleisen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm.");
+            return Helix.Material(spec, Plan.Gauge);
         }
         catch (InvalidOperationException e)
         {
             History.DiscardLast();
             Say(e.Message);
+            return null;
         }
     }
 

@@ -409,7 +409,7 @@ public sealed class MainWindow : Window
                 Small("Prellbock", "Buffer", "qBuffer"), Small("Kreuzung", "Crossing", "qCrossing"), Small("Flexgleis…", "Flex", "flex", "Gerade oder Bogen mit frei gewählten Maßen.")),
             Group("Flexgleis",
                 Toggle("Flexgleis ziehen", "Flex", true, () => Session.Tool == CanvasTool.Flex, on => SetTool(on ? CanvasTool.Flex : CanvasTool.Select),
-                    "Wie in WinTrack: am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit. Bei verlegten Flexgleisen ein Ende anfassen und ziehen, um sie nachzuformen."),
+                    "Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit. Bei verlegten Flexgleisen ein Ende anfassen und ziehen, um sie nachzuformen."),
                 Large("Lücke schließen", "Connector", "flexConnect", "Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis.")),
             Group("Höhe",
                 Large("Steigung…", "Slope", "gradient", "Gleichmäßige Steigung über die gewählten Gleise legen."),
@@ -430,7 +430,7 @@ public sealed class MainWindow : Window
         var signalMenu = new RibbonMenuButton
         {
             Label = "Signal setzen", LargeImageSource = Icons.Get("Signal"), SmallImageSource = Icons.Get("Signal"), ToolTipTitle = "Signal setzen",
-            ToolTipDescription = "Signalart wählen, dann auf ein Gleisende klicken.", ToolTipFooterTitle = "Pro-Funktion",
+            ToolTipDescription = "Signalart wählen, dann auf ein Gleisende klicken.",
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
         };
         foreach (var t in Enum.GetValues<SignalType>())

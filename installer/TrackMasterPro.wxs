@@ -13,7 +13,6 @@
     <Icon Id="AppIcon" SourceFile="..\src\TrackMaster.App\TrackMaster.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/Moba4N/TrackMaster-Pro" />
-    <Property Id="ARPNOMODIFY" Value="1" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="TrackMaster Pro" />

@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>TrackMaster Pro – Handbuch</title>
+<style>
+  @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
+  @page :first { margin: 0; }
+  :root { --accent: #0067C0; --accent-soft: #E8F1FB; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #0067C0; }
+  * { box-sizing: border-box; }
+  html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
+  body { margin: 0; }
+  h1, h2, h3 { color: var(--text); line-height: 1.25; font-weight: 600; }
+  h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 3mm; border-bottom: 2.5pt solid var(--accent); break-before: page; }
+  h1 .no { color: var(--accent); margin-right: 3mm; }
+  h2 { font-size: 13.5pt; margin: 7mm 0 2mm; break-after: avoid; }
+  h3 { font-size: 11pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.6mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin: 0 0 1mm; }
+  a { color: var(--accent); text-decoration: none; }
+  .lead { font-size: 11pt; color: var(--muted); margin-bottom: 5mm; }
+  b, strong { font-weight: 600; }
+  .ui { font-weight: 600; }
+  kbd { font-family: inherit; font-size: 8.8pt; border: 0.6pt solid #AEB6C0; border-bottom-width: 1.4pt; border-radius: 3pt; padding: 0 1.4mm; background: #F6F8FA; white-space: nowrap; }
+  figure { margin: 3mm 0 5mm; break-inside: avoid; }
+  figure img { width: 100%; border: 0.6pt solid var(--line); border-radius: 2mm; display: block; }
+  figure.half img { width: 72%; margin: 0 auto; }
+  figure.third img { width: 56%; margin: 0 auto; }
+  figcaption { font-size: 8.8pt; color: var(--muted); margin-top: 1.6mm; text-align: center; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 5mm; font-size: 9.4pt; break-inside: auto; }
+  th, td { text-align: left; vertical-align: top; padding: 1.6mm 2.4mm; border-bottom: 0.6pt solid var(--line); }
+  th { background: var(--accent-soft); font-weight: 600; }
+  tr { break-inside: avoid; }
+  .note, .tip, .warn, .pro { border-radius: 2mm; padding: 2.6mm 3.6mm; margin: 3mm 0 4mm; break-inside: avoid; font-size: 9.6pt; }
+  .tip { background: var(--accent-soft); border-left: 3pt solid var(--accent); }
+  .warn { background: var(--warn-soft); border-left: 3pt solid #E0A100; }
+  .pro { background: #F1F4F8; border-left: 3pt solid #5B6470; }
+  .tip b:first-child, .warn b:first-child, .pro b:first-child { display: block; margin-bottom: 0.6mm; }
+  .badge { display: inline-block; font-size: 7.6pt; font-weight: 700; letter-spacing: .04em; color: #fff; background: var(--pro); border-radius: 2pt; padding: 0 1.4mm; vertical-align: 1pt; }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 9mm; margin-bottom: 2mm; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 0.2mm; width: 6mm; height: 6mm; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 8.6pt; text-align: center; line-height: 6mm; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .keep { break-inside: avoid; }
+
+  /* Titelseite */
+  .cover { height: 297mm; padding: 0; position: relative; background: linear-gradient(160deg, #0067C0 0%, #004A8C 100%); color: #fff; overflow: hidden; }
+  .cover .inner { position: absolute; left: 22mm; right: 22mm; top: 62mm; }
+  .cover img.logo { width: 34mm; height: 34mm; border-radius: 7mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.25); }
+  .cover h1 { border: none; color: #fff; font-size: 38pt; margin: 10mm 0 2mm; padding: 0; break-before: auto; letter-spacing: -.01em; }
+  .cover .sub { font-size: 15pt; opacity: .92; margin-bottom: 14mm; }
+  .cover .what { font-size: 11pt; opacity: .9; max-width: 140mm; line-height: 1.6; }
+  .cover .foot { position: absolute; left: 22mm; right: 22mm; bottom: 22mm; font-size: 9.5pt; opacity: .85; display: flex; justify-content: space-between; border-top: 0.6pt solid rgba(255,255,255,.4); padding-top: 4mm; }
+  .cover .rails { position: absolute; right: -40mm; bottom: 40mm; width: 170mm; height: 170mm; border: 7mm solid rgba(255,255,255,.08); border-radius: 50%; }
+  .cover .rails2 { position: absolute; right: -22mm; bottom: 58mm; width: 134mm; height: 134mm; border: 7mm solid rgba(255,255,255,.08); border-radius: 50%; }
+
+  /* Inhaltsverzeichnis */
+  .toc h1 { break-before: page; }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc > ol > li { margin: 0 0 0.9mm; font-weight: 600; font-size: 9.6pt; line-height: 1.35; }
+  .toc li ol { margin: 0.4mm 0 0 8mm; }
+  .toc li li { font-weight: 400; margin: 0; font-size: 8.7pt; line-height: 1.3; }
+  .toc a { color: var(--text); display: flex; }
+  .toc a .t { flex: 0 1 auto; }
+  .toc a .dots { flex: 1 1 auto; border-bottom: 0.8pt dotted #AEB6C0; margin: 0 2mm 1.4mm; }
+  .toc a .pg { flex: 0 0 auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .toc .no { color: var(--accent); display: inline-block; width: 8mm; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="rails"></div><div class="rails2"></div>
+  <div class="inner">
+    <img class="logo" src="img/icon.png" alt="">
+    <h1>TrackMaster Pro</h1>
+    <div class="sub">Handbuch · Version 1.0</div>
+    <div class="what">Gleisplanung für Modellbahnanlagen in allen gängigen Spurweiten – mit Höhenplanung, Gleiswendel und
+      Holzliste, Landschaft, Elektrik und Signalen, Planprüfung und 3D-Ansicht. Für Windows und Android.</div>
+  </div>
+  <div class="foot"><span>TrackMaster Pro 1.0 · Basis und Pro</span><span>Stand: Oktober 2026</span></div>
+</section>
+
+<section class="toc">
+  <h1>Inhalt</h1>
+  <ol id="toc"></ol>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k1"><span class="no">1</span>Willkommen</h1>
+<p class="lead">TrackMaster Pro ist ein Planungsprogramm für Modellbahnanlagen. Sie legen die Anlagenplatte an, verlegen Gleise
+aus den Katalogen der gängigen Gleissysteme, planen Steigungen und Gleiswendeln, gestalten die Landschaft, verdrahten die
+Anlage und sehen sich das Ergebnis in 3D an – bevor die erste Schiene gekauft ist.</p>
+
+<h2 id="k1-1">Was TrackMaster Pro kann</h2>
+<ul>
+  <li><b>Gleispläne in allen gängigen Spuren:</b> Z, N, TT, H0, H0m, H0e, 0, Spur 1 und G, mit zahlreichen Gleissystemen
+    und rund 1300 Gleisstücken – Geraden, Bögen, Weichen, Kreuzungen, Doppelkreuzungsweichen, Prellböcke und Flexgleis.</li>
+  <li><b>Anlagenplatten in vielen Formen:</b> Rechteck, L-, U-, T- und Z-Form oder Ring mit offener Mitte.</li>
+  <li><b>Flexgleis frei formen:</b> am Gleisende ansetzen und ziehen, das Gleis biegt sich mit und rastet am Ziel ein.</li>
+  <li><b>Höhenplanung:</b> Steigungen über ganze Gleisfolgen, Gleiswendeln rund oder oval, ein- oder zweigleisig.</li>
+  <li><b>Holzliste für die Gleiswendel:</b> alle Zuschnitte mit Randaufmaß und Sägezugabe, Stützen, Schrauben und Plattenbedarf.</li>
+  <li><b>Landschaft:</b> Hügel und Berge, Gewässer, Gebäude, Bäume und Tunnel.</li>
+  <li><b>Elektrik und Digital:</b> Einspeisungen, Trennstellen, Stromabschnitte, Kehrschleifen-Erkennung, Lichtsignale mit
+    vorbildgerechtem Signalbild, Decoder-Adressen und Kabelplan.</li>
+  <li><b>Planprüfung:</b> Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen, Gelände und offene Gleisenden.</li>
+  <li><b>3D-Ansicht:</b> die Anlage von allen Seiten, Mitfahren im Führerstand und Licht je nach Tageszeit.</li>
+  <li><b>Ergebnisse</b> <span class="badge">PRO</span> Speichern, Stückliste der Gleise, Holzliste der Gleiswendel, Drucken und Exporte.</li>
+</ul>
+
+<h2 id="k1-2">Basis und Pro</h2>
+<p>TrackMaster Pro gibt es in zwei Ausbaustufen. Ohne Lizenz läuft die <b>Basisversion</b>. Sie enthält <b>alle Planungsfunktionen</b>
+– Sie können also jede Anlage vollständig entwerfen, prüfen und in 3D ansehen. Mit einer Lizenzdatei wird daraus die
+<b>Pro-Version</b>, die die Ergebnisse Ihrer Planung freischaltet.</p>
+<table>
+  <tr><th style="width:50%">Basis (ohne Lizenz)</th><th>Pro (mit Lizenz) – zusätzlich</th></tr>
+  <tr><td>Gleisplanung in allen Spuren mit allen Gleissystemen, Flexgleis</td><td>Speichern und Speichern unter</td></tr>
+  <tr><td>Höhenplanung: Steigung, Gleiswendel rund und oval, ein- und zweigleisig</td><td>Stückliste der Gleise mit Zubehör, auch als CSV-Datei</td></tr>
+  <tr><td>Gelände, Gewässer, Gebäude, Vegetation, Tunnel</td><td>Holzliste der Gleiswendel mit allen Zuschnitten</td></tr>
+  <tr><td>Elektrik: Einspeisungen, Trennstellen, Signale, Decoder, Kabelplan</td><td>Drucken des Gleisplans</td></tr>
+  <tr><td>3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung</td><td>Export als SVG im Maßstab 1:1, Kabelplan als Textdatei</td></tr>
+  <tr><td>Gleispläne öffnen</td><td></td></tr>
+</table>
+<p>Pro-Funktionen sind im Programm gekennzeichnet: im Tooltip als „Pro-Funktion“, in der Android-App mit einem Schloss.
+Wählen Sie in der Basisversion eine Pro-Funktion, erklärt ein Hinweis, was Pro bietet, und führt auf Wunsch direkt zum Lizenzdialog.</p>
+
+<h2 id="k1-3">Zu diesem Handbuch</h2>
+<p>Das Handbuch beschreibt die Windows-Version. Die Android-App funktioniert genauso; was dort anders ist – vor allem die
+Bedienung mit dem Finger – steht in Kapitel <a href="#k13">13</a>. Befehle aus dem Menüband sind als
+<span class="ui">Register › Befehl</span> geschrieben, zum Beispiel <span class="ui">Gleise › Gleiswendel</span>. Tasten sehen so aus: <kbd>Strg</kbd>+<kbd>S</kbd>.</p>
+<div class="tip"><b>Tipp</b>Hinweise wie dieser zeigen Abkürzungen und bewährte Vorgehensweisen.</div>
+<div class="warn"><b>Achtung</b>So gekennzeichnete Hinweise sollten Sie vor dem Bau beachten.</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k2"><span class="no">2</span>Installation</h1>
+
+<h2 id="k2-1">Windows</h2>
+<h3>Voraussetzungen</h3>
+<ul>
+  <li>Windows 10 oder Windows 11, 64 Bit</li>
+  <li>etwa 400 MB freier Speicherplatz</li>
+  <li>Bildschirm ab 1280 × 720 Bildpunkten, empfohlen 1920 × 1080</li>
+  <li>Für die 3D-Ansicht eine Grafikkarte mit DirectX-Unterstützung (in jedem aktuellen PC vorhanden)</li>
+</ul>
+<p>Eine zusätzliche Laufzeitumgebung ist nicht nötig – alles, was TrackMaster Pro braucht, ist im Installationspaket enthalten.</p>
+
+<h3>Installieren</h3>
+<ol class="steps">
+  <li>Doppelklicken Sie auf die Datei <b>TrackMasterPro-1.0.0.msi</b>.</li>
+  <li>Falls Windows SmartScreen „Der Computer wurde durch Windows geschützt“ meldet: Klicken Sie auf <span class="ui">Weitere Informationen</span>
+      und dann auf <span class="ui">Trotzdem ausführen</span>.</li>
+  <li>Der Installationsassistent begrüßt Sie. Klicken Sie auf <span class="ui">Weiter</span>.</li>
+  <li>Lesen Sie die Lizenzbedingungen, setzen Sie das Häkchen bei <span class="ui">Ich akzeptiere die Bedingungen</span> und klicken Sie auf <span class="ui">Weiter</span>.</li>
+  <li>Wählen Sie den Zielordner (vorgegeben ist <i>C:\Programme\TrackMaster Pro</i>) und klicken Sie auf <span class="ui">Weiter</span> und <span class="ui">Installieren</span>.
+      Windows fragt nach der Berechtigung für Änderungen – bestätigen Sie mit <span class="ui">Ja</span>.</li>
+  <li>Nach wenigen Sekunden ist die Installation abgeschlossen. Klicken Sie auf <span class="ui">Fertig stellen</span>.</li>
+</ol>
+<p>TrackMaster Pro finden Sie danach im <b>Startmenü</b> und als Verknüpfung auf dem <b>Desktop</b>. Im Startmenü liegt außerdem dieses Handbuch.</p>
+
+<h3>Aktualisieren und Deinstallieren</h3>
+<p>Eine neue Version installieren Sie einfach über die vorhandene: Das Installationsprogramm erkennt die ältere Version und ersetzt sie.
+Ihre Pläne und Ihre Lizenz bleiben erhalten. Zum Entfernen öffnen Sie <span class="ui">Einstellungen › Apps › Installierte Apps</span>,
+wählen <b>TrackMaster Pro</b> und klicken auf <span class="ui">Deinstallieren</span>. Ihre Plandateien und die Lizenzdatei werden dabei nicht gelöscht.</p>
+
+<h3>Stille Installation für Administratoren</h3>
+<p>Auf mehreren Rechnern lässt sich das Paket ohne Rückfragen verteilen:</p>
+<table>
+  <tr><th style="width:52%">Befehl</th><th>Wirkung</th></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.0.0.msi /qn</code></td><td>Installation ohne Oberfläche</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.0.0.msi INSTALLFOLDER="D:\Programme\TrackMaster Pro" /qn</code></td><td>Installation in einen anderen Ordner</td></tr>
+  <tr><td><code>msiexec /x TrackMasterPro-1.0.0.msi /qn</code></td><td>Deinstallation ohne Oberfläche</td></tr>
+</table>
+
+<h2 id="k2-2">Android</h2>
+<h3>Voraussetzungen</h3>
+<ul>
+  <li>Smartphone oder Tablet mit Android 8.0 oder neuer; ein Tablet ab 10 Zoll ist zum Planen besonders angenehm</li>
+  <li>etwa 100 MB freier Speicherplatz</li>
+</ul>
+<h3>Installieren</h3>
+<ol class="steps">
+  <li>Kopieren Sie die Datei <b>TrackMasterPro-1.0.0.apk</b> auf das Gerät – per USB-Kabel, über einen Cloud-Speicher oder als E-Mail-Anhang.</li>
+  <li>Tippen Sie die Datei auf dem Gerät an, zum Beispiel in der App <span class="ui">Dateien</span> im Ordner <span class="ui">Downloads</span>.</li>
+  <li>Beim ersten Mal fragt Android, ob diese App <b>unbekannte Apps installieren</b> darf. Tippen Sie auf <span class="ui">Einstellungen</span>,
+      erlauben Sie es und kehren Sie zurück.</li>
+  <li>Bestätigen Sie mit <span class="ui">Installieren</span>. TrackMaster Pro erscheint danach in der App-Übersicht.</li>
+</ol>
+<p>Ein Update installieren Sie auf dieselbe Weise über die vorhandene App; Ihr aktueller Plan bleibt erhalten.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k3"><span class="no">3</span>Lizenz und Freischaltung</h1>
+<p class="lead">Die Pro-Version wird mit einer persönlichen Lizenzdatei freigeschaltet. Die Datei ist digital signiert und
+lässt sich nicht verändern; das Programm prüft sie bei jedem Start, ohne Verbindung zum Internet.</p>
+
+<h2 id="k3-1">Lizenz einspielen</h2>
+<ol class="steps">
+  <li>Speichern Sie die erhaltene Lizenzdatei (Endung <b>.lic</b>) auf dem Rechner, zum Beispiel im Ordner <i>Downloads</i>.</li>
+  <li>Öffnen Sie <span class="ui">Datei › Lizenz…</span> oder <span class="ui">Start › Lizenz</span>.</li>
+  <li>Klicken Sie auf <span class="ui">Lizenz einspielen…</span> und wählen Sie die Datei aus.</li>
+  <li>Der Dialog zeigt nun <b>Pro</b>, den Namen des Lizenznehmers und gegebenenfalls das Ablaufdatum. Die Anzeige unten links
+      in der Statusleiste wechselt von „Basis“ zu „Pro“.</li>
+</ol>
+<figure class="half"><img src="img/lizenz.png" alt=""><figcaption>Abbildung 1 – Der Lizenzdialog zeigt die Ausbaustufe und den Inhalt von Basis und Pro.</figcaption></figure>
+<p>Die Lizenz wird in den Benutzerdaten abgelegt (<i>%APPDATA%\TrackMaster Pro\trackmaster.lic</i>) und gilt ab sofort bei jedem Start.
+Unter Android spielen Sie die Lizenz über <span class="ui">Datei › Lizenz</span> ebenso ein; die Datei wählen Sie aus dem Speicher des Geräts.</p>
+
+<h2 id="k3-2">Rechnergebundene Lizenz</h2>
+<p>Eine Lizenz kann an einen bestimmten Rechner oder ein bestimmtes Gerät gebunden sein. Dafür benötigt der Herausgeber die
+<b>Rechnerkennung</b> (unter Android: <b>Gerätekennung</b>). Sie steht im Lizenzdialog; mit <span class="ui">Kopieren</span>
+übernehmen Sie sie in die Zwischenablage und können sie in eine E-Mail einfügen.</p>
+
+<h2 id="k3-3">Wenn eine Pro-Funktion gewählt wird</h2>
+<p>In der Basisversion erscheint bei Speichern, Stückliste, Holzliste, Drucken und den Exporten ein Hinweis. Mit
+<span class="ui">Lizenz…</span> öffnen Sie direkt den Lizenzdialog. Ihr Plan bleibt dabei unverändert geöffnet.</p>
+<div class="warn"><b>Achtung</b>In der Basisversion kann ein Plan nicht gespeichert werden. Wenn Sie das Programm schließen, einen
+neuen Plan beginnen oder einen anderen öffnen, fragt TrackMaster Pro nach, ob die Änderungen verworfen werden sollen.</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k4"><span class="no">4</span>Die Arbeitsoberfläche</h1>
+<figure><img src="img/start.png" alt=""><figcaption>Abbildung 2 – Das Hauptfenster mit dem Beispielplan „Bahnhof Neustadt“.</figcaption></figure>
+<p>Das Hauptfenster ist in fünf Bereiche geteilt:</p>
+<table>
+  <tr><th style="width:26%">Bereich</th><th>Aufgabe</th></tr>
+  <tr><td><b>Menüband</b> (oben)</td><td>Alle Befehle, geordnet in den Registern Start, Gleise, Gelände, Elektrik, Ansicht und 3D. Über <span class="ui">Datei</span> erreichen Sie Neu, Öffnen, Speichern, Stückliste, Export, Drucken, Beispielplan und Lizenz. Die Schnellzugriffsleiste ganz oben links enthält Speichern, Rückgängig und Wiederholen.</td></tr>
+  <tr><td><b>Gleisbibliothek</b> (links)</td><td>Spur und Gleissystem wählen, Gleise suchen und nach Art filtern (Gerade, Bögen, Weichen, Kreuzungen, Sonstige). Ein Klick setzt das Gleis an, Ziehen legt es frei ab.</td></tr>
+  <tr><td><b>Zeichenfläche</b> (Mitte)</td><td>Der Gleisplan auf der Anlagenplatte, mit Maßketten, Raster und den offenen Gleisenden. Unten rechts lässt sich der Zoom einstellen.</td></tr>
+  <tr><td><b>Eigenschaften</b> (rechts)</td><td>Zeigt, was gerade gewählt ist: den Plan mit Plattenmaßen und Übersicht, ein Gleis mit Position, Höhe und Digitaladresse oder ein Objekt wie Gebäude, Signal oder Einspeisung. Werte lassen sich direkt eintragen.</td></tr>
+  <tr><td><b>Statusleiste</b> (unten)</td><td>Ausbaustufe, Spur, Zahl der Gleise und Weichen, Gleislänge, offene Enden, Zoom und Mausposition in Millimetern; dazu die Schalter für Einrasten und Raster.</td></tr>
+</table>
+
+<h2 id="k4-1">Ansicht bewegen</h2>
+<ul>
+  <li><b>Zoomen:</b> Mausrad, die Tasten <kbd>+</kbd> und <kbd>−</kbd> oder die Zoomleiste unten rechts.</li>
+  <li><b>Verschieben:</b> rechte oder mittlere Maustaste gedrückt halten und ziehen – oder <kbd>Leertaste</kbd> halten und mit der linken Maustaste ziehen.
+    Alternativ das Werkzeug <span class="ui">Start › Verschieben</span>.</li>
+  <li><b>Ganze Anlage zeigen:</b> Taste <kbd>0</kbd> oder <span class="ui">Ansicht › Ganze Anlage</span>.</li>
+</ul>
+
+<h2 id="k4-2">Register Ansicht</h2>
+<p>Im Register <span class="ui">Ansicht</span> schalten Sie ein, was die Zeichenfläche zeigt: <b>Raster</b>, <b>Gleisenden</b>,
+<b>Artikelnummern</b> an jedem Gleis, <b>Höhen</b> (Schienenoberkante an den Gleisenden) und <b>Gelände</b>.
+<span class="ui">Tastenkürzel</span> (<kbd>F1</kbd>) zeigt alle Maus- und Tastaturbefehle auf einen Blick.</p>
+<figure><img src="img/ansicht.png" alt=""><figcaption>Abbildung 3 – Register Ansicht.</figcaption></figure>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k5"><span class="no">5</span>Der erste Plan</h1>
+<p class="lead">In wenigen Schritten zu einem einfachen Oval mit Ausweichgleis – so lernen Sie die wichtigsten Handgriffe kennen.</p>
+
+<h2 id="k5-1">Neuen Plan anlegen</h2>
+<ol class="steps">
+  <li>Wählen Sie <span class="ui">Datei › Neu</span> (<kbd>Strg</kbd>+<kbd>N</kbd>).</li>
+  <li>Wählen Sie die <b>Spur</b>.</li>
+  <li>Wählen Sie die <b>Form der Anlagenplatte</b> und tragen Sie die Maße ein. Die Vorschau zeigt die Form sofort.</li>
+  <li>Bestätigen Sie mit <span class="ui">Plan anlegen</span>.</li>
+  <li>Den Namen des Plans tragen Sie danach in den Eigenschaften unter <span class="ui">Planname</span> ein.</li>
+</ol>
+<figure class="half"><img src="img/neu.png" alt=""><figcaption>Abbildung 4 – Neuer Plan: Spur, Plattenform und Maße.</figcaption></figure>
+<table>
+  <tr><th style="width:24%">Plattenform</th><th>Maße und Besonderheiten</th></tr>
+  <tr><td>Rechteck</td><td>Breite und Tiefe</td></tr>
+  <tr><td>L-Form</td><td>Außenmaße und Schenkeltiefe, Ausrichtung in 90°-Schritten</td></tr>
+  <tr><td>U-Form</td><td>Außenmaße und Schenkeltiefe; die beiden Schenkel dürfen unterschiedlich lang sein</td></tr>
+  <tr><td>T- und Z-Form</td><td>Außenmaße, Schenkeltiefe und Ausrichtung</td></tr>
+  <tr><td>Ring</td><td>Anlage rundum mit offener Mitte, zum Beispiel für einen Einstieg in der Mitte</td></tr>
+</table>
+<p>Form und Maße lassen sich später jederzeit ändern: Klicken Sie auf eine freie Stelle der Zeichenfläche oder wählen Sie
+<span class="ui">Gelände › Anlagenplatte</span>; die Eigenschaften zeigen dann die Plattenmaße.</p>
+
+<h2 id="k5-2">Gleissystem wählen</h2>
+<p>Wählen Sie in der Gleisbibliothek unter <span class="ui">Hersteller / Gleissystem</span> das Gleissystem, mit dem Sie bauen möchten.
+Die Bibliothek zeigt dann alle Gleisstücke dieses Systems mit Artikelnummer und Maß. Sie können in einem Plan auch mehrere Systeme mischen.</p>
+
+<h2 id="k5-3">Gleise ansetzen</h2>
+<ol class="steps">
+  <li>Klicken Sie in der Bibliothek auf ein gebogenes Gleis. Es erscheint in der Mitte der Platte; sein freies Ende ist
+      <b>orange</b> markiert – das ist das <b>aktive Gleisende</b>.</li>
+  <li>Klicken Sie weiter auf Bögen. Jedes neue Gleis wird am aktiven Ende angesetzt, bis der Halbkreis geschlossen ist.</li>
+  <li>Setzen Sie Geraden und den zweiten Halbkreis an. Schließt sich das Oval, verbindet TrackMaster Pro die Enden automatisch.</li>
+  <li>Klicken Sie auf das orange Ende eines anderen Gleises, um dort weiterzubauen, oder drücken Sie <kbd>E</kbd> für das nächste offene Ende.</li>
+  <li>Setzen Sie eine Weiche ein, führen Sie ein paralleles Gleis und schließen Sie es mit einer zweiten Weiche wieder an.</li>
+</ol>
+<div class="tip"><b>Tipp</b>Mit <kbd>A</kbd> (Anschluss wechseln) legen Sie das zuletzt gesetzte Gleis mit seinem anderen Anschluss an –
+so wird aus einer Rechtsweiche in Fahrtrichtung schnell eine Weiche, die das Gleis von der anderen Seite aufnimmt.</div>
+
+<h2 id="k5-4">Plan prüfen</h2>
+<p>Klicken Sie auf <span class="ui">Start › Kollisionsprüfung</span> (<kbd>F7</kbd>). Die Liste zeigt Überschneidungen, zu enge Abstände
+und offene Enden; ein Klick auf einen Eintrag zeigt die Stelle im Plan (Kapitel <a href="#k10">10</a>).</p>
+
+<h2 id="k5-5">Beispielplan</h2>
+<p>Unter <span class="ui">Datei › Beispielplan laden</span> öffnet sich die Anlage „Bahnhof Neustadt“ mit Gelände, Elektrik und Signalen.
+Sie eignet sich gut, um alle Funktionen auszuprobieren.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k6"><span class="no">6</span>Gleise verlegen und bearbeiten</h1>
+<figure><img src="img/gleise.png" alt=""><figcaption>Abbildung 5 – Register Gleise mit gewählter Weiche; die Eigenschaften zeigen ihre Maße, Höhe und Digitaladresse.</figcaption></figure>
+
+<h2 id="k6-1">Gleisbibliothek</h2>
+<ul>
+  <li><b>Spur</b> oben wählen (Z, N, TT, H0, 0, G sowie weitere Spuren in der Liste).</li>
+  <li><b>Gleissystem</b> in der Auswahlliste wählen.</li>
+  <li><b>Suchen</b> nach Artikelnummer oder Name; <span class="ui">Gleise › Gleis suchen</span> springt direkt ins Suchfeld.</li>
+  <li><b>Filtern</b> nach Alle, Gerade, Bögen, Weichen, Kreuzungen und Sonstige.</li>
+  <li><b>Klicken</b> setzt das Gleis am aktiven Ende an, <b>Ziehen</b> legt es frei auf die Platte; in der Nähe eines freien Endes rastet es ein.</li>
+</ul>
+<p>Das Register <span class="ui">Gleise › Verlegen</span> bietet Schnellbefehle für <b>Gerade</b>, <b>Bogen</b>, <b>Weiche links</b>,
+<b>Weiche rechts</b>, <b>Prellbock</b> und <b>Kreuzung</b> des gewählten Systems.</p>
+<div class="note pro"><b>Hinweis zu den Maßen</b>Die Gleisgeometrie entspricht den Katalogangaben. Einige wenige Gleissysteme sind mit
+vorläufigen Maßen hinterlegt und in der Bibliothek gekennzeichnet; prüfen Sie diese vor dem Bau am Original.</div>
+
+<h2 id="k6-2">Auswählen und verschieben</h2>
+<ul>
+  <li><b>Klick</b> auf ein Gleis wählt es aus, <kbd>Umschalt</kbd>+Klick fügt weitere hinzu.</li>
+  <li><b>Ziehen auf freier Fläche</b> zieht einen Auswahlrahmen auf; <kbd>Strg</kbd>+<kbd>A</kbd> wählt alles.</li>
+  <li><b>Ziehen</b> verschiebt die Auswahl. Kommt ein freies Ende in die Nähe eines anderen, rastet die ganze Gruppe dort ein.</li>
+  <li><b>Pfeiltasten</b> verschieben um 1 mm, mit <kbd>Umschalt</kbd> um 10 mm.</li>
+  <li>Das Einrasten lässt sich in der Statusleiste mit <span class="ui">Fang</span> ausschalten.</li>
+</ul>
+
+<h2 id="k6-3">Bearbeiten</h2>
+<table>
+  <tr><th style="width:30%">Befehl</th><th style="width:22%">Taste</th><th>Wirkung</th></tr>
+  <tr><td>15° links / rechts drehen</td><td><kbd>Umschalt</kbd>+<kbd>R</kbd> / <kbd>R</kbd></td><td>dreht die Auswahl um ihren Mittelpunkt</td></tr>
+  <tr><td>Spiegeln</td><td><kbd>F</kbd></td><td>Bögen, Weichen und Kreuzungen seitenverkehrt</td></tr>
+  <tr><td>Anschluss wechseln</td><td><kbd>A</kbd></td><td>legt das Gleis mit dem nächsten Anschluss an dieselbe Stelle</td></tr>
+  <tr><td>Duplizieren</td><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Kopie der Auswahl</td></tr>
+  <tr><td>Löschen</td><td><kbd>Entf</kbd></td><td>entfernt Gleise oder das gewählte Objekt</td></tr>
+  <tr><td>Rückgängig / Wiederholen</td><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd></td><td>beliebig viele Schritte</td></tr>
+</table>
+<p>Position (X, Y in Millimetern) und Drehung eines Gleises lassen sich in den Eigenschaften auch genau eintragen.</p>
+
+<h2 id="k6-4">Flexgleis</h2>
+<p>Flexgleis lässt sich auf drei Arten verlegen:</p>
+<h3>Flexgleis ziehen</h3>
+<ol class="steps">
+  <li>Schalten Sie <span class="ui">Gleise › Flexgleis ziehen</span> ein.</li>
+  <li>Setzen Sie die Maus auf ein offenes Gleisende und ziehen Sie. Das Flexgleis läuft tangential aus dem Gleis heraus und biegt sich mit.</li>
+  <li>Kommen Sie in die Nähe eines anderen Gleisendes, rastet es ein: Das Flexgleis wird dann als passender Doppelbogen gelegt,
+      der an beiden Enden ohne Knick anschließt.</li>
+  <li>Lassen Sie die Maustaste los. Länge und kleinster Radius werden während des Ziehens angezeigt.</li>
+</ol>
+<p><b>Nachformen:</b> Bei eingeschaltetem Werkzeug fassen Sie ein verlegtes Flexgleis an einem Ende an und ziehen – das andere Ende bleibt liegen.</p>
+<h3>Lücke schließen</h3>
+<p>Klicken Sie ein Gleisende an (aktives Ende), wählen Sie das Gegenstück und klicken Sie auf <span class="ui">Gleise › Lücke schließen</span>.
+TrackMaster Pro verbindet beide Enden mit einem passend gebogenen Flexgleis.</p>
+<h3>Flexgleis mit Maßen</h3>
+<p>Über <span class="ui">Gleise › Flexgleis…</span> oder den Eintrag „Flexgleis…“ in der Bibliothek legen Sie ein gerades Stück mit
+freier Länge oder einen Bogen mit freiem Radius und Winkel an.</p>
+<p>Gibt es für ein Gleissystem eigene Flexgleise, stehen sie einzeln in der Bibliothek. Die Stückliste rechnet Flexgleis in ganzen Stangen
+der jeweiligen Länge, mit 5 % Verschnitt.</p>
+<div class="warn"><b>Achtung</b>Achten Sie beim Ziehen auf den angezeigten kleinsten Radius. Er sollte nicht kleiner sein als der kleinste
+Bogenradius, den Ihre Fahrzeuge befahren können.</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k7"><span class="no">7</span>Höhen, Steigungen und Gleiswendel</h1>
+
+<h2 id="k7-1">Höhe eines Gleises</h2>
+<p>Jedes Gleis hat eine <b>Höhe der Schienenoberkante</b> am Anfang und eine <b>Steigung</b> in Prozent. Beides tragen Sie in den Eigenschaften ein;
+die Höhe am anderen Ende rechnet TrackMaster Pro aus. Mit <span class="ui">Ansicht › Höhen</span> stehen die Höhen an den Gleisenden im Plan;
+höher liegende Strecken werden immer über tiefer liegenden gezeichnet.</p>
+
+<h2 id="k7-2">Steigung über eine Gleisfolge</h2>
+<ol class="steps">
+  <li>Wählen Sie die Gleise der Rampe aus (Rahmen ziehen oder <kbd>Umschalt</kbd>+Klick).</li>
+  <li>Klicken Sie auf <span class="ui">Gleise › Steigung…</span>.</li>
+  <li>Tragen Sie die <b>Starthöhe</b> und die <b>Steigung in Prozent</b> ein; bei Bedarf die Richtung umkehren.</li>
+</ol>
+<p>Die Steigung wird gleichmäßig über alle gewählten Gleise gelegt. Sind zwei parallele Gleisfolgen gewählt – etwa die beiden Gleise einer
+zweigleisigen Rampe oder Wendel –, erhält das innere, kürzere Gleis genau die eingegebene Steigung; das äußere steigt so, dass es auf derselben Höhe ankommt.</p>
+<table>
+  <tr><th style="width:30%">Steigung</th><th>Bewertung</th></tr>
+  <tr><td>bis 2 %</td><td>vorbildnah, für alle Züge geeignet</td></tr>
+  <tr><td>2 bis 3 %</td><td>üblich auf Modellbahnanlagen</td></tr>
+  <tr><td>über 3 %</td><td>die Planprüfung warnt; lange Züge brauchen Vorspann</td></tr>
+  <tr><td>über 5 %</td><td>die Planprüfung meldet einen Fehler</td></tr>
+</table>
+
+<h2 id="k7-3">Gleiswendel</h2>
+<p>Eine Gleiswendel überwindet große Höhenunterschiede auf kleiner Fläche. TrackMaster Pro baut sie aus Bogengleisen des Katalogs –
+<b>rund</b> oder <b>oval</b>, <b>eingleisig</b> oder <b>zweigleisig</b>.</p>
+<figure class="half"><img src="img/wendel.png" alt=""><figcaption>Abbildung 6 – Dialog Gleiswendel mit Steigung, Gesamthöhe und Platzbedarf.</figcaption></figure>
+<ol class="steps">
+  <li>Klicken Sie ein freies Gleisende an, wenn die Wendel dort anschließen soll. Ohne aktives Ende entsteht sie in der Mitte der Ansicht.</li>
+  <li>Wählen Sie <span class="ui">Gleise › Gleiswendel…</span>.</li>
+  <li>Wählen Sie die <b>Form</b>: <i>Rund</i> oder <i>Oval</i> – beim Oval liegen gerade Gleise an den beiden Längsseiten; wählen Sie das gerade Gleis und die Anzahl je Seite.</li>
+  <li>Wählen Sie <i>eingleisig</i> oder <i>zweigleisig</i>. Beim zweigleisigen Bau liegt das zweite Gleis außen: als Bogengleis mit passendem
+      Radius aus dem Katalog oder als Flexgleis mit frei gewähltem Gleisabstand.</li>
+  <li>Wählen Sie das <b>Bogengleis</b> für das innere Gleis, die Zahl der <b>Windungen</b>, die <b>Höhe je Windung</b> und die <b>Richtung</b>.</li>
+  <li>Unter den Feldern stehen laufend Steigung, Gesamthöhe und Platzbedarf. Klicken Sie auf <span class="ui">Gleiswendel bauen</span>.</li>
+</ol>
+<p>Die Höhe je Windung muss mindestens die Durchfahrtshöhe der Spur erreichen, sonst passt kein Zug unter die nächste Windung; der Dialog
+weist darauf hin. Übereinanderliegende Windungen werden nicht miteinander verbunden.</p>
+
+<h2 id="k7-4">Holzliste der Gleiswendel <span class="badge">PRO</span></h2>
+<p>Nach dem Bauen zeigt TrackMaster Pro die <b>Holzliste</b> – alles, was Sie für den Unterbau der Wendel brauchen, mit fertigen Zuschnittmaßen.
+Sie lässt sich kopieren oder als CSV-Datei für eine Tabellenkalkulation speichern.</p>
+<figure class="half"><img src="img/holzliste.png" alt=""><figcaption>Abbildung 7 – Holzliste einer zweigleisigen Gleiswendel.</figcaption></figure>
+<table>
+  <tr><th style="width:28%">Teil</th><th>Inhalt</th></tr>
+  <tr><td>Trassensegmente</td><td>Kreisringsegmente aus Sperrholz mit Zuschnittmaß (Länge × Tiefe × Stärke) sowie Innen- und Außenradius. Je Kreis 4, 6, 8 oder 12 Segmente, so dass keines länger als 1200 mm wird.</td></tr>
+  <tr><td>Gerade Trassenbretter</td><td>beim Oval je Längsseite und Windung ein Brett</td></tr>
+  <tr><td>Stoßlaschen</td><td>unter jeden Stoß, zum Verleimen und Verschrauben</td></tr>
+  <tr><td>Grundplatte</td><td>mit 50 mm Rand rundum – oder die Wendel direkt auf die Anlagenplatte stellen</td></tr>
+  <tr><td>Gewindestangen, Muttern, Scheiben</td><td>je Stützpunkt innen und außen eine Stange; Muttern und große Scheiben oben und unten an jeder Ebene, damit sich die Höhe fein einstellen lässt</td></tr>
+  <tr><td>Hinweise</td><td>Trassenbreite, Plattenbedarf, Steigung innen und außen, lichte Höhe und Platzbedarf</td></tr>
+</table>
+<h3>Aufmaße</h3>
+<ul>
+  <li><b>Gleisbett:</b> etwa das 2,7-Fache der Spurweite je Gleis; zweigleisig zusätzlich der Gleisabstand.</li>
+  <li><b>Randaufmaß:</b> je Seite mindestens 25 mm (bei großen Spuren das 1,5-Fache der Spurweite) – Platz für die Bohrung der Gewindestange 12 mm vom Rand und für eine Leitplanke.</li>
+  <li><b>Sägezugabe:</b> 5 mm, in jedem Zuschnittmaß bereits enthalten.</li>
+  <li><b>Holzstärke:</b> 8 mm bei kleinen Spuren, 10 mm bis Spur 0, 15 mm für große Spuren; Grundplatte mindestens 12 mm.</li>
+  <li><b>Gewindestangen:</b> M8, bei großen Spuren M10. Die Länge ergibt sich aus Gesamthöhe, Grundplatte und Überstand.</li>
+  <li><b>Plattenbedarf:</b> gerechnet in Platten 2500 × 1250 mm mit 25 % Verschnitt. Die Segmente lassen sich ineinander geschachtelt zuschneiden.</li>
+</ul>
+<div class="tip"><b>Tipp</b>Zeichnen Sie die Segmente mit einem Schnurzirkel vom Wendelmittelpunkt an und schneiden Sie sie mit der Stichsäge aus.
+Bohren Sie die Löcher für die Gewindestangen mit einer Schablone, damit alle Ebenen genau übereinander liegen.</div>
+<div class="warn"><b>Achtung</b>Ist die lichte Höhe unter der Trasse knapp, steht ein Warnhinweis in der Liste. Vergrößern Sie dann die Höhe je Windung oder wählen Sie dünneres Holz.</div>
+
+<h2 id="k7-5">Tunnel</h2>
+<p>Wählen Sie Gleise aus und klicken Sie auf <span class="ui">Gleise › Tunnel</span>. Tunnelgleise werden im Plan unter den übrigen Gleisen dargestellt, erhalten in 3D Portale
+und gelten in der Planprüfung als zulässig unter Gelände.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k8"><span class="no">8</span>Landschaft</h1>
+<figure><img src="img/gelaende.png" alt=""><figcaption>Abbildung 8 – Register Gelände mit Hügel, See, Gebäuden und Bäumen.</figcaption></figure>
+<table>
+  <tr><th style="width:24%">Werkzeug</th><th>So geht es</th></tr>
+  <tr><td>Gelände formen</td><td>Klicks setzen die Eckpunkte einer Höhenfläche (Hügel, Berg, Plateau). <kbd>Enter</kbd> schließt die Fläche, <kbd>Esc</kbd> bricht ab. Die Höhe tragen Sie in den Eigenschaften ein.</td></tr>
+  <tr><td>Gewässer</td><td>See oder Fluss als Vieleck zeichnen, wie beim Gelände; die Tiefe steht in den Eigenschaften.</td></tr>
+  <tr><td>Gebäude</td><td>Rechteck aufziehen; Breite, Tiefe, Höhe und Drehung lassen sich danach genau eintragen.</td></tr>
+  <tr><td>Vegetation</td><td>Jeder Klick setzt einen Baum; Durchmesser und Höhe sind einstellbar.</td></tr>
+</table>
+<p>Jedes Objekt hat einen Namen, lässt sich anklicken, verschieben und mit <kbd>Entf</kbd> löschen. <span class="ui">Gelände › Gelände zeigen</span>
+blendet die Landschaft aus, wenn Sie nur die Gleise sehen möchten. Die Planprüfung meldet Gleise, die in Gebäuden, im Wasser oder ohne Tunnel unter dem Gelände liegen.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k9"><span class="no">9</span>Elektrik, Signale und Digital</h1>
+<figure><img src="img/elektrik.png" alt=""><figcaption>Abbildung 9 – Register Elektrik mit Einspeisungen, Trennstellen und Signalen.</figcaption></figure>
+
+<h2 id="k9-1">Einspeisungen und Trennstellen</h2>
+<ul>
+  <li><span class="ui">Elektrik › Einspeisung</span>: Klick auf ein Gleis setzt einen Anschluss. In den Eigenschaften ordnen Sie ihn einem Stromkreis bzw. Booster zu.</li>
+  <li><span class="ui">Elektrik › Trennstelle</span>: Klick auf eine Gleisverbindung setzt isolierte Schienenverbinder.</li>
+  <li><span class="ui">Elektrik › Stromkreise zeigen</span> färbt jeden Stromabschnitt in einer eigenen Farbe.</li>
+  <li>Ein zweiter Klick mit demselben Werkzeug auf eine vorhandene Einspeisung oder ein Signal entfernt sie wieder; gewählte Objekte löschen Sie mit <kbd>Entf</kbd>.</li>
+</ul>
+
+<h2 id="k9-2">Elektrik prüfen</h2>
+<p><span class="ui">Elektrik › Elektrik prüfen</span> zeigt Abschnitte ohne Einspeisung, Kehrschleifen und doppelt vergebene Adressen.
+<b>Kehrschleifen</b> erkennt TrackMaster Pro im Zweileitersystem automatisch – dort ist eine Kehrschleifenschaltung mit Trennstellen nötig.
+Bei Mittelleiter-Gleissystemen entfällt diese Prüfung, weil Kehrschleifen dort keine Sonderschaltung brauchen.</p>
+
+<h2 id="k9-3">Signale</h2>
+<p>Unter <span class="ui">Elektrik › Signal setzen</span> wählen Sie die Signalart und klicken dann auf ein Gleisende. Die Signale werden als
+Lichtsignale des deutschen H/V-Signalsystems mit vorbildgerechtem Signalschirm dargestellt – im Plan, in der 3D-Ansicht und in der Auswahl.
+Gezeigt wird jeweils der Haltbegriff; dunkle Lampen sind an ihrer echten Stelle zu sehen.</p>
+<table>
+  <tr><th style="width:22%">Signal</th><th style="width:22%">Haltbegriff</th><th>Signalschirm</th></tr>
+  <tr><td>Hauptsignal</td><td>Hp 0 – Halt</td><td>grün oben, rot in der Mitte, gelb unten (grün + gelb = Hp 2, Langsamfahrt); Mastschild weiß-rot-weiß</td></tr>
+  <tr><td>Ausfahrsignal</td><td>Hp 00 – Halt</td><td>zwei rote Lampen nebeneinander, dazu grün, gelb und zwei weiße Lampen für Sh 1 (Rangierfahrt erlaubt)</td></tr>
+  <tr><td>Blocksignal</td><td>Hp 0 – Halt</td><td>grün oben, rot unten</td></tr>
+  <tr><td>Vorsignal</td><td>Vr 0 – Halt erwarten</td><td>zwei gelbe Lampen nach rechts steigend, zwei grüne (Vr 1), gelb + grün (Vr 2)</td></tr>
+  <tr><td>Sperrsignal</td><td>Sh 0 – Halt, Fahrverbot</td><td>Zwergsignal: zwei rote Lampen waagrecht, zwei weiße nach rechts steigend (Sh 1)</td></tr>
+</table>
+
+<h2 id="k9-4">Decoder und Adressen</h2>
+<p><span class="ui">Elektrik › Decoder</span> listet alle Weichen und Signale mit ihren Digitaladressen. Adressen lassen sich einzeln eintragen
+oder automatisch vergeben; Konflikte werden markiert. Weichen mit zwei Antrieben (Dreiwegweiche, Doppelkreuzungsweiche) belegen zwei Adressen.</p>
+
+<h2 id="k9-5">Kabelplan</h2>
+<p><span class="ui">Elektrik › Kabelplan</span> fasst die Verdrahtung zusammen: Stromabschnitte mit ihren Einspeisungen, alle Trennstellen und die
+Decoderbelegung. Als Textdatei speichern lässt er sich in der Pro-Version.</p>
+<figure class="half"><img src="img/kabelplan.png" alt=""><figcaption>Abbildung 10 – Kabelplan.</figcaption></figure>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k10"><span class="no">10</span>Planprüfung</h1>
+<p><span class="ui">Start › Kollisionsprüfung</span> (<kbd>F7</kbd>) untersucht den ganzen Plan und listet alle Auffälligkeiten als Fehler, Warnung oder Hinweis.
+Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.</p>
+<figure class="half"><img src="img/pruefung.png" alt=""><figcaption>Abbildung 11 – Ergebnis der Planprüfung.</figcaption></figure>
+<table>
+  <tr><th style="width:32%">Prüfung</th><th>Was gemeldet wird</th></tr>
+  <tr><td>Gleisabstand und Überschneidung</td><td>Gleise, die sich berühren oder zu eng nebeneinander liegen; bei Kreuzungen in verschiedenen Höhen wird die Durchfahrtshöhe der Spur berücksichtigt</td></tr>
+  <tr><td>Plattenrand</td><td>Gleise, die über den Rand der Anlagenplatte oder in eine offene Mitte ragen</td></tr>
+  <tr><td>Steigung</td><td>Warnung ab 3 %, Fehler ab 5 %</td></tr>
+  <tr><td>Gelände</td><td>Gleise in Gebäuden, im Wasser oder unter dem Gelände ohne Tunnel</td></tr>
+  <tr><td>Offene Gleisenden</td><td>Enden ohne Anschluss und ohne Prellbock</td></tr>
+</table>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k11"><span class="no">11</span>3D-Ansicht</h1>
+<figure><img src="img/3d.png" alt=""><figcaption>Abbildung 12 – Die Anlage in 3D mit Gelände, Gebäuden, Bäumen und Signalen.</figcaption></figure>
+<ul>
+  <li><span class="ui">3D › 3D-Ansicht</span>: Ziehen mit der Maus dreht die Anlage, das Mausrad zoomt.</li>
+  <li><span class="ui">3D › Mitfahren</span>: Sie fahren im Führerstand über die Gleise, beginnend am gewählten Gleis. Die Geschwindigkeit stellen Sie in km/h des Vorbilds ein.</li>
+  <li><span class="ui">3D › Tageszeit</span>: Licht von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.</li>
+</ul>
+<div class="cols">
+  <figure><img src="img/mitfahren.png" alt=""><figcaption>Abbildung 13 – Mitfahren im Führerstand.</figcaption></figure>
+  <figure><img src="img/abend.png" alt=""><figcaption>Abbildung 14 – Abendstimmung.</figcaption></figure>
+</div>
+<p>Die 3D-Ansicht zeigt Schotterbett, Schienen, Pfeiler unter hochliegenden Gleisen, Tunnelportale, Gelände, Gewässer, Gebäude, Bäume und Signale.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k12"><span class="no">12</span>Speichern, Stückliste, Drucken und Export</h1>
+<p class="lead">Diese Funktionen gehören zur Pro-Version.</p>
+
+<h2 id="k12-1">Speichern und Öffnen <span class="badge">PRO</span></h2>
+<p><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span> legen den Plan als Datei mit der Endung
+<b>.trackmaster.json</b> ab. Öffnen (<kbd>Strg</kbd>+<kbd>O</kbd>) ist auch in der Basisversion möglich. Die Plandateien sind zwischen Windows und Android
+austauschbar. Eine Plandatei lässt sich auch mit „Öffnen mit“ oder als Startparameter öffnen:
+<code>TrackMasterPro.exe MeineAnlage.trackmaster.json</code>.</p>
+
+<h2 id="k12-2">Stückliste <span class="badge">PRO</span></h2>
+<p><span class="ui">Start › Stückliste</span> zählt alle Gleise nach Artikelnummer, mit Bezeichnung und Menge, und ergänzt das Zubehör: Weichenantriebe,
+Signale, Einspeisungen, Isolierverbinder und Decoder. Flexgleis wird in ganzen Stangen gerechnet. Mit <span class="ui">Als CSV speichern</span>
+übernehmen Sie die Liste in eine Tabellenkalkulation oder in Ihre Einkaufsliste.</p>
+<figure class="half"><img src="img/stueckliste.png" alt=""><figcaption>Abbildung 15 – Stückliste mit Zubehör.</figcaption></figure>
+
+<h2 id="k12-3">Drucken <span class="badge">PRO</span></h2>
+<p><span class="ui">Datei › Drucken…</span> (<kbd>Strg</kbd>+<kbd>P</kbd>) druckt den Plan mit Titel, Anlagenplatte und Zusammenfassung maßstäblich auf eine Seite.
+Über den Druckdialog von Windows können Sie auch als PDF-Datei drucken.</p>
+
+<h2 id="k12-4">Export <span class="badge">PRO</span></h2>
+<ul>
+  <li><b>SVG im Maßstab 1:1</b> (<span class="ui">Datei › Als SVG exportieren</span>): eine Vektorgrafik in Originalgröße, zum Beispiel als
+    Schablone für den Plotter oder zum Ausdrucken auf mehreren Seiten.</li>
+  <li><b>Stückliste als CSV</b> (<span class="ui">Datei › Stückliste als CSV</span>).</li>
+  <li><b>Holzliste als CSV</b> aus dem Fenster der Holzliste.</li>
+  <li><b>Kabelplan als Textdatei</b> aus dem Fenster des Kabelplans.</li>
+</ul>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k13"><span class="no">13</span>Die Android-App</h1>
+<p class="lead">Die App bietet dieselben Funktionen wie das Windows-Programm, angepasst an die Bedienung mit dem Finger.</p>
+<p>Oben liegt das Menüband mit den Registern <b>Start, Gleise, Gelände, Elektrik, Ansicht, 3D</b> und <b>Datei</b>, unten die Gleisbibliothek als Leiste.
+Eigenschaften, Planprüfung, Gleiswendel, Signale und die 3D-Ansicht öffnen sich als eigene Fenster. Pro-Funktionen tragen in der Basisversion ein Schloss.</p>
+<table>
+  <tr><th style="width:38%">Geste</th><th>Wirkung</th></tr>
+  <tr><td>Teil in der Bibliothek antippen</td><td>am aktiven Gleisende ansetzen</td></tr>
+  <tr><td>Antippen</td><td>auswählen; ein freies Gleisende aktiv setzen</td></tr>
+  <tr><td>Ziehen</td><td>Ansicht verschieben; auf einem ausgewählten Teil: Teil verschieben</td></tr>
+  <tr><td>Zwei Finger</td><td>zoomen und verschieben</td></tr>
+  <tr><td>Lange drücken</td><td>Teil zur Auswahl hinzufügen; auf freier Fläche: Auswahlrahmen</td></tr>
+  <tr><td>Doppelt tippen</td><td>Eigenschaften; auf freier Fläche: ganzen Plan zeigen</td></tr>
+</table>
+<p>Der aktuelle Plan bleibt erhalten, wenn Sie die App wechseln oder das Gerät sperren. Dateien speichern (Pro) und öffnen Sie über die Dateiauswahl
+von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich ein Plan unterwegs auf dem Tablet beginnen und am PC weiterbearbeiten.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k14"><span class="no">14</span>Tastenkürzel und Mausbefehle</h1>
+<div class="cols">
+<table class="keep">
+  <tr><th>Taste</th><th>Funktion</th></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>N</kbd></td><td>Neuer Plan</td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>O</kbd></td><td>Öffnen</td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>S</kbd></td><td>Speichern <span class="badge">PRO</span></td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>P</kbd></td><td>Drucken <span class="badge">PRO</span></td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd></td><td>Rückgängig / Wiederholen</td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>A</kbd></td><td>Alles auswählen</td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Duplizieren</td></tr>
+  <tr><td><kbd>Entf</kbd></td><td>Löschen</td></tr>
+  <tr><td><kbd>R</kbd> / <kbd>Umschalt</kbd>+<kbd>R</kbd></td><td>15° rechts / links drehen</td></tr>
+  <tr><td><kbd>F</kbd></td><td>Spiegeln</td></tr>
+  <tr><td><kbd>A</kbd></td><td>Anschluss wechseln</td></tr>
+  <tr><td><kbd>E</kbd></td><td>Nächstes offenes Gleisende</td></tr>
+  <tr><td>Pfeiltasten</td><td>1 mm verschieben (<kbd>Umschalt</kbd>: 10 mm)</td></tr>
+  <tr><td><kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></td><td>Vergrößern / Verkleinern / Ganze Anlage</td></tr>
+  <tr><td><kbd>F7</kbd></td><td>Planprüfung</td></tr>
+  <tr><td><kbd>Enter</kbd> / <kbd>Esc</kbd></td><td>Fläche abschließen / Werkzeug beenden</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>Tastenkürzel anzeigen</td></tr>
+</table>
+<table class="keep">
+  <tr><th>Maus</th><th>Funktion</th></tr>
+  <tr><td>Klick auf Gleis in der Bibliothek</td><td>am aktiven Gleisende ansetzen</td></tr>
+  <tr><td>Gleis aus der Bibliothek ziehen</td><td>frei platzieren, rastet an nahen Enden ein</td></tr>
+  <tr><td>Klick auf orangefarbenes Ende</td><td>als aktives Gleisende wählen</td></tr>
+  <tr><td>Gleis ziehen</td><td>verschieben (mit Einrasten)</td></tr>
+  <tr><td><kbd>Umschalt</kbd>+Klick</td><td>zur Auswahl hinzufügen</td></tr>
+  <tr><td>Ziehen auf freier Fläche</td><td>Auswahlrahmen</td></tr>
+  <tr><td>Rechte / mittlere Maustaste</td><td>Ansicht verschieben</td></tr>
+  <tr><td><kbd>Leertaste</kbd> + Ziehen</td><td>Ansicht verschieben</td></tr>
+  <tr><td>Mausrad</td><td>zoomen</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k15"><span class="no">15</span>Fragen und Lösungen</h1>
+<h3>Ein Gleis rastet nicht ein.</h3>
+<p>Prüfen Sie, ob <span class="ui">Fang</span> in der Statusleiste eingeschaltet ist. Gleise rasten nur an <b>freien</b> Enden ein; ist das Ende bereits verbunden,
+wählen Sie mit <kbd>E</kbd> das nächste offene Ende.</p>
+<h3>Ein Oval schließt sich nicht ganz.</h3>
+<p>Kleine Lücken entstehen, wenn Geraden unterschiedlicher Länge gemischt werden. Schließen Sie die Lücke mit <span class="ui">Gleise › Lücke schließen</span>
+oder ziehen Sie ein Flexgleis.</p>
+<h3>Beim Speichern erscheint ein Hinweis auf die Pro-Version.</h3>
+<p>Speichern gehört zur Pro-Version. Spielen Sie Ihre Lizenz unter <span class="ui">Datei › Lizenz</span> ein (Kapitel <a href="#k3">3</a>).</p>
+<h3>Die Lizenz wird als ungültig gemeldet.</h3>
+<p>Die Datei darf nicht verändert werden – auch nicht durch Öffnen und Speichern in einem Texteditor. Ist die Lizenz an einen Rechner gebunden,
+gilt sie nur dort; ist ein Ablaufdatum eingetragen, nur bis zu diesem Tag. Wenden Sie sich mit Ihrer Rechnerkennung an den Herausgeber.</p>
+<h3>Windows meldet beim Installieren „Der Computer wurde durch Windows geschützt“.</h3>
+<p>Klicken Sie auf <span class="ui">Weitere Informationen</span> und <span class="ui">Trotzdem ausführen</span>. Die Meldung erscheint bei Programmen, die Windows noch nicht oft gesehen hat.</p>
+<h3>Android installiert die App nicht.</h3>
+<p>Erlauben Sie der App, mit der Sie die Datei öffnen (zum Beispiel „Dateien“ oder der Browser), das Installieren unbekannter Apps. War bereits
+eine ältere Fassung mit anderer Signatur installiert, deinstallieren Sie diese zuerst.</p>
+<h3>Die 3D-Ansicht bleibt schwarz oder ruckelt.</h3>
+<p>Aktualisieren Sie den Grafiktreiber. Bei sehr großen Anlagen hilft es, Bäume und Gebäude zunächst sparsam zu setzen.</p>
+<h3>Wo liegen meine Daten?</h3>
+<p>Pläne liegen dort, wo Sie sie gespeichert haben. Die Lizenz liegt unter <i>%APPDATA%\TrackMaster Pro</i>. Das Programm sendet keine Daten an Dritte.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k16"><span class="no">16</span>Begriffe</h1>
+<table>
+  <tr><th style="width:28%">Begriff</th><th>Bedeutung</th></tr>
+  <tr><td>Aktives Gleisende</td><td>Das orange markierte freie Ende, an dem das nächste Gleis angesetzt wird.</td></tr>
+  <tr><td>Anschluss</td><td>Ein Ende eines Gleisstücks; eine Weiche hat drei, eine Kreuzung vier Anschlüsse.</td></tr>
+  <tr><td>Durchfahrtshöhe</td><td>Mindesthöhe zwischen zwei übereinanderliegenden Gleisen, damit Fahrzeuge darunter passen; hängt von der Spur ab.</td></tr>
+  <tr><td>Einspeisung</td><td>Stromanschluss eines Gleisabschnitts an Trafo, Zentrale oder Booster.</td></tr>
+  <tr><td>Flexgleis</td><td>Gleis in Stangen, das sich in beliebige Radien biegen und auf Länge kürzen lässt.</td></tr>
+  <tr><td>Gleiswendel</td><td>Spiralförmig ansteigende Strecke zum Überwinden großer Höhenunterschiede auf kleiner Fläche.</td></tr>
+  <tr><td>Haltbegriff</td><td>Signalbild, das „Halt“ bedeutet (Hp 0, Hp 00, Vr 0, Sh 0).</td></tr>
+  <tr><td>Kehrschleife</td><td>Gleisführung, bei der ein Zug in Gegenrichtung auf die Strecke zurückkehrt; im Zweileitersystem entsteht dabei ein Kurzschluss, der eine besondere Schaltung braucht.</td></tr>
+  <tr><td>Lichte Höhe</td><td>Freier Raum zwischen Schienenoberkante und der Unterseite der darüberliegenden Trasse.</td></tr>
+  <tr><td>Randaufmaß</td><td>Zuschlag an der Trassenbreite für Befestigung und Leitplanke.</td></tr>
+  <tr><td>Sägezugabe</td><td>Zuschlag zum Zuschnittmaß für den Sägeschnitt und das Nacharbeiten.</td></tr>
+  <tr><td>Trennstelle</td><td>Isolierte Schienenverbindung, die zwei Stromabschnitte voneinander trennt.</td></tr>
+  <tr><td>Schienenoberkante</td><td>Bezugshöhe aller Höhenangaben im Plan.</td></tr>
+</table>
+<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.0 · Handbuch, Stand Oktober 2026. Änderungen vorbehalten.
+Alle Maßangaben ohne Gewähr; prüfen Sie vor Zuschnitt und Kauf die Maße am Original.</p>
+</section>
+
+<script>
+  // Inhaltsverzeichnis aus den Überschriften; Seitenzahlen trägt das Erstellungsskript nach (window.PAGES)
+  const toc = document.getElementById('toc');
+  const pages = window.PAGES || {};
+  let current = null;
+  document.querySelectorAll('section:not(.cover):not(.toc) h1[id], section:not(.cover):not(.toc) h2[id]').forEach(h => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = '#' + h.id;
+    const no = h.querySelector('.no');
+    const text = [...h.childNodes].filter(n => !(n.classList && (n.classList.contains('no') || n.classList.contains('badge')))).map(n => n.textContent).join('').trim();
+    a.innerHTML = (h.tagName === 'H1' ? `<span class="no">${no ? no.textContent : ''}</span>` : '') +
+      `<span class="t"></span><span class="dots"></span><span class="pg">${pages[h.id] || ''}</span>`;
+    a.querySelector('.t').textContent = text;
+    li.appendChild(a);
+    if (h.tagName === 'H1') { toc.appendChild(li); current = document.createElement('ol'); li.appendChild(current); }
+    else current.appendChild(li);
+  });
+</script>
+</body>
+</html>

@@ -1,20 +1,27 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using TrackMaster.Core;
 
 namespace TrackMaster.App;
 
-/// <summary>Farben und Bausteine im Stil von Windows 11 (hell), wie in GleisMatrix Pro.</summary>
+/// <summary>Farben und Bausteine im Stil von Windows 11 (hell). Akzent und Zeichenfläche kommen aus dem gewählten Design.</summary>
 public static class Theme
 {
-    public static readonly Color Accent = Color.FromRgb(0x00, 0x67, 0xC0);
-    public static readonly Color AccentDark = Color.FromRgb(0x00, 0x5A, 0xA8);
+    private static readonly Design D = Appearance.Current.Palette;
+    private static Color C(Rgb c) => Color.FromRgb(c.R, c.G, c.B);
+    private static Color A(byte alpha, Rgb c) => Color.FromArgb(alpha, c.R, c.G, c.B);
+
+    public static readonly Color Accent = C(D.Accent);
+    public static readonly Color AccentDark = C(D.AccentDark);
     public static readonly Color Text = Color.FromRgb(0x1B, 0x1B, 0x1B);
     public static readonly Color IconColor = Color.FromRgb(0x33, 0x33, 0x33);
+    public static readonly Color LogoGreen = C(Design.LogoGreen);
+    public static readonly Color LogoDark = C(Design.LogoDark);
 
     public static readonly SolidColorBrush AccentBrush = Freeze(Accent);
-    public static readonly SolidColorBrush AccentLightBrush = Freeze(Color.FromRgb(0xCC, 0xE4, 0xF7));
-    public static readonly SolidColorBrush AccentBorderBrush = Freeze(Color.FromRgb(0x99, 0xC9, 0xEF));
+    public static readonly SolidColorBrush AccentLightBrush = Freeze(C(D.AccentLight));
+    public static readonly SolidColorBrush AccentBorderBrush = Freeze(C(D.AccentBorder));
     public static readonly SolidColorBrush TextBrush = Freeze(Text);
     public static readonly SolidColorBrush TextSecondaryBrush = Freeze(Color.FromRgb(0x55, 0x55, 0x55));
     public static readonly SolidColorBrush WindowBrush = Freeze(Color.FromRgb(0xF3, 0xF3, 0xF3));
@@ -29,21 +36,25 @@ public static class Theme
     public static readonly SolidColorBrush OpenEndBrush = Freeze(Color.FromRgb(0xD4, 0x6B, 0x00));
     public static readonly SolidColorBrush WarningBackBrush = Freeze(Color.FromRgb(0xFF, 0xF4, 0xCE));
     public static readonly SolidColorBrush WarningTextBrush = Freeze(Color.FromRgb(0x6B, 0x4E, 0x00));
-    public static readonly SolidColorBrush TipBackBrush = Freeze(Color.FromRgb(0xE5, 0xF1, 0xFB));
+    public static readonly SolidColorBrush TipBackBrush = Freeze(C(D.TipBack));
 
     // Zeichenfläche
-    public static readonly SolidColorBrush CanvasBrush = Freeze(Color.FromRgb(0xF4, 0xF4, 0xF0));
-    public static readonly SolidColorBrush BoardBrush = Freeze(Color.FromRgb(0xE3, 0xEB, 0xD7));
-    public static readonly SolidColorBrush BoardStrokeBrush = Freeze(Color.FromRgb(0x8F, 0xA6, 0x7A));
-    public static readonly SolidColorBrush GridMinorBrush = Freeze(Color.FromArgb(0x24, 0x5A, 0x6E, 0x46));
-    public static readonly SolidColorBrush GridMajorBrush = Freeze(Color.FromArgb(0x48, 0x5A, 0x6E, 0x46));
-    public static readonly SolidColorBrush BedBrush = Freeze(Color.FromRgb(0xCF, 0xC3, 0xAF));
-    public static readonly SolidColorBrush SleeperBrush = Freeze(Color.FromRgb(0x8C, 0x7B, 0x66));
-    public static readonly SolidColorBrush RailBrush = Freeze(Color.FromRgb(0x4E, 0x52, 0x57));
-    public static readonly SolidColorBrush SelectionBrush = Freeze(Color.FromArgb(0x5A, 0x00, 0x67, 0xC0));
-    public static readonly SolidColorBrush BandBrush = Freeze(Color.FromArgb(0x22, 0x00, 0x67, 0xC0));
+    public static readonly SolidColorBrush CanvasBrush = Freeze(C(D.Canvas));
+    public static readonly SolidColorBrush CanvasTextBrush = Freeze(C(D.CanvasText));
+    public static readonly SolidColorBrush BoardBrush = Freeze(C(D.Board));
+    public static readonly SolidColorBrush BoardStrokeBrush = Freeze(C(D.BoardStroke));
+    public static readonly SolidColorBrush GridMinorBrush = Freeze(A(0x24, D.Grid));
+    public static readonly SolidColorBrush GridMajorBrush = Freeze(A(0x48, D.Grid));
+    public static readonly SolidColorBrush BedBrush = Freeze(C(D.Bed));
+    public static readonly SolidColorBrush SleeperBrush = Freeze(C(D.Sleeper));
+    public static readonly SolidColorBrush RailBrush = Freeze(C(D.Rail));
+    public static readonly SolidColorBrush SelectionBrush = Freeze(A(0x5A, D.Accent));
+    public static readonly SolidColorBrush BandBrush = Freeze(A(0x22, D.Accent));
 
-    public static readonly FontFamily Font = new("Segoe UI Variable Text, Segoe UI");
+    /// <summary>Schrift der Oberfläche und der Beschriftungen im Plan.</summary>
+    public static readonly FontFamily Font = new(Appearance.Current.FontChoice.Windows);
+    /// <summary>Faktor für alle Schriftgrößen.</summary>
+    public static readonly double FontScale = Appearance.Current.Scale;
 
     private static SolidColorBrush Freeze(Color c)
     {
@@ -55,7 +66,7 @@ public static class Theme
     public static TextBlock Label(string text, double size = 12, bool bold = false, Brush? brush = null) => new()
     {
         Text = text,
-        FontSize = size,
+        FontSize = size * FontScale,
         FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
         Foreground = brush ?? TextBrush,
         TextWrapping = TextWrapping.Wrap,
@@ -97,6 +108,7 @@ public static class Theme
             Background = accent ? AccentBrush : new SolidColorBrush(Color.FromRgb(0xFD, 0xFD, 0xFD)),
             Foreground = accent ? Brushes.White : danger ? DangerBrush : TextBrush,
             BorderBrush = accent ? new SolidColorBrush(AccentDark) : ControlBorderBrush,
+            FontSize = 12 * FontScale,
             BorderThickness = new Thickness(1),
             Cursor = System.Windows.Input.Cursors.Hand,
             Template = RoundedTemplate(),
@@ -140,7 +152,7 @@ public static class Theme
         box.VerticalContentAlignment = VerticalAlignment.Center;
         box.BorderBrush = ControlBorderBrush;
         var panel = new StackPanel { Margin = new Thickness(0, 0, 6, 8) };
-        panel.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 3) });
+        panel.Children.Add(new TextBlock { Text = label, FontSize = 11 * FontScale, Foreground = TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 3) });
         panel.Children.Add(box);
         System.Windows.Automation.AutomationProperties.SetName(box, label);
         return panel;
@@ -151,7 +163,7 @@ public static class Theme
     {
         box.Height = 28;
         var panel = new StackPanel { Margin = new Thickness(0, 0, 6, 8) };
-        panel.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 3) });
+        panel.Children.Add(new TextBlock { Text = label, FontSize = 11 * FontScale, Foreground = TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 3) });
         panel.Children.Add(box);
         System.Windows.Automation.AutomationProperties.SetName(box, label);
         return panel;

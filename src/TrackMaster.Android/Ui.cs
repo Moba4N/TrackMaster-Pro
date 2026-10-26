@@ -4,14 +4,26 @@ using Android.Graphics.Drawables;
 using Android.Text;
 using Android.Views;
 using Android.Widget;
+using TrackMaster.Core;
 
 namespace TrackMaster.Mobile;
 
-/// <summary>Farben und Bausteine der Oberfläche im Stil von Windows 11 (wie die Windows-Version).</summary>
+/// <summary>Farben und Bausteine der Oberfläche im Stil von Windows 11 (wie die Windows-Version); Akzent und Zeichenfläche aus dem Design.</summary>
 public static class Ui
 {
-    public static readonly Color Accent = Color.Rgb(0x00, 0x67, 0xC0);
-    public static readonly Color AccentLight = Color.Rgb(0xCC, 0xE4, 0xF7);
+    /// <summary>Gewähltes Design (Farben von Akzent und Zeichenfläche); MainActivity setzt es vor dem Aufbau der Oberfläche.</summary>
+    public static Design D { get; set; } = Design.TrackPlan;
+    /// <summary>Schrift der Oberfläche (Android-Familienname) und Faktor für die Schriftgrößen.</summary>
+    public static string FontFamily { get; set; } = "sans-serif";
+    public static double FontScale { get; set; } = 1;
+
+    private static Color C(Rgb c) => Color.Rgb(c.R, c.G, c.B);
+    private static Color A(int alpha, Rgb c) => Color.Argb(alpha, c.R, c.G, c.B);
+
+    public static Color Accent => C(D.Accent);
+    public static Color AccentDark => C(D.AccentDark);
+    public static Color AccentLight => C(D.AccentLight);
+    public static Color AccentBorder => C(D.AccentBorder);
     public static readonly Color Text = Color.Rgb(0x1B, 0x1B, 0x1B);
     public static readonly Color TextSecondary = Color.Rgb(0x55, 0x55, 0x55);
     public static readonly Color Window = Color.Rgb(0xF3, 0xF3, 0xF3);
@@ -22,19 +34,23 @@ public static class Ui
     public static readonly Color OpenEnd = Color.Rgb(0xD4, 0x6B, 0x00);
     public static readonly Color Warning = Color.Rgb(0x6B, 0x4E, 0x00);
     public static readonly Color WarningBack = Color.Rgb(0xFF, 0xF4, 0xCE);
-    public static readonly Color TipBack = Color.Rgb(0xE5, 0xF1, 0xFB);
+    public static Color TipBack => C(D.TipBack);
     public static readonly Color Pro = Color.Rgb(0x88, 0x17, 0x98);
 
-    public static readonly Color CanvasBack = Color.Rgb(0xF4, 0xF4, 0xF0);
-    public static readonly Color Board = Color.Rgb(0xE3, 0xEB, 0xD7);
-    public static readonly Color BoardStroke = Color.Rgb(0x8F, 0xA6, 0x7A);
-    public static readonly Color GridMinor = Color.Argb(0x24, 0x5A, 0x6E, 0x46);
-    public static readonly Color GridMajor = Color.Argb(0x48, 0x5A, 0x6E, 0x46);
-    public static readonly Color Bed = Color.Rgb(0xCF, 0xC3, 0xAF);
-    public static readonly Color Sleeper = Color.Rgb(0x8C, 0x7B, 0x66);
-    public static readonly Color Rail = Color.Rgb(0x4E, 0x52, 0x57);
-    public static readonly Color Selection = Color.Argb(0x5A, 0x00, 0x67, 0xC0);
-    public static readonly Color Band = Color.Argb(0x22, 0x00, 0x67, 0xC0);
+    public static Color CanvasBack => C(D.Canvas);
+    public static Color CanvasText => C(D.CanvasText);
+    public static Color Board => C(D.Board);
+    public static Color BoardStroke => C(D.BoardStroke);
+    public static Color GridMinor => A(0x24, D.Grid);
+    public static Color GridMajor => A(0x48, D.Grid);
+    public static Color Bed => C(D.Bed);
+    public static Color Sleeper => C(D.Sleeper);
+    public static Color Rail => C(D.Rail);
+    public static Color Selection => A(0x5A, D.Accent);
+    public static Color Band => A(0x22, D.Accent);
+
+    /// <summary>Schrift der Oberfläche in normaler oder fetter Ausführung.</summary>
+    public static Typeface Font(bool bold = false) => Typeface.Create(FontFamily, bold ? TypefaceStyle.Bold : TypefaceStyle.Normal)!;
 
     public static float Density { get; set; } = 1;
 
@@ -52,9 +68,9 @@ public static class Ui
     public static TextView Label(Context c, string text, double size = 14, bool bold = false, Color? color = null)
     {
         var t = new TextView(c) { Text = text };
-        t.SetTextSize(Android.Util.ComplexUnitType.Sp, (float)size);
+        t.SetTextSize(Android.Util.ComplexUnitType.Sp, (float)(size * FontScale));
         t.SetTextColor(color ?? Text);
-        if (bold) t.SetTypeface(Typeface.Create("sans-serif-medium", TypefaceStyle.Normal), TypefaceStyle.Normal);
+        t.SetTypeface(bold && FontFamily == "sans-serif" ? Typeface.Create("sans-serif-medium", TypefaceStyle.Normal) : Font(bold), TypefaceStyle.Normal);
         return t;
     }
 
@@ -63,7 +79,8 @@ public static class Ui
     {
         var b = new Button(c) { Text = text };
         b.SetAllCaps(false);
-        b.SetTextSize(Android.Util.ComplexUnitType.Sp, 14);
+        b.SetTextSize(Android.Util.ComplexUnitType.Sp, (float)(14 * FontScale));
+        b.SetTypeface(Font(), TypefaceStyle.Normal);
         b.SetMinHeight(0);
         b.SetMinimumHeight(Dp(40));
         b.SetMinWidth(0);
@@ -79,12 +96,12 @@ public static class Ui
     {
         if (accent)
         {
-            b.Background = Rounded(Accent, Color.Rgb(0x00, 0x5A, 0xA8));
+            b.Background = Rounded(Accent, AccentDark);
             b.SetTextColor(Color.White);
         }
         else if (active)
         {
-            b.Background = Rounded(AccentLight, Color.Rgb(0x99, 0xC9, 0xEF));
+            b.Background = Rounded(AccentLight, AccentBorder);
             b.SetTextColor(Text);
         }
         else

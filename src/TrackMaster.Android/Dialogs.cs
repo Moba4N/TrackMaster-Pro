@@ -834,6 +834,7 @@ public static partial class Dialogs
             ("Doppeltippen auf freie Fläche", "ganze Anlage zeigen"),
             ("Ein Finger auf freier Fläche", "Ansicht verschieben"),
             ("Zwei Finger", "zoomen und verschieben"),
+            ("Zwei Finger drehen", "Ansicht drehen; Kompass antippen richtet sie wieder gerade aus"),
             ("Gelände formen / Gewässer", "Punkte antippen, dann „Fertig“"),
             ("3D-Ansicht", "ein Finger dreht, zwei Finger zoomen und verschieben"),
         };

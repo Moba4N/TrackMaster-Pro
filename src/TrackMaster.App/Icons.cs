@@ -68,6 +68,11 @@ public static class Icons
         ["Search"] = "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M21 21l-5-5",
         ["Plus"] = "M12 5v14M5 12h14",
         ["Minus"] = "M5 12h14",
+        ["Palette"] = "M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H17a4 4 0 0 0 4-4c0-4.4-4-8.2-9-8.2zM7.5 11h.01M10 7.5h.01M14 7.5h.01M16.5 11h.01",
+        ["Font"] = "M3 19l5-14 5 14M5 14h6M15 12.5a2.5 2.5 0 0 1 5 0V19M20 15.5h-3a2 2 0 0 0 0 3.5h3",
+        ["ViewRotate"] = "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5M12 9l2 5h-4z",
+        ["North"] = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 6l3 7h-6zM12 13v5",
+        ["RotateFree"] = "M4 12a8 8 0 1 0 8-8M12 4l3-3M12 4l3 3M12 12l4-4",
     };
 
     private static readonly Dictionary<(string, Color), ImageSource> Cache = new();

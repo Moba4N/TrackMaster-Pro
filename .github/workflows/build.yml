@@ -107,6 +107,14 @@ jobs:
           Hb "pro-hinweis" @("--dialog", "save")
           Hb "stueckliste" @("--pro", "--dialog", "bom")
           Hb "holzliste" @("--pro", "--dialog", "holzliste")
+          Hb "gedreht" @("--rotate", "30")
+          Hb "design-blaupause" @("--design", "blaupause")
+          Hb "design-werkstatt" @("--design", "werkstatt", "--font", "bahnschrift")
+          Hb "design-kontrast" @("--design", "kontrast")
+          Hb "design-klassisch" @("--design", "klassisch")
+          Hb "darstellung" @("--dialog", "appearance")
+          Hb "ueber" @("--dialog", "about")
+          Hb "frei-drehen" @("--select", "--dialog", "rotFree")
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh

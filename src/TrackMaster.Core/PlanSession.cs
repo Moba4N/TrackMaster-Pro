@@ -145,6 +145,14 @@ public sealed class PlanSession
         Say($"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}.");
     }
 
+    /// <summary>Plan nach einem Neustart des Fensters (z. B. neue Darstellung) wiederherstellen, mit Dateiname und Änderungsstand.</summary>
+    public void Restore(string json, string? path, bool dirty)
+    {
+        Replace(PlanSerializer.FromJson(json, out _), path);
+        Dirty = dirty;
+        Changed?.Invoke();
+    }
+
     /// <summary>Nach dem Speichern über einen Dateidialog ohne festen Pfad.</summary>
     public void MarkSaved(string name)
     {

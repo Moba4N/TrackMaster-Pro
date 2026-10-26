@@ -52,7 +52,7 @@ public sealed class View3DWindow : Window
         Width = 1280; Height = 800; MinWidth = 640; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FontFamily = Theme.Font;
-        FontSize = 12;
+        FontSize = 12 * Theme.FontScale;
         Background = Theme.WindowBrush;
         ShowInTaskbar = false;
 

@@ -52,6 +52,8 @@ public sealed class MainActivity : Activity
     {
         base.OnCreate(savedInstanceState);
         Ui.Density = Resources!.DisplayMetrics!.Density;
+        _appearance = Appearance.Load(this);
+        Appearance.Use(_appearance);
 #if DEBUG
         const bool developer = true;
 #else
@@ -157,6 +159,7 @@ public sealed class MainActivity : Activity
         Add("redo", "Wiederholen", _session.Redo, () => _session.History.CanRedo);
         Add("rotL", "Drehen", () => _session.Rotate(-15), HasSelection);
         Add("rotR", "Drehen", () => _session.Rotate(15), HasSelection);
+        Add("rotFree", "Frei drehen", AskFreeRotation, HasSelection);
         Add("flip", "Spiegeln", _session.Flip, HasSelection);
         Add("swap", "Anschluss wechseln", _session.SwapAnchor, () => _session.Selection.Count == 1);
         Add("duplicate", "Duplizieren", _session.Duplicate, HasSelection);
@@ -170,6 +173,12 @@ public sealed class MainActivity : Activity
         Add("fit", "Einpassen", _canvas_Fit);
         Add("zoomIn", "Vergrößern", () => _canvas.ZoomBy(1.3f));
         Add("zoomOut", "Verkleinern", () => _canvas.ZoomBy(1 / 1.3f));
+        Add("viewRotL", "Ansicht nach links drehen", () => _canvas.RotateViewBy(-15));
+        Add("viewRotR", "Ansicht nach rechts drehen", () => _canvas.RotateViewBy(15));
+        Add("viewReset", "Ansicht gerade ausrichten", () => _canvas.SetViewRotation(0));
+        Add("viewAngle", "Ansicht drehen", AskViewAngle);
+        Add("appearance", "Darstellung", ChangeAppearance);
+        Add("about", "Über das Programm", ShowAbout);
         Add("straight", "Gerade", () => _session.Quick(PieceKind.Straight, null, _canvas.CenterWorld()));
         Add("curve", "Bogen", () => _session.Quick(PieceKind.Curve, null, _canvas.CenterWorld()));
         Add("switchL", "Weiche links", () => _session.Quick(PieceKind.Switch, false, _canvas.CenterWorld()));
@@ -211,6 +220,29 @@ public sealed class MainActivity : Activity
 
     private void _canvas_Fit() => _canvas.Fit();
 
+    private AppearanceSettings _appearance = new();
+
+    private void ChangeAppearance() => Dialogs.AskAppearance(this, _appearance, chosen =>
+    {
+        // Neu aufbauen: der Plan kommt über die automatische Sicherung zurück
+        Appearance.Save(this, chosen);
+        Recreate();
+    });
+
+    private void AskViewAngle() => Dialogs.AskAngle(this, "Ansicht drehen",
+        "Dreht nur die Ansicht – der Plan selbst bleibt unverändert. Mit zwei Fingern lässt sich die Ansicht auch direkt drehen; Tippen auf den Kompass richtet sie wieder gerade aus.",
+        Math.Round(_canvas.ViewRotation, 1), "Drehen", a => _canvas.SetViewRotation(a));
+
+    private void AskFreeRotation() => Dialogs.AskAngle(this, "Auswahl frei drehen",
+        "Dreht die gewählten Gleise um ihren gemeinsamen Mittelpunkt, um einen beliebigen Winkel.",
+        7.5, "Drehen", a => _session.Rotate(a));
+
+    private void ShowAbout()
+    {
+        var v = typeof(MainActivity).Assembly.GetName().Version;
+        Dialogs.ShowAbout(this, _license, $"{v?.Major}.{v?.Minor}.{v?.Build}");
+    }
+
     private void Toggle(Action change)
     {
         change();
@@ -231,7 +263,7 @@ public sealed class MainActivity : Activity
 
     private static readonly (string Tab, (string Label, string Command, bool Toggle)[] Items)[] Ribbon =
     [
-        ("Start", [("Eigenschaften", "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), ("Spiegeln", "flip", false), ("Anschluss wechseln", "swap", false),
+        ("Start", [("Eigenschaften", "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), ("Frei drehen…", "rotFree", false), ("Spiegeln", "flip", false), ("Anschluss wechseln", "swap", false),
                    ("Duplizieren", "duplicate", false), ("Löschen", "delete", false), ("Alles wählen", "selectAll", false), ("Auswahl aufheben", "selectNone", false),
                    ("Nächstes Gleisende", "nextEnd", false), ("Stückliste", "bom", false), ("Planprüfung", "check", false)]),
         ("Gleise", [("Gerade", "straight", false), ("Bogen", "curve", false), ("Weiche links", "switchL", false), ("Weiche rechts", "switchR", false),
@@ -243,10 +275,11 @@ public sealed class MainActivity : Activity
         ("Elektrik", [("Einspeisung", "toolFeeder", true), ("Trennstelle", "toolIsolation", true), ("Signal setzen…", "toolSignal", true),
                       ("Adressen…", "addresses", false), ("Stromkreise zeigen", "sections", true), ("Elektrik prüfen", "elecCheck", false), ("Kabelplan", "wiring", false)]),
         ("Ansicht", [("Einpassen", "fit", false), ("Raster", "grid", true), ("Gleisenden", "ends", true), ("Beschriftung", "labels", true),
-                     ("Höhen", "heights", true), ("Einrasten", "snap", true)]),
+                     ("Höhen", "heights", true), ("Einrasten", "snap", true), ("Ansicht ↺ 15°", "viewRotL", false), ("Ansicht ↻ 15°", "viewRotR", false),
+                     ("Gerade ausrichten", "viewReset", false), ("Ansicht drehen…", "viewAngle", false), ("Design und Schrift…", "appearance", false)]),
         ("3D", [("3D-Ansicht", "view3d", false), ("Mitfahren", "ride", false), ("Abendstimmung", "daytime", false)]),
         ("Datei", [("Neu…", "new", false), ("Öffnen…", "open", false), ("Speichern…", "save", false), ("Beispielanlage", "sample", false),
-                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Lizenz…", "license", false), ("Bedienung", "help", false)]),
+                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Lizenz…", "license", false), ("Darstellung…", "appearance", false), ("Bedienung", "help", false), ("Über…", "about", false)]),
     ];
 
     private void BuildUi()
@@ -263,6 +296,11 @@ public sealed class MainActivity : Activity
         var header = Ui.Row(this, 8);
         header.SetBackgroundColor(Color.White);
         header.SetPadding(Ui.Dp(12), Ui.Dp(6), Ui.Dp(8), Ui.Dp(2));
+        var logo = new ImageView(this);
+        logo.SetImageResource(Resources!.GetIdentifier("logo", "drawable", PackageName));
+        logo.SetAdjustViewBounds(true);
+        logo.Click += (_, _) => Run("about");
+        header.AddView(logo, new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(40)));
         var titles = Ui.Column(this, 0);
         titles.AddView(Ui.Label(this, "TrackMaster Pro", 12, color: Ui.TextSecondary));
         _title = Ui.Label(this, "", 16, true);

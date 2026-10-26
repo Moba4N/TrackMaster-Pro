@@ -15,6 +15,7 @@ public sealed class PlanView : View
 {
     private readonly PlanSession _session;
     private float _ox, _oy, _zoom = 0.4f;
+    private double _rot;
     private bool _fitted;
     private PlanPainter? _painter;
     private float _gauge;
@@ -56,8 +57,48 @@ public sealed class PlanView : View
 
     // ---------- Ansicht ----------
 
-    public (double X, double Y) ToWorld(float sx, float sy) => ((sx - _ox) / _zoom, (sy - _oy) / _zoom);
-    public PointF ToScreen(double x, double y) => new((float)(x * _zoom + _ox), (float)(y * _zoom + _oy));
+    /// <summary>Drehung der Ansicht in Grad (im Uhrzeigersinn); der Plan selbst bleibt unverändert.</summary>
+    public double ViewRotation => _rot;
+    public event Action? ViewRotationChanged;
+
+    private (double C, double S) Turn() => (Math.Cos(_rot * Math.PI / 180), Math.Sin(_rot * Math.PI / 180));
+
+    public (double X, double Y) ToWorld(float sx, float sy)
+    {
+        var (c, s) = Turn();
+        double dx = (sx - _ox) / _zoom, dy = (sy - _oy) / _zoom;
+        return (dx * c + dy * s, -dx * s + dy * c);
+    }
+
+    public PointF ToScreen(double x, double y)
+    {
+        var (c, s) = Turn();
+        return new((float)((x * c - y * s) * _zoom + _ox), (float)((x * s + y * c) * _zoom + _oy));
+    }
+
+    /// <summary>Legt den Versatz so fest, dass der Weltpunkt an der Bildschirmstelle liegt.</summary>
+    private void Anchor(double wx, double wy, float px, float py)
+    {
+        var (c, s) = Turn();
+        _ox = (float)(px - (wx * c - wy * s) * _zoom);
+        _oy = (float)(py - (wx * s + wy * c) * _zoom);
+    }
+
+    public void SetViewRotation(double degrees, float? px = null, float? py = null)
+    {
+        var d = degrees % 360;
+        if (d > 180) d -= 360;
+        if (d <= -180) d += 360;
+        if (Math.Abs(d) < 0.05) d = 0;
+        float ax = px ?? Width / 2f, ay = py ?? Height / 2f;
+        var w = ToWorld(ax, ay);
+        _rot = d;
+        Anchor(w.X, w.Y, ax, ay);
+        Invalidate();
+        ViewRotationChanged?.Invoke();
+    }
+
+    public void RotateViewBy(double degrees) => SetViewRotation(_rot + degrees);
     public (double X, double Y) CenterWorld() => ToWorld(Width / 2f, Height / 2f);
 
     protected override void OnSizeChanged(int w, int h, int oldw, int oldh)
@@ -71,10 +112,17 @@ public sealed class PlanView : View
         if (Width <= 0) return;
         var (x0, y0, x1, y1) = _session.Plan.Bounds();
         var pad = Ui.Dp(36);
-        double w = Math.Max(x1 - x0, 1), h = Math.Max(y1 - y0, 1);
+        // Ausdehnung der gedrehten Begrenzung
+        var (c, s) = Turn();
+        double rx0 = double.MaxValue, ry0 = double.MaxValue, rx1 = double.MinValue, ry1 = double.MinValue;
+        foreach (var (px, py) in new[] { (x0, y0), (x1, y0), (x0, y1), (x1, y1) })
+        {
+            double rx = px * c - py * s, ry = px * s + py * c;
+            rx0 = Math.Min(rx0, rx); rx1 = Math.Max(rx1, rx); ry0 = Math.Min(ry0, ry); ry1 = Math.Max(ry1, ry);
+        }
+        double w = Math.Max(rx1 - rx0, 1), h = Math.Max(ry1 - ry0, 1);
         _zoom = (float)Math.Max(0.01, Math.Min((Width - 2 * pad) / w, (Height - 2 * pad) / h));
-        _ox = (float)((Width - w * _zoom) / 2 - x0 * _zoom);
-        _oy = (float)((Height - h * _zoom) / 2 - y0 * _zoom);
+        Anchor((x0 + x1) / 2, (y0 + y1) / 2, Width / 2f, Height / 2f);
         Invalidate();
     }
 
@@ -82,10 +130,9 @@ public sealed class PlanView : View
     {
         var px = fx ?? Width / 2f;
         var py = fy ?? Height / 2f;
-        var nz = Math.Clamp(_zoom * factor, 0.01f, 40f);
-        _ox = px - (px - _ox) * nz / _zoom;
-        _oy = py - (py - _oy) * nz / _zoom;
-        _zoom = nz;
+        var w = ToWorld(px, py);
+        _zoom = Math.Clamp(_zoom * factor, 0.01f, 40f);
+        Anchor(w.X, w.Y, px, py);
         Invalidate();
     }
 
@@ -95,8 +142,7 @@ public sealed class PlanView : View
         var m = Ui.Dp(40);
         if (s.X < m || s.Y < m || s.X > Width - m || s.Y > Height - m)
         {
-            _ox = (float)(Width / 2f - x * _zoom);
-            _oy = (float)(Height / 2f - y * _zoom);
+            Anchor(x, y, Width / 2f, Height / 2f);
             Invalidate();
         }
     }
@@ -157,6 +203,7 @@ public sealed class PlanView : View
         canvas.DrawColor(Ui.CanvasBack);
         canvas.Save();
         canvas.Translate(_ox, _oy);
+        canvas.Rotate((float)_rot);
         canvas.Scale(_zoom, _zoom);
         painter.Draw(canvas, _zoom, _session.ShowScenery, _session.Selection, _session.SelectedObject, c => { if (_session.ShowGrid) DrawGrid(c, plan); });
         DrawToolPreview(canvas);
@@ -174,6 +221,39 @@ public sealed class PlanView : View
             canvas.DrawRect(band, Fill(Ui.Band));
             canvas.DrawRect(band, Stroke(Ui.Accent, Ui.Dp(1)));
         }
+        DrawCompass(canvas);
+    }
+
+    /// <summary>Kompass oben rechts, solange die Ansicht gedreht ist; Tippen darauf richtet sie wieder gerade aus.</summary>
+    private PointF CompassCenter => new(Width - Ui.Dp(36), Ui.Dp(36));
+
+    private bool HitCompass(float x, float y)
+    {
+        if (_rot == 0) return false;
+        var c = CompassCenter;
+        return Math.Abs(x - c.X) < Ui.Dp(26) && Math.Abs(y - c.Y) < Ui.Dp(26);
+    }
+
+    private void DrawCompass(Canvas canvas)
+    {
+        if (_rot == 0) return;
+        var c = CompassCenter;
+        var r = Ui.Dp(22);
+        canvas.DrawCircle(c.X, c.Y, r, Fill(Ui.Panel));
+        canvas.DrawCircle(c.X, c.Y, r, Stroke(Ui.TextSecondary, Ui.Density));
+        canvas.Save();
+        canvas.Rotate((float)_rot, c.X, c.Y);
+        var north = new Path();
+        north.MoveTo(c.X, c.Y - Ui.Dp(16));
+        north.LineTo(c.X + Ui.Dp(6), c.Y + Ui.Dp(2));
+        north.LineTo(c.X - Ui.Dp(6), c.Y + Ui.Dp(2));
+        north.Close();
+        canvas.DrawPath(north, Fill(Ui.Accent));
+        canvas.DrawLine(c.X, c.Y + Ui.Dp(2), c.X, c.Y + Ui.Dp(14), Stroke(Ui.TextSecondary, Ui.Dp(2)));
+        canvas.Restore();
+        var t = $"{Fmt.Num(_rot, 0)}°";
+        var paint = TextPaint(10.5f, Ui.CanvasText);
+        canvas.DrawText(t, c.X - paint.MeasureText(t) / 2, c.Y + r + Ui.Dp(14), paint);
     }
 
     private Paint Stroke(Color c, float width)
@@ -227,8 +307,8 @@ public sealed class PlanView : View
 
     private void DrawGrid(Canvas c, LayoutPlan plan)
     {
-        var (vx0, vy0) = ToWorld(0, 0);
-        var (vx1, vy1) = ToWorld(Width, Height);
+        var corners = new[] { ToWorld(0, 0), ToWorld(Width, 0), ToWorld(0, Height), ToWorld(Width, Height) };
+        double vx0 = corners.Min(p => p.X), vy0 = corners.Min(p => p.Y), vx1 = corners.Max(p => p.X), vy1 = corners.Max(p => p.Y);
         double x0 = Math.Max(vx0, 0), y0 = Math.Max(vy0, 0), x1 = Math.Min(vx1, plan.BoardWidth), y1 = Math.Min(vy1, plan.BoardHeight);
         if (x1 <= x0 || y1 <= y0) return;
         void Lines(double step, Color color)
@@ -252,8 +332,8 @@ public sealed class PlanView : View
         _p.Reset();
         _p.AntiAlias = true;
         _p.Color = color;
-        _p.TextSize = sizeSp * Resources!.DisplayMetrics!.ScaledDensity;
-        _p.SetTypeface(bold ? Typeface.DefaultBold : Typeface.Default);
+        _p.TextSize = sizeSp * (float)Ui.FontScale * Resources!.DisplayMetrics!.ScaledDensity;
+        _p.SetTypeface(Ui.Font(bold));
         return _p;
     }
 
@@ -274,22 +354,32 @@ public sealed class PlanView : View
 
     private void DrawDimensions(Canvas c, LayoutPlan plan)
     {
-        var tl = ToScreen(0, 0);
-        var br = ToScreen(plan.BoardWidth, plan.BoardHeight);
-        var d = Ui.Dp(12);
-        var t = Ui.Dp(4);
-        float y = tl.Y - d, x = tl.X - d;
-        var pen = Stroke(Ui.TextSecondary, Ui.Density);
-        c.DrawLine(tl.X, y, br.X, y, pen);
-        c.DrawLine(tl.X, y - t, tl.X, y + t, pen);
-        c.DrawLine(br.X, y - t, br.X, y + t, pen);
-        c.DrawLine(x, tl.Y, x, br.Y, pen);
-        c.DrawLine(x - t, tl.Y, x + t, tl.Y, pen);
-        c.DrawLine(x - t, br.Y, x + t, br.Y, pen);
-        DrawTag(c, $"{Fmt.Num(plan.BoardWidth, 0)} mm", (tl.X + br.X) / 2, y, Ui.TextSecondary, 11);
+        var center = ToScreen(plan.BoardWidth / 2, plan.BoardHeight / 2);
+        Dimension(c, ToScreen(0, 0), ToScreen(plan.BoardWidth, 0), plan.BoardWidth, center);
+        Dimension(c, ToScreen(0, 0), ToScreen(0, plan.BoardHeight), plan.BoardHeight, center);
+    }
+
+    /// <summary>Maßlinie entlang einer Plattenkante, nach außen versetzt; die Schrift bleibt lesbar.</summary>
+    private void Dimension(Canvas c, PointF a, PointF b, double length, PointF center)
+    {
+        float dx = b.X - a.X, dy = b.Y - a.Y;
+        var len = MathF.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return;
+        float nx = -dy / len, ny = dx / len;
+        float mx = a.X + dx / 2, my = a.Y + dy / 2;
+        if ((mx - center.X) * nx + (my - center.Y) * ny < 0) { nx = -nx; ny = -ny; }
+        float d = Ui.Dp(12), t = Ui.Dp(4);
+        float ax = a.X + nx * d, ay = a.Y + ny * d, bx = b.X + nx * d, by = b.Y + ny * d;
+        var pen = Stroke(Ui.CanvasText, Ui.Density);
+        c.DrawLine(ax, ay, bx, by, pen);
+        c.DrawLine(ax - nx * t, ay - ny * t, ax + nx * t, ay + ny * t, pen);
+        c.DrawLine(bx - nx * t, by - ny * t, bx + nx * t, by + ny * t, pen);
+        var angle = MathF.Atan2(dy, dx) * 180 / MathF.PI;
+        if (angle > 90) angle -= 180;
+        if (angle < -90) angle += 180;
         c.Save();
-        c.Rotate(-90, x, (tl.Y + br.Y) / 2);
-        DrawTag(c, $"{Fmt.Num(plan.BoardHeight, 0)} mm", x, (tl.Y + br.Y) / 2, Ui.TextSecondary, 11);
+        c.Rotate(angle, mx + nx * d, my + ny * d);
+        DrawTag(c, $"{Fmt.Num(length, 0)} mm", mx + nx * d, my + ny * d, Ui.CanvasText, 11);
         c.Restore();
     }
 
@@ -484,10 +574,42 @@ public sealed class PlanView : View
 
     // ---------- Touch ----------
 
+    // Zwei-Finger-Drehung: erst ab einer deutlichen Drehbewegung, damit Zoomen die Ansicht nicht verdreht
+    private double? _twoAngle;
+    private double _twoTurned;
+    private bool _twoRotating;
+
+    private void TrackTwoFingerRotation(MotionEvent e)
+    {
+        if (e.PointerCount < 2 || e.ActionMasked is MotionEventActions.PointerUp or MotionEventActions.Up)
+        {
+            _twoAngle = null;
+            return;
+        }
+        float x0 = e.GetX(0), y0 = e.GetY(0), x1 = e.GetX(1), y1 = e.GetY(1);
+        var angle = Math.Atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
+        if (_twoAngle is { } last)
+        {
+            var delta = angle - last;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            _twoTurned += delta;
+            if (!_twoRotating && Math.Abs(_twoTurned) > 12)
+            {
+                _twoRotating = true;
+                delta = _twoTurned;
+            }
+            if (_twoRotating) SetViewRotation(_rot + delta, (x0 + x1) / 2, (y0 + y1) / 2);
+        }
+        _twoAngle = angle;
+    }
+
     public override bool OnTouchEvent(MotionEvent? e)
     {
         if (e is null) return false;
         _scale.OnTouchEvent(e);
+        if (e.ActionMasked == MotionEventActions.Down) { _twoAngle = null; _twoTurned = 0; _twoRotating = false; }
+        TrackTwoFingerRotation(e);
         if (e.PointerCount > 1 || _scale.IsInProgress)
         {
             // Zwei Finger: laufende Aktion abbrechen, Ansicht wird über den Zoom-Erkenner bewegt
@@ -580,6 +702,7 @@ public sealed class PlanView : View
     {
         _panStartX = _ox;
         _panStartY = _oy;
+        if (HitCompass(x, y)) { _drag = DragMode.Pan; return; }
         switch (_session.Tool)
         {
             case CanvasTool.Building:
@@ -613,8 +736,8 @@ public sealed class PlanView : View
                 _band = null;
                 if (_moved)
                 {
-                    double ax = Math.Min(_downWorld.X, world.X), ay = Math.Min(_downWorld.Y, world.Y), bx = Math.Max(_downWorld.X, world.X), by = Math.Max(_downWorld.Y, world.Y);
-                    var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); return m.X >= ax && m.X <= bx && m.Y >= ay && m.Y <= by; }).Select(p => p.Id).ToList();
+                    var rect = new RectF(Math.Min(_downX, x), Math.Min(_downY, y), Math.Max(_downX, x), Math.Max(_downY, y));
+                    var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); var sp = ToScreen(m.X, m.Y); return rect.Contains(sp.X, sp.Y); }).Select(p => p.Id).ToList();
                     _session.Select(ids, add: true);
                     _session.Say($"{_session.Selection.Count} Gleise gewählt.");
                 }
@@ -651,6 +774,12 @@ public sealed class PlanView : View
 
     private void Tap(float x, float y, (double X, double Y) world)
     {
+        if (HitCompass(x, y))
+        {
+            SetViewRotation(0);
+            _session.Say("Ansicht wieder gerade ausgerichtet.");
+            return;
+        }
         switch (_session.Tool)
         {
             case CanvasTool.Terrain:

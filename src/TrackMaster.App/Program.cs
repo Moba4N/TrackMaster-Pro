@@ -22,6 +22,12 @@ public static class Program
     {
         var screenshot = ArgumentAfter(args, "--screenshot");
         ScreenshotMode = screenshot is not null;
+        // Darstellung vor dem ersten Zugriff auf Theme festlegen
+        Appearance.Load();
+        if (screenshot is not null)
+            Appearance.Use(new Core.AppearanceSettings(ArgumentAfter(args, "--design") ?? "trackplan", ArgumentAfter(args, "--font") ?? "standard"));
+        else if (!args.Contains("--restore"))
+            new SplashScreen(typeof(Program).Assembly, "Assets/Splash.png").Show(autoClose: true, topMost: false);
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         if (screenshot is not null)
         {
@@ -49,8 +55,12 @@ public static class Program
             return 1;
         }
 
-        var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && a != ArgumentAfter(args, "--3d") && a != ArgumentAfter(args, "--dialog") && File.Exists(a));
+        var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && a != ArgumentAfter(args, "--3d") && a != ArgumentAfter(args, "--dialog") && a != ArgumentAfter(args, "--restore") && a != ArgumentAfter(args, "--path") && File.Exists(a));
         if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
+        if (ArgumentAfter(args, "--restore") is { } restore)
+            window.Loaded += (_, _) => window.RestorePlan(restore, ArgumentAfter(args, "--path"), args.Contains("--dirty"));
+        if (screenshot is not null && ArgumentAfter(args, "--rotate") is { } rotate && double.TryParse(rotate, System.Globalization.CultureInfo.InvariantCulture, out var degrees))
+            window.ContentRendered += (_, _) => { window.Canvas.SetViewRotation(degrees); window.Canvas.Fit(); };
 
         if (screenshot is not null)
         {

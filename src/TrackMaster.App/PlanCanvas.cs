@@ -15,6 +15,8 @@ public sealed class PlanCanvas : FrameworkElement
 {
     private readonly PlanSession _session;
     private double _ox, _oy, _zoom = 0.4;
+    /// <summary>Drehung der Ansicht in Grad (im Uhrzeigersinn); der Plan selbst bleibt unverändert.</summary>
+    private double _rot;
     private bool _fitted;
 
     // Zwischengespeicherte Geometrie, neu bei jeder Planänderung
@@ -42,6 +44,7 @@ public sealed class PlanCanvas : FrameworkElement
     public event Action<Point?>? CursorMoved;
 
     public double Zoom => _zoom;
+    public double ViewRotation => _rot;
 
     public PlanCanvas(PlanSession session)
     {
@@ -64,8 +67,39 @@ public sealed class PlanCanvas : FrameworkElement
 
     // ---------- Ansicht ----------
 
-    public Point ToWorld(Point screen) => new((screen.X - _ox) / _zoom, (screen.Y - _oy) / _zoom);
-    public Point ToScreen(double x, double y) => new(x * _zoom + _ox, y * _zoom + _oy);
+    private (double Cos, double Sin) Turn => (Math.Cos(_rot * Math.PI / 180), Math.Sin(_rot * Math.PI / 180));
+
+    public Point ToWorld(Point screen)
+    {
+        var (c, s) = Turn;
+        double dx = (screen.X - _ox) / _zoom, dy = (screen.Y - _oy) / _zoom;
+        return new(dx * c + dy * s, -dx * s + dy * c);
+    }
+
+    public Point ToScreen(double x, double y)
+    {
+        var (c, s) = Turn;
+        return new((x * c - y * s) * _zoom + _ox, (x * s + y * c) * _zoom + _oy);
+    }
+
+    /// <summary>Plan → Bildschirm: Maßstab, Drehung, Verschiebung.</summary>
+    private Matrix ViewMatrix
+    {
+        get
+        {
+            var (c, s) = Turn;
+            return new Matrix(c * _zoom, s * _zoom, -s * _zoom, c * _zoom, _ox, _oy);
+        }
+    }
+
+    /// <summary>Verschiebt die Ansicht so, dass der Planpunkt an der Bildschirmstelle liegt.</summary>
+    private void Anchor(Point world, Point screen)
+    {
+        var (c, s) = Turn;
+        _ox = screen.X - (world.X * c - world.Y * s) * _zoom;
+        _oy = screen.Y - (world.X * s + world.Y * c) * _zoom;
+    }
+
     public (double X, double Y) CenterWorld() { var p = ToWorld(new Point(ActualWidth / 2, ActualHeight / 2)); return (p.X, p.Y); }
 
     public void Fit()
@@ -73,22 +107,36 @@ public sealed class PlanCanvas : FrameworkElement
         if (ActualWidth <= 0) return;
         var (x0, y0, x1, y1) = _session.Plan.Bounds();
         const double pad = 48;
-        double w = Math.Max(x1 - x0, 1), h = Math.Max(y1 - y0, 1);
+        var (c, s) = Turn;
+        var turned = new[] { (x0, y0), (x1, y0), (x1, y1), (x0, y1) }.Select(p => (X: p.Item1 * c - p.Item2 * s, Y: p.Item1 * s + p.Item2 * c)).ToList();
+        double w = Math.Max(turned.Max(p => p.X) - turned.Min(p => p.X), 1), h = Math.Max(turned.Max(p => p.Y) - turned.Min(p => p.Y), 1);
         _zoom = Math.Max(0.02, Math.Min((ActualWidth - 2 * pad) / w, (ActualHeight - 2 * pad) / h));
-        _ox = (ActualWidth - w * _zoom) / 2 - x0 * _zoom;
-        _oy = (ActualHeight - h * _zoom) / 2 - y0 * _zoom;
+        Anchor(new Point((x0 + x1) / 2, (y0 + y1) / 2), new Point(ActualWidth / 2, ActualHeight / 2));
         Redraw();
     }
 
     public void ZoomBy(double factor, Point? at = null)
     {
         var p = at ?? new Point(ActualWidth / 2, ActualHeight / 2);
-        var nz = Math.Clamp(_zoom * factor, 0.02, 20);
-        _ox = p.X - (p.X - _ox) * nz / _zoom;
-        _oy = p.Y - (p.Y - _oy) * nz / _zoom;
-        _zoom = nz;
+        var world = ToWorld(p);
+        _zoom = Math.Clamp(_zoom * factor, 0.02, 20);
+        Anchor(world, p);
         Redraw();
     }
+
+    /// <summary>Dreht die Ansicht frei um einen Bildschirmpunkt (Standard: Mitte). Der Plan selbst ändert sich nicht.</summary>
+    public void SetViewRotation(double degrees, Point? at = null)
+    {
+        var p = at ?? new Point(ActualWidth / 2, ActualHeight / 2);
+        var world = ToWorld(p);
+        _rot = Angles.Normalize(degrees);
+        if (_rot > 180) _rot -= 360;
+        if (Math.Abs(_rot) < 1e-9) _rot = 0;
+        Anchor(world, p);
+        Redraw();
+    }
+
+    public void RotateViewBy(double degrees, Point? at = null) => SetViewRotation(_rot + degrees, at);
 
     /// <summary>Verschiebt die Ansicht, falls der Punkt außerhalb liegt.</summary>
     public void Reveal(double x, double y)
@@ -96,8 +144,7 @@ public sealed class PlanCanvas : FrameworkElement
         var s = ToScreen(x, y);
         if (s.X < 40 || s.Y < 40 || s.X > ActualWidth - 40 || s.Y > ActualHeight - 40)
         {
-            _ox = ActualWidth / 2 - x * _zoom;
-            _oy = ActualHeight / 2 - y * _zoom;
+            Anchor(new Point(x, y), new Point(ActualWidth / 2, ActualHeight / 2));
             Redraw();
         }
     }
@@ -154,7 +201,7 @@ public sealed class PlanCanvas : FrameworkElement
         dc.DrawRectangle(Theme.CanvasBrush, null, new Rect(RenderSize));
         double z = _zoom;
 
-        dc.PushTransform(new MatrixTransform(z, 0, 0, z, _ox, _oy));
+        dc.PushTransform(new MatrixTransform(ViewMatrix));
         var board = new Rect(0, 0, plan.BoardWidth, plan.BoardHeight);
         scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject),
             d =>
@@ -175,6 +222,30 @@ public sealed class PlanCanvas : FrameworkElement
         DrawConnectors(dc);
         DrawIssues(dc);
         if (_band is { } band) dc.DrawRectangle(Theme.BandBrush, new Pen(Theme.AccentBrush, 1) { DashStyle = DashStyles.Dash }, band);
+        DrawCompass(dc);
+    }
+
+    /// <summary>Kompass oben rechts, solange die Ansicht gedreht ist; ein Klick darauf richtet sie wieder gerade aus.</summary>
+    private Point CompassCenter => new(ActualWidth - 34, 34);
+
+    private void DrawCompass(DrawingContext dc)
+    {
+        if (_rot == 0) return;
+        var c = CompassCenter;
+        dc.DrawEllipse(Theme.PanelBrush, new Pen(Theme.BorderStrongBrush, 1), c, 22, 22);
+        dc.PushTransform(new RotateTransform(_rot, c.X, c.Y));
+        var north = new StreamGeometry();
+        using (var ctx = north.Open())
+        {
+            ctx.BeginFigure(new Point(c.X, c.Y - 16), true, true);
+            ctx.LineTo(new Point(c.X + 6, c.Y + 2), true, false);
+            ctx.LineTo(new Point(c.X - 6, c.Y + 2), true, false);
+        }
+        dc.DrawGeometry(Theme.AccentBrush, null, north);
+        dc.DrawLine(new Pen(Theme.TextSecondaryBrush, 2), new Point(c.X, c.Y + 2), new Point(c.X, c.Y + 14));
+        dc.Pop();
+        var t = Text($"{Fmt.Num(_rot, 0)}°", 10.5, Theme.CanvasTextBrush);
+        dc.DrawText(t, new Point(c.X - t.Width / 2, c.Y + 25));
     }
 
     private void DrawToolPreview(DrawingContext dc)
@@ -200,7 +271,8 @@ public sealed class PlanCanvas : FrameworkElement
 
     private void DrawGrid(DrawingContext dc, Rect board)
     {
-        var view = new Rect(ToWorld(new Point(0, 0)), ToWorld(new Point(ActualWidth, ActualHeight)));
+        var corners = new[] { new Point(0, 0), new Point(ActualWidth, 0), new Point(ActualWidth, ActualHeight), new Point(0, ActualHeight) }.Select(ToWorld).ToList();
+        var view = new Rect(new Point(corners.Min(p => p.X), corners.Min(p => p.Y)), new Point(corners.Max(p => p.X), corners.Max(p => p.Y)));
         view.Intersect(board);
         if (view.IsEmpty) return;
         void Lines(double step, Brush brush, double px)
@@ -241,24 +313,31 @@ public sealed class PlanCanvas : FrameworkElement
 
     private void DrawDimensions(DrawingContext dc, LayoutPlan plan)
     {
-        var tl = ToScreen(0, 0);
-        var br = ToScreen(plan.BoardWidth, plan.BoardHeight);
-        var pen = new Pen(Theme.TextSecondaryBrush, 1);
-        double y = tl.Y - 14, x = tl.X - 14;
-        dc.DrawLine(pen, new Point(tl.X, y), new Point(br.X, y));
-        dc.DrawLine(pen, new Point(tl.X, y - 4), new Point(tl.X, y + 4));
-        dc.DrawLine(pen, new Point(br.X, y - 4), new Point(br.X, y + 4));
-        dc.DrawLine(pen, new Point(x, tl.Y), new Point(x, br.Y));
-        dc.DrawLine(pen, new Point(x - 4, tl.Y), new Point(x + 4, tl.Y));
-        dc.DrawLine(pen, new Point(x - 4, br.Y), new Point(x + 4, br.Y));
-        var wText = Text($"{Fmt.Num(plan.BoardWidth, 0)} mm", 11, Theme.TextSecondaryBrush);
-        dc.DrawRectangle(Theme.CanvasBrush, null, new Rect((tl.X + br.X - wText.Width) / 2 - 4, y - wText.Height / 2, wText.Width + 8, wText.Height));
-        dc.DrawText(wText, new Point((tl.X + br.X - wText.Width) / 2, y - wText.Height / 2));
-        var hText = Text($"{Fmt.Num(plan.BoardHeight, 0)} mm", 11, Theme.TextSecondaryBrush);
-        var mid = new Point(x, (tl.Y + br.Y) / 2);
-        dc.PushTransform(new RotateTransform(-90, mid.X, mid.Y));
-        dc.DrawRectangle(Theme.CanvasBrush, null, new Rect(mid.X - hText.Width / 2 - 4, mid.Y - hText.Height / 2, hText.Width + 8, hText.Height));
-        dc.DrawText(hText, new Point(mid.X - hText.Width / 2, mid.Y - hText.Height / 2));
+        var center = ToScreen(plan.BoardWidth / 2, plan.BoardHeight / 2);
+        Dimension(dc, ToScreen(0, 0), ToScreen(plan.BoardWidth, 0), plan.BoardWidth, center);
+        Dimension(dc, ToScreen(0, 0), ToScreen(0, plan.BoardHeight), plan.BoardHeight, center);
+    }
+
+    /// <summary>Maßkette entlang einer Plattenkante, 14 px nach außen versetzt; die Schrift bleibt lesbar, auch wenn die Ansicht gedreht ist.</summary>
+    private void Dimension(DrawingContext dc, Point a, Point b, double length, Point center)
+    {
+        var d = b - a;
+        if (d.Length < 1) return;
+        var n = new Vector(-d.Y, d.X) / d.Length;
+        var mid = a + d / 2;
+        if ((mid - center) * n < 0) n = -n;
+        var pen = new Pen(Theme.CanvasTextBrush, 1);
+        Point a2 = a + n * 14, b2 = b + n * 14, m2 = mid + n * 14;
+        dc.DrawLine(pen, a2, b2);
+        dc.DrawLine(pen, a2 - n * 4, a2 + n * 4);
+        dc.DrawLine(pen, b2 - n * 4, b2 + n * 4);
+        var angle = Math.Atan2(d.Y, d.X) * 180 / Math.PI;
+        if (angle > 90) angle -= 180;
+        if (angle < -90) angle += 180;
+        var text = Text($"{Fmt.Num(length, 0)} mm", 11, Theme.CanvasTextBrush);
+        dc.PushTransform(new RotateTransform(angle, m2.X, m2.Y));
+        dc.DrawRectangle(Theme.CanvasBrush, null, new Rect(m2.X - text.Width / 2 - 4, m2.Y - text.Height / 2, text.Width + 8, text.Height));
+        dc.DrawText(text, new Point(m2.X - text.Width / 2, m2.Y - text.Height / 2));
         dc.Pop();
     }
 
@@ -450,6 +529,12 @@ public sealed class PlanCanvas : FrameworkElement
         _lastWorld = world;
         _moved = false;
 
+        if (e.ChangedButton == MouseButton.Left && _rot != 0 && (screen - CompassCenter).Length <= 22)
+        {
+            SetViewRotation(0);
+            e.Handled = true;
+            return;
+        }
         if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || _spaceDown || _session.Tool == CanvasTool.Pan)
         {
             CaptureMouse();
@@ -619,10 +704,7 @@ public sealed class PlanCanvas : FrameworkElement
                     break;
                 }
                 _band = null;
-                var a = ToWorld(band.TopLeft);
-                var b = ToWorld(band.BottomRight);
-                var rect = new Rect(a, b);
-                var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); return rect.Contains(m.X, m.Y); }).Select(p => p.Id).ToList();
+                var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); return band.Contains(ToScreen(m.X, m.Y)); }).Select(p => p.Id).ToList();
                 _session.Select(ids, add: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
                 break;
             case DragMode.Create:
@@ -662,7 +744,13 @@ public sealed class PlanCanvas : FrameworkElement
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
-        ZoomBy(Math.Exp(e.Delta * 0.0015), e.GetPosition(this));
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            // Strg + Mausrad dreht die Ansicht (mit Umschalt in feinen Schritten)
+            var step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 1 : 5;
+            RotateViewBy(Math.Sign(e.Delta) * step, e.GetPosition(this));
+        }
+        else ZoomBy(Math.Exp(e.Delta * 0.0015), e.GetPosition(this));
         e.Handled = true;
     }
 

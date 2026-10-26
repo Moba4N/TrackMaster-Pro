@@ -46,6 +46,7 @@ public sealed class MainWindow : Window
     private readonly Border _menuLabel;
     private readonly Canvas _menuLabelHost = new() { IsHitTestVisible = false };
     private RibbonApplicationMenu _appMenu = null!;
+    private bool _restarting;
 
     public MainWindow(LicenseManager license)
     {
@@ -57,10 +58,10 @@ public sealed class MainWindow : Window
         Background = Theme.WindowBrush;
         Foreground = Theme.TextBrush;
         FontFamily = Theme.Font;
-        FontSize = 12;
+        FontSize = 12 * Theme.FontScale;
         UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
-        Icon = Icons.Get("App", Theme.Accent);
+        Icon = Brand.Logo;
         WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 34, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
 
         Canvas = new PlanCanvas(Session);
@@ -178,6 +179,54 @@ public sealed class MainWindow : Window
         Add("zoomIn", () => Canvas.ZoomBy(1.25));
         Add("zoomOut", () => Canvas.ZoomBy(0.8));
         Add("help", () => Dialogs.ShowShortcuts(this));
+        Add("rotFree", () => { if (Dialogs.AskAngle(this, "Frei drehen", "Dreht die gewählten Gleise um ihren gemeinsamen Mittelpunkt, um einen beliebigen Winkel.", 7.5, "Drehen") is { } a) Session.Rotate(a); }, HasSelection);
+        Add("viewRotL", () => Canvas.RotateViewBy(-15));
+        Add("viewRotR", () => Canvas.RotateViewBy(15));
+        Add("viewReset", () => Canvas.SetViewRotation(0), () => Canvas.ViewRotation != 0);
+        Add("viewAngle", () =>
+        {
+            if (Dialogs.AskAngle(this, "Ansicht drehen", "Dreht nur die Ansicht – der Plan, die Maße und die Stückliste bleiben unverändert. Auch mit Strg + Mausrad (mit Umschalt in 1°-Schritten).",
+                    Canvas.ViewRotation, "Ansicht drehen") is { } a) Canvas.SetViewRotation(a);
+        });
+        Add("appearance", ChangeAppearance);
+        Add("about", () => Dialogs.ShowAbout(this, License));
+    }
+
+    /// <summary>Neue Darstellung wählen; das Fenster startet danach neu und übernimmt den offenen Plan (auch ungespeichert).</summary>
+    private void ChangeAppearance()
+    {
+        if (Dialogs.AskAppearance(this, Appearance.Current) is not { } chosen) return;
+        Appearance.Save(chosen);
+        try
+        {
+            var temp = Path.Combine(Path.GetTempPath(), $"trackmaster-neustart-{Environment.ProcessId}.json");
+            File.WriteAllText(temp, PlanSerializer.ToJson(Session.Plan));
+            var args = new List<string> { "--restore", temp };
+            if (Session.FilePath is { } path) { args.Add("--path"); args.Add(path); }
+            if (Session.Dirty) args.Add("--dirty");
+            var start = new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
+            foreach (var a in args) start.ArgumentList.Add(a);
+            System.Diagnostics.Process.Start(start);
+            _restarting = true;
+            Close();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            MessageBox.Show(this, $"Die neue Darstellung gilt ab dem nächsten Start.\n\n{ex.Message}", "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    /// <summary>Plan nach einem Neustart wegen neuer Darstellung übernehmen.</summary>
+    public void RestorePlan(string tempFile, string? path, bool dirty)
+    {
+        try
+        {
+            Session.Restore(File.ReadAllText(tempFile), path, dirty);
+            File.Delete(tempFile);
+            Canvas.Fit();
+            ShowMessage("Neue Darstellung übernommen.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException) { }
     }
 
     /// <summary>Befehl über seine Kennung ausführen (auch aus dem Eigenschaften-Panel).</summary>
@@ -216,7 +265,7 @@ public sealed class MainWindow : Window
     {
         var bar = new Grid { Background = Brushes.White };
         var left = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        left.Children.Add(new System.Windows.Controls.Image { Source = Icons.Get("App", Theme.Accent), Width = 18, Height = 18 });
+        left.Children.Add(new System.Windows.Controls.Image { Source = Brand.LogoSmall, Width = 20, Height = 20, ToolTip = "Über das Programm" });
         var qat = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 0, 0) };
         qat.Children.Add(QatButton("Save", "Speichern (Strg+S)", "save"));
         qat.Children.Add(QatButton("Undo", "Rückgängig (Strg+Z)", "undo"));
@@ -385,6 +434,8 @@ public sealed class MainWindow : Window
         _appMenu.Items.Add(new RibbonSeparator());
         _appMenu.Items.Add(Item("Beispielplan laden", "Template", "sample"));
         _appMenu.Items.Add(Item("Lizenz…", "Shield", "license"));
+        _appMenu.Items.Add(Item("Darstellung…", "Palette", "appearance"));
+        _appMenu.Items.Add(Item("Über das Programm…", "Info", "about"));
         _appMenu.FooterPaneContent = new RibbonButton { Label = "Beenden", SmallImageSource = Icons.Get("Exit"), Command = _commands["exit"], HorizontalAlignment = HorizontalAlignment.Right };
         Ribbon.ApplicationMenu = _appMenu;
 
@@ -394,7 +445,7 @@ public sealed class MainWindow : Window
                 Toggle("Auswählen", "Select", true, () => Session.Tool == CanvasTool.Select, _ => SetTool(CanvasTool.Select), "Gleise und Objekte wählen und verschieben (Esc)."),
                 Toggle("Verschieben", "Hand", true, () => Session.Tool == CanvasTool.Pan, on => SetTool(on ? CanvasTool.Pan : CanvasTool.Select), "Ansicht mit der linken Maustaste verschieben (auch: Leertaste halten).")),
             Group("Bearbeiten",
-                Small("15° links drehen", "RotateLeft", "rotL", "Umschalt+R"), Small("15° rechts drehen", "RotateRight", "rotR", "R"), Small("Spiegeln", "Mirror", "flip", "Bögen, Weichen und Kreuzungen spiegeln (F)."),
+                Small("15° links drehen", "RotateLeft", "rotL", "Umschalt+R"), Small("15° rechts drehen", "RotateRight", "rotR", "R"), Small("Frei drehen…", "RotateFree", "rotFree", "Auswahl um einen beliebigen Winkel drehen."), Small("Spiegeln", "Mirror", "flip", "Bögen, Weichen und Kreuzungen spiegeln (F)."),
                 Small("Anschluss wechseln", "Swap", "swap", "Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A)."), Small("Duplizieren", "Copy", "duplicate", "Strg+D"), Small("Löschen", "Delete", "delete", "Entf")),
             Group("Auswahl", Small("Alles auswählen", "SelectAll", "selectAll", "Strg+A"), Small("Auswahl aufheben", "SelectNone", "selectNone", "Esc"), Small("Nächstes Gleisende", "Connector", "nextEnd", "Springt zum nächsten offenen Gleisende (E).")),
             Group("Prüfen", ProLarge("Stückliste", "List", "bom", "Alle Gleise nach Artikel gezählt, mit Zubehör."),
@@ -454,7 +505,13 @@ public sealed class MainWindow : Window
                 Toggle("Artikelnummern", "Hash", false, () => Session.ShowLabels, on => { Session.ShowLabels = on; Canvas.InvalidateVisual(); }),
                 Toggle("Höhen", "Slope", false, () => Session.ShowHeights, on => { Session.ShowHeights = on; Canvas.InvalidateVisual(); }),
                 Toggle("Gelände", "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); })),
-            Group("Hilfe", Large("Tasten­kürzel", "Help", "help", "Alle Maus- und Tastaturbefehle (F1)."))));
+            Group("Drehen",
+                Large("Ansicht drehen…", "ViewRotate", "viewAngle", "Die Ansicht frei drehen – der Plan bleibt unverändert. Auch mit Strg + Mausrad."),
+                Small("15° links", "RotateLeft", "viewRotL", "Ansicht 15° gegen den Uhrzeigersinn drehen."),
+                Small("15° rechts", "RotateRight", "viewRotR", "Ansicht 15° im Uhrzeigersinn drehen."),
+                Small("Gerade ausrichten", "North", "viewReset", "Ansicht wieder auf 0° stellen (oder auf den Kompass klicken).")),
+            Group("Darstellung", Large("Design und Schrift", "Palette", "appearance", "Farbschema, Schriftart und Schriftgröße wählen.")),
+            Group("Hilfe", Large("Tasten­kürzel", "Help", "help", "Alle Maus- und Tastaturbefehle (F1)."), Large("Über", "Info", "about", "Logo, Version und Ausbaustufe."))));
 
         Ribbon.Items.Add(Tab("3D",
             Group("3D", Large("3D-Ansicht", "Cube", "view3d", "Die Anlage räumlich ansehen: ziehen dreht, Mausrad zoomt."),
@@ -492,7 +549,7 @@ public sealed class MainWindow : Window
             Padding = new Thickness(12, 0, 12, 0), Height = 30, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, -1),
         };
         var tabContent = new StackPanel { Orientation = Orientation.Horizontal };
-        tabContent.Children.Add(new System.Windows.Controls.Image { Source = Icons.Get("App", Theme.Accent), Width = 14, Height = 14, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        tabContent.Children.Add(new System.Windows.Controls.Image { Source = Brand.LogoSmall, Width = 14, Height = 14, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
         tabContent.Children.Add(_docTab);
         docTab.Child = tabContent;
         tabs.Child = docTab;
@@ -894,7 +951,7 @@ public sealed class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (Program.ScreenshotMode) return;
+        if (Program.ScreenshotMode || _restarting) return;
         if (!ConfirmDiscard()) e.Cancel = true;
     }
 }

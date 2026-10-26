@@ -510,8 +510,15 @@ public static partial class Dialogs
             detail.Text = license.Summary;
         }
         Sync();
-        body.Children.Add(status);
-        body.Children.Add(detail);
+        var head = new DockPanel();
+        var logo = new Image { Source = Brand.Logo, Width = 72, Height = 72, Margin = new Thickness(12, -8, 6, 0) };
+        DockPanel.SetDock(logo, Dock.Right);
+        head.Children.Add(logo);
+        var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        texts.Children.Add(status);
+        texts.Children.Add(detail);
+        head.Children.Add(texts);
+        body.Children.Add(head);
         var editions = new Grid { Margin = new Thickness(0, 12, 6, 8) };
         editions.ColumnDefinitions.Add(new ColumnDefinition());
         editions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });

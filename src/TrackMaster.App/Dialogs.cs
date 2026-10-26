@@ -27,7 +27,7 @@ public static partial class Dialogs
         return new Window
         {
             Owner = owner, Title = title, Content = root, Width = 640, Height = 560, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            FontFamily = Theme.Font, FontSize = 12, Foreground = Theme.TextBrush, ResizeMode = ResizeMode.CanResizeWithGrip, ShowInTaskbar = false,
+            FontFamily = Theme.Font, FontSize = 12 * Theme.FontScale, Foreground = Theme.TextBrush, ResizeMode = ResizeMode.CanResizeWithGrip, ShowInTaskbar = false,
         };
     }
 

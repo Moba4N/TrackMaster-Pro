@@ -140,6 +140,14 @@ public sealed class MainWindow : Window
         Add("toolTerrain", () => SetTool(CanvasTool.Terrain));
         Add("toolWater", () => SetTool(CanvasTool.Water));
         Add("toolBuilding", () => SetTool(CanvasTool.Building));
+        Add("buildingKit", () =>
+        {
+            if (Dialogs.AskBuildingKit(this, Session.Plan.Gauge) is { } kit)
+            {
+                var (x, y) = Canvas.CenterWorld();
+                Session.AddBuilding(kit, x, y);
+            }
+        });
         Add("toolTree", () => SetTool(CanvasTool.Tree));
         Add("toolFeeder", () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", () => SetTool(CanvasTool.Isolation));
@@ -475,6 +483,7 @@ public sealed class MainWindow : Window
                 ToolToggle("Gewässer", "Water", false, CanvasTool.Water, "toolWater", "See oder Fluss als Vieleck zeichnen."),
                 ToolToggle("Gebäude", "Building", false, CanvasTool.Building, "toolBuilding", "Gebäude als Rechteck aufziehen."),
                 ToolToggle("Vegetation", "Tree", false, CanvasTool.Tree, "toolTree", "Bäume mit Klicks setzen.")),
+            Group("Vorlagen", Large("Gebäude­vorlage", "Building", "buildingKit", "Gebäude nach einem Bausatz mit echtem Grundmaß und Höhe aus einer Liste wählen.")),
             Group("Anzeigen",
                 Toggle("Gelände zeigen", "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); }))));
 

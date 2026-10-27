@@ -6,7 +6,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Company>TrackMaster Pro</Company>
     <Product>TrackMaster Pro</Product>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <NeutralLanguage>de-DE</NeutralLanguage>
   </PropertyGroup>
 </Project>

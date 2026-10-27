@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.2.0.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.3.0.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
@@ -147,6 +147,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 **Gelände**
 - Höhenflächen und Gewässer als Vielecke zeichnen (Klicks setzen Punkte, Enter schließt, Esc bricht ab).
 - Gebäude aufziehen, Bäume setzen; Name, Größe, Höhe und Drehung im Eigenschaftenfeld.
+- **Gebäudevorlagen** nach Faller-Bausätzen (H0, N, Z, Pola G) mit Herstellermaßen, nach Kategorien geordnet und durchsuchbar;
+  TT, 0 und Spur 1 erhalten die Vorlagen der nächstliegenden Baugröße maßstäblich umgerechnet.
 
 **Elektrik**
 - Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.

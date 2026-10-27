@@ -205,6 +205,11 @@ public sealed class MainActivity : Activity
         Add("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
         Add("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
         Add("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
+        Add("buildingKit", "Gebäudevorlage", () => Dialogs.AskBuildingKit(this, _session.Plan.Gauge, kit =>
+        {
+            var (x, y) = _canvas.CenterWorld();
+            _session.AddBuilding(kit, x, y);
+        }));
         Add("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", "Signal setzen", () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
@@ -270,7 +275,7 @@ public sealed class MainActivity : Activity
                     ("Kreuzung", "crossing", false), ("Prellbock", "buffer", false), ("Flexgleis…", "flex", false),
                     ("Flexgleis ziehen", "toolFlex", true), ("Lücke schließen", "flexConnect", false),
                     ("Steigung…", "gradient", false), ("Gleiswendel…", "helix", false), ("Tunnel", "tunnel", false)]),
-        ("Gelände", [("Anlagenplatte…", "board", false), ("Gelände formen", "toolTerrain", true), ("Gewässer", "toolWater", true), ("Gebäude", "toolBuilding", true),
+        ("Gelände", [("Anlagenplatte…", "board", false), ("Gelände formen", "toolTerrain", true), ("Gewässer", "toolWater", true), ("Gebäude", "toolBuilding", true), ("Gebäudevorlage…", "buildingKit", false),
                      ("Vegetation", "toolTree", true), ("Gelände zeigen", "scenery", true)]),
         ("Elektrik", [("Einspeisung", "toolFeeder", true), ("Trennstelle", "toolIsolation", true), ("Signal setzen…", "toolSignal", true),
                       ("Adressen…", "addresses", false), ("Stromkreise zeigen", "sections", true), ("Elektrik prüfen", "elecCheck", false), ("Kabelplan", "wiring", false)]),

@@ -131,10 +131,15 @@ public sealed class PlanPainter
 
     public static Color TerrainColor(double height)
     {
-        var t = Math.Clamp(height / 250, 0, 1);
-        int L(int a, int b) => (int)(a + (b - a) * t);
-        return Color.Argb(0xE0, L(0xB4, 0x8A), L(0xC9, 0x9A), L(0x95, 0x62));
+        var t = TerrainField.TintAt(height);
+        return Color.Argb(0xE8, t.R, t.G, t.B);
     }
+
+    private static readonly Color Contour = Color.Argb(0x90, 0x8A, 0x72, 0x50);
+    private static readonly Color Shore = Color.Argb(0xC0, 0xB8, 0xA4, 0x78);
+    private static readonly Color TreeShadow = Color.Argb(0x38, 0x20, 0x28, 0x18);
+    private static readonly Color ConiferFill = Color.Rgb(0x2F, 0x62, 0x30);
+    private static readonly Color LeafHighlight = Color.Argb(0x90, 0x8C, 0xC0, 0x5C);
 
     private static readonly Color WaterFill = Color.Argb(0xE0, 0x86, 0xBC, 0xE6);
     private static readonly Color WaterStroke = Color.Rgb(0x3F, 0x86, 0xC0);
@@ -162,13 +167,27 @@ public sealed class PlanPainter
         {
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Terrain).OrderBy(s => s.Height))
             {
+                // Wie auf einer Landkarte: Höhenstufen mit Höhenlinien
                 var path = Polygon(s.Points);
-                c.DrawPath(path, Fill(TerrainColor(s.Height)));
+                c.DrawPath(path, Fill(TerrainColor(0)));
+                var n = 0;
+                foreach (var (level, loops) in TerrainField.For(s).Layers())
+                {
+                    n++;
+                    var layer = new Path();
+                    layer.SetFillType(Path.FillType.EvenOdd!);
+                    foreach (var loop in loops) layer.AddPath(Polygon(loop));
+                    c.DrawPath(layer, Fill(TerrainColor(level)));
+                    c.DrawPath(layer, Stroke(Contour, (n % 5 == 0 ? 1.8f : 0.9f) * Ui.Density / z));
+                }
                 c.DrawPath(path, s.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(TerrainStroke, 1.2f * Ui.Density / z, effect: new DashPathEffect([6 / z, 4 / z], 0)));
             }
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Water))
             {
                 var path = Polygon(s.Points);
+                var shore = Stroke(Shore, Math.Max(g * 1.4f, 3 * Ui.Density / z));
+                shore.StrokeJoin = Paint.Join.Round;
+                c.DrawPath(path, shore);
                 c.DrawPath(path, Fill(WaterFill));
                 c.DrawPath(path, s.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(WaterStroke, 1.5f * Ui.Density / z));
             }
@@ -215,8 +234,20 @@ public sealed class PlanPainter
         if (scenery)
             foreach (var t in plan.Scenery.Where(s => s.Kind == SceneryKind.Tree))
             {
-                c.DrawCircle((float)t.X, (float)t.Y, (float)t.Width / 2, Fill(TreeFill));
-                c.DrawCircle((float)t.X, (float)t.Y, (float)t.Width / 2, t.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(TreeStroke, 1 * Ui.Density / z));
+                // Von oben: Schatten, Krone mit Lichtkante; Nadelbäume dunkler mit Zweigen
+                float x = (float)t.X, y = (float)t.Y, r = (float)t.Width / 2;
+                c.DrawCircle(x + r * 0.3f, y + r * 0.3f, r, Fill(TreeShadow));
+                var conifer = Scene3DModel.IsConifer(t);
+                c.DrawCircle(x, y, r, Fill(conifer ? ConiferFill : TreeFill));
+                if (conifer)
+                    for (var k = 0; k < 8; k++)
+                    {
+                        var a = k * Math.PI / 4;
+                        c.DrawLine(x, y, x + (float)Math.Cos(a) * r * 0.85f, y + (float)Math.Sin(a) * r * 0.85f, Stroke(TreeStroke, Math.Max(r * 0.08f, 0.6f * Ui.Density / z)));
+                    }
+                else
+                    c.DrawCircle(x - r * 0.25f, y - r * 0.25f, r * 0.5f, Fill(LeafHighlight));
+                c.DrawCircle(x, y, r, t.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(TreeStroke, 1 * Ui.Density / z));
             }
 
         DrawElectrics(c, z, selectedObject);

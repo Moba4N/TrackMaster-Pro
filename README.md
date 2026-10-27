@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.1.0.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.2.0.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).

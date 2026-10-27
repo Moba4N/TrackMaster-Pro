@@ -41,13 +41,13 @@ public sealed class SceneMesh
         Triangle(a, c, d);
     }
 
-    public void Box(Vec3 min, Vec3 max)
+    public void Box(Vec3 min, Vec3 max, bool top = true)
     {
         double x0 = Math.Min(min.X, max.X), x1 = Math.Max(min.X, max.X);
         double y0 = Math.Min(min.Y, max.Y), y1 = Math.Max(min.Y, max.Y);
         double z0 = Math.Min(min.Z, max.Z), z1 = Math.Max(min.Z, max.Z);
         static Vec3 P(double x, double y, double z) => new(x, y, z);
-        Quad(P(x0, y1, z0), P(x0, y1, z1), P(x1, y1, z1), P(x1, y1, z0)); // oben
+        if (top) Quad(P(x0, y1, z0), P(x0, y1, z1), P(x1, y1, z1), P(x1, y1, z0)); // oben
         Quad(P(x0, y0, z0), P(x1, y0, z0), P(x1, y0, z1), P(x0, y0, z1)); // unten
         Quad(P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)); // vorne
         Quad(P(x1, y0, z0), P(x0, y0, z0), P(x0, y1, z0), P(x1, y1, z0)); // hinten
@@ -63,7 +63,22 @@ public sealed class SceneMesh
 public sealed class Scene3DModel
 {
     public static readonly Rgb WaterColor = new(0x3F, 0x86, 0xC0);
-    public static readonly Rgb RailColor = new(0x6A, 0x6E, 0x74);
+    public static readonly Rgb RailColor = new(0xB4, 0xB8, 0xBC);
+    public static readonly Rgb RailSideColor = new(0x6E, 0x55, 0x44);
+
+    /// <summary>Schienenoberkante über der Trasse (Unterkante des Schotterbetts): Schotter, Schwelle und Schiene.</summary>
+    public static double RailTop(double gauge) => gauge * 0.42;
+
+    /// <summary>Feste Pseudo-Zufallszahl 0…1 für Farbabwechslung (immer gleich für dieselben Werte).</summary>
+    public static double Noise(int a, int b, int c = 0)
+    {
+        unchecked
+        {
+            var h = (uint)(a * 73856093 ^ b * 19349663 ^ c * 83492791);
+            h ^= h >> 13; h *= 0x5bd1e995; h ^= h >> 15;
+            return (h & 0xFFFFFF) / (double)0xFFFFFF;
+        }
+    }
     public static readonly Rgb WindowColor = new(0x30, 0x34, 0x3A);
 
     private readonly LayoutPlan _plan;
@@ -97,21 +112,22 @@ public sealed class Scene3DModel
         var thickness = Math.Max(g * 1.5, 15);
         foreach (var r in BoardGeometry.Rects(plan))
         {
-            Mesh(new Rgb(0x8E, 0xA8, 0x6E)).Box(P(r.X0, r.Y0, -thickness), P(r.X1, r.Y1, 0));
+            Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, -thickness), P(r.X1, r.Y1, 0), top: false);
             Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, -thickness * 1.6), P(r.X1 + 2, r.Y1 + 2, -thickness));
+            Meadow(r.X0, r.Y0, r.X1, r.Y1);
         }
 
         foreach (var s in plan.Scenery)
             switch (s.Kind)
             {
-                case SceneryKind.Terrain: Prism(s.Points, 0, s.Height, new Rgb(0x7F, 0x9E, 0x55), new Rgb(0x8C, 0x74, 0x50), SurfaceKind.Matte); break;
-                case SceneryKind.Water: Prism(s.Points, 0.3, 0.8, WaterColor, WaterColor, SurfaceKind.Water); break;
+                case SceneryKind.Terrain: Hill(s); break;
+                case SceneryKind.Water: Water(s); break;
                 case SceneryKind.Building: Building(s); break;
                 case SceneryKind.Tree: Tree(s); break;
             }
 
         var totalLength = plan.Pieces.Sum(p => p.Def.TrackLength);
-        var sleepers = totalLength / g < 4000;
+        var sleepers = totalLength / g < 8000;
         foreach (var p in plan.Pieces) Track(p, sleepers);
         foreach (var sig in plan.Signals) SignalModel(sig);
     }
@@ -128,14 +144,108 @@ public sealed class Scene3DModel
             sm.Quad(P(pts[j].X, pts[j].Y, z0), P(pts[i].X, pts[i].Y, z0), P(pts[i].X, pts[i].Y, z1), P(pts[j].X, pts[j].Y, z1));
     }
 
+    // Wiese in mehreren Grüntönen, damit die Fläche nicht wie ein einfarbiges Brett wirkt
+    private static readonly Rgb[] Grass = [new(0x76, 0x98, 0x4A), new(0x7D, 0x9E, 0x4E), new(0x84, 0xA3, 0x53), new(0x8A, 0xA6, 0x57), new(0x92, 0xA8, 0x5C)];
+
+    /// <summary>Weiches Rauschen 0…1 (bilinear zwischen festen Zufallswerten im Raster <paramref name="scale"/>).</summary>
+    public static double Smooth(double x, double y, double scale, int seed)
+    {
+        double fx = x / scale, fy = y / scale;
+        int i = (int)Math.Floor(fx), j = (int)Math.Floor(fy);
+        double tx = fx - i, ty = fy - j;
+        tx = tx * tx * (3 - 2 * tx);
+        ty = ty * ty * (3 - 2 * ty);
+        double a = Noise(i, j, seed), b = Noise(i + 1, j, seed), c = Noise(i, j + 1, seed), d = Noise(i + 1, j + 1, seed);
+        return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+    }
+
+    private Rgb GrassAt(double x, double y, double fine)
+    {
+        var v = Smooth(x, y, _g * 14, 7) * 0.75 + fine * 0.25;
+        return Grass[Math.Clamp((int)(v * Grass.Length), 0, Grass.Length - 1)];
+    }
+    private static readonly Rgb Earth = new(0x8E, 0x76, 0x52);
+    private static readonly Rgb Rock = new(0x8C, 0x88, 0x80);
+    private static readonly Rgb RockDark = new(0x76, 0x72, 0x6C);
+
+    private void Meadow(double x0, double y0, double x1, double y1)
+    {
+        var cell = Math.Max(_g * 3, 25);
+        int nx = Math.Max(1, (int)Math.Ceiling((x1 - x0) / cell)), ny = Math.Max(1, (int)Math.Ceiling((y1 - y0) / cell));
+        double cx = (x1 - x0) / nx, cy = (y1 - y0) / ny;
+        for (var j = 0; j < ny; j++)
+            for (var i = 0; i < nx; i++)
+            {
+                double a = x0 + i * cx, b = y0 + j * cy;
+                // Weiche Flecken plus feine Abwechslung
+                var color = GrassAt(a + cx / 2, b + cy / 2, Noise(i, j, 11));
+                Mesh(color).Quad(P(a, b, 0), P(a, b + cy, 0), P(a + cx, b + cy, 0), P(a + cx, b, 0));
+            }
+    }
+
+    /// <summary>Hügel als Höhenfeld mit weichem Hang; Wiese, Erde und Fels je nach Neigung.</summary>
+    private void Hill(SceneryItem s)
+    {
+        if (s.Points.Count < 3 || s.Height <= 0) return;
+        var f = TerrainField.For(s);
+        Vec3 V(int i, int j) => P(f.X0 + i * f.Cell, f.Y0 + j * f.Cell, f.Vertex(i, j) + (f.Vertex(i, j) > 0 ? 0.2 : 0));
+        void Tri(int i, int j, Vec3 a, Vec3 b, Vec3 c, int k)
+        {
+            if (a.Y < 0.01 && b.Y < 0.01 && c.Y < 0.01) return;
+            var n = Vec3.Cross(b - a, c - a).Normalized();
+            var steep = 1 - Math.Abs(n.Y);   // 0 = eben, 1 = senkrecht
+            var noise = Smooth(a.X, a.Z, _g * 5, s.Id + 3) * 0.7 + Noise(i + s.Id * 31, j, k) * 0.3;
+            var top = (a.Y + b.Y + c.Y) / 3 / Math.Max(f.Height, 1);
+            Rgb color;
+            if (steep > 0.55 + noise * 0.1) color = noise > 0.5 ? Rock : RockDark;
+            else if (steep > 0.38 + noise * 0.12) color = Earth;
+            else
+                color = top > 0.85 && noise > 0.6 ? Grass[^1] : GrassAt(a.X, a.Z, noise);
+            Mesh(color).Triangle(a, b, c);
+        }
+        for (var j = 0; j < f.Ny; j++)
+            for (var i = 0; i < f.Nx; i++)
+            {
+                Vec3 a = V(i, j), b = V(i + 1, j), c = V(i + 1, j + 1), d = V(i, j + 1);
+                Tri(i, j, a, b, c, 0);
+                Tri(i, j, a, c, d, 1);
+            }
+    }
+
+    /// <summary>Wasserfläche knapp über der Platte mit sandig-erdigem Uferstreifen.</summary>
+    private void Water(SceneryItem s)
+    {
+        var pts = s.Points;
+        if (pts.Count < 3) return;
+        Prism(pts, 0.3, 0.8, WaterColor, new Rgb(0x2E, 0x6A, 0x9A), SurfaceKind.Water);
+        var bank = Mesh(new Rgb(0xA8, 0x96, 0x6E));
+        var mud = Mesh(new Rgb(0x7A, 0x6A, 0x4C));
+        var w = Math.Max(_g * 1.2, 6);
+        for (int i = 0, j = pts.Count - 1; i < pts.Count; j = i++)
+        {
+            var (ax, ay) = pts[j];
+            var (bx, by) = pts[i];
+            var len = Math.Sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+            if (len < 1e-6) continue;
+            double nx = -(by - ay) / len, ny = (bx - ax) / len;
+            // nach außen zeigen lassen
+            if (Geometry2D.PointInPolygon(pts, (ax + bx) / 2 + nx * 0.5, (ay + by) / 2 + ny * 0.5)) { nx = -nx; ny = -ny; }
+            mud.Quad(P(ax, ay, 0.85), P(bx, by, 0.85), P(bx + nx * w * 0.4, by + ny * w * 0.4, 0.6), P(ax + nx * w * 0.4, ay + ny * w * 0.4, 0.6));
+            bank.Quad(P(ax + nx * w * 0.4, ay + ny * w * 0.4, 0.6), P(bx + nx * w * 0.4, by + ny * w * 0.4, 0.6), P(bx + nx * w, by + ny * w, 0.15), P(ax + nx * w, ay + ny * w, 0.15));
+        }
+    }
+
     private void Building(SceneryItem s)
     {
         var o = s.Outline();
+        // Auf dem Hügel: auf die tiefste Ecke stellen, bergseitig steckt das Haus im Hang
+        var ground = o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y));
+        Vec3 B(double x, double y, double z) => P(x, y, z + ground);
         var wall = s.Height * 0.68;
         var walls = Mesh(new Rgb(0xE4, 0xD6, 0xBE));
         // Wände
         for (int i = 0, j = 3; i < 4; j = i++)
-            walls.Quad(P(o[j].X, o[j].Y, 0), P(o[i].X, o[i].Y, 0), P(o[i].X, o[i].Y, wall), P(o[j].X, o[j].Y, wall));
+            walls.Quad(B(o[j].X, o[j].Y, 0), B(o[i].X, o[i].Y, 0), B(o[i].X, o[i].Y, wall), B(o[j].X, o[j].Y, wall));
         // Fenster als schmale Bänder vor den Wänden
         var win = Mesh(WindowColor, SurfaceKind.Window);
         for (int i = 0, j = 3; i < 4; j = i++)
@@ -149,8 +259,8 @@ public sealed class Scene3DModel
             {
                 double t0 = (k + 0.3) / n, t1 = (k + 0.7) / n;
                 foreach (var (z0, z1) in new[] { (wall * 0.25, wall * 0.45), (wall * 0.6, wall * 0.8) })
-                    win.Quad(P(ax + (bx - ax) * t0 + nx, ay + (by - ay) * t0 + ny, z0), P(ax + (bx - ax) * t1 + nx, ay + (by - ay) * t1 + ny, z0),
-                             P(ax + (bx - ax) * t1 + nx, ay + (by - ay) * t1 + ny, z1), P(ax + (bx - ax) * t0 + nx, ay + (by - ay) * t0 + ny, z1));
+                    win.Quad(B(ax + (bx - ax) * t0 + nx, ay + (by - ay) * t0 + ny, z0), B(ax + (bx - ax) * t1 + nx, ay + (by - ay) * t1 + ny, z0),
+                             B(ax + (bx - ax) * t1 + nx, ay + (by - ay) * t1 + ny, z1), B(ax + (bx - ax) * t0 + nx, ay + (by - ay) * t0 + ny, z1));
             }
         }
         // Satteldach entlang der längeren Seite
@@ -160,40 +270,89 @@ public sealed class Scene3DModel
         var (r0, r1) = s.Width >= s.Depth ? (Mid(o[0], o[3]), Mid(o[1], o[2])) : (Mid(o[0], o[1]), Mid(o[3], o[2]));
         if (s.Width >= s.Depth)
         {
-            roof.Quad(P(o[0].X, o[0].Y, wall), P(o[1].X, o[1].Y, wall), P(r1.X, r1.Y, top), P(r0.X, r0.Y, top));
-            roof.Quad(P(o[2].X, o[2].Y, wall), P(o[3].X, o[3].Y, wall), P(r0.X, r0.Y, top), P(r1.X, r1.Y, top));
-            walls.Triangle(P(o[0].X, o[0].Y, wall), P(r0.X, r0.Y, top), P(o[3].X, o[3].Y, wall));
-            walls.Triangle(P(o[1].X, o[1].Y, wall), P(r1.X, r1.Y, top), P(o[2].X, o[2].Y, wall));
+            roof.Quad(B(o[0].X, o[0].Y, wall), B(o[1].X, o[1].Y, wall), B(r1.X, r1.Y, top), B(r0.X, r0.Y, top));
+            roof.Quad(B(o[2].X, o[2].Y, wall), B(o[3].X, o[3].Y, wall), B(r0.X, r0.Y, top), B(r1.X, r1.Y, top));
+            walls.Triangle(B(o[0].X, o[0].Y, wall), B(r0.X, r0.Y, top), B(o[3].X, o[3].Y, wall));
+            walls.Triangle(B(o[1].X, o[1].Y, wall), B(r1.X, r1.Y, top), B(o[2].X, o[2].Y, wall));
         }
         else
         {
-            roof.Quad(P(o[1].X, o[1].Y, wall), P(o[2].X, o[2].Y, wall), P(r1.X, r1.Y, top), P(r0.X, r0.Y, top));
-            roof.Quad(P(o[3].X, o[3].Y, wall), P(o[0].X, o[0].Y, wall), P(r0.X, r0.Y, top), P(r1.X, r1.Y, top));
-            walls.Triangle(P(o[0].X, o[0].Y, wall), P(r0.X, r0.Y, top), P(o[1].X, o[1].Y, wall));
-            walls.Triangle(P(o[3].X, o[3].Y, wall), P(r1.X, r1.Y, top), P(o[2].X, o[2].Y, wall));
+            roof.Quad(B(o[1].X, o[1].Y, wall), B(o[2].X, o[2].Y, wall), B(r1.X, r1.Y, top), B(r0.X, r0.Y, top));
+            roof.Quad(B(o[3].X, o[3].Y, wall), B(o[0].X, o[0].Y, wall), B(r0.X, r0.Y, top), B(r1.X, r1.Y, top));
+            walls.Triangle(B(o[0].X, o[0].Y, wall), B(r0.X, r0.Y, top), B(o[1].X, o[1].Y, wall));
+            walls.Triangle(B(o[3].X, o[3].Y, wall), B(r1.X, r1.Y, top), B(o[2].X, o[2].Y, wall));
         }
     }
+
+    private static readonly Rgb[] Leaves = [new(0x3E, 0x7A, 0x32), new(0x4F, 0x8C, 0x3A), new(0x5E, 0x94, 0x3C), new(0x36, 0x6E, 0x2C)];
+    private static readonly Rgb[] Needles = [new(0x2A, 0x58, 0x2E), new(0x32, 0x64, 0x34), new(0x26, 0x4E, 0x2A)];
+
+    /// <summary>Laubbaum mit runder, unregelmäßiger Krone oder Nadelbaum aus gestaffelten Kegeln (fest je Baum).</summary>
+    /// <summary>Nadelbaum oder Laubbaum – fest je Baum, gleich im Gleisplan und in 3D.</summary>
+    public static bool IsConifer(SceneryItem t) => Noise(t.Id, 3) < 0.35;
 
     private void Tree(SceneryItem t)
     {
         var r = t.Width / 2;
-        var trunkH = t.Height * 0.3;
-        Mesh(new Rgb(0x6B, 0x4A, 0x2F)).Box(P(t.X - r * 0.12, t.Y - r * 0.12, 0), P(t.X + r * 0.12, t.Y + r * 0.12, trunkH));
-        var crown = Mesh(new Rgb(0x3E, 0x7A, 0x32));
-        const int n = 10;
-        var apex = P(t.X, t.Y, t.Height);
-        for (var i = 0; i < n; i++)
+        var z0 = TerrainField.GroundAt(_plan, t.X, t.Y);
+        var conifer = IsConifer(t);
+        var trunk = Mesh(new Rgb(0x5E, 0x44, 0x2E));
+        if (conifer)
         {
-            double a0 = i * 2 * Math.PI / n, a1 = (i + 1) * 2 * Math.PI / n;
-            var b0 = P(t.X + r * Math.Cos(a0), t.Y + r * Math.Sin(a0), trunkH * 0.8);
-            var b1 = P(t.X + r * Math.Cos(a1), t.Y + r * Math.Sin(a1), trunkH * 0.8);
-            crown.Triangle(b0, apex, b1);
-            crown.Triangle(b1, P(t.X, t.Y, trunkH * 0.8), b0);
+            var trunkH = t.Height * 0.18;
+            trunk.Box(P(t.X - r * 0.1, t.Y - r * 0.1, z0), P(t.X + r * 0.1, t.Y + r * 0.1, z0 + trunkH));
+            const int tiers = 3;
+            for (var k = 0; k < tiers; k++)
+            {
+                var b = z0 + trunkH * 0.8 + (t.Height - trunkH) * k * 0.28;
+                var top = k == tiers - 1 ? z0 + t.Height : b + (t.Height - trunkH) * 0.45;
+                Cone(Mesh(Needles[(int)(Noise(t.Id, k, 5) * Needles.Length) % Needles.Length]), t.X, t.Y, b, top, r * (1 - k * 0.24), 12);
+            }
+            return;
+        }
+        var stem = t.Height * 0.38;
+        trunk.Box(P(t.X - r * 0.1, t.Y - r * 0.1, z0), P(t.X + r * 0.1, t.Y + r * 0.1, z0 + stem));
+        // Krone aus mehreren Kugeln
+        var blobs = 3 + (int)(Noise(t.Id, 9) * 3);
+        for (var k = 0; k < blobs; k++)
+        {
+            var a = Noise(t.Id, k, 1) * Math.PI * 2;
+            var off = k == 0 ? 0 : r * 0.42;
+            var size = k == 0 ? r * 0.85 : r * (0.5 + Noise(t.Id, k, 2) * 0.25);
+            var cz = z0 + stem + (t.Height - stem) * (k == 0 ? 0.5 : 0.35 + Noise(t.Id, k, 3) * 0.35);
+            Blob(Mesh(Leaves[(int)(Noise(t.Id, k, 4) * Leaves.Length) % Leaves.Length]), t.X + Math.Cos(a) * off, t.Y + Math.Sin(a) * off, cz, size, Math.Min(size, (t.Height - stem) * 0.5));
         }
     }
 
+    private void Cone(SceneMesh m, double x, double y, double z0, double z1, double r, int n)
+    {
+        var apex = P(x, y, z1);
+        for (var i = 0; i < n; i++)
+        {
+            double a0 = i * 2 * Math.PI / n, a1 = (i + 1) * 2 * Math.PI / n;
+            var b0 = P(x + r * Math.Cos(a0), y + r * Math.Sin(a0), z0);
+            var b1 = P(x + r * Math.Cos(a1), y + r * Math.Sin(a1), z0);
+            m.Triangle(b0, apex, b1);
+            m.Triangle(b1, P(x, y, z0), b0);
+        }
+    }
+
+    /// <summary>Abgeflachte Kugel aus Breiten- und Längenkreisen.</summary>
+    private void Blob(SceneMesh m, double x, double y, double z, double r, double rz)
+    {
+        const int lat = 5, lon = 9;
+        Vec3 At(int i, int j)
+        {
+            double th = Math.PI * i / lat, ph = 2 * Math.PI * j / lon;
+            return P(x + r * Math.Sin(th) * Math.Cos(ph), y + r * Math.Sin(th) * Math.Sin(ph), z + rz * Math.Cos(th));
+        }
+        for (var i = 0; i < lat; i++)
+            for (var j = 0; j < lon; j++)
+                m.Quad(At(i, j), At(i + 1, j), At(i + 1, j + 1), At(i, j + 1));
+    }
+
     /// <summary>Punkte entlang eines Abschnitts mit Höhe.</summary>
-    private static List<(double X, double Y, double Z, double H)> Samples(PlacedPiece p, int legIndex, Leg leg, double step)
+    private static List<(double X, double Y, double Z, double H)> Samples(PlacedPiece p, int legIndex, Leg leg, double step, double lift)
     {
         var n = leg.IsArc ? Math.Max(2, (int)Math.Ceiling(leg.TrackLength / step)) : 1;
         var list = new List<(double, double, double, double)>();
@@ -201,7 +360,7 @@ public sealed class Scene3DModel
         {
             var t = (double)i / n;
             var q = leg.At(t);
-            list.Add((q.X, q.Y, p.HeightAt(legIndex, t), q.HeadingRad));
+            list.Add((q.X, q.Y, p.HeightAt(legIndex, t) + lift, q.HeadingRad));
         }
         return list;
     }
@@ -210,14 +369,19 @@ public sealed class Scene3DModel
     {
         var g = _g;
         var legs = p.WorldLegs();
-        var ballast = Mesh(new Rgb(0x9C, 0x92, 0x84));
-        var sleeper = Mesh(new Rgb(0x5A, 0x48, 0x38));
+        var lift = RailTop(g);
+        // Schotter in zwei Tönen abwechselnd, Schwellen aus Holz in drei Tönen, Schienen: blanker Kopf, rostige Flanken
+        var ballastLight = Mesh(new Rgb(0x9E, 0x96, 0x8A));
+        var ballastDark = Mesh(new Rgb(0x86, 0x7E, 0x74));
+        var ballastSide = Mesh(new Rgb(0x7C, 0x74, 0x6A));
+        var sleeperTones = new[] { Mesh(new Rgb(0x4E, 0x3E, 0x30)), Mesh(new Rgb(0x5C, 0x4A, 0x3A)), Mesh(new Rgb(0x46, 0x3A, 0x30)) };
         var rail = Mesh(RailColor, SurfaceKind.Rail);
+        var railSide = Mesh(RailSideColor);
         var pier = Mesh(new Rgb(0xA8, 0xA4, 0x9C));
         var tunnel = Mesh(new Rgb(0x7A, 0x72, 0x66));
         for (var li = 0; li < legs.Count; li++)
         {
-            var pts = Samples(p, li, legs[li], g * 1.5);
+            var pts = Samples(p, li, legs[li], g * 1.5, lift);
             for (var i = 0; i + 1 < pts.Count; i++)
             {
                 var a = pts[i];
@@ -225,20 +389,23 @@ public sealed class Scene3DModel
                 static (double X, double Y) N(double h) => (-Math.Sin(h), Math.Cos(h));
                 var na = N(a.H);
                 var nb = N(b.H);
-                double bt = 0.22 * g, bb = 0.5 * g;   // Schotter oben/unten unter Schienenoberkante
+                double bt = 0.24 * g, bb = lift;      // Schotter oben/unten unter Schienenoberkante
                 double wt = 1.05 * g, wb = 1.45 * g;  // halbe Breite oben/unten
                 static Vec3 At((double X, double Y, double Z, double H) s, (double X, double Y) n, double off, double dz) => P(s.X + n.X * off, s.Y + n.Y * off, s.Z - dz);
+                var ballast = Noise(p.Id, li, i) < 0.5 ? ballastLight : ballastDark;
                 ballast.Quad(At(a, na, -wt, bt), At(b, nb, -wt, bt), At(b, nb, wt, bt), At(a, na, wt, bt));
-                ballast.Quad(At(a, na, wt, bt), At(b, nb, wt, bt), At(b, nb, wb, bb), At(a, na, wb, bb));
-                ballast.Quad(At(a, na, -wb, bb), At(b, nb, -wb, bb), At(b, nb, -wt, bt), At(a, na, -wt, bt));
+                ballastSide.Quad(At(a, na, wt, bt), At(b, nb, wt, bt), At(b, nb, wb, bb), At(a, na, wb, bb));
+                ballastSide.Quad(At(a, na, -wb, bb), At(b, nb, -wb, bb), At(b, nb, -wt, bt), At(a, na, -wt, bt));
                 if (a.Z > bb + 1)
-                    ballast.Quad(At(a, na, -wb, bb), At(a, na, wb, bb), At(b, nb, wb, bb), At(b, nb, -wb, bb));
+                    ballastSide.Quad(At(a, na, -wb, bb), At(a, na, wb, bb), At(b, nb, wb, bb), At(b, nb, -wb, bb));
                 foreach (var side in new[] { -0.5, 0.5 })
                 {
-                    double hw = 0.07 * g, rh = 0.16 * g;
+                    double hw = 0.06 * g, rh = 0.16 * g, fw = 0.11 * g;
                     rail.Quad(At(a, na, side * g - hw, 0), At(b, nb, side * g - hw, 0), At(b, nb, side * g + hw, 0), At(a, na, side * g + hw, 0));
-                    rail.Quad(At(a, na, side * g - hw, rh), At(b, nb, side * g - hw, rh), At(b, nb, side * g - hw, 0), At(a, na, side * g - hw, 0));
-                    rail.Quad(At(a, na, side * g + hw, 0), At(b, nb, side * g + hw, 0), At(b, nb, side * g + hw, rh), At(a, na, side * g + hw, rh));
+                    railSide.Quad(At(a, na, side * g - hw, rh), At(b, nb, side * g - hw, rh), At(b, nb, side * g - hw, 0), At(a, na, side * g - hw, 0));
+                    railSide.Quad(At(a, na, side * g + hw, 0), At(b, nb, side * g + hw, 0), At(b, nb, side * g + hw, rh), At(a, na, side * g + hw, rh));
+                    // Schienenfuß
+                    railSide.Quad(At(a, na, side * g - fw, rh), At(b, nb, side * g - fw, rh), At(b, nb, side * g + fw, rh), At(a, na, side * g + fw, rh));
                 }
                 if (p.Tunnel)
                 {
@@ -261,26 +428,34 @@ public sealed class Scene3DModel
                 {
                     var t = (i + 0.5) / n;
                     var q = legs[li].At(t);
-                    var z = p.HeightAt(li, t);
+                    var z = p.HeightAt(li, t) + lift;
                     double cx = Math.Cos(q.HeadingRad), cy = Math.Sin(q.HeadingRad), nx = -cy, ny = cx;
-                    double hl = 0.12 * g, hw = 0.95 * g;
+                    double hl = 0.13 * g, hw = 0.92 * g;
                     var c = new[] { (-hl, -hw), (hl, -hw), (hl, hw), (-hl, hw) }.Select(o => (q.X + cx * o.Item1 + nx * o.Item2, q.Y + cy * o.Item1 + ny * o.Item2)).ToArray();
-                    sleeper.Quad(P(c[0].Item1, c[0].Item2, z - 0.16 * g), P(c[1].Item1, c[1].Item2, z - 0.16 * g), P(c[2].Item1, c[2].Item2, z - 0.16 * g), P(c[3].Item1, c[3].Item2, z - 0.16 * g));
+                    var sleeper = sleeperTones[(int)(Noise(p.Id, li, i + 1000) * 3) % 3];
+                    double zt = z - 0.16 * g, zb = z - 0.25 * g;
+                    sleeper.Quad(P(c[0].Item1, c[0].Item2, zt), P(c[1].Item1, c[1].Item2, zt), P(c[2].Item1, c[2].Item2, zt), P(c[3].Item1, c[3].Item2, zt));
+                    for (var k = 0; k < 4; k++)
+                    {
+                        var (e0, e1) = (c[k], c[(k + 1) % 4]);
+                        sleeper.Quad(P(e0.Item1, e0.Item2, zb), P(e1.Item1, e1.Item2, zb), P(e1.Item1, e1.Item2, zt), P(e0.Item1, e0.Item2, zt));
+                    }
                 }
             }
             // Pfeiler unter hochliegenden Gleisen
             var mid = legs[li].At(0.5);
             var zm = p.HeightAt(li, 0.5);
-            if (zm > g * 1.5 && !p.Tunnel)
+            var below = TerrainField.GroundAt(_plan, mid.X, mid.Y);
+            if (zm - below > g * 1.5 && !p.Tunnel)
             {
                 var w = g * 0.6;
-                pier.Box(P(mid.X - w, mid.Y - w, 0), P(mid.X + w, mid.Y + w, zm - 0.5 * g));
+                pier.Box(P(mid.X - w, mid.Y - w, below), P(mid.X + w, mid.Y + w, zm));
             }
         }
         if (p.Def.Kind == PieceKind.Buffer)
         {
             var e = legs[0].End;
-            var z = p.Height;
+            var z = p.Height + lift;
             Mesh(new Rgb(0xC4, 0x2B, 0x1C)).Box(P(e.X - g * 0.5, e.Y - g * 0.5, z), P(e.X + g * 0.5, e.Y + g * 0.5, z + g * 0.8));
         }
     }
@@ -289,8 +464,8 @@ public sealed class Scene3DModel
     private void SignalModel(Signal s)
     {
         var (x, y, heading) = Electrics.SignalPose(_plan, s);
-        var z = _plan.Find(s.PieceId)?.Height ?? 0;
         var g = _g;
+        var z = (_plan.Find(s.PieceId)?.Height ?? 0) + RailTop(g);
         var face = SignalFace.For(s.Type);
         var low = s.Type == SignalType.Sperrsignal;
         // Schirmbreite und Höhe der Schirmoberkante über der Schiene
@@ -414,10 +589,11 @@ public sealed class RidePath
     /// <summary>Kamera beim Mitfahren: Augpunkt und Blickziel in 3D-Koordinaten (X, Höhe, Z).</summary>
     public (Vec3 Eye, Vec3 Target) Camera(double s, double gauge)
     {
+        // Augpunkt etwa in Führerstandshöhe, Blick leicht nach unten auf das Gleis vor dem Zug
         var eye = PointAt(s);
-        var ahead = PointAt(s + gauge * 14);
-        var eyeHeight = gauge * 2.6;
-        return (new Vec3(eye.X, eye.Z + eyeHeight, eye.Y), new Vec3(ahead.X, ahead.Z + eyeHeight * 0.85, ahead.Y));
+        var ahead = PointAt(s + gauge * 10);
+        var rail = Scene3DModel.RailTop(gauge);
+        return (new Vec3(eye.X, eye.Z + rail + gauge * 1.9, eye.Y), new Vec3(ahead.X, ahead.Z + rail + gauge * 0.55, ahead.Y));
     }
 
     public static RidePath Build(LayoutPlan plan, int? startPiece)

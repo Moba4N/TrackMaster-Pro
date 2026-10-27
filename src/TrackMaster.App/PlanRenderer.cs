@@ -58,11 +58,69 @@ public sealed class PlanScene
 
     public static Brush TerrainBrush(double height)
     {
-        var t = Math.Clamp(height / 250, 0, 1);
-        byte L(byte a, byte b) => (byte)(a + (b - a) * t);
-        var b = new SolidColorBrush(Color.FromArgb(0xE0, L(0xB4, 0x8A), L(0xC9, 0x9A), L(0x95, 0x62)));
+        var c = TerrainField.TintAt(height);
+        var b = new SolidColorBrush(Color.FromArgb(0xE8, c.R, c.G, c.B));
         b.Freeze();
         return b;
+    }
+
+    private static readonly Brush ShoreBrush = Frozen(new SolidColorBrush(Color.FromArgb(0xC0, 0xB8, 0xA4, 0x78)));
+    private static readonly Pen ContourPen = FrozenPen(new SolidColorBrush(Color.FromArgb(0x90, 0x8A, 0x72, 0x50)), 1);
+    private static readonly Brush ShadowBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x38, 0x20, 0x28, 0x18)));
+    private static readonly Brush ConiferBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x2F, 0x62, 0x30)));
+    private static readonly Brush LeafHighlight = Frozen(new SolidColorBrush(Color.FromArgb(0x90, 0x8C, 0xC0, 0x5C)));
+
+    private static Pen FrozenPen(Brush b, double w)
+    {
+        var p = new Pen(b, w);
+        p.Freeze();
+        return p;
+    }
+
+    /// <summary>Hügel wie auf einer Landkarte: Höhenstufen mit zunehmend erdigem Farbton und Höhenlinien.</summary>
+    private static void DrawHill(DrawingContext dc, SceneryItem s, double z, Pen? selected)
+    {
+        var outline = Polygon(s.Points);
+        var f = TerrainField.For(s);
+        dc.DrawGeometry(TerrainBrush(0), null, outline);
+        var contour = new Pen(ContourPen.Brush, 0.9 / z);
+        var index = new Pen(ContourPen.Brush, 1.8 / z);
+        var n = 0;
+        foreach (var (level, loops) in f.Layers())
+        {
+            n++;
+            var geo = new StreamGeometry { FillRule = FillRule.EvenOdd };
+            using (var ctx = geo.Open())
+                foreach (var loop in loops)
+                {
+                    ctx.BeginFigure(new Point(loop[0].X, loop[0].Y), true, true);
+                    for (var i = 1; i < loop.Count; i++) ctx.LineTo(new Point(loop[i].X, loop[i].Y), true, true);
+                }
+            geo.Freeze();
+            dc.DrawGeometry(TerrainBrush(level), n % 5 == 0 ? index : contour, geo);
+        }
+        dc.DrawGeometry(null, selected ?? new Pen(TerrainStroke, 1.2 / z) { DashStyle = DashStyles.Dash }, outline);
+    }
+
+    /// <summary>Baum von oben: Schatten, Krone mit Lichtkante; Nadelbäume dunkler mit Zweigen.</summary>
+    private static void DrawTree(DrawingContext dc, SceneryItem t, double z, Pen? selected)
+    {
+        var r = t.Width / 2;
+        var c = new Point(t.X, t.Y);
+        dc.DrawEllipse(ShadowBrush, null, new Point(t.X + r * 0.3, t.Y + r * 0.3), r, r);
+        if (Scene3DModel.IsConifer(t))
+        {
+            dc.DrawEllipse(ConiferBrush, selected ?? new Pen(TreeStroke, 1 / z), c, r, r);
+            var twig = new Pen(TreeStroke, Math.Max(r * 0.08, 0.6 / z));
+            for (var k = 0; k < 8; k++)
+            {
+                var a = k * Math.PI / 4;
+                dc.DrawLine(twig, c, new Point(t.X + Math.Cos(a) * r * 0.85, t.Y + Math.Sin(a) * r * 0.85));
+            }
+            return;
+        }
+        dc.DrawEllipse(TreeBrush, selected ?? new Pen(TreeStroke, 1 / z), c, r, r);
+        dc.DrawEllipse(LeafHighlight, null, new Point(t.X - r * 0.25, t.Y - r * 0.25), r * 0.5, r * 0.5);
     }
 
     private static readonly Brush WaterBrush = Frozen(new SolidColorBrush(Color.FromArgb(0xE0, 0x86, 0xBC, 0xE6)));
@@ -123,9 +181,13 @@ public sealed class PlanScene
         if (o.Scenery)
         {
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Terrain).OrderBy(s => s.Height))
-                dc.DrawGeometry(TerrainBrush(s.Height), s.Id == o.SelectedObject ? selPen : new Pen(TerrainStroke, 1.2 / z) { DashStyle = DashStyles.Dash }, Polygon(s.Points));
+                DrawHill(dc, s, z, s.Id == o.SelectedObject ? selPen : null);
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Water))
-                dc.DrawGeometry(WaterBrush, s.Id == o.SelectedObject ? selPen : new Pen(WaterStroke, 1.5 / z), Polygon(s.Points));
+            {
+                var water = Polygon(s.Points);
+                dc.DrawGeometry(null, new Pen(ShoreBrush, Math.Max(g * 1.4, 3 / z)) { LineJoin = PenLineJoin.Round }, water);
+                dc.DrawGeometry(WaterBrush, s.Id == o.SelectedObject ? selPen : new Pen(WaterStroke, 1.5 / z), water);
+            }
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Building))
             {
                 var outline = s.Outline();
@@ -167,7 +229,7 @@ public sealed class PlanScene
 
         if (o.Scenery)
             foreach (var t in plan.Scenery.Where(s => s.Kind == SceneryKind.Tree))
-                dc.DrawEllipse(TreeBrush, t.Id == o.SelectedObject ? selPen : new Pen(TreeStroke, 1 / z), new Point(t.X, t.Y), t.Width / 2, t.Width / 2);
+                DrawTree(dc, t, z, t.Id == o.SelectedObject ? selPen : null);
 
         DrawElectrics(dc, z, o);
     }

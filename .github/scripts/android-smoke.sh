@@ -20,6 +20,9 @@ crashed() {
 shot() {
   # $1 = Name, $2 = Wartezeit
   sleep "$2"
+  # Hinweise des Emulators selbst (z. B. „System UI isn't responding“) schließen, sie gehören nicht zur App
+  adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS > /dev/null 2>&1 || true
+  sleep 1
   adb exec-out screencap -p > "$OUT/android-$1.png"
   if crashed "$1"; then fail=1; fi
 }

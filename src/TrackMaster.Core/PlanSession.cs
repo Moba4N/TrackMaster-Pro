@@ -647,19 +647,6 @@ public sealed class PlanSession
         return item;
     }
 
-    /// <summary>Setzt ein Gebäude nach einer Vorlage mit ihrem Grundmaß und ihrer Höhe an die Stelle (Mitte).</summary>
-    public SceneryItem AddBuilding(BuildingKit kit, double x, double y)
-    {
-        var item = AddScenery(new SceneryItem
-        {
-            Kind = SceneryKind.Building, X = Math.Round(x), Y = Math.Round(y),
-            Width = kit.Length, Depth = kit.Width, Height = kit.Height,
-            Name = BuildingKit.Neutral ? kit.Name : $"{kit.Name} ({kit.Maker} {kit.Number})",
-        });
-        Say($"„{kit.Name}“ gesetzt ({kit.Details}). Ziehen verschiebt, Drehung steht in den Eigenschaften.");
-        return item;
-    }
-
     /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
     public void RemoveObject(int id)
     {

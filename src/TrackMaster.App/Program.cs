@@ -35,7 +35,7 @@ public static class Program
             AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteError(screenshot, e.ExceptionObject as Exception);
         }
 
-        if (screenshot is not null && args.Contains("--neutral")) { Core.Catalog.UseNeutralNames(); Core.BuildingKit.Neutral = true; }
+        if (screenshot is not null && args.Contains("--neutral")) Core.Catalog.UseNeutralNames();
 
         MainWindow window;
         try

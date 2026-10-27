@@ -115,7 +115,6 @@ jobs:
           Hb "darstellung" @("--dialog", "appearance")
           Hb "ueber" @("--dialog", "about")
           Hb "frei-drehen" @("--select", "--dialog", "rotFree")
-          Hb "gebaeudevorlage" @("--tab", "Gelände", "--dialog", "buildingKit")
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh

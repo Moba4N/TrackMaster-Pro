@@ -6,7 +6,7 @@ const fs = require('fs');
 const html = 'file://' + path.resolve(__dirname, 'handbuch.html');
 const out = process.argv[2] || path.resolve(__dirname, 'Handbuch.pdf');
 const footer = `<div style="width:100%;font-family:'Segoe UI','Noto Sans','DejaVu Sans',sans-serif;font-size:7.5pt;color:#5B6470;padding:0 20mm;display:flex;justify-content:space-between">
-  <span>TrackMaster Pro 1.3 · Handbuch</span><span><span class="pageNumber"></span></span></div>`;
+  <span>TrackMaster Pro 1.3.1 · Handbuch</span><span><span class="pageNumber"></span></span></div>`;
 async function render(page, pages, file) {
   await page.addInitScript(p => { window.PAGES = p; }, pages);
   await page.goto(html, { waitUntil: 'networkidle' });

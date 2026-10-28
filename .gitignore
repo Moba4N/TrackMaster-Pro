@@ -10,3 +10,4 @@ TestResults/
 *.lic
 docs/handbuch/img/
 docs/handbuch/img-en/
+__pycache__/

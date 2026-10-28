@@ -76,6 +76,8 @@ public static class Icons
         ["Text"] = "M4 6V4h16v2M12 4v16M9 20h6",
         ["Ruler"] = "M3 8h18v8H3zM7 8v4M11 8v3M15 8v4M19 8v3",
         ["Paste"] = "M9 4h6v3H9zM7 5H5v16h14V5h-2M9 12h6M9 16h4",
+        ["Route"] = "M5 19V9a4 4 0 0 1 4-4h10M15 1l4 4-4 4M5 19h4M5 23v-4",
+        ["Export"] = "M12 3v12M7 8l5-5 5 5M4 15v5h16v-5",
         ["Update"] = "M12 3v12M7 10l5 5 5-5M5 21h14",
     };
 

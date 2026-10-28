@@ -220,6 +220,8 @@ public sealed class MainActivity : Activity
         Add("elecCheck", "Elektrik prüfen", ShowElectricCheck);
         Add("addresses", "Decoder und Adressen", () => Dialogs.ShowAddresses(this, _session, ShowWiring));
         Add("wiring", "Kabelplan", ShowWiring);
+        Add("routes", "Fahrstraßen", ShowRoutes);
+        Pro("controlExport", "Export für Steuerprogramme", () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
         Add("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
         Add("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
         Add("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
@@ -320,7 +322,7 @@ public sealed class MainActivity : Activity
         ("Gelände", [("Anlagenplatte…", "board", false), ("Gelände formen", "toolTerrain", true), ("Gewässer", "toolWater", true), ("Gebäude", "toolBuilding", true),
                      ("Vegetation", "toolTree", true), ("Gelände zeigen", "scenery", true)]),
         ("Elektrik", [("Einspeisung", "toolFeeder", true), ("Trennstelle", "toolIsolation", true), ("Signal setzen…", "toolSignal", true),
-                      ("Adressen…", "addresses", false), ("Stromkreise zeigen", "sections", true), ("Elektrik prüfen", "elecCheck", false), ("Kabelplan", "wiring", false)]),
+                      ("Adressen…", "addresses", false), ("Stromkreise zeigen", "sections", true), ("Elektrik prüfen", "elecCheck", false), ("Kabelplan", "wiring", false), ("Fahrstraßen", "routes", false), ("Export Steuerung", "controlExport", false)]),
         ("Ansicht", [("Einpassen", "fit", false), ("Raster", "grid", true), ("Gleisenden", "ends", true), ("Beschriftung", "labels", true),
                      ("Höhen", "heights", true), ("Einrasten", "snap", true), ("Ansicht ↺ 15°", "viewRotL", false), ("Ansicht ↻ 15°", "viewRotR", false),
                      ("Gerade ausrichten", "viewReset", false), ("Ansicht drehen…", "viewAngle", false), ("Design und Schrift…", "appearance", false)]),
@@ -653,6 +655,15 @@ public sealed class MainActivity : Activity
         Dialogs.ShowText(this, "Kabelplan", text, "Als Text speichern", () =>
         {
             if (_session.RequirePro("Kabelplan")) Export(text, "text/plain", $"{SafeName} – Kabelplan.txt");
+        });
+    }
+
+    private void ShowRoutes()
+    {
+        var routes = TrainRoutes.Find(_session.Plan);
+        Dialogs.ShowText(this, "Fahrstraßen", TrainRoutes.ToText(_session.Plan, routes), "Als CSV speichern", () =>
+        {
+            if (_session.RequirePro("Fahrstraßen speichern")) Export(TrainRoutes.ToCsv(routes), "text/csv", $"{SafeName} – Fahrstraßen.csv");
         });
     }
 

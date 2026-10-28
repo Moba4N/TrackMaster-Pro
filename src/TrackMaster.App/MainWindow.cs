@@ -163,6 +163,8 @@ public sealed class MainWindow : Window
         }
         Add("addresses", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
         Add("wiring", ShowWiring);
+        Add("routes", ShowRoutes);
+        Pro("controlExport", "Export für Steuerprogramme", () => ExportTo("Export für Steuerprogramme", "JSON-Datei (*.json)|*.json", $"{SafeName} – Steuerung.json", TrainRoutes.ToJson(Session.Plan)));
         Add("view3d", () => Open3D(View3DMode.Orbit));
         Add("ride", () => Open3D(View3DMode.Ride));
         Add("daytime", () => Open3D(View3DMode.Evening));
@@ -545,7 +547,9 @@ public sealed class MainWindow : Window
             Group("Digital",
                 Large("Decoder", "Chip", "addresses", "Digitaladressen für Weichen und Signale vergeben."),
                 signalMenu,
-                Small("Kabelplan", "Wire", "wiring", "Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste."))));
+                Small("Kabelplan", "Wire", "wiring", "Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste."),
+                Small("Fahrstraßen", "Route", "routes", "Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen."),
+                Small("Export Steuerung", "Export", "controlExport", "Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme."))));
 
         Ribbon.Items.Add(Tab("Ansicht",
             Group("Zoom", Large("Ganze Anlage", "Fit", "fit", "Taste 0"), Small("Vergrößern", "ZoomIn", "zoomIn", "+"), Small("Verkleinern", "ZoomOut", "zoomOut", "-")),
@@ -999,6 +1003,13 @@ public sealed class MainWindow : Window
         var text = Electrics.WiringPlan(Session.Plan);
         Dialogs.ShowText(this, "Kabelplan", text, "Als Textdatei speichern…",
             () => { if (Session.RequirePro("Kabelplan speichern")) ExportTo("Kabelplan speichern", "Textdatei (*.txt)|*.txt", $"{SafeName} – Kabelplan.txt", text); });
+    }
+
+    private void ShowRoutes()
+    {
+        var routes = TrainRoutes.Find(Session.Plan);
+        Dialogs.ShowText(this, "Fahrstraßen", TrainRoutes.ToText(Session.Plan, routes), "Als CSV speichern…",
+            () => { if (Session.RequirePro("Fahrstraßen speichern")) ExportTo("Fahrstraßen speichern", "CSV-Datei (*.csv)|*.csv", $"{SafeName} – Fahrstraßen.csv", TrainRoutes.ToCsv(routes)); });
     }
 
     private void Open3D(View3DMode mode)

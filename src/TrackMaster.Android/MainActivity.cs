@@ -94,7 +94,7 @@ public sealed class MainActivity : Activity
                 Run("props");
                 break;
             default:
-                if (demo.StartsWith("tab:")) { _tab = demo[4..]; BuildActions(); }
+                if (demo.StartsWith("tab:")) { _tab = Lang.T(demo[4..]); BuildActions(); }
                 break;
         }
     }
@@ -487,7 +487,7 @@ public sealed class MainActivity : Activity
             }
         _actions.RemoveAllViews();
         _toggles.Clear();
-        var items = Ribbon.First(r => r.Tab == _tab).Items;
+        var items = (Ribbon.FirstOrDefault(r => r.Tab == _tab).Items ?? Ribbon[0].Items);
         foreach (var (label, command, toggle) in items)
         {
             var id = command;

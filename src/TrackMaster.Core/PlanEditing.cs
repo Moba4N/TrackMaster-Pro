@@ -209,12 +209,14 @@ public static class PlanEditing
             ConnectorRef? Next(int k) => conn.Find(piece.Id, k)?.Link is { } l && ids.Contains(l.PieceId) && !visited.Contains(l.PieceId) ? l : null;
             if (d.Kind == PieceKind.Crossing)
                 exit = entry switch { 0 => 1, 1 => 0, 2 => 3, _ => 2 };
+            else if (d.IsTable)
+                exit = null; // Die Steigung endet an Drehscheibe und Schiebebühne
             else if (entry == 0)
                 exit = Enumerable.Range(1, Math.Max(count - 1, 0)).Cast<int?>().FirstOrDefault(k => Next(k!.Value) is not null) ?? (count > 1 ? 1 : null);
             else
                 exit = 0;
 
-            if (d.Kind is PieceKind.Crossing or PieceKind.Buffer)
+            if (d.Kind is PieceKind.Crossing or PieceKind.Buffer || d.IsTable)
             {
                 if (apply) { piece.Height = z; piece.Grade = 0; }
                 length += d.TrackLength;

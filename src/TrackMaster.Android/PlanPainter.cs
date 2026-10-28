@@ -23,7 +23,11 @@ public sealed class PlanPainter
     private readonly List<Layer> _layers = [];
     private readonly List<(Path Path, Color Color)> _sections = [];
     private readonly Path _selected;
+    private readonly List<TableShape> _tables;
     private readonly Paint _p = new(PaintFlags.AntiAlias);
+    private static readonly Color PitFill = Color.Rgb(0x7A, 0x70, 0x62);
+    private static readonly Color RimFill = Color.Rgb(0xC9, 0xC2, 0xB6);
+    private static readonly Color Deck = Color.Rgb(0x4E, 0x46, 0x3E);
 
     public PlanPainter(LayoutPlan plan, IReadOnlySet<int> selected, bool sections)
     {
@@ -40,6 +44,7 @@ public sealed class PlanPainter
                 grp.Key.Tunnel ? Build(legs, _g * 1.7, -_g * 1.7) : null));
         }
         _selected = Build(plan.Pieces.Where(p => selected.Contains(p.Id)).SelectMany(p => p.WorldLegs()), 0);
+        _tables = plan.Pieces.Where(p => p.Def.IsTable).Select(p => TableShape.Of(p)!).ToList();
         if (sections)
             foreach (var s in Electrics.Sections(plan))
             {
@@ -211,6 +216,31 @@ public sealed class PlanPainter
         foreach (var (path, color) in _sections)
             c.DrawPath(path, Stroke(color, Math.Max(g * 3.6f, 8 * Ui.Density / z)));
 
+        // Drehscheiben und Schiebebühnen: Grube, Ring und Bühne
+        foreach (var t in _tables)
+        {
+            var edge = Math.Max(g * 0.12f, 0.8f * Ui.Density / z);
+            float cx = (float)t.Center.X, cy = (float)t.Center.Y;
+            if (t.Round)
+            {
+                c.DrawCircle(cx, cy, (float)t.RimRadius, Fill(RimFill));
+                c.DrawCircle(cx, cy, (float)t.RimRadius, Stroke(Color.DarkGray, edge));
+                c.DrawCircle(cx, cy, (float)t.PitRadius, Fill(PitFill));
+                c.DrawCircle(cx, cy, (float)t.PitRadius, Stroke(Color.DarkGray, edge));
+            }
+            else
+            {
+                var pit = Polygon(t.Pit);
+                c.DrawPath(pit, Fill(PitFill));
+                c.DrawPath(pit, Stroke(Color.DarkGray, edge));
+            }
+            var (a, b) = (t.BridgeA, t.BridgeB);
+            var bridge = new Leg(a.X, a.Y, Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI, false, Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y)));
+            c.DrawPath(Build([bridge], 0), Stroke(Deck, g * 2.6f));
+            c.DrawPath(Build([bridge], _g / 2, -_g / 2), Stroke(Ui.Rail, Math.Max(g * 0.11f, 0.6f / z)));
+            if (t.Round) c.DrawCircle(cx, cy, g * 0.9f, Fill(Deck));
+        }
+
         foreach (var layer in _layers)
         {
             if (layer.Tunnel)
@@ -377,6 +407,15 @@ public sealed class PlanPainter
         c.Scale(scale, scale);
         c.Translate((float)-(x0 + x1) / 2, (float)-(y0 + y1) / 2);
         using var paint = new Paint(PaintFlags.AntiAlias);
+        if (def.IsTable && TableShape.Of(new PlacedPiece { Key = def.Key }) is { } t)
+        {
+            paint.SetStyle(Paint.Style.Fill);
+            paint.Color = PitFill;
+            if (t.Round) c.DrawCircle((float)t.Center.X, (float)t.Center.Y, (float)t.RimRadius, paint);
+            else c.DrawPath(Polygon(t.Pit), paint);
+            var (a, b) = (t.BridgeA, t.BridgeB);
+            legs = [.. legs, new Leg(a.X, a.Y, Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI, false, Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y)))];
+        }
         paint.SetStyle(Paint.Style.Stroke);
         paint.Color = Ui.Bed;
         paint.StrokeWidth = (float)gauge * 2.4f;

@@ -25,10 +25,11 @@ public sealed class Connectivity
     public IReadOnlyList<ConnectorRef> All { get; }
     public IReadOnlyList<ConnectorRef> Open { get; }
 
-    private Connectivity(List<ConnectorRef> all)
+    /// <summary>Freie Anschlüsse von Drehscheiben und Schiebebühnen sind keine offenen Gleisenden.</summary>
+    private Connectivity(List<ConnectorRef> all, HashSet<int> tables)
     {
         All = all;
-        Open = all.Where(c => c.IsOpen).ToList();
+        Open = all.Where(c => c.IsOpen && !tables.Contains(c.PieceId)).ToList();
     }
 
     public IEnumerable<ConnectorRef> Of(int pieceId) => All.Where(c => c.PieceId == pieceId);
@@ -72,7 +73,7 @@ public sealed class Connectivity
                     }
                 }
         }
-        return new Connectivity(all);
+        return new Connectivity(all, plan.Pieces.Where(p => p.Def.IsTable).Select(p => p.Id).ToHashSet());
     }
 
     public static bool Matches(Pose a, Pose b)

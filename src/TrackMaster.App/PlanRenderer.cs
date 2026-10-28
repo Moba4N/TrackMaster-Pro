@@ -20,6 +20,17 @@ public sealed class PlanScene
     private readonly List<Layer> _layers = [];
     private readonly List<(StreamGeometry Geometry, Brush Brush)> _sections = [];
     private readonly StreamGeometry _selected;
+    private readonly List<TableShape> _tables;
+    private static readonly Brush PitBrush = Frozen(Color.FromRgb(0x7A, 0x70, 0x62));
+    private static readonly Brush RimBrush = Frozen(Color.FromRgb(0xC9, 0xC2, 0xB6));
+    private static readonly Brush DeckBrush = Frozen(Color.FromRgb(0x4E, 0x46, 0x3E));
+
+    private static Brush Frozen(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
 
     public static readonly Color[] SectionColors =
     [
@@ -43,6 +54,7 @@ public sealed class PlanScene
                 g.Key.Tunnel ? TrackDrawing.Build(legs, _gauge * 1.7, -_gauge * 1.7) : null));
         }
         _selected = TrackDrawing.Build(plan.Pieces.Where(p => selected.Contains(p.Id)).SelectMany(p => p.WorldLegs()), 0);
+        _tables = plan.Pieces.Where(p => p.Def.IsTable).Select(p => TableShape.Of(p)!).ToList();
         if (sections)
         {
             var list = Electrics.Sections(plan);
@@ -207,6 +219,8 @@ public sealed class PlanScene
         foreach (var (geo, brush) in _sections)
             dc.DrawGeometry(null, new Pen(brush, Math.Max(g * 3.6, 8 / z)) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, geo);
 
+        foreach (var t in _tables) DrawTable(dc, t, g, z);
+
         foreach (var layer in _layers)
         {
             if (layer.Tunnel)
@@ -232,6 +246,24 @@ public sealed class PlanScene
                 DrawTree(dc, t, z, t.Id == o.SelectedObject ? selPen : null);
 
         DrawElectrics(dc, z, o);
+    }
+
+    /// <summary>Drehscheibe: Ring, Grube und Bühne in Richtung Anschluss 0; Schiebebühne: Grube und Bühne.</summary>
+    private static void DrawTable(DrawingContext dc, TableShape t, double g, double z)
+    {
+        var edge = new Pen(Brushes.DimGray, Math.Max(g * 0.12, 0.8 / z));
+        if (t.Round)
+        {
+            var c = new Point(t.Center.X, t.Center.Y);
+            dc.DrawEllipse(RimBrush, edge, c, t.RimRadius, t.RimRadius);
+            dc.DrawEllipse(PitBrush, edge, c, t.PitRadius, t.PitRadius);
+        }
+        else dc.DrawGeometry(PitBrush, edge, Polygon(t.Pit));
+        var (a, b) = (t.BridgeA, t.BridgeB);
+        var bridge = new Leg(a.X, a.Y, Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI, false, Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y)));
+        dc.DrawGeometry(null, new Pen(DeckBrush, g * 2.6) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, TrackDrawing.Build([bridge], 0));
+        dc.DrawGeometry(null, TrackDrawing.RailPen(g), TrackDrawing.Build([bridge], g / 2, -g / 2));
+        if (t.Round) dc.DrawEllipse(DeckBrush, null, new Point(t.Center.X, t.Center.Y), g * 0.9, g * 0.9);
     }
 
     private void DrawElectrics(DrawingContext dc, double z, RenderOptions o)

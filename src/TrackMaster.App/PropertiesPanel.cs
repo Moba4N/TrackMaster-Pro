@@ -222,6 +222,9 @@ public sealed class PropertiesPanel : DockPanel
             case PieceKind.Crossing:
                 Rows(("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Kreuzungswinkel", $"{Fmt.Num(d.Angle)}°", null));
                 break;
+            case PieceKind.Turntable or PieceKind.TransferTable:
+                Rows(("Maße", d.Spec, null), ("Anschlüsse", $"{d.RouteCount}", null));
+                break;
             default:
                 Rows(("Länge", $"{Fmt.Num(d.Length)} mm", null));
                 break;

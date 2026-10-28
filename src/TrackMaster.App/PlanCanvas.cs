@@ -476,7 +476,7 @@ public sealed class PlanCanvas : FrameworkElement
                 // Bei gleichem Abstand gewinnt das höher liegende Gleis (Brücke)
                 if (d < bestD - 0.01 || (Math.Abs(d - bestD) < 0.01 && best is not null && p.Height > best.Height)) { bestD = d; best = p; }
             }
-        return best;
+        return best ?? TableShape.Hit(_session.Plan, world.X, world.Y);
     }
 
     /// <summary>Kleine Objekte (Signal, Einspeisung, Trennstelle) nach Bildschirmabstand, dann Bäume und Gebäude.</summary>

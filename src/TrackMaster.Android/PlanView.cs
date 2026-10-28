@@ -532,7 +532,7 @@ public sealed class PlanView : View
                 var d = l.DistanceTo(world.X, world.Y);
                 if (d < bestD - 0.01 || (Math.Abs(d - bestD) < 0.01 && best is not null && p.Height > best.Height)) { bestD = d; best = p; }
             }
-        return best;
+        return best ?? TableShape.Hit(_session.Plan, world.X, world.Y);
     }
 
     private int? HitSmallObject(float sx, float sy, (double X, double Y) world)

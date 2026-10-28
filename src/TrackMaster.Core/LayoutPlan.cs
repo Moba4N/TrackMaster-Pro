@@ -21,7 +21,7 @@ public sealed class PlacedPiece
     public TrackPieceDef Def => Catalog.Get(Key);
 
     /// <summary>Steigung, die tatsächlich gilt (Kreuzungen und Prellböcke eben).</summary>
-    public double EffectiveGrade => Def.Kind is PieceKind.Crossing or PieceKind.Buffer ? 0 : Grade;
+    public double EffectiveGrade => Def.Kind is PieceKind.Crossing or PieceKind.Buffer || Def.IsTable ? 0 : Grade;
 
     public IReadOnlyList<Leg> WorldLegs() => TrackGeometry.LocalLegs(Def, Flipped).Select(l => l.Transform(X, Y, Rotation)).ToList();
 
@@ -42,6 +42,7 @@ public sealed class PlacedPiece
             PieceKind.Straight or PieceKind.Curve => [Height, Height + g * paths[0].Sum(l => l.TrackLength)],
             PieceKind.Switch => [Height, .. paths.Select(p => Height + g * p.Sum(l => l.TrackLength))],
             PieceKind.Crossing => [Height, Height, Height, Height],
+            PieceKind.Turntable or PieceKind.TransferTable => Enumerable.Repeat(Height, paths.Count).ToList(),
             _ => [Height],
         };
     }

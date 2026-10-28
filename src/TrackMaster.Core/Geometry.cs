@@ -104,6 +104,9 @@ public static class TrackGeometry
     {
         var f = flipped ? -1 : 1;
         var turn = (d.RightHand ? 1 : -1) * f;
+        // Drehscheibe, Schiebebühne: je Anschluss ein kurzes Gleis zur Bühne
+        if (d.Ports is { } ports)
+            return ports.Select(p => (IReadOnlyList<Leg>)[new Leg(p.X, p.Y, p.Heading + 180, false, d.Length)]).ToList();
         if (d.Routes is { } routes)
             return routes.Select(r => Chain(r, f)).ToList();
         switch (d.Kind)
@@ -158,6 +161,7 @@ public static class TrackGeometry
         var paths = LocalPaths(d, flipped);
         var origin = new Pose(0, 0, 180);
         static Pose Back(Leg l) => new(l.X, l.Y, l.Heading + 180);
+        if (d.Ports is { } ports) return ports;
         return d.Kind switch
         {
             PieceKind.Straight or PieceKind.Curve => [origin, paths[0][^1].End],
@@ -173,6 +177,7 @@ public static class TrackGeometry
     {
         PieceKind.Switch => index == 0 ? (0, false) : (index - 1, true),
         PieceKind.Crossing => (index / 2, index % 2 == 1),
+        PieceKind.Turntable or PieceKind.TransferTable => (index, false),
         _ => (0, index == 1),
     };
 }

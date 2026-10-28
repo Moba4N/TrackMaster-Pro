@@ -77,6 +77,7 @@ public class CatalogTests
                 PieceKind.Buffer => 1,
                 PieceKind.Crossing => 4,
                 PieceKind.Switch => d.RouteCount + 1,
+                PieceKind.Turntable or PieceKind.TransferTable => d.Ports!.Count,
                 _ => 2,
             };
             Assert.Equal(expected, connectors.Count);

@@ -223,6 +223,7 @@ public static partial class Dialogs
             PieceKind.Switch when !d.IsSimpleSwitch => Rows(c, ("Maße", d.Spec, null), ("Stränge", $"{d.RouteCount}", null), ("Antriebe", $"{d.Drives}", null)),
             PieceKind.Switch => Rows(c, ("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Abzweig", $"R {Fmt.Num(d.Radius)} · {Fmt.Num(d.Angle)}°", null), ("Richtung", leftHanded ? "links" : "rechts", null)),
             PieceKind.Crossing => Rows(c, ("Länge", $"{Fmt.Num(d.Length)} mm", null), ("Kreuzungswinkel", $"{Fmt.Num(d.Angle)}°", null)),
+            PieceKind.Turntable or PieceKind.TransferTable => Rows(c, ("Maße", d.Spec, null), ("Anschlüsse", $"{d.RouteCount}", null)),
             _ => Rows(c, ("Länge", $"{Fmt.Num(d.Length)} mm", null)),
         });
         body.AddView(Section(c, "Position"));

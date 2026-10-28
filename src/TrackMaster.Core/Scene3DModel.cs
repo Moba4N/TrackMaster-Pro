@@ -129,7 +129,54 @@ public sealed class Scene3DModel
         var totalLength = plan.Pieces.Sum(p => p.Def.TrackLength);
         var sleepers = totalLength / g < 8000;
         foreach (var p in plan.Pieces) Track(p, sleepers);
+        foreach (var p in plan.Pieces.Where(p => p.Def.IsTable)) Table(p);
         foreach (var sig in plan.Signals) SignalModel(sig);
+    }
+
+    /// <summary>Drehscheibe bzw. Schiebebühne: Grube, Ring, Bühne mit Gleis in Richtung Anschluss 0.</summary>
+    private void Table(PlacedPiece p)
+    {
+        if (TableShape.Of(p) is not { } t) return;
+        var g = _g;
+        var z = p.Height;
+        var lift = RailTop(g);
+        var pit = Mesh(new Rgb(0x6A, 0x62, 0x56));
+        if (t.Round)
+        {
+            var rim = Mesh(new Rgb(0xB8, 0xB2, 0xA6));
+            const int n = 48;
+            for (var i = 0; i < n; i++)
+            {
+                double a0 = i * 2 * Math.PI / n, a1 = (i + 1) * 2 * Math.PI / n;
+                (double X, double Y) On(double r, double a) => (t.Center.X + r * Math.Cos(a), t.Center.Y + r * Math.Sin(a));
+                var (p0, p1, q0, q1) = (On(t.PitRadius, a0), On(t.PitRadius, a1), On(t.RimRadius, a0), On(t.RimRadius, a1));
+                pit.Triangle(P(t.Center.X, t.Center.Y, z + 0.3), P(p0.X, p0.Y, z + 0.3), P(p1.X, p1.Y, z + 0.3));
+                if (t.RimRadius > t.PitRadius + 0.5)
+                    rim.Quad(P(p0.X, p0.Y, z + 0.6), P(q0.X, q0.Y, z + 0.6), P(q1.X, q1.Y, z + 0.6), P(p1.X, p1.Y, z + 0.6));
+            }
+        }
+        else
+            foreach (var (a, b, c) in Geometry2D.Triangulate(t.Pit))
+                pit.Triangle(P(t.Pit[a].X, t.Pit[a].Y, z + 0.3), P(t.Pit[c].X, t.Pit[c].Y, z + 0.3), P(t.Pit[b].X, t.Pit[b].Y, z + 0.3));
+        // Bühne: Brücke mit zwei Schienen
+        var (s, e) = (t.BridgeA, t.BridgeB);
+        Beam(Mesh(new Rgb(0x4E, 0x46, 0x3E)), s, e, 0, g * 1.3, z + 0.3, z + lift - 0.2 * g);
+        Beam(Mesh(RailColor, SurfaceKind.Rail), s, e, g / 2, g * 0.07, z + lift - 0.2 * g, z + lift);
+        Beam(Mesh(RailColor, SurfaceKind.Rail), s, e, -g / 2, g * 0.07, z + lift - 0.2 * g, z + lift);
+    }
+
+    /// <summary>Quader entlang der Strecke a–b, seitlich um <paramref name="offset"/> versetzt.</summary>
+    private static void Beam(SceneMesh m, (double X, double Y) a, (double X, double Y) b, double offset, double halfWidth, double z0, double z1)
+    {
+        double dx = b.X - a.X, dy = b.Y - a.Y, len = Math.Max(Math.Sqrt(dx * dx + dy * dy), 1e-6);
+        double nx = -dy / len, ny = dx / len;
+        Vec3 C(double x, double y, double side, double h) => P(x + nx * (offset + side), y + ny * (offset + side), h);
+        var (a0, a1, b0, b1) = (C(a.X, a.Y, -halfWidth, z1), C(a.X, a.Y, halfWidth, z1), C(b.X, b.Y, -halfWidth, z1), C(b.X, b.Y, halfWidth, z1));
+        m.Quad(a0, b0, b1, a1);
+        m.Quad(C(a.X, a.Y, -halfWidth, z0), C(b.X, b.Y, -halfWidth, z0), b0, a0);
+        m.Quad(C(a.X, a.Y, halfWidth, z0), a1, b1, C(b.X, b.Y, halfWidth, z0));
+        m.Quad(C(a.X, a.Y, -halfWidth, z0), a0, a1, C(a.X, a.Y, halfWidth, z0));
+        m.Quad(C(b.X, b.Y, -halfWidth, z0), C(b.X, b.Y, halfWidth, z0), b1, b0);
     }
 
     /// <summary>Senkrechtes Prisma über einem Vieleck (Gelände, Wasser).</summary>
@@ -618,6 +665,23 @@ public sealed class RidePath
             }
             var d = piece.Def;
             var count = TrackGeometry.LocalConnectors(d, piece.Flipped).Count;
+            if (d.IsTable)
+            {
+                // Drehscheibe, Schiebebühne: hinein bis zur Bühne, zum gegenüberliegenden (sonst zum nächsten) belegten Anschluss und hinaus
+                var ports = piece.WorldConnectors();
+                var linked = Enumerable.Range(0, count).Where(k => k != entry && conn.Find(piece.Id, k)?.Link is not null).ToList();
+                var exitPort = linked.OrderBy(k => Math.Abs(Math.Abs(Angles.Normalize(ports[k].Heading - ports[entry].Heading)) - 180)).Cast<int?>().FirstOrDefault() ?? entry;
+                var stubs = piece.WorldLegs();
+                foreach (var (leg, inward) in new[] { (stubs[entry], true), (stubs[exitPort], false) })
+                    for (var i = 0; i <= 4; i++)
+                    {
+                        var q = leg.At(inward ? i / 4.0 : 1 - i / 4.0);
+                        points.Add((q.X, q.Y, piece.Height));
+                    }
+                length += stubs[entry].TrackLength * 2 + piece.Def.PitRadius * 2;
+                if (conn.Find(piece.Id, exitPort)?.Link is { } after) { piece = plan.Find(after.PieceId)!; entry = after.Index; }
+                continue;
+            }
             var exit = d.Kind switch
             {
                 PieceKind.Crossing => entry switch { 0 => 1, 1 => 0, 2 => 3, _ => 2 },

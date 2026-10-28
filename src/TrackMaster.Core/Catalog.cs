@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum PieceKind { Straight, Curve, Switch, Crossing, Buffer }
+public enum PieceKind { Straight, Curve, Switch, Crossing, Buffer, Turntable, TransferTable }
 
 /// <summary>Teilstück eines Weichenstrangs: gerade (Turn = 0) oder Bogen (Turn = +1 rechts, −1 links).</summary>
 public readonly record struct Segment(double Length, double Radius = 0, double Angle = 0, int Turn = 0)
@@ -41,6 +41,17 @@ public sealed class TrackPieceDef
     public int? DriveCount { get; init; }
     /// <summary>Maße dieses Teils noch nicht geprüft, auch wenn das System geprüft ist.</summary>
     public bool Unchecked { get; init; }
+    /// <summary>
+    /// Drehscheibe und Schiebebühne: Gleisanschlüsse in eigenen Koordinaten (Richtung aus dem Teil heraus).
+    /// Von jedem Anschluss führt ein kurzes Gleisstück (<see cref="Length"/>) zur Bühne.
+    /// </summary>
+    public IReadOnlyList<Pose>? Ports { get; init; }
+    /// <summary>Drehscheibe: Mittelpunkt, Radius der Grube (= halbe Bühnenlänge) und Außenradius des Rings.</summary>
+    public (double X, double Y) Center { get; init; }
+    public double PitRadius { get; init; }
+    public double RimRadius { get; init; }
+    /// <summary>Schiebebühne: Grube als Rechteck in eigenen Koordinaten.</summary>
+    public (double X0, double Y0, double X1, double Y1) PitBox { get; init; }
     public required string Name { get; init; }
     public required string Spec { get; init; }
     public required string Category { get; init; }
@@ -57,6 +68,8 @@ public sealed class TrackPieceDef
         : Routes is { } r ? r[0].Length
         : Paths is { } p ? p[0].Sum(s => s.Turn == 0 ? s.Length : s.Radius * s.Angle * Math.PI / 180) : Length;
     public bool CanFlip => Kind is PieceKind.Curve or PieceKind.Switch or PieceKind.Crossing;
+    /// <summary>Drehscheibe oder Schiebebühne: viele Anschlüsse, von denen meist nur einige belegt sind.</summary>
+    public bool IsTable => Kind is PieceKind.Turntable or PieceKind.TransferTable;
     /// <summary>Flexgleis mit frei gewählter Länge bzw. Radius und Winkel.</summary>
     public bool IsFlex => Catalog.IsFlexSystem(SystemId);
     /// <summary>Einfache Weiche aus Gerade und Bogen (für Schnellwahl und Eigenschaften).</summary>
@@ -64,7 +77,7 @@ public sealed class TrackPieceDef
         ? r.Count == 2 && r[0].Segments is [{ Turn: 0 }] && r[1].Segments is [{ Turn: not 0 }, ..]
         : Paths is null);
     /// <summary>Anzahl Fahrwege (Stränge).</summary>
-    public int RouteCount => Routes?.Count ?? Paths?.Count ?? (Kind is PieceKind.Switch or PieceKind.Crossing ? 2 : 1);
+    public int RouteCount => Ports?.Count ?? Routes?.Count ?? Paths?.Count ?? (Kind is PieceKind.Switch or PieceKind.Crossing ? 2 : 1);
     /// <summary>Doppelte Kreuzungsweiche: zwei Antriebe.</summary>
     public bool IsDoubleSlip => Kind == PieceKind.Crossing && Name.StartsWith("DKW");
     /// <summary>Anzahl Weichenantriebe (Dreiwegweiche und DKW zwei).</summary>
@@ -89,7 +102,10 @@ public sealed class TrackSystem
     public IReadOnlyList<(string Number, double Length, string Label)> MoreFlex { get; init; } = [];
     /// <summary>Herkunft der Maße (Datei der XTrackCAD-Bibliothek), leer bei von Hand gepflegten Systemen.</summary>
     public string? Source { get; init; }
-    public required IReadOnlyList<TrackPieceDef> Pieces { get; init; }
+    private IReadOnlyList<TrackPieceDef> _pieces = [];
+    public required IReadOnlyList<TrackPieceDef> Pieces { get => _pieces; init => _pieces = value; }
+    /// <summary>Weitere Teile anhängen (Drehscheiben und Schiebebühnen, siehe <see cref="Tables"/>).</summary>
+    internal void Append(TrackPieceDef piece) => _pieces = [.. _pieces, piece];
     /// <summary>Frühere Katalogeinträge, die nur noch zum Öffnen älterer Pläne dienen und in der Bibliothek nicht erscheinen.</summary>
     public IReadOnlyList<TrackPieceDef> Legacy { get; init; } = [];
 }
@@ -196,7 +212,7 @@ public static partial class Catalog
         P($"{prefix}977", 77.5),
     ];
 
-    public static IReadOnlyList<Gauge> Gauges { get; } = BuildGauges();
+    public static IReadOnlyList<Gauge> Gauges { get; } = Tables.AddTo(BuildGauges());
 
     private static readonly Dictionary<string, TrackPieceDef> ByKey = Index();
 

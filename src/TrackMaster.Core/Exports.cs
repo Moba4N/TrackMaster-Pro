@@ -79,6 +79,16 @@ public static class SvgExport
         var bed = new StringBuilder();
         var rails = new StringBuilder();
         var stops = new StringBuilder();
+        var tables = new StringBuilder();
+        foreach (var t in plan.Pieces.Where(p => p.Def.IsTable).Select(p => TableShape.Of(p)!))
+        {
+            if (t.Round)
+                tables.Append($"<circle cx=\"{N(t.Center.X)}\" cy=\"{N(t.Center.Y)}\" r=\"{N(t.RimRadius)}\" fill=\"#C9C2B6\" stroke=\"#555\" stroke-width=\"0.6\"/>")
+                      .Append($"<circle cx=\"{N(t.Center.X)}\" cy=\"{N(t.Center.Y)}\" r=\"{N(t.PitRadius)}\" fill=\"#7A7062\" stroke=\"#555\" stroke-width=\"0.6\"/>");
+            else
+                tables.Append($"<path d=\"M{string.Join("L", t.Pit.Select(q => $"{N(q.X)} {N(q.Y)}"))}Z\" fill=\"#7A7062\" stroke=\"#555\" stroke-width=\"0.6\"/>");
+            tables.Append($"<path d=\"M{N(t.BridgeA.X)} {N(t.BridgeA.Y)}L{N(t.BridgeB.X)} {N(t.BridgeB.Y)}\" stroke=\"#4E463E\" stroke-width=\"{N(g * 2.6)}\"/>");
+        }
         foreach (var p in plan.Pieces)
         {
             var legs = p.WorldLegs();
@@ -101,6 +111,7 @@ public static class SvgExport
 <svg xmlns="http://www.w3.org/2000/svg" width="{N(w + 2 * m)}mm" height="{N(h + 2 * m)}mm" viewBox="{N(-m)} {N(-m)} {N(w + 2 * m)} {N(h + 2 * m)}">
 <title>{title} – Spur {plan.GaugeId}</title>
 <path d="{string.Concat(BoardGeometry.Outlines(plan).Select(o => "M" + string.Join("L", o.Select(q => $"{N(q.X)} {N(q.Y)}")) + "Z"))}" fill="#E3EBD7" fill-rule="evenodd" stroke="#8FA67A" stroke-width="1"/>
+{tables}
 <path d="{bed}" fill="none" stroke="#CFC3AF" stroke-width="{N(g * 2.4)}"/>
 <path d="{bed}" fill="none" stroke="#8C7B66" stroke-width="{N(g * 1.9)}" stroke-dasharray="{N(g * 0.16)} {N(g * 0.3)}"/>
 <path d="{rails}" fill="none" stroke="#4E5257" stroke-width="{N(Math.Max(g * 0.11, 0.5))}"/>

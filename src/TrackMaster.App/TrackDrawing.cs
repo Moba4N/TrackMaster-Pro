@@ -67,6 +67,16 @@ public static class TrackDrawing
         var legs = TrackGeometry.LocalLegs(def, false);
         var size = Math.Max(legs.SelectMany(l => new[] { l.Start, l.At(0.5), l.End }).Max(p => Math.Abs(p.X)), gauge * 6);
         var group = new DrawingGroup();
+        if (def.IsTable && TableShape.Of(new PlacedPiece { Key = def.Key }) is { } t)
+        {
+            var dark = new SolidColorBrush(Color.FromRgb(0x7A, 0x70, 0x62));
+            var edge = new Pen(Brushes.DimGray, gauge * 0.3);
+            Geometry pit = t.Round ? new EllipseGeometry(new Point(t.Center.X, t.Center.Y), t.RimRadius, t.RimRadius) : PlanScene.Polygon(t.Pit);
+            group.Children.Add(new GeometryDrawing(dark, edge, pit));
+            var (a, b) = (t.BridgeA, t.BridgeB);
+            var bridge = new Leg(a.X, a.Y, Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI, false, Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y)));
+            legs = [.. legs, bridge];
+        }
         group.Children.Add(new GeometryDrawing(null, new Pen(Theme.BedBrush, gauge * 2.4), Build(legs, 0)));
         group.Children.Add(new GeometryDrawing(null, new Pen(Theme.RailBrush, Math.Max(gauge * 0.18, size / 90)), Build(legs, gauge / 2, -gauge / 2)));
         if (def.Kind == PieceKind.Buffer)

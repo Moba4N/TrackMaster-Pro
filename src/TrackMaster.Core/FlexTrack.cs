@@ -3,7 +3,7 @@ using System.Globalization;
 namespace TrackMaster.Core;
 
 /// <summary>
-/// Flexgleis frei formen wie in WinTrack: von einem Gleisende aus biegen (ein Bogen tangential zum Gleisende durch einen Punkt)
+/// Flexgleis frei formen: von einem Gleisende aus biegen (ein Bogen tangential zum Gleisende durch einen Punkt)
 /// oder zwei Gleisenden verbinden (Doppelbogen, der an beiden Enden tangential anschließt; fast gerade Bögen werden zu Geraden).
 /// Richtungen sind Fahrtrichtungen: am Anfang vom Gleisende weg, am Ende in das Zielgleis hinein.
 /// </summary>

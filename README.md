@@ -115,7 +115,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Maße und Artikelnummern stammen aus der Gleisbibliothek von XTrackCAD (Ordner `params` des Pakets `xtrkcad-common`),
   umgesetzt mit `tools/catalog-import/gen.py` nach `src/TrackMaster.Core/CatalogData.cs`. Drehscheiben und Schiebebühnen
-  sind nicht übernommen. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
+  der Hersteller stehen in einer eigenen Gruppe der Bibliothek (`Tables.cs`, Maße ebenfalls aus XTrackCAD). Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
   Piko TT und Spur 0 Standard sind von Hand gepflegt, haben vorläufige Maße und sind in der Bibliothek markiert.
   Wo ein Hersteller keinen Prellbock im Datensatz hat, gibt es einen allgemeinen Prellbock „PB“ (ungeprüft).
   Frühere Katalogeinträge bleiben im Hintergrund erhalten, damit ältere Pläne weiter öffnen.
@@ -123,15 +123,20 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Roco Line 42400, Tillig 85125, Lenz 45013) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
 - Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder frei ziehen; Gleise rasten an freien Enden ein.
 - **Flexgleis** mit freier Länge oder freiem Radius und Winkel; in der Stückliste als ganze Stangen mit 5 % Verschnitt.
-  Wie in WinTrack frei formbar: Werkzeug **Flexgleis ziehen** (Register Gleise) am offenen Gleisende ansetzen und ziehen –
+  Frei formbar: Werkzeug **Flexgleis ziehen** (Register Gleise) am offenen Gleisende ansetzen und ziehen –
   das Gleis biegt sich tangential mit und rastet an Gleisenden ein (dann als Doppelbogen, der an beiden Enden passt).
   Verlegte Flexgleise lassen sich am Ende anfassen und nachformen, das andere Ende bleibt liegen.
   **Lücke schließen** verbindet das aktive Gleisende mit dem gewählten oder nächsten Gleisende. Hat ein System mehrere
   Flexgleise (z. B. Roco/Fleischmann N 22200 und 22201), steht jedes einzeln in der Bibliothek.
+- **Kopieren und Einfügen** (Strg+C/Strg+V) der gewählten Gleise samt Einspeisungen, Trennstellen und Signalen, auch zwischen
+  zwei Plänen derselben Spur; eingefügt wird an der Mausposition.
 - Drehen, Spiegeln, Anschluss wechseln, Duplizieren, Löschen, Verschieben mit Pfeiltasten, Rückgängig und Wiederholen.
 - **Planprüfung** (F7): zu enge Gleisabstände und Überschneidungen (mit Durchfahrtshöhe je Spur), Gleise über den
   Plattenrand, zu starke Steigungen (Warnung ab 3 %, Fehler ab 5 %), Gleise in Gebäuden, im Wasser oder unter dem Gelände
   ohne Tunnel, offene Gleisenden. Ein Klick auf einen Eintrag zeigt die Stelle.
+  Mit dem **längsten Fahrzeug** (Planeigenschaften, Standard 26,4 m im Vorbild) prüft sie zusätzlich Radien,
+  Steigung im Bogen (Warnung über 2 %) und S-Bögen ohne Zwischengerade.
+- **Beschriftungen** und **Maßlinien** (Start › Beschriften) direkt im Plan, mit Schrifthöhe und Drehung.
 - Stückliste mit Zubehör (Weichenantriebe, Signale, Einspeisungen, Isolierverbinder, Decoder) und **Drucken** (Strg+P) – beides Pro.
 
 **Höhen**
@@ -151,6 +156,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 
 **Elektrik**
 - Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.
+- **Fahrstraßen**: von Signal zu Signal (oder Prellbock) mit Weichenstellungen, Länge und Konflikten; Pro exportiert sie
+  zusammen mit den Decoderadressen als Text, CSV oder JSON für Steuerungsprogramme.
 - Kehrschleifen-Erkennung im Zweileiter-System (beim Märklin-Mittelleiter entfällt sie).
 - Signale (Haupt-, Vor-, Ausfahr-, Sperr- und Blocksignal) als H/V-Lichtsignale der DB mit echtem Lampenbild im Haltbegriff
   (Hp 0, Hp 00, Vr 0, Sh 0) und weiß-rot-weißem Mastschild, im Plan, in der 3D-Ansicht und in der Auswahl.
@@ -162,6 +169,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 - 3D-Ansicht mit Gelände, Gebäuden, Bäumen, Schotter, Schienen, Pfeilern, Tunnelportalen und Signalen.
 - **Mitfahren** im Führerstand mit einstellbarer Geschwindigkeit (km/h im Vorbild).
 - **Tageszeit** von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.
+- **Zug fahren**: ein Zug aus Lok und drei Wagen fährt über die Anlage; **Weiche umstellen** (Taste W) stellt die nächste
+  Weiche vor dem Zug um.
 
 **Export (Pro)**: Stückliste als CSV (für Excel), Gleisplan als SVG im Maßstab 1:1.
 
@@ -171,6 +180,15 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 - Auswahl frei um einen beliebigen Winkel drehen (Start › Frei drehen…).
 - Fünf Designs (Logo-Grün, Klassisch Blau, Blaupause, Hoher Kontrast, Werkstatt), sieben Schriftarten, vier Schriftgrößen
   (Ansicht › Design und Schrift). Logo und Programmbilder erzeugt `tools/branding/make_assets.py` aus `docs/branding/TrackPlan-Logo.png`.
+
+**Sicherheit und Pflege**
+- Automatische Sicherung im Hintergrund; nach einem Absturz bietet das Programm beim Start die Wiederherstellung an.
+- Drucken auch **1:1** auf mehrere Seiten mit Klebekanten und Passmarken, zum Übertragen auf die Platte.
+- **Update-Hinweis**: Ist in `Directory.Build.props` eine `UpdateUrl` (https) eingetragen, prüft das Programm beim Start
+  eine `version.json` dort und meldet neue Versionen (Datei › Updates). Leer bleibt die Prüfung aus.
+
+**Sprache**: Deutsch und Englisch (Datei › Sprache / Language). Ohne Wahl gilt die Sprache des Systems.
+Die Übersetzungen stehen in `src/TrackMaster.Core/Lang.en.json`; die Texte im Quelltext sind deutsch und laufen über `Lang.T`/`Lang.F`.
 
 Speichern (Basis bis 50 Gleise, Pro unbegrenzt) und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
 ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
@@ -183,6 +201,7 @@ ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
 | Strg+P | Drucken |
 | Strg+Z / Strg+Y | Rückgängig / Wiederholen |
 | Strg+A / Strg+D | Alles wählen / Duplizieren |
+| Strg+C / Strg+V | Kopieren / Einfügen |
 | Entf | Löschen |
 | R / Umschalt+R | Drehen rechts / links |
 | F | Spiegeln |

@@ -51,5 +51,5 @@ public static class AppFolders
     public static string Data => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Name);
 
     /// <summary>Dokumente\TrackMaster Pro Lizenzen (Lizenzverwaltung)</summary>
-    public static string LicensesInDocuments => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Name + Lang.T(" Lizenzen"));
+    public static string LicensesInDocuments => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Name + " Lizenzen");
 }

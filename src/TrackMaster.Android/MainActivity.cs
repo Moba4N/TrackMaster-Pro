@@ -94,7 +94,7 @@ public sealed class MainActivity : Activity
                 Run("props");
                 break;
             default:
-                if (demo.StartsWith(Lang.T("tab:"))) { _tab = demo[4..]; BuildActions(); }
+                if (demo.StartsWith("tab:")) { _tab = demo[4..]; BuildActions(); }
                 break;
         }
     }

@@ -79,11 +79,11 @@
   <div class="inner">
     <div class="logocard"><img src="img/logo.png" alt=""></div>
     <h1>TrackMaster Pro</h1>
-    <div class="sub">Handbuch · Version 1.3.1</div>
+    <div class="sub">Handbuch · Version 1.4.0</div>
     <div class="what">Gleisplanung für Modellbahnanlagen in allen gängigen Spurweiten – mit Höhenplanung, Gleiswendel und
       Holzliste, Landschaft, Elektrik und Signalen, Planprüfung und 3D-Ansicht. Für Windows und Android.</div>
   </div>
-  <div class="foot"><span>TrackMaster Pro 1.3.1 · Basis und Pro</span><span>Stand: Oktober 2026</span></div>
+  <div class="foot"><span>TrackMaster Pro 1.4.0 · Basis und Pro</span><span>Stand: Oktober 2026</span></div>
 </section>
 
 <section class="toc">
@@ -195,6 +195,11 @@ wählen <b>TrackMaster Pro</b> und klicken auf <span class="ui">Deinstallieren</
   <li>Bestätigen Sie mit <span class="ui">Installieren</span>. TrackMaster Pro erscheint danach in der App-Übersicht.</li>
 </ol>
 <p>Ein Update installieren Sie auf dieselbe Weise über die vorhandene App; Ihr aktueller Plan bleibt erhalten.</p>
+
+<h2 id="k2-3">Neue Versionen</h2>
+<p>Ist für Ihre Ausgabe ein Update-Hinweis eingerichtet, fragt das Programm beim Start kurz nach, ob es eine neue Version gibt, und meldet sie in der
+Statusleiste. Unter <span class="ui">Datei › Updates…</span> prüfen Sie jederzeit selbst und öffnen auf Wunsch die Download-Seite.
+Installiert wird nie automatisch. Ohne eingerichteten Update-Hinweis fehlt der Menüpunkt, und das Programm baut keine Verbindung auf.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -282,6 +287,11 @@ eine Vorschau im Dialog zeigt die Wirkung sofort.</p>
   <figure><img src="img/design-werkstatt.png" alt=""><figcaption>Design Werkstatt mit schmaler Schrift.</figcaption></figure>
 </div>
 
+<h2 id="k4-5">Sprache</h2>
+<p>Die Oberfläche gibt es auf Deutsch und Englisch. Beim ersten Start richtet sie sich nach der Sprache des Systems. Unter
+<span class="ui">Datei › Sprache / Language…</span> stellen Sie sie um; unter Windows startet das Fenster danach neu und der geöffnete Plan bleibt erhalten,
+unter Android gilt die neue Sprache ab dem nächsten Start der App. Pläne sind von der Sprache unabhängig.</p>
+
 <h2 id="k4-4">Register Ansicht</h2>
 <p>Im Register <span class="ui">Ansicht</span> schalten Sie ein, was die Zeichenfläche zeigt: <b>Raster</b>, <b>Gleisenden</b>,
 <b>Artikelnummern</b> an jedem Gleis, <b>Höhen</b> (Schienenoberkante an den Gleisenden) und <b>Gelände</b>.
@@ -355,6 +365,8 @@ Sie eignet sich gut, um alle Funktionen auszuprobieren.</p>
 </ul>
 <p>Das Register <span class="ui">Gleise › Verlegen</span> bietet Schnellbefehle für <b>Gerade</b>, <b>Bogen</b>, <b>Weiche links</b>,
 <b>Weiche rechts</b>, <b>Prellbock</b> und <b>Kreuzung</b> des gewählten Systems.</p>
+<p>Wo der Katalog eines Gleissystems <b>Drehscheiben und Schiebebühnen</b> enthält, stehen sie in einer eigenen Gruppe der Bibliothek.
+Sie werden wie Gleise angesetzt; jeder Gleisabgang ist ein eigenes Gleisende.</p>
 <div class="note pro"><b>Hinweis zu den Maßen</b>Die Gleisgeometrie entspricht den Katalogangaben. Einige wenige Gleissysteme sind mit
 vorläufigen Maßen hinterlegt und in der Bibliothek gekennzeichnet; prüfen Sie diese vor dem Bau am Original.</div>
 
@@ -375,10 +387,16 @@ vorläufigen Maßen hinterlegt und in der Bibliothek gekennzeichnet; prüfen Sie
   <tr><td>Spiegeln</td><td><kbd>F</kbd></td><td>Bögen, Weichen und Kreuzungen seitenverkehrt</td></tr>
   <tr><td>Anschluss wechseln</td><td><kbd>A</kbd></td><td>legt das Gleis mit dem nächsten Anschluss an dieselbe Stelle</td></tr>
   <tr><td>Duplizieren</td><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Kopie der Auswahl</td></tr>
+  <tr><td>Kopieren / Einfügen</td><td><kbd>Strg</kbd>+<kbd>C</kbd> / <kbd>Strg</kbd>+<kbd>V</kbd></td><td>Gleise samt Einspeisungen, Trennstellen und Signalen über die Zwischenablage, auch in einen anderen Plan derselben Spur; eingefügt wird an der Mausposition</td></tr>
   <tr><td>Löschen</td><td><kbd>Entf</kbd></td><td>entfernt Gleise oder das gewählte Objekt</td></tr>
   <tr><td>Rückgängig / Wiederholen</td><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd></td><td>beliebig viele Schritte</td></tr>
 </table>
 <p>Position (X, Y in Millimetern) und Drehung eines Gleises lassen sich in den Eigenschaften auch genau eintragen.</p>
+
+<h3>Beschriftungen und Maßlinien</h3>
+<p>In der Gruppe <span class="ui">Start › Beschriften</span> setzen Sie <b>Text</b> (auf die Stelle klicken und den Text eingeben) und <b>Maßlinien</b>
+(zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein). Die Länge rechnet das Programm selbst aus. Schrifthöhe, Drehung und Text ändern Sie in den Eigenschaften;
+Beschriftungen und Maße erscheinen auch im Ausdruck.</p>
 
 <h2 id="k6-4">Flexgleis</h2>
 <p>Flexgleis lässt sich auf drei Arten verlegen:</p>
@@ -538,6 +556,16 @@ oder automatisch vergeben; Konflikte werden markiert. Weichen mit zwei Antrieben
 <p><span class="ui">Elektrik › Kabelplan</span> fasst die Verdrahtung zusammen: Stromabschnitte mit ihren Einspeisungen, alle Trennstellen und die
 Decoderbelegung. Als Textdatei speichern lässt er sich in der Pro-Version.</p>
 <figure class="half"><img src="img/kabelplan.png" alt=""><figcaption>Kabelplan.</figcaption></figure>
+
+<h2 id="k9-6">Fahrstraßen</h2>
+<p><span class="ui">Elektrik › Fahrstraßen</span> sucht alle Wege von einem Signal zum nächsten Signal in Fahrtrichtung, zu einem Prellbock oder zu einem
+offenen Gleisende. Jede Fahrstraße zeigt die Weichen mit ihrer Stellung (gerade, abzweigend, links oder rechts), die Länge und die Decoderadressen.
+Fahrstraßen, die dieselben Weichen unterschiedlich brauchen, werden als Konflikt markiert.</p>
+
+<h2 id="k9-7">Export für Steuerprogramme <span class="badge">PRO</span></h2>
+<p><span class="ui">Elektrik › Export Steuerung</span> speichert Weichen, Signale, Adressen, Stromabschnitte und Fahrstraßen als JSON-Datei.
+Aus dem Fenster der Fahrstraßen lassen sie sich außerdem als Text oder CSV speichern. So übernehmen Sie die Planung in ein Programm zur Anlagensteuerung,
+ohne Adressen doppelt einzutippen.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -553,7 +581,12 @@ Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.<
   <tr><td>Steigung</td><td>Warnung ab 3 %, Fehler ab 5 %</td></tr>
   <tr><td>Gelände</td><td>Gleise in Gebäuden, im Wasser oder unter dem Gelände ohne Tunnel</td></tr>
   <tr><td>Offene Gleisenden</td><td>Enden ohne Anschluss und ohne Prellbock</td></tr>
+  <tr><td>Radius für Fahrzeuge</td><td>Bögen, die für das längste Fahrzeug zu eng sind, mit dem Ausschwenken von Wagenmitte und -ende</td></tr>
+  <tr><td>Steigung im Bogen</td><td>Warnung, wenn ein Bogen steiler als 2 % ansteigt – im Bogen zieht ein Zug spürbar schwerer</td></tr>
+  <tr><td>S-Bogen</td><td>Gegenbögen mit kleinem Radius ohne Zwischengerade, an denen lange Wagen mit den Puffern aneinander geraten können</td></tr>
 </table>
+<p>Für die drei Fahrzeugprüfungen tragen Sie in den Planeigenschaften (Abschnitt <span class="ui">Planprüfung</span>) das <b>längste Fahrzeug</b> in Millimetern ein.
+Ohne Eintrag rechnet das Programm mit einem langen Reisezugwagen im Maßstab der Spur.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -564,6 +597,8 @@ Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.<
   <li><span class="ui">3D › 3D-Ansicht</span>: Ziehen mit der Maus dreht die Anlage, das Mausrad zoomt.</li>
   <li><span class="ui">3D › Mitfahren</span>: Sie fahren im Führerstand über die Gleise, beginnend am gewählten Gleis. Die Geschwindigkeit stellen Sie in km/h des Vorbilds ein.</li>
   <li><span class="ui">3D › Tageszeit</span>: Licht von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.</li>
+  <li><span class="ui">Zug fahren</span> im 3D-Fenster: Ein Zug aus Lok und drei Wagen fährt über die Anlage. <span class="ui">Weiche umstellen</span> (<kbd>W</kbd>)
+    stellt die nächste Weiche vor dem Zug um; die Statuszeile nennt sie.</li>
 </ul>
 <div class="cols">
   <figure><img src="img/mitfahren.png" alt=""><figcaption>Mitfahren im Führerstand.</figcaption></figure>
@@ -584,6 +619,8 @@ Gebäude, Bäume und Signale. Beim Mitfahren liegt der Blick in Führerstandshö
 <b>.trackmaster.json</b> ab. Öffnen (<kbd>Strg</kbd>+<kbd>O</kbd>) ist auch in der Basisversion möglich. Die Plandateien sind zwischen Windows und Android
 austauschbar. Eine Plandatei lässt sich auch mit „Öffnen mit“ oder als Startparameter öffnen:
 <code>TrackMasterPro.exe MeineAnlage.trackmaster.json</code>.</p>
+<p><b>Automatische Sicherung:</b> Während Sie arbeiten, sichert das Programm den Plan regelmäßig im Hintergrund. Wurde es nicht regulär beendet –
+etwa bei einem Stromausfall –, bietet es beim nächsten Start an, den gesicherten Stand wiederherzustellen. Die Sicherung ersetzt nicht das Speichern.</p>
 
 <h2 id="k12-2">Stückliste <span class="badge">PRO</span></h2>
 <p><span class="ui">Start › Stückliste</span> zählt alle Gleise nach Artikelnummer, mit Bezeichnung und Menge, und ergänzt das Zubehör: Weichenantriebe,
@@ -592,8 +629,14 @@ Signale, Einspeisungen, Isolierverbinder und Decoder. Flexgleis wird in ganzen S
 <figure class="half"><img src="img/stueckliste.png" alt=""><figcaption>Stückliste mit Zubehör.</figcaption></figure>
 
 <h2 id="k12-3">Drucken <span class="badge">PRO</span></h2>
-<p><span class="ui">Datei › Drucken…</span> (<kbd>Strg</kbd>+<kbd>P</kbd>) druckt den Plan mit Titel, Anlagenplatte und Zusammenfassung maßstäblich auf eine Seite.
-Über den Druckdialog von Windows können Sie auch als PDF-Datei drucken.</p>
+<p><span class="ui">Datei › Drucken…</span> (<kbd>Strg</kbd>+<kbd>P</kbd>) bietet zwei Arten:</p>
+<ul>
+  <li><b>Übersicht</b>: der Plan mit Titel, Anlagenplatte und Zusammenfassung verkleinert auf einer Seite.</li>
+  <li><b>Bauvorlage 1:1</b>: der Plan in Originalgröße auf mehreren Seiten. Benachbarte Seiten überlappen um eine Klebekante; Passmarken und die
+    Seitenbezeichnung (A1, A2, B1 …) helfen beim Zusammenkleben. Die Vorlage legen Sie auf die Platte und übertragen den Gleisverlauf.
+    Stellen Sie im Druckdialog die tatsächliche Größe (100 %) ein und messen Sie das Prüfmaß von 100 mm auf jeder Seite nach.</li>
+</ul>
+<p>Über den Druckdialog von Windows können Sie auch als PDF-Datei drucken.</p>
 
 <h2 id="k12-4">Export <span class="badge">PRO</span></h2>
 <ul>
@@ -611,7 +654,8 @@ Signale, Einspeisungen, Isolierverbinder und Decoder. Flexgleis wird in ganzen S
 <p class="lead">Die App bietet dieselben Funktionen wie das Windows-Programm, angepasst an die Bedienung mit dem Finger.</p>
 <p>Oben liegt das Menüband mit den Registern <b>Start, Gleise, Gelände, Elektrik, Ansicht, 3D</b> und <b>Datei</b>, unten die Gleisbibliothek als Leiste.
 Eigenschaften, Planprüfung, Gleiswendel, Signale und die 3D-Ansicht öffnen sich als eigene Fenster. Pro-Funktionen tragen in der Basisversion ein Schloss.
-Design, Schriftart und Schriftgröße wählen Sie unter <span class="ui">Ansicht › Design und Schrift</span> – mit denselben Designs wie unter Windows.</p>
+Design, Schriftart und Schriftgröße wählen Sie unter <span class="ui">Ansicht › Design und Schrift</span> – mit denselben Designs wie unter Windows.
+Kopieren und Einfügen, Fahrstraßen, die Sprache (<span class="ui">Datei › Sprache / Language</span>) sowie Zug und Weiche in der 3D-Ansicht gibt es ebenfalls.</p>
 <table>
   <tr><th style="width:38%">Geste</th><th>Wirkung</th></tr>
   <tr><td>Teil in der Bibliothek antippen</td><td>am aktiven Gleisende ansetzen</td></tr>
@@ -639,6 +683,7 @@ von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich 
   <tr><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd></td><td>Rückgängig / Wiederholen</td></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>A</kbd></td><td>Alles auswählen</td></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Duplizieren</td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>C</kbd> / <kbd>Strg</kbd>+<kbd>V</kbd></td><td>Kopieren / Einfügen</td></tr>
   <tr><td><kbd>Entf</kbd></td><td>Löschen</td></tr>
   <tr><td><kbd>R</kbd> / <kbd>Umschalt</kbd>+<kbd>R</kbd></td><td>15° rechts / links drehen</td></tr>
   <tr><td><kbd>F</kbd></td><td>Spiegeln</td></tr>
@@ -649,6 +694,7 @@ von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich 
   <tr><td><kbd>F7</kbd></td><td>Planprüfung</td></tr>
   <tr><td><kbd>Enter</kbd> / <kbd>Esc</kbd></td><td>Fläche abschließen / Werkzeug beenden</td></tr>
   <tr><td><kbd>F1</kbd></td><td>Tastenkürzel anzeigen</td></tr>
+  <tr><td><kbd>W</kbd> (3D-Fenster)</td><td>Nächste Weiche vor dem Zug umstellen</td></tr>
 </table>
 <table class="keep">
   <tr><th>Maus</th><th>Funktion</th></tr>
@@ -689,7 +735,8 @@ eine ältere Fassung mit anderer Signatur installiert, deinstallieren Sie diese 
 <h3>Die 3D-Ansicht bleibt schwarz oder ruckelt.</h3>
 <p>Aktualisieren Sie den Grafiktreiber. Bei sehr großen Anlagen hilft es, Bäume und Gebäude zunächst sparsam zu setzen.</p>
 <h3>Wo liegen meine Daten?</h3>
-<p>Pläne liegen dort, wo Sie sie gespeichert haben. Die Lizenz liegt unter <i>%APPDATA%\TrackMaster Pro</i>. Das Programm sendet keine Daten an Dritte.</p>
+<p>Pläne liegen dort, wo Sie sie gespeichert haben. Lizenz, Einstellungen und die automatische Sicherung liegen unter <i>%APPDATA%\TrackMaster Pro</i>.
+Das Programm sendet keine Daten an Dritte; nur ein eingerichteter Update-Hinweis ruft beim Start die aktuelle Versionsnummer ab.</p>
 </section>
 
 <!-- ======================================================= -->

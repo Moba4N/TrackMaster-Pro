@@ -50,7 +50,7 @@ public sealed class MainWindow : Window
     private bool _restarting;
 
     /// <summary>Automatische Sicherung für Absturz oder Stromausfall (%APPDATA%\TrackMaster Pro\Wiederherstellung).</summary>
-    public static readonly Recovery Backup = new(Path.Combine(AppFolders.Data, Lang.T("Wiederherstellung")));
+    public static readonly Recovery Backup = new(Path.Combine(AppFolders.Data, "Wiederherstellung"));
     private readonly RecentFiles _recent = new(Path.Combine(AppFolders.Data, "zuletzt-geoeffnet.txt"));
     private readonly DispatcherTimer _backupTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private bool _changedSinceBackup;

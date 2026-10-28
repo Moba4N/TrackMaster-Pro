@@ -535,7 +535,7 @@ public sealed class PlanSession
 
     public void AttachFlex(string key, (double X, double Y) fallbackCenter) => Attach(key, fallbackCenter);
 
-    // ---------- Flexgleis formen (wie in WinTrack) ----------
+    // ---------- Flexgleis formen ----------
 
     /// <summary>Flexgleis des aktuellen Gleissystems (bzw. das zuletzt gewählte Flexgleis) für Ziehen und Lücke schließen.</summary>
     public FlexStock CurrentFlex

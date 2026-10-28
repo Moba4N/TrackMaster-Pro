@@ -336,8 +336,8 @@ jobs:
           if [ -f docs/TrackMaster-Pro-Handbuch.pdf ]; then cp docs/TrackMaster-Pro-Handbuch.pdf out/; fi
           mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
           # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
-          # "url" auf die öffentliche Download-Seite setzen, sobald es eine gibt
-          printf '{\n  "version": "%s",\n  "url": "",\n  "notes": ""\n}\n' "$v" > out/version.json
+          # "url" ist die Release-Seite dieser Version mit MSI, APK und Handbuch
+          printf '{\n  "version": "%s",\n  "url": "https://github.com/%s/releases/tag/%s",\n  "notes": ""\n}\n' "$v" "$GITHUB_REPOSITORY" "$tag" > out/version.json
           ls -la out
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "TrackMaster Pro $v" \

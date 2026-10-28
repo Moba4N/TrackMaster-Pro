@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.0.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.1.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
@@ -184,8 +184,9 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 **Sicherheit und Pflege**
 - Automatische Sicherung im Hintergrund; nach einem Absturz bietet das Programm beim Start die Wiederherstellung an.
 - Drucken auch **1:1** auf mehrere Seiten mit Klebekanten und Passmarken, zum Übertragen auf die Platte.
-- **Update-Hinweis**: Ist in `Directory.Build.props` eine `UpdateUrl` (https) eingetragen, prüft das Programm beim Start
-  eine `version.json` dort und meldet neue Versionen (Datei › Updates). Leer bleibt die Prüfung aus.
+- **Update-Hinweis**: Beim Start lädt das Programm `version.json` aus dem neuesten GitHub-Release (Adresse `UpdateUrl` in
+  `Directory.Build.props`) und meldet neuere Versionen mit Link auf die Release-Seite (Datei › Updates). Die Datei erzeugt der
+  Build bei jedem Release; eine leere `UpdateUrl` schaltet die Prüfung ab.
 
 **Sprache**: Deutsch und Englisch (Datei › Sprache / Language). Ohne Wahl gilt die Sprache des Systems.
 Die Übersetzungen stehen in `src/TrackMaster.Core/Lang.en.json`; die Texte im Quelltext sind deutsch und laufen über `Lang.T`/`Lang.F`.

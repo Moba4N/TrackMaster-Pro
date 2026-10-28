@@ -196,6 +196,7 @@ public static partial class Dialogs
                      ($"Version {version?.Major}.{version?.Minor}.{version?.Build}", 12.0, false),
                      (Lang.T("Gleisplanung für Modellbahnanlagen – Gleise, Höhen, Gleiswendel, Landschaft, Elektrik und 3D."), 12.0, false),
                      (license.Summary, 11.0, false),
+                     (Catalog.DataNotice, 10.0, false),
                  })
         {
             var t = Theme.Label(text, size, bold, bold ? Theme.TextBrush : Theme.TextSecondaryBrush);

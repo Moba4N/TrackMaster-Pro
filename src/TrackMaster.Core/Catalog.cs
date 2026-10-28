@@ -102,10 +102,7 @@ public sealed class TrackSystem
     public IReadOnlyList<(string Number, double Length, string Label)> MoreFlex { get; init; } = [];
     /// <summary>Herkunft der Maße (Datei der XTrackCAD-Bibliothek), leer bei von Hand gepflegten Systemen.</summary>
     public string? Source { get; init; }
-    private IReadOnlyList<TrackPieceDef> _pieces = [];
-    public required IReadOnlyList<TrackPieceDef> Pieces { get => _pieces; init => _pieces = value; }
-    /// <summary>Weitere Teile anhängen (Drehscheiben und Schiebebühnen, siehe <see cref="Tables"/>).</summary>
-    internal void Append(TrackPieceDef piece) => _pieces = [.. _pieces, piece];
+    public required IReadOnlyList<TrackPieceDef> Pieces { get; init; }
     /// <summary>Frühere Katalogeinträge, die nur noch zum Öffnen älterer Pläne dienen und in der Bibliothek nicht erscheinen.</summary>
     public IReadOnlyList<TrackPieceDef> Legacy { get; init; } = [];
 }
@@ -129,100 +126,34 @@ public sealed class Gauge
 }
 
 /// <summary>
-/// Gleiskatalog aller Spuren. Die Systeme mit <see cref="TrackSystem.Source"/> sind aus der XTrackCAD-Gleisbibliothek
-/// erzeugt (CatalogData.cs, Maße und Artikelnummern der Hersteller); von Hand gepflegte Systeme sind vorläufig (Verified = false).
+/// Gleiskatalog aller Spuren, gelesen aus der Datendatei (siehe CatalogFile.cs). Die Systeme mit <see cref="TrackSystem.Source"/>
+/// stammen aus der XTrackCAD-Gleisbibliothek (Maße und Artikelnummern der Hersteller); von Hand gepflegte Systeme sind vorläufig (Verified = false).
 /// </summary>
 public static partial class Catalog
 {
-    private static TrackPieceDef S(string nr, double len, string? name = null) => new()
-        { Number = nr, Kind = PieceKind.Straight, Length = len, Name = name ?? Lang.T("Gerade"), Spec = $"{Fmt.Num(len)} mm", Category = name is null || name == Lang.T("Gerade") ? Lang.T("Gerade") : Lang.T("Sonstige") };
+    private static IReadOnlyList<Gauge>? _gauges;
+    private static Dictionary<string, TrackPieceDef>? _byKey;
+    private static readonly object LoadLock = new();
 
-    private static TrackPieceDef C(string nr, double r, double a, string? radiusName = null, string? name = null) => new()
-        { Number = nr, Kind = PieceKind.Curve, Radius = r, Angle = a, Name = $"{name ?? Lang.T("Bogen")} {(radiusName is null ? "" : radiusName + " · ")}{Fmt.Num(a)}°", Spec = $"R {Fmt.Num(r)} mm",
-          Category = name is null || name == Lang.T("Bogen") ? Lang.T("Bögen") : Lang.T("Sonstige") };
+    /// <summary>Alle Spuren mit ihren Gleissystemen; beim ersten Zugriff aus der Datendatei gelesen.</summary>
+    public static IReadOnlyList<Gauge> Gauges { get { EnsureLoaded(); return _gauges!; } }
+    private static Dictionary<string, TrackPieceDef> ByKey { get { EnsureLoaded(); return _byKey!; } }
 
-    /// <summary>Einfache Weiche: gerader Strang <paramref name="len"/>, Abzweig als Bogen, optional mit gerader Verlängerung <paramref name="tail"/>.</summary>
-    private static TrackPieceDef W(string nr, bool right, double len, double r, double a, string? extra = null, double tail = 0) => new()
-        { Number = nr, Kind = PieceKind.Switch, RightHand = right, Length = len, Radius = r, Angle = a,
-          Paths = tail > 0 ? [[Segment.Line(len)], [Segment.Arc(r, a, right), Segment.Line(tail)]] : null,
-          Name = (right ? Lang.T("Weiche rechts") : Lang.T("Weiche links")) + (extra is null ? "" : " " + Lang.T(extra)), Spec = $"{Fmt.Num(len)} mm · R {Fmt.Num(r)} · {Fmt.Num(a)}°", Category = Lang.T("Weichen") };
-
-    /// <summary>Weichenpaar links und rechts.</summary>
-    private static TrackPieceDef[] WW(string left, string right, double len, double r, double a, string? extra = null, double tail = 0)
-        => [W(left, false, len, r, a, extra, tail), W(right, true, len, r, a, extra, tail)];
-
-    /// <summary>Dreiwegweiche: gerade und je ein Abzweig nach links und rechts.</summary>
-    private static TrackPieceDef W3(string nr, double len, double r, double a) => new()
-        { Number = nr, Kind = PieceKind.Switch, Length = len, Radius = r, Angle = a,
-          Paths = [[Segment.Line(len)], [Segment.Arc(r, a, false)], [Segment.Arc(r, a, true)]],
-          Name = Lang.T("Dreiwegweiche"), Spec = $"{Fmt.Num(len)} mm · R {Fmt.Num(r)} · {Fmt.Num(a)}°", Category = Lang.T("Weichen") };
-
-    /// <summary>Y-Weiche: beide Stränge biegen gleich weit nach links und rechts ab.</summary>
-    private static TrackPieceDef Y(string nr, double r, double a, double tail = 0) => new()
-        { Number = nr, Kind = PieceKind.Switch, Radius = r, Angle = a,
-          Paths = tail > 0 ? [[Segment.Arc(r, a, false), Segment.Line(tail)], [Segment.Arc(r, a, true), Segment.Line(tail)]] : [[Segment.Arc(r, a, false)], [Segment.Arc(r, a, true)]],
-          Name = "Y-Weiche", Spec = $"R {Fmt.Num(r)} · 2 × {Fmt.Num(a)}°", Category = Lang.T("Weichen") };
-
-    /// <summary>Bogenweiche: beide Stränge biegen zur selben Seite, außen der größere Radius, innen optional mit Vorlauf.</summary>
-    private static TrackPieceDef BW(string nr, bool right, double rOuter, double aOuter, double rInner, double aInner, double lead = 0, bool uncheckedGeometry = true) => new()
-        { Number = nr, Kind = PieceKind.Switch, RightHand = right, Radius = rInner, Angle = aInner, Unchecked = uncheckedGeometry,
-          Paths = [lead > 0 ? [Segment.Line(lead), Segment.Arc(rOuter, aOuter, right)] : [Segment.Arc(rOuter, aOuter, right)], [Segment.Arc(rInner, aInner, right)]],
-          Name = right ? Lang.T("Bogenweiche rechts") : Lang.T("Bogenweiche links"), Spec = $"R {Fmt.Num(rInner)} / {Fmt.Num(rOuter)} · {Fmt.Num(aInner)}°", Category = Lang.T("Weichen") };
-
-    private static TrackPieceDef[] BWW(string left, string right, double rOuter, double aOuter, double rInner, double aInner, double lead = 0, bool uncheckedGeometry = true)
-        => [BW(left, false, rOuter, aOuter, rInner, aInner, lead, uncheckedGeometry), BW(right, true, rOuter, aOuter, rInner, aInner, lead, uncheckedGeometry)];
-
-    private static TrackPieceDef X(string nr, double len, double a, bool doubleSlip = false) => new()
-        { Number = nr, Kind = PieceKind.Crossing, Length = len, Angle = a, Name = doubleSlip ? $"DKW {Fmt.Num(a)}°" : $"Kreuzung {Fmt.Num(a)}°", Spec = $"{Fmt.Num(len)} mm", Category = Lang.T("Kreuzungen") };
-
-    /// <summary>Gleisstück mit Fahrwegen aus Herstellerdaten (erzeugter Katalog).</summary>
-    /// <summary>Die Maßangaben im Katalog sind deutsch geschrieben (188,3 mm); englisch mit Dezimalpunkt.</summary>
-    private static string EnglishDecimals(string spec) => System.Text.RegularExpressions.Regex.Replace(spec, @"(\d),(\d)", "$1.$2");
-
-    private static TrackPieceDef G(string nr, PieceKind kind, string name, string spec, string category, bool right, int drives, Route[] routes, Route[]? decor = null)
+    private static void EnsureLoaded()
     {
-        var arc = routes.Skip(kind == PieceKind.Switch ? 1 : 0).SelectMany(r => r.Segments).FirstOrDefault(x => x.Turn != 0);
-        var angle = kind == PieceKind.Crossing && routes.Length > 1 ? Math.Abs(Angles.Normalize(routes[1].Heading - routes[0].Heading)) : arc.Angle;
-        return new()
+        if (_byKey is not null) return;
+        lock (LoadLock)
         {
-            Number = nr, Kind = kind, Name = name, Spec = Lang.IsEnglish ? EnglishDecimals(spec) : spec, Category = category, RightHand = right, Routes = routes, Decor = decor,
-            DriveCount = kind == PieceKind.Crossing ? drives : null,
-            Length = routes[0].Length, Radius = arc.Radius, Angle = angle > 90 ? 180 - angle : angle,
-        };
+            if (_byKey is not null) return;
+            _gauges = Load();
+            _byKey = Index();
+        }
     }
-
-    private static Route Rt(double x, double y, double heading, params Segment[] segments) => new(x, y, heading, segments);
-    private static Segment Ln(double length) => Segment.Line(length);
-    private static Segment Ar(double radius, double angle, int turn) => new(0, radius, angle, turn);
-
-    private static TrackPieceDef P(string nr, double len, bool uncheckedGeometry = false) => new()
-        { Number = nr, Kind = PieceKind.Buffer, Length = len, Unchecked = uncheckedGeometry, Name = uncheckedGeometry ? Lang.T("Prellbock (allgemein)") : Lang.T("Prellbock"), Spec = $"{Fmt.Num(len)} mm", Category = Lang.T("Sonstige") };
-
-    /// <summary>Märklin C-Gleis; Trix C-Gleis hat dieselben Maße mit Nummern 62… statt 24….</summary>
-    private static List<TrackPieceDef> CGleis(string prefix, bool contactTracks) =>
-    [
-        S($"{prefix}360", 360), S($"{prefix}236", 236.1), S($"{prefix}229", 229.3), S($"{prefix}188", 188.3), S($"{prefix}172", 171.7),
-        S($"{prefix}094", 94.2), S($"{prefix}077", 77.5), S($"{prefix}071", 70.8), S($"{prefix}064", 64.3),
-        .. (contactTracks ? new[] { S($"{prefix}997", 94.2, Lang.T("Entkupplungsgleis")), S($"{prefix}994", 94.2, Lang.T("Schaltgleis")) } : []),
-        C($"{prefix}130", 360, 30, "R1"), C($"{prefix}115", 360, 15, "R1"), C($"{prefix}107", 360, 7.5, "R1"),
-        C($"{prefix}230", 437.5, 30, "R2"), C($"{prefix}224", 437.5, 24.3, "R2"), C($"{prefix}215", 437.5, 15, "R2"), C($"{prefix}207", 437.5, 7.5, "R2"),
-        C($"{prefix}330", 515, 30, "R3"), C($"{prefix}430", 579.3, 30, "R4"), C($"{prefix}530", 643.6, 30, "R5"), C($"{prefix}912", 1114.6, 12.1, "R9"),
-        .. WW($"{prefix}611", $"{prefix}612", 188.3, 437.5, 22.5),
-        .. WW($"{prefix}711", $"{prefix}712", 236.1, 1114.6, 12.1, "schlank"),
-        .. BWW($"{prefix}671", $"{prefix}672", 437.5, 30, 360, 30),
-        W3($"{prefix}630", 188.3, 437.5, 22.5),
-        X($"{prefix}640", 188.3, 22.5), X($"{prefix}740", 236.1, 12.1), X($"{prefix}624", 188.3, 22.5, doubleSlip: true),
-        P($"{prefix}977", 77.5),
-    ];
-
-    public static IReadOnlyList<Gauge> Gauges { get; } = Tables.AddTo(BuildGauges());
-
-    private static readonly Dictionary<string, TrackPieceDef> ByKey = Index();
 
     private static Dictionary<string, TrackPieceDef> Index()
     {
         var map = new Dictionary<string, TrackPieceDef>();
-        foreach (var gauge in Gauges)
+        foreach (var gauge in _gauges!)
             foreach (var system in gauge.Systems)
                 foreach (var piece in system.Pieces.Concat(system.Legacy))
                 {

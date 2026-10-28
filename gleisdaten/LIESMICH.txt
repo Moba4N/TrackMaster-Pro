@@ -1,0 +1,42 @@
+TrackMaster Pro – Gleisdaten
+============================
+
+Diese Datei (gleisdaten.json) enthält den Gleiskatalog: Spuren, Gleissysteme und die Maße
+und Artikelnummern der einzelnen Gleisstücke, Weichen, Kreuzungen, Drehscheiben und Schiebebühnen.
+
+Lizenz
+------
+Die Gleisdaten stehen unter der GNU General Public License, Version 2 oder (nach Ihrer Wahl)
+jeder späteren Version. Der Lizenztext liegt in LIZENZ.txt.
+
+Die Gleisdaten sind eine eigenständige Datei. TrackMaster Pro liest sie beim Start nur ein;
+das Programm selbst enthält keine Gleisdaten und steht unter eigener Lizenz.
+
+Herkunft
+--------
+Die Maße und Artikelnummern der meisten Gleissysteme stammen aus der Gleisbibliothek von
+XTrackCAD (Ordner "params" des Pakets xtrkcad-common, https://sourceforge.net/projects/xtrkcad-fork/),
+lizenziert unter der GNU GPL Version 2 oder später. Das Feld "source" eines Gleissystems nennt
+die jeweilige Ausgangsdatei.
+
+Die Daten wurden für TrackMaster Pro verändert: von Zoll in Millimeter umgerechnet, in Fahrwege
+(Geraden und Bögen) umgesetzt, nach Gleissystemen und Gruppen geordnet, mit deutschen und
+englischen Bezeichnungen versehen und um einige von Hand gepflegte Systeme und Teile ergänzt.
+Systeme ohne "source" sind von Hand gepflegt.
+
+Bearbeiten
+----------
+gleisdaten.json ist die bevorzugte Form zum Bearbeiten (JSON, UTF-8). Längen und Radien in mm,
+Winkel in Grad. Texte stehen auf Deutsch; "nameEn", "specEn" und "catEn" enthalten englische
+Texte, wo sie sich nicht aus der Übersetzung des Programms ergeben.
+
+Wer die Datei ändert und weitergibt, muss sie ebenfalls unter der GPL weitergeben.
+
+
+TrackMaster Pro – track data (English)
+--------------------------------------
+gleisdaten.json contains the track catalog. It is licensed under the GNU GPL version 2 or later
+(see LIZENZ.txt). Most dimensions and article numbers come from the XTrackCAD track library
+(params folder, GPL-2.0-or-later) and were modified for TrackMaster Pro (converted to mm,
+converted into routes, grouped, names added, hand-maintained systems added). TrackMaster Pro
+only reads this separate file; the program itself contains no track data.

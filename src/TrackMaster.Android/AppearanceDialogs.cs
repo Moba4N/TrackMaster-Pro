@@ -182,6 +182,7 @@ public static partial class Dialogs
                      (Lang.F($"Version {version}"), 13.0, false),
                      (Lang.T("Gleisplanung für Modellbahnanlagen – Gleise, Höhen, Gleiswendel, Landschaft, Elektrik und 3D."), 13.0, false),
                      (license.Summary, 12.0, false),
+                     (Catalog.DataNotice, 11.0, false),
                  })
         {
             var t = Ui.Label(c, text, size, bold, bold ? Ui.Text : Ui.TextSecondary);

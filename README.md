@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.1.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.2.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
@@ -113,9 +113,10 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   0: Standard, Lenz, Peco Bullhead · Spur 1: Märklin · G: LGB, Piko.
   Zusammen rund 1300 Gleisstücke: Geraden, Bögen, Gegenbögen, Schalt-, Entkupplungs- und Übergangsgleise, einfache, schlanke,
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
-  Die Maße und Artikelnummern stammen aus der Gleisbibliothek von XTrackCAD (Ordner `params` des Pakets `xtrkcad-common`),
-  umgesetzt mit `tools/catalog-import/gen.py` nach `src/TrackMaster.Core/CatalogData.cs`. Drehscheiben und Schiebebühnen
-  der Hersteller stehen in einer eigenen Gruppe der Bibliothek (`Tables.cs`, Maße ebenfalls aus XTrackCAD). Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
+  Die Gleisdaten liegen in einer eigenen Datei `gleisdaten/gleisdaten.json` unter der GNU GPL Version 2 (Lizenztext und
+  Herkunft im selben Ordner); das Programm liest sie nur ein und enthält selbst keine Gleisdaten. Die Maße und Artikelnummern
+  stammen aus der Gleisbibliothek von XTrackCAD (Ordner `params` des Pakets `xtrkcad-common`). Drehscheiben und Schiebebühnen
+  der Hersteller stehen in einer eigenen Gruppe der Bibliothek. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.
   Piko TT und Spur 0 Standard sind von Hand gepflegt, haben vorläufige Maße und sind in der Bibliothek markiert.
   Wo ein Hersteller keinen Prellbock im Datensatz hat, gibt es einen allgemeinen Prellbock „PB“ (ungeprüft).
   Frühere Katalogeinträge bleiben im Hintergrund erhalten, damit ältere Pläne weiter öffnen.

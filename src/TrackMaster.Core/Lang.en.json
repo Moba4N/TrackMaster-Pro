@@ -407,7 +407,7 @@
  "Gleisabstand bei Flexgleis (mm)": "Track spacing with flexible track (mm)",
  "Gleisabstand {0} mm + ": "track spacing {0} mm + ",
  "Gleisbibliothek": "Track library",
- "Gleisdaten: eigene Datei unter der GNU GPL Version 2 (Ordner Gleisdaten, mit Lizenztext). Maße und Artikelnummern aus der Gleisbibliothek von XTrackCAD.": "Track data: separate file under the GNU GPL version 2 (folder Gleisdaten, with license text). Dimensions and article numbers from the XTrackCAD track library.",
+ "Gleisdaten nach Herstellerangaben. Noch nicht neu erfasste Systeme stammen aus einer eigenen Datei unter der GNU GPL Version 2 (Ordner Gleisdaten, mit Lizenztext; Maße aus der Gleisbibliothek von XTrackCAD).": "Track data from manufacturer specifications. Systems not yet re-recorded come from a separate file under the GNU GPL version 2 (folder Gleisdaten, with license text; dimensions from the XTrackCAD track library).",
  "Gleise": "Tracks",
  "Gleise führen durch das Gebäude „{0}“.": "Tracks run through the building “{0}”.",
  "Gleise lassen sich mit der Maus verschieben und rasten an freien Enden ein. ": "Tracks can be moved with the mouse and snap to free ends. ",

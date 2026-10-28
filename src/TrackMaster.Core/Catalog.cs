@@ -105,6 +105,8 @@ public sealed class TrackSystem
     public required IReadOnlyList<TrackPieceDef> Pieces { get; init; }
     /// <summary>Frühere Katalogeinträge, die nur noch zum Öffnen älterer Pläne dienen und in der Bibliothek nicht erscheinen.</summary>
     public IReadOnlyList<TrackPieceDef> Legacy { get; init; } = [];
+    /// <summary>Frühere Artikelnummern, die auf ein Teil dieses Systems verweisen (alte Nummer → Nummer).</summary>
+    public IReadOnlyDictionary<string, string> Aliases { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>Flexgleis, wie es im Handel verkauft wird: Systemschlüssel für den Katalog, Artikel, Länge eines Stücks.</summary>
@@ -167,6 +169,10 @@ public static partial class Catalog
                     piece.Key = key;
                     map[key] = piece;
                 }
+        foreach (var gauge in _gauges!)
+            foreach (var system in gauge.Systems)
+                foreach (var (from, to) in system.Aliases)
+                    Aliases.TryAdd($"{gauge.Id}|{system.Id}|{from}", $"{gauge.Id}|{system.Id}|{to}");
         return map;
     }
 
@@ -196,7 +202,7 @@ public static partial class Catalog
 
     public static TrackPieceDef? Find(string key)
         => ByKey.TryGetValue(key, out var d) ? d
-         : Aliases.TryGetValue(key, out var alias) ? ByKey[alias]
+         : Aliases.TryGetValue(key, out var alias) && ByKey.TryGetValue(alias, out var a) ? a
          : FlexCache.GetOrAdd(key, ParseFlex);
     public static TrackPieceDef Get(string key) => Find(key) ?? throw new KeyNotFoundException(Lang.F($"Unbekanntes Gleis „{key}“."));
 

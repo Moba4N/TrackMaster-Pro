@@ -4,26 +4,37 @@ using System.Text.RegularExpressions;
 namespace TrackMaster.Core;
 
 /// <summary>
-/// Liest den Gleiskatalog aus der Datendatei gleisdaten.json (Ordner Gleisdaten neben dem Programm). Die Datei steht unter
-/// eigener Lizenz (GPL, siehe LIZENZ.txt im selben Ordner) und wird nur gelesen; das Programm enthält selbst keine Gleisdaten.
-/// Texte stehen auf Deutsch in der Datei; englische Namen und Daten stehen dort, wo die Übersetzung nicht aus Lang.en.json folgt.
+/// Liest den Gleiskatalog. Der eigene Katalog (Gleiskatalog.json, im Programm eingebettet) ist nach Herstellerangaben
+/// erfasst (Erzeuger: tools/katalog). Systeme, die dort noch fehlen, kommen aus der Datendatei gleisdaten.json
+/// (Ordner Gleisdaten neben dem Programm, eigene Datei unter der GPL, wird nur gelesen), solange es sie gibt.
+/// Texte stehen auf Deutsch in den Dateien; englische Namen und Daten stehen dort, wo die Übersetzung nicht aus Lang.en.json folgt.
 /// </summary>
 public static partial class Catalog
 {
     /// <summary>
-    /// Öffnet die Datendatei. Unter Windows liegt sie im Programmordner; ohne Angabe gilt <see cref="DataPath"/>.
+    /// Öffnet die GPL-Datendatei. Unter Windows liegt sie im Programmordner; ohne Angabe gilt <see cref="DataPath"/>.
     /// Android setzt hier das App-Asset ein, bevor der Katalog zum ersten Mal gebraucht wird.
     /// </summary>
     public static Func<Stream>? OpenData { get; set; }
 
     /// <summary>Hinweis für „Über das Programm“: Herkunft und Lizenz der Gleisdaten.</summary>
-    public static string DataNotice => Lang.T("Gleisdaten: eigene Datei unter der GNU GPL Version 2 (Ordner Gleisdaten, mit Lizenztext). Maße und Artikelnummern aus der Gleisbibliothek von XTrackCAD.");
+    public static string DataNotice => Lang.T("Gleisdaten nach Herstellerangaben. Noch nicht neu erfasste Systeme stammen aus einer eigenen Datei unter der GNU GPL Version 2 (Ordner Gleisdaten, mit Lizenztext; Maße aus der Gleisbibliothek von XTrackCAD).");
 
     public static string DataPath => Path.Combine(AppContext.BaseDirectory, "Gleisdaten", "gleisdaten.json");
 
     private static IReadOnlyList<Gauge> Load()
     {
-        using var stream = OpenData?.Invoke() ?? File.OpenRead(DataPath);
+        using var own = typeof(Catalog).Assembly.GetManifestResourceStream("TrackMaster.Core.Gleiskatalog.json")!;
+        var gauges = Read(own);
+        Stream? extra;
+        try { extra = OpenData?.Invoke() ?? (File.Exists(DataPath) ? File.OpenRead(DataPath) : null); }
+        catch (IOException) { extra = null; }
+        if (extra is null) return gauges;
+        using (extra) return Merge(gauges, Read(extra));
+    }
+
+    private static List<Gauge> Read(Stream stream)
+    {
         using var doc = JsonDocument.Parse(stream);
         var root = doc.RootElement;
         if (root.GetProperty("format").GetString() != "gleisdaten-1")
@@ -41,6 +52,33 @@ public static partial class Catalog
         }).ToList();
     }
 
+    /// <summary>
+    /// Eigene Systeme ersetzen die gleichnamigen der GPL-Datei (an deren Stelle in der Reihenfolge); übrige GPL-Systeme bleiben.
+    /// Teile der GPL-Datei, die im eigenen System fehlen, bleiben im Hintergrund, damit ältere Pläne weiter öffnen.
+    /// </summary>
+    private static List<Gauge> Merge(List<Gauge> own, List<Gauge> gpl) => own.Select(g =>
+    {
+        var other = gpl.FirstOrDefault(x => x.Id == g.Id)?.Systems ?? [];
+        var systems = other.Select(o => g.Systems.FirstOrDefault(s => s.Id == o.Id) is { } s ? WithLegacy(s, o) : o)
+            .Concat(g.Systems.Where(s => other.All(o => o.Id != s.Id))).ToList();
+        return new Gauge
+        {
+            Id = g.Id, Scale = g.Scale, TrackWidth = g.TrackWidth, DefaultBoardWidth = g.DefaultBoardWidth, DefaultBoardHeight = g.DefaultBoardHeight,
+            ClearanceHeight = g.ClearanceHeight, FlexStockLength = g.FlexStockLength, Systems = systems,
+        };
+    }).ToList();
+
+    private static TrackSystem WithLegacy(TrackSystem s, TrackSystem old)
+    {
+        var known = s.Pieces.Concat(s.Legacy).Select(p => p.Number).ToHashSet();
+        var legacy = old.Pieces.Concat(old.Legacy).Where(p => known.Add(p.Number)).ToList();
+        return new TrackSystem
+        {
+            Id = s.Id, Name = s.Name, Verified = s.Verified, ThreeRail = s.ThreeRail, FlexNumber = s.FlexNumber, FlexLength = s.FlexLength,
+            MoreFlex = s.MoreFlex, Source = s.Source, Pieces = s.Pieces, Legacy = [.. s.Legacy, .. legacy], Aliases = s.Aliases,
+        };
+    }
+
     private static TrackSystem ReadSystem(JsonElement s) => new()
     {
         Id = Str(s, "id"),
@@ -53,6 +91,7 @@ public static partial class Catalog
         Source = Opt(s, "source") is { } src ? Lang.T(src) : null,
         Pieces = List(s, "pieces", ReadPiece),
         Legacy = List(s, "legacy", ReadPiece),
+        Aliases = s.TryGetProperty("aliases", out var al) ? al.EnumerateObject().ToDictionary(x => x.Name, x => x.Value.GetString() ?? "") : new Dictionary<string, string>(),
     };
 
     private static TrackPieceDef ReadPiece(JsonElement p) => new()

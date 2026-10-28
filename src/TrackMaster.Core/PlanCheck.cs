@@ -112,6 +112,8 @@ public static class PlanCheck
             issues.Add(new PlanIssue(IssueLevel.Hinweis, "Höhe", "Gleise liegen unter der Plattenoberkante – dafür muss die Platte ausgeschnitten werden.", plan.Pieces.Where(q => q.Height < -0.5).Select(q => q.Id).ToList(), m.X, m.Y));
         }
 
+        CurvesForVehicles(plan, conn, issues);
+
         // Gelände und Gebäude
         foreach (var s in plan.Scenery)
         {
@@ -144,5 +146,72 @@ public static class PlanCheck
             issues.Add(new PlanIssue(IssueLevel.Hinweis, "Gleisenden", $"{open} offene Gleisende(n) ohne Prellbock.", conn.Open.Select(o => o.PieceId).Distinct().ToList(), c.Pose.X, c.Pose.Y));
         }
         return issues.OrderByDescending(i => i.Level).ToList();
+    }
+
+    /// <summary>
+    /// Bögen und lange Fahrzeuge: zu enge Radien, Steigung im Bogen und S-Bögen ohne Zwischengerade.
+    /// </summary>
+    private static void CurvesForVehicles(LayoutPlan plan, Connectivity conn, List<PlanIssue> issues)
+    {
+        var length = plan.EffectiveVehicleLength;
+        var minRadius = length * VehicleDefaults.RadiusFactor;
+        var arcs = plan.Pieces.Where(p => !p.Def.IsTable)
+            .Select(p => (Piece: p, Legs: p.WorldLegs().Where(l => l.IsArc && l.Radius > 0).ToList()))
+            .Where(x => x.Legs.Count > 0).ToList();
+
+        // Enge Radien: eine Meldung je Radius
+        foreach (var group in arcs.Select(x => (x.Piece, R: Math.Round(x.Legs.Min(l => l.Radius))))
+                     .Where(x => x.R < minRadius - 0.5).GroupBy(x => x.R).OrderBy(g => g.Key))
+        {
+            var (inner, outer) = VehicleDefaults.Swing(group.Key, length);
+            var m = group.First().Piece.Middle();
+            issues.Add(new PlanIssue(IssueLevel.Hinweis, "Radius",
+                $"{group.Count()} Gleis(e) mit R {Fmt.Num(group.Key, 0)} mm: eng für Fahrzeuge mit {Fmt.Num(length, 0)} mm Länge (Faustregel: Radius ab {Fmt.Num(minRadius, 0)} mm). " +
+                $"Die Wagenmitte schwenkt etwa {Fmt.Num(inner, 0)} mm nach innen, die Enden {Fmt.Num(outer, 0)} mm nach außen – Gleisabstand und Bahnsteige im Bogen entsprechend größer wählen.",
+                group.Select(x => x.Piece.Id).ToList(), m.X, m.Y));
+        }
+
+        // Steigung im Bogen
+        var steep = arcs.Where(x => Math.Abs(x.Piece.EffectiveGrade) * 100 > VehicleDefaults.CurveGradePercent + 1e-6
+                                    && Math.Abs(x.Piece.EffectiveGrade) * 100 <= WarnGradePercent + 1e-6).Select(x => x.Piece).ToList();
+        if (steep.Count > 0)
+        {
+            var m = steep[0].Middle();
+            var max = steep.Max(p => Math.Abs(p.EffectiveGrade)) * 100;
+            issues.Add(new PlanIssue(IssueLevel.Warnung, "Steigung im Bogen",
+                $"{steep.Count} Bogengleis(e) steigen um bis zu {Fmt.Num(max, 1)} %. Im Bogen bremst die Reibung zusätzlich – dort höchstens {Fmt.Num(VehicleDefaults.CurveGradePercent, 0)} % empfohlen.",
+                steep.Select(p => p.Id).ToList(), m.X, m.Y));
+        }
+
+        // S-Bögen: zwei Bögen mit entgegengesetzter Krümmung direkt aneinander
+        var legsById = arcs.ToDictionary(x => x.Piece.Id, x => x.Legs);
+        var sCurves = new List<(int A, int B, double X, double Y)>();
+        foreach (var c in conn.All)
+        {
+            if (c.Link is not { } l || c.PieceId >= l.PieceId) continue;
+            if (!legsById.TryGetValue(c.PieceId, out var la) || !legsById.TryGetValue(l.PieceId, out var lb)) continue;
+            var (x, y) = (c.Pose.X, c.Pose.Y);
+            var h = c.Pose.Heading * Math.PI / 180;
+            var (dx, dy) = (Math.Cos(h), Math.Sin(h));
+            int? Side(List<Leg> legs, double limit)
+            {
+                foreach (var leg in legs)
+                {
+                    if (leg.Radius >= limit) continue;
+                    var a = leg.At(0); var b = leg.At(1);
+                    if (Math.Abs(a.X - x) + Math.Abs(a.Y - y) > 1 && Math.Abs(b.X - x) + Math.Abs(b.Y - y) > 1) continue;
+                    var (cx, cy) = leg.Center;
+                    return Math.Sign(dx * (cy - y) - dy * (cx - x));
+                }
+                return null;
+            }
+            // Nur Bögen, die für die Fahrzeuglänge eng sind, ergeben spürbaren Pufferversatz
+            if (Side(la, minRadius * 2) is { } sa && Side(lb, minRadius * 2) is { } sb && sa != 0 && sa != sb)
+                sCurves.Add((c.PieceId, l.PieceId, x, y));
+        }
+        if (sCurves.Count > 0)
+            issues.Add(new PlanIssue(IssueLevel.Hinweis, "S-Bogen",
+                $"{sCurves.Count} S-Bogen/-Bögen ohne Zwischengerade. Lange Wagen können sich dort mit den Puffern verhaken – möglichst ein gerades Stück von etwa {Fmt.Num(length, 0)} mm dazwischen legen.",
+                sCurves.SelectMany(s => new[] { s.A, s.B }).Distinct().ToList(), sCurves[0].X, sCurves[0].Y));
     }
 }

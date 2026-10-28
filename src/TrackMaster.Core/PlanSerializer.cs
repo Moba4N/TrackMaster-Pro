@@ -22,6 +22,7 @@ public static class PlanSerializer
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("gauge")] public string? Gauge { get; set; }
         [JsonPropertyName("board")] public BoardDto? Board { get; set; }
+        [JsonPropertyName("vehicle"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Vehicle { get; set; }
         [JsonPropertyName("pieces")] public List<PieceDto>? Pieces { get; set; }
         [JsonPropertyName("scenery"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<SceneryDto>? Scenery { get; set; }
         [JsonPropertyName("feeders"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<FeederDto>? Feeders { get; set; }
@@ -115,6 +116,7 @@ public static class PlanSerializer
                 LegLeft = plan.BoardShape == BoardShape.U && plan.BoardLegLeft > 0 ? plan.BoardLegLeft : null,
                 LegRight = plan.BoardShape == BoardShape.U && plan.BoardLegRight > 0 ? plan.BoardLegRight : null,
             },
+            Vehicle = plan.VehicleLength > 0 ? plan.VehicleLength : null,
             Pieces = plan.Pieces.Select(p => new PieceDto
             {
                 Id = needIds ? p.Id : null,
@@ -169,6 +171,7 @@ public static class PlanSerializer
             BoardTurn = Math.Clamp(dto.Board?.Turn ?? 0, 0, 3),
             BoardLegLeft = Math.Max(0, dto.Board?.LegLeft ?? 0),
             BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
+            VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
         };
         skipped = 0;
         // Gleise ohne Kennung bekommen neue Kennungen oberhalb aller in der Datei vorhandenen

@@ -152,6 +152,9 @@ public static partial class Dialogs
         }
         shape.ItemSelected += (_, _) => SyncLegs();
         SyncLegs();
+        body.AddView(Section(c, "Planprüfung"));
+        var vehicle = Ui.Number(c, plan.EffectiveVehicleLength);
+        body.AddView(Ui.Field(c, "Längstes Fahrzeug (mm)", vehicle));
         body.AddView(Section(c, "Übersicht"));
         body.AddView(Rows(c,
             ("Spur", $"{gauge.Id} · {gauge.Scale} · {Fmt.Num(gauge.TrackWidth)} mm", null),
@@ -180,13 +183,15 @@ public static partial class Dialogs
                 Read(legLeft, "Linker Schenkel", 50, 50000, errors, out l1);
                 Read(legRight, "Rechter Schenkel", 50, 50000, errors, out l2);
             }
+            Read(vehicle, "Fahrzeuglänge", 20, 5000, errors, out var vl);
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
             var n = (name.Text ?? "").Trim();
             var t = turn.SelectedItemPosition;
             var full = t % 2 == 0 ? bh : bw;
             l1 = l1 >= full ? 0 : l1;
             l2 = l2 >= full ? 0 : l2;
-            if (n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn
+            vl = Math.Abs(vl - VehicleDefaults.Length(gauge)) < 0.5 ? 0 : vl;
+            if (vl != plan.VehicleLength || n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn
                 || l1 != plan.BoardLegLeft || l2 != plan.BoardLegRight)
                 session.Edit(() =>
                 {
@@ -198,6 +203,7 @@ public static partial class Dialogs
                     plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);
                     plan.BoardLegLeft = l1;
                     plan.BoardLegRight = l2;
+                    plan.VehicleLength = vl;
                 });
             return true;
         }, neutral: ("Stückliste", () => run("bom")));

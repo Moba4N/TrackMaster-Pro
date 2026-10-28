@@ -164,6 +164,13 @@ public sealed class PropertiesPanel : DockPanel
             }
         }
 
+        Section("Planprüfung");
+        var vehicle = NumberBox(plan.EffectiveVehicleLength, v =>
+            plan.VehicleLength = Math.Abs(v - VehicleDefaults.Length(gauge)) < 0.5 ? 0 : Math.Clamp(v, 20, 5000), 0);
+        vehicle.ToolTip = "Länge über Puffer des längsten Wagens oder der längsten Lok. Die Planprüfung meldet damit zu enge Bögen, " +
+                          "S-Bögen ohne Zwischengerade und wie weit die Wagen im Bogen ausschwenken.";
+        _body.Children.Add(Theme.Field("Längstes Fahrzeug (mm)", vehicle));
+
         Section("Übersicht");
         Rows(("Spur", $"{gauge.Id} · {gauge.Scale} · {Fmt.Num(gauge.TrackWidth)} mm", null),
              ("Gleisstücke", stats.Pieces.ToString(), null),

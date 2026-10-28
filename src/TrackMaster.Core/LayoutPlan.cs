@@ -211,6 +211,9 @@ public sealed class LayoutPlan
     public List<Feeder> Feeders { get; } = [];
     public List<Isolation> Isolations { get; } = [];
     public List<Signal> Signals { get; } = [];
+    /// <summary>Länge des längsten Fahrzeugs in mm für die Planprüfung (0 = Vorgabe der Spur, siehe <see cref="VehicleDefaults"/>).</summary>
+    public double VehicleLength { get; set; }
+    public double EffectiveVehicleLength => VehicleLength > 0 ? VehicleLength : VehicleDefaults.Length(Gauge);
     /// <summary>Nächste freie Kennung; gilt für Gleise und alle anderen Objekte gemeinsam.</summary>
     public int NextId { get; set; } = 1;
 

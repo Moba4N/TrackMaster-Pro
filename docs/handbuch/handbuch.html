@@ -112,7 +112,7 @@ Anlage und sehen sich das Ergebnis in 3D an – bevor die erste Schiene gekauft 
   <li><b>Planprüfung:</b> Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen, Gelände und offene Gleisenden.</li>
   <li><b>3D-Ansicht:</b> die Anlage von allen Seiten, Mitfahren im Führerstand und Licht je nach Tageszeit.</li>
   <li><b>Eigene Arbeitsweise:</b> Ansicht in jedem Winkel drehbar, fünf Designs, sieben Schriftarten in vier Größen.</li>
-  <li><b>Ergebnisse</b> <span class="badge">PRO</span> Speichern, Stückliste der Gleise, Holzliste der Gleiswendel, Drucken und Exporte.</li>
+  <li><b>Ergebnisse</b> <span class="badge">PRO</span> Speichern großer Pläne (über 50 Gleise), Stückliste der Gleise, Holzliste der Gleiswendel, Drucken und Exporte.</li>
 </ul>
 
 <h2 id="k1-2">Basis und Pro</h2>
@@ -121,7 +121,7 @@ Anlage und sehen sich das Ergebnis in 3D an – bevor die erste Schiene gekauft 
 <b>Pro-Version</b>, die die Ergebnisse Ihrer Planung freischaltet.</p>
 <table>
   <tr><th style="width:50%">Basis (ohne Lizenz)</th><th>Pro (mit Lizenz) – zusätzlich</th></tr>
-  <tr><td>Gleisplanung in allen Spuren mit allen Gleissystemen, Flexgleis</td><td>Speichern und Speichern unter</td></tr>
+  <tr><td>Gleisplanung in allen Spuren mit allen Gleissystemen, Flexgleis</td><td>Speichern von Plänen jeder Größe (Basis: bis 50 Gleise)</td></tr>
   <tr><td>Höhenplanung: Steigung, Gleiswendel rund und oval, ein- und zweigleisig</td><td>Stückliste der Gleise mit Zubehör, auch als CSV-Datei</td></tr>
   <tr><td>Gelände, Gewässer, Gebäude, Vegetation, Tunnel</td><td>Holzliste der Gleiswendel mit allen Zuschnitten</td></tr>
   <tr><td>Elektrik: Einspeisungen, Trennstellen, Signale, Decoder, Kabelplan</td><td>Drucken des Gleisplans</td></tr>
@@ -221,7 +221,7 @@ Unter Android spielen Sie die Lizenz über <span class="ui">Datei › Lizenz</sp
 übernehmen Sie sie in die Zwischenablage und können sie in eine E-Mail einfügen.</p>
 
 <h2 id="k3-3">Wenn eine Pro-Funktion gewählt wird</h2>
-<p>In der Basisversion erscheint bei Speichern, Stückliste, Holzliste, Drucken und den Exporten ein Hinweis. Mit
+<p>In der Basisversion erscheint bei Speichern von Plänen mit mehr als 50 Gleisen, bei Stückliste, Holzliste, Drucken und den Exporten ein Hinweis. Mit
 <span class="ui">Lizenz…</span> öffnen Sie direkt den Lizenzdialog. Ihr Plan bleibt dabei unverändert geöffnet.</p>
 <div class="warn"><b>Achtung</b>In der Basisversion kann ein Plan nicht gespeichert werden. Wenn Sie das Programm schließen, einen
 neuen Plan beginnen oder einen anderen öffnen, fragt TrackMaster Pro nach, ob die Änderungen verworfen werden sollen.</div>
@@ -578,7 +578,8 @@ Gebäude, Bäume und Signale. Beim Mitfahren liegt der Blick in Führerstandshö
 <h1 id="k12"><span class="no">12</span>Speichern, Stückliste, Drucken und Export</h1>
 <p class="lead">Diese Funktionen gehören zur Pro-Version.</p>
 
-<h2 id="k12-1">Speichern und Öffnen <span class="badge">PRO</span></h2>
+<h2 id="k12-1">Speichern und Öffnen</h2>
+<p>In der Basisversion lassen sich Pläne mit bis zu 50 Gleisen speichern; größere Pläne speichert die Pro-Version.</p>
 <p><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span> legen den Plan als Datei mit der Endung
 <b>.trackmaster.json</b> ab. Öffnen (<kbd>Strg</kbd>+<kbd>O</kbd>) ist auch in der Basisversion möglich. Die Plandateien sind zwischen Windows und Android
 austauschbar. Eine Plandatei lässt sich auch mit „Öffnen mit“ oder als Startparameter öffnen:
@@ -633,7 +634,7 @@ von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich 
   <tr><th>Taste</th><th>Funktion</th></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>N</kbd></td><td>Neuer Plan</td></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>O</kbd></td><td>Öffnen</td></tr>
-  <tr><td><kbd>Strg</kbd>+<kbd>S</kbd></td><td>Speichern <span class="badge">PRO</span></td></tr>
+  <tr><td><kbd>Strg</kbd>+<kbd>S</kbd></td><td>Speichern (Basis bis 50 Gleise)</td></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>P</kbd></td><td>Drucken <span class="badge">PRO</span></td></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd></td><td>Rückgängig / Wiederholen</td></tr>
   <tr><td><kbd>Strg</kbd>+<kbd>A</kbd></td><td>Alles auswählen</td></tr>
@@ -676,7 +677,7 @@ wählen Sie mit <kbd>E</kbd> das nächste offene Ende.</p>
 <p>Kleine Lücken entstehen, wenn Geraden unterschiedlicher Länge gemischt werden. Schließen Sie die Lücke mit <span class="ui">Gleise › Lücke schließen</span>
 oder ziehen Sie ein Flexgleis.</p>
 <h3>Beim Speichern erscheint ein Hinweis auf die Pro-Version.</h3>
-<p>Speichern gehört zur Pro-Version. Spielen Sie Ihre Lizenz unter <span class="ui">Datei › Lizenz</span> ein (Kapitel <a href="#k3">3</a>).</p>
+<p>Die Basisversion speichert Pläne mit bis zu 50 Gleisen. Größere Pläne speichert die Pro-Version. Spielen Sie Ihre Lizenz unter <span class="ui">Datei › Lizenz</span> ein (Kapitel <a href="#k3">3</a>).</p>
 <h3>Die Lizenz wird als ungültig gemeldet.</h3>
 <p>Die Datei darf nicht verändert werden – auch nicht durch Öffnen und Speichern in einem Texteditor. Ist die Lizenz an einen Rechner gebunden,
 gilt sie nur dort; ist ein Ablaufdatum eingetragen, nur bis zu diesem Tag. Wenden Sie sich mit Ihrer Rechnerkennung an den Herausgeber.</p>

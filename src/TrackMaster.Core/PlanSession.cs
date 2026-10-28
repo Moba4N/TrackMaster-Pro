@@ -439,6 +439,17 @@ public sealed class PlanSession
         return false;
     }
 
+    /// <summary>So viele Gleise darf ein Plan in der Basisversion haben, damit er sich speichern lässt.</summary>
+    public const int BasisSaveLimit = 50;
+
+    /// <summary>Speichern erlaubt? Pro immer, Basis bis <see cref="BasisSaveLimit"/> Gleise; sonst Lizenzhinweis.</summary>
+    public bool RequireSave()
+    {
+        if (IsPro() || Plan.Pieces.Count <= BasisSaveLimit) return true;
+        ProRequired?.Invoke($"Speichern von Plänen mit mehr als {BasisSaveLimit} Gleisen");
+        return false;
+    }
+
     public void AttachFlex(string key, (double X, double Y) fallbackCenter) => Attach(key, fallbackCenter);
 
     // ---------- Flexgleis formen (wie in WinTrack) ----------

@@ -46,7 +46,14 @@ public sealed class MainWindow : Window
     private readonly Border _menuLabel;
     private readonly Canvas _menuLabelHost = new() { IsHitTestVisible = false };
     private RibbonApplicationMenu _appMenu = null!;
+    private RibbonApplicationMenuItem _recentMenu = null!;
     private bool _restarting;
+
+    /// <summary>Automatische Sicherung für Absturz oder Stromausfall (%APPDATA%\TrackMaster Pro\Wiederherstellung).</summary>
+    public static readonly Recovery Backup = new(Path.Combine(AppFolders.Data, "Wiederherstellung"));
+    private readonly RecentFiles _recent = new(Path.Combine(AppFolders.Data, "zuletzt-geoeffnet.txt"));
+    private readonly DispatcherTimer _backupTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private bool _changedSinceBackup;
 
     public MainWindow(LicenseManager license)
     {
@@ -94,6 +101,9 @@ public sealed class MainWindow : Window
         _appMenu.LayoutUpdated += (_, _) => PositionMenuLabel();
         StateChanged += (_, _) => _root.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
         Session.Changed += OnSessionChanged;
+        Session.Changed += () => _changedSinceBackup = true;
+        _backupTimer.Tick += (_, _) => { if (_changedSinceBackup) BackupNow(); };
+        if (!Program.ScreenshotMode) _backupTimer.Start();
         Session.Message += ShowMessage;
         Session.ProRequired += feature => { if (Dialogs.ShowProRequired(this, feature)) Run("license"); };
         Canvas.ViewChanged += () => { _zoomText.Text = $"{Fmt.Num(Canvas.Zoom * 100, 0)} %"; UpdateStatus(); };
@@ -119,8 +129,8 @@ public sealed class MainWindow : Window
             Canvas.Fit();
         });
         Add("open", OpenFile);
-        Pro("save", "Speichern", () => SaveFile(false));
-        Pro("saveAs", "Speichern", () => SaveFile(true));
+        Add("save", () => SaveFile(false));
+        Add("saveAs", () => SaveFile(true));
         Add("sample", () => { if (ConfirmDiscard()) { Session.LoadSample(); Canvas.Fit(); } });
         Pro("bom", "Stückliste", () => Dialogs.ShowBillOfMaterials(this, Session.Plan, () => Run("csv")));
         // Pro-Funktionen fragen erst die Lizenz ab
@@ -424,6 +434,9 @@ public sealed class MainWindow : Window
             => new() { Header = header, ImageSource = Icons.Get(icon), Command = _commands[command] };
         _appMenu.Items.Add(Item("Neu", "New", "new"));
         _appMenu.Items.Add(Item("Öffnen…", "Open", "open"));
+        _recentMenu = new RibbonApplicationMenuItem { Header = "Zuletzt geöffnet", ImageSource = Icons.Get("Open") };
+        _appMenu.Items.Add(_recentMenu);
+        RefreshRecent();
         _appMenu.Items.Add(Item("Speichern", "Save", "save"));
         _appMenu.Items.Add(Item("Speichern unter…", "SaveAs", "saveAs"));
         _appMenu.Items.Add(new RibbonSeparator());
@@ -780,6 +793,8 @@ public sealed class MainWindow : Window
         {
             Session.Open(path);
             Canvas.Fit();
+            _recent.Add(path);
+            RefreshRecent();
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
@@ -789,6 +804,7 @@ public sealed class MainWindow : Window
 
     private bool SaveFile(bool askForName)
     {
+        if (!Session.RequireSave()) return false;
         var path = Session.FilePath;
         if (askForName || path is null)
         {
@@ -800,6 +816,10 @@ public sealed class MainWindow : Window
         try
         {
             Session.Save(path);
+            Backup.Clear();
+            _changedSinceBackup = false;
+            _recent.Add(path);
+            RefreshRecent();
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -865,6 +885,8 @@ public sealed class MainWindow : Window
     /// <summary>Öffnet für Bildschirmfotos (Handbuch) einen Dialog: helix, holzliste, bom, license, check, new, wiring.</summary>
     public void OpenForScreenshot(string name)
     {
+        if (name == "druckart") { Dialogs.AskPrintMode(this, 60, "Seiten 200 × 287 mm"); return; }
+        if (name == "bauvorlage") { ShowTilePreview(); return; }
         if (name != "holzliste") { Run(name == "helix" ? "helix" : name); return; }
         var curves = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).OrderBy(p => p.Radius).ToList();
         if (curves.Count == 0) return;
@@ -874,6 +896,22 @@ public sealed class MainWindow : Window
         var spec = new HelixSpec(inner.Key, 3, Math.Round(gauge.TrackWidth * 6.5), true, HelixShape.Rund,
             Tracks: 2, Spacing: spacing, OuterCurveKey: Helix.OuterCurve(curves, inner, spacing, HelixShape.Rund)?.Key);
         Dialogs.ShowHelixMaterial(this, Helix.Material(spec, gauge), _ => { });
+    }
+
+    /// <summary>Für das Handbuch: eine Seite der Bauvorlage (A4) als Bild in einem Fenster.</summary>
+    private void ShowTilePreview()
+    {
+        const double mm = 96 / 25.4;
+        double pageW = 210 * mm, pageH = 297 * mm;
+        var tiles = PrintTiles.Layout(Session.Plan.Bounds(), 200, 273, 10);
+        var tile = tiles.OrderBy(t => Session.Plan.Pieces.Count(p => p.X > t.X0 && p.X < t.X1 && p.Y > t.Y0 && p.Y < t.Y1)).Last();
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)pageW, (int)pageH, 96, 96, PixelFormats.Pbgra32);
+        var page = new DrawingVisual();
+        using (var dc = page.RenderOpen()) dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, pageW, pageH));
+        bitmap.Render(page);
+        bitmap.Render(PlanPrint.RenderTile(Session.Plan, tile, tiles.Max(t => t.Row) + 1, tiles.Max(t => t.Column) + 1, pageW, pageH, License.IsPro, 10));
+        new Window { Title = "Bauvorlage", SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.NoResize, Owner = this,
+                     Content = new Image { Source = bitmap, Width = pageW, Height = pageH } }.Show();
     }
 
     private void AskHelix()
@@ -915,9 +953,17 @@ public sealed class MainWindow : Window
     {
         var dlg = new PrintDialog();
         if (dlg.ShowDialog() != true) return;
-        var visual = PlanPrint.Render(Session.Plan, dlg.PrintableAreaWidth, dlg.PrintableAreaHeight, License.IsPro);
-        dlg.PrintVisual(visual, $"TrackMaster Pro – {Session.Plan.Name}");
-        ShowMessage("An den Drucker gesendet.");
+        // Bauvorlage: bedruckbarer Bereich abzüglich Kopf- und Fußzeile (je 12 mm) und 5 mm Rand seitlich
+        const double mm = 96 / 25.4, overlap = 10;
+        double pageW = dlg.PrintableAreaWidth, pageH = dlg.PrintableAreaHeight;
+        var tiles = PrintTiles.Layout(Session.Plan.Bounds(), pageW / mm - 10, pageH / mm - 24, overlap);
+        var paper = $"Seiten {Fmt.Num(pageW / mm, 0)} × {Fmt.Num(pageH / mm, 0)} mm";
+        if (Dialogs.AskPrintMode(this, tiles.Count, paper) is not { } full) return;
+        if (full)
+            dlg.PrintDocument(new TilePaginator(Session.Plan, tiles, new Size(pageW, pageH), License.IsPro, overlap), $"TrackMaster Pro – {Session.Plan.Name} (Bauvorlage 1:1)");
+        else
+            dlg.PrintVisual(PlanPrint.Render(Session.Plan, pageW, pageH, License.IsPro), $"TrackMaster Pro – {Session.Plan.Name}");
+        ShowMessage(full ? $"Bauvorlage mit {tiles.Count} Seiten an den Drucker gesendet." : "An den Drucker gesendet.");
     }
 
     private void ShowLicense()
@@ -952,6 +998,49 @@ public sealed class MainWindow : Window
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         if (Program.ScreenshotMode || _restarting) return;
-        if (!ConfirmDiscard()) e.Cancel = true;
+        if (!ConfirmDiscard()) { e.Cancel = true; return; }
+        _backupTimer.Stop();
+        Backup.Clear();
+    }
+
+    /// <summary>Sichert ungespeicherte Änderungen (alle 30 Sekunden und nach einem Programmfehler).</summary>
+    public void BackupNow()
+    {
+        _changedSinceBackup = false;
+        if (Program.ScreenshotMode || !Session.Dirty) return;
+        try { Backup.Write(Session.Plan, Session.FilePath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Beim Start: Sicherung aus einer abgebrochenen Sitzung anbieten.</summary>
+    public bool OfferRecovery()
+    {
+        if (Backup.TryLoad() is not { } snap) return false;
+        var answer = MessageBox.Show(this,
+            $"TrackMaster Pro wurde zuletzt nicht regulär beendet.\n\nVom Plan „{snap.Name}“ gibt es eine automatische Sicherung vom {snap.Saved:dd.MM.yyyy} um {snap.Saved:HH:mm} Uhr " +
+            "mit Änderungen, die nicht gespeichert wurden.\n\nSoll die Sicherung wiederhergestellt werden?",
+            "Plan wiederherstellen", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Yes)
+        {
+            Session.Restore(snap.Json, snap.Path, dirty: true);
+            Canvas.Fit();
+            ShowMessage("Sicherung wiederhergestellt. Bitte speichern Sie den Plan.");
+            return true;
+        }
+        Backup.Clear();
+        return false;
+    }
+
+    private void RefreshRecent()
+    {
+        _recentMenu.Items.Clear();
+        var items = _recent.Items;
+        foreach (var path in items)
+        {
+            var item = new RibbonApplicationMenuItem { Header = Path.GetFileName(path).Replace(PlanSerializer.FileExtension, ""), ToolTip = path };
+            item.Click += (_, _) => { if (ConfirmDiscard()) OpenPath(path); };
+            _recentMenu.Items.Add(item);
+        }
+        if (items.Count == 0) _recentMenu.Items.Add(new RibbonApplicationMenuItem { Header = "(noch keine)", IsEnabled = false });
     }
 }

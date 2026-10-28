@@ -25,13 +25,13 @@ public static class EditionInfo
         "Gelände, Gewässer, Gebäude, Vegetation und Tunnel",
         "Elektrik: Einspeisungen, Trennstellen, Signale, Decoder-Adressen, Kabelplan",
         "3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung",
-        "Gleispläne öffnen",
+        "Gleispläne öffnen und Pläne mit bis zu 50 Gleisen speichern",
     ];
 
     public static readonly string[] Pro =
     [
         "Alles aus Basis",
-        "Speichern und Speichern unter",
+        "Speichern von Plänen jeder Größe",
         "Stückliste der Gleise, auch als CSV",
         "Holzliste der Gleiswendel mit allen Zuschnitten",
         "Drucken des Gleisplans",

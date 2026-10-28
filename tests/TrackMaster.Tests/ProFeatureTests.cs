@@ -184,3 +184,24 @@ public class ProFeatureTests
         Assert.True(back.NextId > back.Scenery.Max(s => s.Id));
     }
 }
+
+public class BasisSaveTests
+{
+    [Fact]
+    public void Basis_speichert_bis_50_Gleise_Pro_unbegrenzt()
+    {
+        var s = new PlanSession { IsPro = () => false };
+        string? asked = null;
+        s.ProRequired += f => asked = f;
+        s.NewPlan();
+        const string key = "H0|mc|24188";
+        for (var i = 0; i < PlanSession.BasisSaveLimit; i++) s.Attach(key, (0, 0));
+        Assert.Equal(50, s.Plan.Pieces.Count);
+        Assert.True(s.RequireSave());
+        s.Attach(key, (0, 0));
+        Assert.False(s.RequireSave());
+        Assert.Contains("50", asked);
+        s.IsPro = () => true;
+        Assert.True(s.RequireSave());
+    }
+}

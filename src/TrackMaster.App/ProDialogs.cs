@@ -567,7 +567,7 @@ public static partial class Dialogs
         body.Children.Add(Theme.Label($"„{feature}“ gehört zu TrackMaster Pro.", 13, true));
         body.Children.Add(new Border { Height = 8 });
         body.Children.Add(Theme.Label("Die Basisversion enthält alle Planungsfunktionen – Gleise, Höhen, Gleiswendel, Gelände, Elektrik und 3D. " +
-                                      "Mit einer Pro-Lizenz kommen Speichern, die Stücklisten, das Drucken und die Exporte dazu."));
+                                      "Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu."));
         body.Children.Add(new Border { Height = 8 });
         foreach (var l in EditionInfo.Pro.Skip(1)) body.Children.Add(Theme.Label("• " + l, 11.5, false, Theme.TextSecondaryBrush));
         var open = Theme.Button("Lizenz…", "Shield", accent: true);

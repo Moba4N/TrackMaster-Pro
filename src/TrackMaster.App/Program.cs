@@ -34,6 +34,24 @@ public static class Program
             app.DispatcherUnhandledException += (_, e) => { WriteError(screenshot, e.Exception); e.Handled = true; app.Shutdown(1); };
             AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteError(screenshot, e.ExceptionObject as Exception);
         }
+        else
+        {
+            // Programmfehler: Plan sichern, Fehler protokollieren und weiterarbeiten lassen
+            app.DispatcherUnhandledException += (_, e) =>
+            {
+                LogError(e.Exception);
+                (app.MainWindow as MainWindow)?.BackupNow();
+                MessageBox.Show(app.MainWindow!, "Im Programm ist ein Fehler aufgetreten. Ihr Plan wurde automatisch gesichert.\n\n" +
+                                "Speichern Sie den Plan jetzt am besten unter einem neuen Namen. Falls das Programm sich beendet, wird die Sicherung beim nächsten Start angeboten.\n\n" +
+                                e.Exception.Message, "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Error);
+                e.Handled = true;
+            };
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                LogError(e.ExceptionObject as Exception);
+                try { app.Dispatcher.Invoke(() => (app.MainWindow as MainWindow)?.BackupNow()); } catch (Exception) { }
+            };
+        }
 
         if (screenshot is not null && args.Contains("--neutral")) Core.Catalog.UseNeutralNames();
 
@@ -56,7 +74,13 @@ public static class Program
         }
 
         var file = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && a != screenshot && a != ArgumentAfter(args, "--tab") && a != ArgumentAfter(args, "--3d") && a != ArgumentAfter(args, "--dialog") && a != ArgumentAfter(args, "--restore") && a != ArgumentAfter(args, "--path") && File.Exists(a));
-        if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
+        if (screenshot is null && ArgumentAfter(args, "--restore") is null)
+            window.Loaded += (_, _) =>
+            {
+                // Erst eine Sicherung aus einer abgebrochenen Sitzung anbieten; wird sie übernommen, bleibt die Datei zu
+                if (!window.OfferRecovery() && file is not null) window.OpenPath(file);
+            };
+        else if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
         if (ArgumentAfter(args, "--restore") is { } restore)
             window.Loaded += (_, _) => window.RestorePlan(restore, ArgumentAfter(args, "--path"), args.Contains("--dirty"));
         if (screenshot is not null && ArgumentAfter(args, "--rotate") is { } rotate && double.TryParse(rotate, System.Globalization.CultureInfo.InvariantCulture, out var degrees))
@@ -187,6 +211,17 @@ public static class Program
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         using var stream = File.Create(path);
         encoder.Save(stream);
+    }
+
+    /// <summary>Fehlerprotokoll in %APPDATA%\TrackMaster Pro\fehler.log (für Rückfragen beim Support).</summary>
+    private static void LogError(Exception? ex)
+    {
+        try
+        {
+            Directory.CreateDirectory(AppFolders.Data);
+            File.AppendAllText(Path.Combine(AppFolders.Data, "fehler.log"), $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {typeof(Program).Assembly.GetName().Version?.ToString(3)}\n{ex}\n\n");
+        }
+        catch (Exception) { }
     }
 
     private static void WriteError(string screenshotPath, Exception? ex)

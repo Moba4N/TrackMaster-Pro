@@ -40,7 +40,7 @@ public sealed class MainActivity : Activity
     private string _tab = "Start";
     private readonly Dictionary<string, Command> _commands = [];
     private readonly List<(Button Button, Func<bool> Active)> _toggles = [];
-    private (string Content, string Mime)? _pendingExport;
+    private (byte[] Data, string Mime)? _pendingExport;
     private readonly Handler _handler = new(Looper.MainLooper!);
     private Action? _hideToast;
 
@@ -151,7 +151,7 @@ public sealed class MainActivity : Activity
             _canvas.Fit();
         }));
         Add("open", "Öffnen", () => Pick(RequestOpen));
-        Pro("save", "Speichern", SavePlan);
+        Add("save", "Speichern", () => { if (_session.RequireSave()) SavePlan(); });
         Add("sample", "Beispielanlage", () => { _session.LoadSample(); _library.Refresh(force: true); _canvas.Fit(); });
         Add("license", "Lizenz", ShowLicense);
         Add("help", "Bedienung", () => Dialogs.ShowHelp(this));
@@ -215,6 +215,7 @@ public sealed class MainActivity : Activity
         Add("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
         Add("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
         Pro("csv", "Export als CSV", () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", $"{SafeName} – Stückliste.csv"));
+        Pro("pdf", "Drucken als PDF", () => Export(PlanPdf.Build(_session.Plan, _license.IsPro), "application/pdf", $"{SafeName}.pdf"));
         Pro("svg", "Export als SVG", () => Export(SvgExport.Build(_session.Plan), "image/svg+xml", $"{SafeName}.svg"));
     }
 
@@ -279,7 +280,7 @@ public sealed class MainActivity : Activity
                      ("Gerade ausrichten", "viewReset", false), ("Ansicht drehen…", "viewAngle", false), ("Design und Schrift…", "appearance", false)]),
         ("3D", [("3D-Ansicht", "view3d", false), ("Mitfahren", "ride", false), ("Abendstimmung", "daytime", false)]),
         ("Datei", [("Neu…", "new", false), ("Öffnen…", "open", false), ("Speichern…", "save", false), ("Beispielanlage", "sample", false),
-                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Lizenz…", "license", false), ("Darstellung…", "appearance", false), ("Bedienung", "help", false), ("Über…", "about", false)]),
+                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Drucken (PDF, auch 1:1)…", "pdf", false), ("Lizenz…", "license", false), ("Darstellung…", "appearance", false), ("Bedienung", "help", false), ("Über…", "about", false)]),
     ];
 
     private void BuildUi()
@@ -652,9 +653,11 @@ public sealed class MainActivity : Activity
         StartActivityForResult(intent, RequestSave);
     }
 
-    private void Export(string content, string mime, string fileName)
+    private void Export(string content, string mime, string fileName) => Export(new System.Text.UTF8Encoding(false).GetBytes(content), mime, fileName);
+
+    private void Export(byte[] data, string mime, string fileName)
     {
-        _pendingExport = (content, mime);
+        _pendingExport = (data, mime);
         var intent = new Intent(Intent.ActionCreateDocument);
         intent.AddCategory(Intent.CategoryOpenable);
         intent.SetType(mime);
@@ -681,7 +684,7 @@ public sealed class MainActivity : Activity
                     InstallLicense(ReadText(uri));
                     break;
                 case RequestExport when _pendingExport is { } export:
-                    WriteText(uri, export.Content);
+                    WriteBytes(uri, export.Data);
                     ShowMessage($"Gespeichert: {DisplayName(uri)}");
                     _pendingExport = null;
                     break;
@@ -713,6 +716,12 @@ public sealed class MainActivity : Activity
         using var stream = ContentResolver!.OpenInputStream(uri) ?? throw new IOException("Datei nicht lesbar.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    private void WriteBytes(Android.Net.Uri uri, byte[] data)
+    {
+        using var stream = ContentResolver!.OpenOutputStream(uri, "wt") ?? throw new IOException("Datei nicht beschreibbar.");
+        stream.Write(data);
     }
 
     private void WriteText(Android.Net.Uri uri, string text)

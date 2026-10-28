@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.3.1.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.0.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
@@ -57,13 +57,14 @@ und `ANDROID_KEYSTORE_PASSWORD` (Alias `trackmaster`) an; dann muss die App einm
 
 Ohne Lizenz läuft die **Basisversion**. Mit einer gültigen, signierten Lizenzdatei wird daraus **Pro**.
 Die Basisversion enthält alle Planungsfunktionen – Gleise, Höhen, Gleiswendel, Gelände, Elektrik, Signale und 3D.
-Pro schaltet die Ergebnisse frei: **Speichern**, die **Stückliste der Gleise**, die **Holzliste der Gleiswendel** und
+Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern.
+Pro schaltet die Ergebnisse frei: **Speichern ohne Größengrenze**, die **Stückliste der Gleise**, die **Holzliste der Gleiswendel** und
 das **Drucken** (dazu die Exporte als CSV, SVG und Text). Diese Befehle sind im Tooltip als „Pro-Funktion“ gekennzeichnet;
 in der Basisversion erklärt ein Klick darauf, was Pro bietet. Öffnen funktioniert in beiden Versionen.
 
 | Basis | Pro (zusätzlich) |
 |---|---|
-| Gleisplanung in allen Spuren mit allen Gleissystemen, Flexgleis | Speichern und Speichern unter |
+| Gleisplanung in allen Spuren mit allen Gleissystemen, Flexgleis | Speichern von Plänen jeder Größe (Basis: bis 50 Gleise) |
 | Höhenplanung: Steigung, Gleiswendel rund/oval, ein-/zweigleisig | Stückliste der Gleise, auch als CSV |
 | Gelände, Gewässer, Gebäude, Vegetation, Tunnel | Holzliste der Gleiswendel mit allen Zuschnitten |
 | Elektrik: Einspeisungen, Trennstellen, Signale, Decoder, Kabelplan | Drucken |
@@ -171,7 +172,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 - Fünf Designs (Logo-Grün, Klassisch Blau, Blaupause, Hoher Kontrast, Werkstatt), sieben Schriftarten, vier Schriftgrößen
   (Ansicht › Design und Schrift). Logo und Programmbilder erzeugt `tools/branding/make_assets.py` aus `docs/branding/TrackPlan-Logo.png`.
 
-Speichern (Pro) und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
+Speichern (Basis bis 50 Gleise, Pro unbegrenzt) und Öffnen als `*.trackmaster.json`. Das Format ist dasselbe wie in der Web-Version; die Web-Version
 ignoriert Gelände und Elektrik, Gleise lassen sich weiter austauschen.
 
 ### Tastenkürzel

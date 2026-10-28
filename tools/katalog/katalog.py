@@ -163,7 +163,9 @@ def PB(laenge):
 # --- Erzeugen ---------------------------------------------------------------------------------------------------
 
 def system(m):
-    s = dict(id=m.ID, name=m.NAME, verified=True)
+    s = dict(id=m.ID, name=m.NAME)
+    if getattr(m, "VERIFIED", True):
+        s["verified"] = True
     for k, name in (("threeRail", "THREE_RAIL"), ("flexNumber", "FLEX_NUMBER"), ("flexLength", "FLEX_LENGTH"), ("moreFlex", "MORE_FLEX")):
         v = getattr(m, name, None)
         if v:

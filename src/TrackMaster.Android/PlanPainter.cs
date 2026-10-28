@@ -281,6 +281,57 @@ public sealed class PlanPainter
             }
 
         DrawElectrics(c, z, selectedObject);
+        DrawAnnotations(c, plan, z, selectedObject);
+    }
+
+    private static readonly Color DimensionColor = Color.Rgb(0x1F, 0x4E, 0x79);
+
+    /// <summary>Beschriftungen und Maßlinien, unabhängig von „Gelände zeigen“.</summary>
+    public static void DrawAnnotations(Canvas c, LayoutPlan plan, float z, int? selected)
+    {
+        using var text = new Paint(PaintFlags.AntiAlias) { TextAlign = Paint.Align.Center };
+        text.SetTypeface(Ui.Font(true));
+        using var line = new Paint(PaintFlags.AntiAlias);
+        line.SetStyle(Paint.Style.Stroke);
+        void Centered(string s, double x, double y, double size, double angle, Color color)
+        {
+            text.TextSize = (float)Math.Max(size, 0.5);
+            text.Color = color;
+            c.Save();
+            c.Rotate((float)angle, (float)x, (float)y);
+            c.DrawText(s, (float)x, (float)(y + size * 0.35), text);
+            c.Restore();
+        }
+        foreach (var s in plan.Scenery.Where(s => s.IsAnnotation))
+        {
+            var isSel = s.Id == selected;
+            if (s.Kind == SceneryKind.Label)
+            {
+                if (isSel)
+                {
+                    line.Color = Ui.Accent;
+                    line.StrokeWidth = 1.5f * Ui.Density / z;
+                    c.DrawPath(Polygon(s.Outline()), line);
+                }
+                Centered(s.Name, s.X, s.Y, s.Height, s.Rotation, isSel ? Ui.Accent : Color.Black);
+                continue;
+            }
+            if (s.Points.Count < 2) continue;
+            var d = Annotation.Dimension(s, s.Height);
+            var color = isSel ? Ui.Accent : DimensionColor;
+            line.Color = color;
+            double ex = d.A.X - d.P1.X, ey = d.A.Y - d.P1.Y, el = Math.Max(Math.Sqrt(ex * ex + ey * ey), 1e-9), over = d.TextSize * 0.4;
+            line.StrokeWidth = (float)Math.Max(d.TextSize * 0.03, 0.6 * Ui.Density / z);
+            c.DrawLine((float)d.P1.X, (float)d.P1.Y, (float)(d.A.X + ex / el * over), (float)(d.A.Y + ey / el * over), line);
+            c.DrawLine((float)d.P2.X, (float)d.P2.Y, (float)(d.B.X + ex / el * over), (float)(d.B.Y + ey / el * over), line);
+            line.StrokeWidth = (float)Math.Max(d.TextSize * 0.06, 0.8 * Ui.Density / z);
+            c.DrawLine((float)d.A.X, (float)d.A.Y, (float)d.B.X, (float)d.B.Y, line);
+            double ux = d.B.X - d.A.X, uy = d.B.Y - d.A.Y, ul = Math.Max(Math.Sqrt(ux * ux + uy * uy), 1e-9);
+            double tx = (ux / ul - uy / ul) * 0.7071 * d.TextSize * 0.45, ty = (uy / ul + ux / ul) * 0.7071 * d.TextSize * 0.45;
+            foreach (var q in new[] { d.A, d.B })
+                c.DrawLine((float)(q.X - tx), (float)(q.Y - ty), (float)(q.X + tx), (float)(q.Y + ty), line);
+            Centered(d.Text, d.TextAt.X, d.TextAt.Y, d.TextSize, d.TextAngle, color);
+        }
     }
 
     private void DrawElectrics(Canvas c, float z, int? selectedObject)

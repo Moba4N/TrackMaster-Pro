@@ -150,6 +150,10 @@ public sealed class PlanView : View
     // ---------- Vieleck (Höhenfläche, Gewässer) ----------
 
     public bool IsDrawingPolygon => _polygon.Count > 0;
+
+    /// <summary>Werkzeug Beschriftung: Tippen auf diese Stelle; die App fragt den Text ab.</summary>
+    public event Action<double, double>? LabelRequested;
+    private (double X, double Y)? _dimStart;
     public int PolygonPoints => _polygon.Count;
 
     public void FinishPolygon()
@@ -175,6 +179,7 @@ public sealed class PlanView : View
     public void CancelPolygon()
     {
         _polygon.Clear();
+        _dimStart = null;
         PolygonChanged?.Invoke();
         Invalidate();
     }
@@ -289,6 +294,10 @@ public sealed class PlanView : View
                 c.DrawCircle((float)p.X, (float)p.Y, 6 * Ui.Density / z, Fill(Color.White));
                 c.DrawCircle((float)p.X, (float)p.Y, 6 * Ui.Density / z, Stroke(Ui.Accent, 2 * Ui.Density / z));
             }
+        }
+        if (_dimStart is { } a)
+        {
+            c.DrawCircle((float)a.X, (float)a.Y, 7 * Ui.Density / z, Stroke(Ui.Accent, 2.5f * Ui.Density / z));
         }
         if (_flexDraft is { Segments.Count: > 0 } draft)
         {
@@ -563,7 +572,9 @@ public sealed class PlanView : View
                 var c = p.WorldConnectors()[i.Index];
                 Try(i.Id, c.X, c.Y);
             }
-        if (best is not null || !_session.ShowScenery) return best;
+        if (best is not null) return best;
+        if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
     }
 
@@ -708,7 +719,7 @@ public sealed class PlanView : View
             case CanvasTool.Building:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal:
+            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:
@@ -791,6 +802,15 @@ public sealed class PlanView : View
             case CanvasTool.Tree:
                 var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
                 _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = "Baum" });
+                return;
+            case CanvasTool.Label:
+                LabelRequested?.Invoke(Math.Round(world.X), Math.Round(world.Y));
+                return;
+            case CanvasTool.Dimension:
+                var snap = Annotation.Snap(_session.Plan, world.X, world.Y, Ui.Dp(22) / _zoom);
+                if (_dimStart is not { } from) { _dimStart = snap; _session.Say("Maß: jetzt den zweiten Punkt antippen (Gleisenden und Plattenecken rasten ein)."); }
+                else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
+                Invalidate();
                 return;
             case CanvasTool.Feeder:
                 // Tippen auf eine vorhandene Einspeisung entfernt sie wieder

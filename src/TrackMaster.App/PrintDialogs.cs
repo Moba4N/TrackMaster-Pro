@@ -6,6 +6,25 @@ namespace TrackMaster.App;
 
 public static partial class Dialogs
 {
+    /// <summary>Text für eine Beschriftung abfragen. null = abgebrochen.</summary>
+    public static string? AskText(Window owner, string title, string label, string value = "")
+    {
+        var box = new TextBox { Text = value, Height = 28 };
+        var body = new StackPanel();
+        body.Children.Add(Theme.Field(label, box));
+        var ok = Theme.Button("Übernehmen", accent: true);
+        var cancel = Theme.Button("Abbrechen");
+        ok.IsDefault = true;
+        cancel.IsCancel = true;
+        var window = Small(owner, title, body, 440, 200, cancel, ok);
+        string? result = null;
+        ok.Click += (_, _) => { if (box.Text.Trim().Length > 0) { result = box.Text.Trim(); window.Close(); } };
+        cancel.Click += (_, _) => window.Close();
+        window.Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
+        window.ShowDialog();
+        return result;
+    }
+
     /// <summary>Druckart wählen: Übersicht auf einer Seite oder Bauvorlage 1:1 auf mehreren Seiten. null = abgebrochen.</summary>
     public static bool? AskPrintMode(Window owner, int tilePages, string paper)
     {

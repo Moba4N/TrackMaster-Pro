@@ -163,6 +163,8 @@ public sealed class MainActivity : Activity
         Add("flip", "Spiegeln", _session.Flip, HasSelection);
         Add("swap", "Anschluss wechseln", _session.SwapAnchor, () => _session.Selection.Count == 1);
         Add("duplicate", "Duplizieren", _session.Duplicate, HasSelection);
+        Add("copy", "Kopieren", CopyToClipboard, () => HasSelection() || _session.SelectedObject is not null);
+        Add("paste", "Einfügen", PasteFromClipboard);
         Add("delete", "Löschen", _session.Delete, () => HasSelection() || _session.SelectedObject is not null);
         Add("selectAll", "Alles auswählen", _session.SelectAll);
         Add("selectNone", "Auswahl aufheben", _session.ClearSelection);
@@ -205,6 +207,8 @@ public sealed class MainActivity : Activity
         Add("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
         Add("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
         Add("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
+        Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
+        Add("toolDimension", "Maß", () => SetTool(CanvasTool.Dimension));
         Add("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", "Signal setzen", () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
@@ -260,13 +264,29 @@ public sealed class MainActivity : Activity
         }
     }
 
+    // ---------- Zwischenablage ----------
+
+    private void CopyToClipboard()
+    {
+        if (_session.CopySelection() is not { } json) return;
+        if (GetSystemService(ClipboardService) is global::Android.Content.ClipboardManager cm)
+            cm.PrimaryClip = global::Android.Content.ClipData.NewPlainText("TrackMaster", json);
+    }
+
+    private void PasteFromClipboard()
+    {
+        var cm = GetSystemService(ClipboardService) as global::Android.Content.ClipboardManager;
+        var text = cm?.PrimaryClip is { ItemCount: > 0 } clip ? clip.GetItemAt(0)?.CoerceToText(this) : null;
+        _session.Paste(text, _canvas.CenterWorld());
+    }
+
     // ---------- Oberfläche ----------
 
     private static readonly (string Tab, (string Label, string Command, bool Toggle)[] Items)[] Ribbon =
     [
         ("Start", [("Eigenschaften", "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), ("Frei drehen…", "rotFree", false), ("Spiegeln", "flip", false), ("Anschluss wechseln", "swap", false),
-                   ("Duplizieren", "duplicate", false), ("Löschen", "delete", false), ("Alles wählen", "selectAll", false), ("Auswahl aufheben", "selectNone", false),
-                   ("Nächstes Gleisende", "nextEnd", false), ("Stückliste", "bom", false), ("Planprüfung", "check", false)]),
+                   ("Duplizieren", "duplicate", false), ("Kopieren", "copy", false), ("Einfügen", "paste", false), ("Löschen", "delete", false), ("Alles wählen", "selectAll", false), ("Auswahl aufheben", "selectNone", false),
+                   ("Nächstes Gleisende", "nextEnd", false), ("Text", "toolLabel", true), ("Maß", "toolDimension", true), ("Stückliste", "bom", false), ("Planprüfung", "check", false)]),
         ("Gleise", [("Gerade", "straight", false), ("Bogen", "curve", false), ("Weiche links", "switchL", false), ("Weiche rechts", "switchR", false),
                     ("Kreuzung", "crossing", false), ("Prellbock", "buffer", false), ("Flexgleis…", "flex", false),
                     ("Flexgleis ziehen", "toolFlex", true), ("Lücke schließen", "flexConnect", false),
@@ -351,6 +371,7 @@ public sealed class MainActivity : Activity
         _canvas = new PlanView(this, _session);
         _canvas.PropertiesRequested += () => Run("props");
         _canvas.PolygonChanged += UpdateToolBar;
+        _canvas.LabelRequested += (x, y) => Dialogs.AskText(this, "Beschriftung", "Text", text => _session.AddLabel(text, x, y));
         stage.AddView(_canvas, new FrameLayout.LayoutParams(-1, -1));
 
         _toolBar = Ui.Row(this, 8);
@@ -451,6 +472,8 @@ public sealed class MainActivity : Activity
         "toolWater" => _session.Tool == CanvasTool.Water,
         "toolBuilding" => _session.Tool == CanvasTool.Building,
         "toolTree" => _session.Tool == CanvasTool.Tree,
+        "toolLabel" => _session.Tool == CanvasTool.Label,
+        "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,

@@ -157,7 +157,11 @@ public sealed class PlanCanvas : FrameworkElement
 
     // ---------- Vieleck zeichnen (Höhenfläche, Gewässer) ----------
 
-    public bool IsDrawingPolygon => _polygon.Count > 0;
+    public bool IsDrawingPolygon => _polygon.Count > 0 || _dimStart is not null;
+
+    /// <summary>Werkzeug Beschriftung: Klick auf diese Stelle (Weltkoordinaten); das Hauptfenster fragt den Text ab.</summary>
+    public event Action<double, double>? LabelRequested;
+    private (double X, double Y)? _dimStart;
 
     /// <summary>Schließt das gerade gezeichnete Vieleck ab (Doppelklick oder Eingabetaste).</summary>
     public void FinishPolygon()
@@ -182,6 +186,7 @@ public sealed class PlanCanvas : FrameworkElement
     public void CancelPolygon()
     {
         _polygon.Clear();
+        _dimStart = null;
         InvalidateVisual();
     }
 
@@ -264,6 +269,14 @@ public sealed class PlanCanvas : FrameworkElement
             dc.DrawGeometry(null, new Pen(new SolidColorBrush(Color.FromArgb(0x70, 0xE0, 0x8A, 0x2E)), Math.Max(_gauge * 2.6, 4 / z)) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, geo);
             dc.DrawGeometry(null, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, geo);
             if (draft.Target is { } t) dc.DrawEllipse(null, new Pen(Theme.AccentBrush, 2 / z), new Point(t.Pose.X, t.Pose.Y), 10 / z, 10 / z);
+        }
+        if (_dimStart is { } a)
+        {
+            var b = Annotation.Snap(_session.Plan, _lastWorld.X, _lastWorld.Y, 12 / z);
+            var preview = new SceneryItem { Kind = SceneryKind.Dimension, Points = [a, b], Width = Annotation.DefaultTextSize(_session.Plan.Gauge) * 1.5, Height = Annotation.DefaultTextSize(_session.Plan.Gauge) * 0.8 };
+            var plan = new LayoutPlan();
+            plan.Scenery.Add(preview);
+            PlanScene.DrawAnnotations(dc, plan, z, preview.Id);
         }
         if (_drag == DragMode.Create && _session.Tool == CanvasTool.Building && _moved)
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x80, 0xB8, 0x5C, 0x45)), new Pen(Theme.AccentBrush, 1.5 / z), new Rect(_dragStartWorld, _lastWorld));
@@ -507,7 +520,9 @@ public sealed class PlanCanvas : FrameworkElement
                 var c = p.WorldConnectors()[i.Index];
                 Try(i.Id, c.X, c.Y);
             }
-        if (best is not null || !_session.ShowScenery) return best;
+        if (best is not null) return best;
+        if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
     }
 
@@ -556,6 +571,15 @@ public sealed class PlanCanvas : FrameworkElement
             case CanvasTool.Building:
                 CaptureMouse();
                 _drag = DragMode.Create;
+                return;
+            case CanvasTool.Label:
+                LabelRequested?.Invoke(Math.Round(world.X), Math.Round(world.Y));
+                return;
+            case CanvasTool.Dimension:
+                var snap = Annotation.Snap(_session.Plan, world.X, world.Y, 12 / _zoom);
+                if (_dimStart is not { } from) { _dimStart = snap; _session.Say("Maß: jetzt den zweiten Punkt anklicken (Gleisenden und Plattenecken rasten ein, Esc bricht ab)."); }
+                else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
+                InvalidateVisual();
                 return;
             case CanvasTool.Tree:
                 var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
@@ -636,7 +660,7 @@ public sealed class PlanCanvas : FrameworkElement
         var world = ToWorld(screen);
         _lastWorld = world;
         CursorMoved?.Invoke(world);
-        if (_polygon.Count > 0) InvalidateVisual();
+        if (_polygon.Count > 0 || _dimStart is not null) InvalidateVisual();
         switch (_drag)
         {
             case DragMode.Pan:

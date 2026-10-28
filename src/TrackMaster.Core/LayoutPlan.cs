@@ -70,7 +70,7 @@ public sealed class PlacedPiece
     };
 }
 
-public enum SceneryKind { Terrain, Water, Building, Tree }
+public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension }
 
 /// <summary>
 /// Gelände und Ausstattung. Höhenflächen und Gewässer sind Vielecke (<see cref="Points"/>),
@@ -91,6 +91,8 @@ public sealed class SceneryItem
     public double Height { get; set; }
 
     public bool IsArea => Kind is SceneryKind.Terrain or SceneryKind.Water;
+    /// <summary>Beschriftung oder Maßlinie: wird immer gezeichnet, auch wenn das Gelände ausgeblendet ist.</summary>
+    public bool IsAnnotation => Kind is SceneryKind.Label or SceneryKind.Dimension;
 
     /// <summary>Eckpunkte in Weltkoordinaten (Vieleck bzw. gedrehtes Rechteck; Bäume als Achteck).</summary>
     public IReadOnlyList<(double X, double Y)> Outline()
@@ -100,6 +102,10 @@ public sealed class SceneryItem
             case SceneryKind.Terrain:
             case SceneryKind.Water:
                 return Points;
+            case SceneryKind.Label:
+                return Annotation.LabelOutline(this);
+            case SceneryKind.Dimension:
+                return Annotation.DimensionOutline(this);
             case SceneryKind.Building:
                 var r = Rotation * Math.PI / 180;
                 double c = Math.Cos(r), s = Math.Sin(r), hw = Width / 2, hd = Depth / 2;
@@ -112,6 +118,7 @@ public sealed class SceneryItem
 
     public (double X, double Y) Center()
     {
+        if (Kind == SceneryKind.Dimension && Points.Count == 2) return ((Points[0].X + Points[1].X) / 2, (Points[0].Y + Points[1].Y) / 2);
         if (!IsArea || Points.Count == 0) return (X, Y);
         return (Points.Average(p => p.X), Points.Average(p => p.Y));
     }
@@ -134,6 +141,8 @@ public sealed class SceneryItem
         SceneryKind.Terrain => "Höhenfläche",
         SceneryKind.Water => "Gewässer",
         SceneryKind.Building => "Gebäude",
+        SceneryKind.Label => "Beschriftung",
+        SceneryKind.Dimension => "Maß",
         _ => "Baum",
     };
 }

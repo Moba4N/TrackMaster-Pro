@@ -73,6 +73,10 @@ public static class Icons
         ["ViewRotate"] = "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5M12 9l2 5h-4z",
         ["North"] = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 6l3 7h-6zM12 13v5",
         ["RotateFree"] = "M4 12a8 8 0 1 0 8-8M12 4l3-3M12 4l3 3M12 12l4-4",
+        ["Text"] = "M4 6V4h16v2M12 4v16M9 20h6",
+        ["Ruler"] = "M3 8h18v8H3zM7 8v4M11 8v3M15 8v4M19 8v3",
+        ["Paste"] = "M9 4h6v3H9zM7 5H5v16h14V5h-2M9 12h6M9 16h4",
+        ["Update"] = "M12 3v12M7 10l5 5 5-5M5 21h14",
     };
 
     private static readonly Dictionary<(string, Color), ImageSource> Cache = new();

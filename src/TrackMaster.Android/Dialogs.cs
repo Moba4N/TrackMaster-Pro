@@ -317,7 +317,7 @@ public static partial class Dialogs
             case SceneryItem s:
             {
                 var name = Ui.TextField(c, s.Name);
-                body.AddView(Ui.Field(c, "Name", name));
+                body.AddView(Ui.Field(c, s.Kind == SceneryKind.Label ? "Text" : "Name", name));
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
                 EditText Num(double v, string label, double min, double max, Action<double> apply)
                 {
@@ -327,6 +327,17 @@ public static partial class Dialogs
                 }
                 switch (s.Kind)
                 {
+                    case SceneryKind.Label:
+                        body.AddView(Columns(c,
+                            Ui.Field(c, "Schrifthöhe (mm)", Num(s.Height, "Schrifthöhe", 2, 500, v => s.Height = v)),
+                            Ui.Field(c, "Drehung (°)", Num(s.Rotation, "Drehung", -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                        break;
+                    case SceneryKind.Dimension when s.Points.Count == 2:
+                        body.AddView(Columns(c,
+                            Ui.Field(c, "Abstand (mm)", Num(s.Width, "Abstand", -5000, 5000, v => s.Width = v)),
+                            Ui.Field(c, "Schrifthöhe (mm)", Num(s.Height, "Schrifthöhe", 2, 500, v => s.Height = v))));
+                        body.AddView(Rows(c, ("Länge", $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null)));
+                        break;
                     case SceneryKind.Terrain:
                         body.AddView(Ui.Field(c, "Höhe (mm)", Num(s.Height, "Höhe", -500, 3000, v => s.Height = v)));
                         body.AddView(Rows(c, ("Eckpunkte", s.Points.Count.ToString(), null), ("Fläche", $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));

@@ -246,6 +246,50 @@ public sealed class PlanScene
                 DrawTree(dc, t, z, t.Id == o.SelectedObject ? selPen : null);
 
         DrawElectrics(dc, z, o);
+        DrawAnnotations(dc, plan, z, o.SelectedObject);
+    }
+
+    private static readonly Brush DimensionBrush = Frozen(Color.FromRgb(0x1F, 0x4E, 0x79));
+
+    /// <summary>Beschriftungen und Maßlinien, unabhängig von „Gelände zeigen“.</summary>
+    public static void DrawAnnotations(DrawingContext dc, LayoutPlan plan, double z, int? selected)
+    {
+        var culture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        var face = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        FormattedText Text(string s, double size, Brush b) => new(s, culture, FlowDirection.LeftToRight, face, Math.Max(size, 0.5), b, 1.0);
+        void Centered(FormattedText t, double x, double y, double angle)
+        {
+            dc.PushTransform(new RotateTransform(angle, x, y));
+            dc.DrawText(t, new Point(x - t.Width / 2, y - t.Height / 2));
+            dc.Pop();
+        }
+        foreach (var s in plan.Scenery.Where(s => s.IsAnnotation))
+        {
+            var isSel = s.Id == selected;
+            if (s.Kind == SceneryKind.Label)
+            {
+                if (isSel) dc.DrawGeometry(null, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, Polygon(s.Outline()));
+                Centered(Text(s.Name, s.Height, isSel ? Theme.AccentBrush : Brushes.Black), s.X, s.Y, s.Rotation);
+                continue;
+            }
+            if (s.Points.Count < 2) continue;
+            var d = Annotation.Dimension(s, s.Height);
+            var brush = isSel ? Theme.AccentBrush : DimensionBrush;
+            var pen = new Pen(brush, Math.Max(d.TextSize * 0.06, 0.8 / z));
+            var thin = new Pen(brush, Math.Max(d.TextSize * 0.03, 0.6 / z));
+            Point Pt((double X, double Y) q) => new(q.X, q.Y);
+            // Hilfslinien vom Messpunkt bis etwas über die Maßlinie, dann Maßlinie mit Schrägstrichen
+            double ex = d.A.X - d.P1.X, ey = d.A.Y - d.P1.Y, el = Math.Max(Math.Sqrt(ex * ex + ey * ey), 1e-9), over = d.TextSize * 0.4;
+            dc.DrawLine(thin, Pt(d.P1), new Point(d.A.X + ex / el * over, d.A.Y + ey / el * over));
+            dc.DrawLine(thin, Pt(d.P2), new Point(d.B.X + ex / el * over, d.B.Y + ey / el * over));
+            dc.DrawLine(pen, Pt(d.A), Pt(d.B));
+            // Schrägstriche unter 45° zur Maßlinie
+            double ux = d.B.X - d.A.X, uy = d.B.Y - d.A.Y, ul = Math.Max(Math.Sqrt(ux * ux + uy * uy), 1e-9);
+            double tx = (ux / ul - uy / ul) * 0.7071 * d.TextSize * 0.45, ty = (uy / ul + ux / ul) * 0.7071 * d.TextSize * 0.45;
+            foreach (var q in new[] { d.A, d.B })
+                dc.DrawLine(pen, new Point(q.X - tx, q.Y - ty), new Point(q.X + tx, q.Y + ty));
+            Centered(Text(d.Text, d.TextSize, brush), d.TextAt.X, d.TextAt.Y, d.TextAngle);
+        }
     }
 
     /// <summary>Drehscheibe: Ring, Grube und Bühne in Richtung Anschluss 0; Schiebebühne: Grube und Bühne.</summary>

@@ -104,6 +104,22 @@ public static class SvgExport
                 stops.Append($"M{N(e.X - nx)} {N(e.Y - ny)}L{N(e.X + nx)} {N(e.Y + ny)}");
             }
         }
+        // Beschriftungen und Maßlinien
+        var notes = new StringBuilder();
+        string Esc(string s) => System.Security.SecurityElement.Escape(s) ?? "";
+        foreach (var s in plan.Scenery.Where(s => s.IsAnnotation))
+        {
+            if (s.Kind == SceneryKind.Label)
+            {
+                notes.Append($"<text x=\"{N(s.X)}\" y=\"{N(s.Y)}\" font-size=\"{N(s.Height)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"Segoe UI, sans-serif\" font-weight=\"600\" transform=\"rotate({N(s.Rotation)} {N(s.X)} {N(s.Y)})\">{Esc(s.Name)}</text>");
+                continue;
+            }
+            if (s.Points.Count < 2) continue;
+            var d = Annotation.Dimension(s, s.Height);
+            var sw = N(Math.Max(d.TextSize * 0.06, 0.4));
+            notes.Append($"<path d=\"M{N(d.P1.X)} {N(d.P1.Y)}L{N(d.A.X)} {N(d.A.Y)}M{N(d.P2.X)} {N(d.P2.Y)}L{N(d.B.X)} {N(d.B.Y)}M{N(d.A.X)} {N(d.A.Y)}L{N(d.B.X)} {N(d.B.Y)}\" stroke=\"#1F4E79\" stroke-width=\"{sw}\" fill=\"none\"/>");
+            notes.Append($"<text x=\"{N(d.TextAt.X)}\" y=\"{N(d.TextAt.Y)}\" font-size=\"{N(d.TextSize)}\" fill=\"#1F4E79\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"Segoe UI, sans-serif\" transform=\"rotate({N(d.TextAngle)} {N(d.TextAt.X)} {N(d.TextAt.Y)})\">{Esc(d.Text)}</text>");
+        }
         const double m = 40;
         double w = plan.BoardWidth, h = plan.BoardHeight;
         var title = System.Security.SecurityElement.Escape(plan.Name);
@@ -116,6 +132,7 @@ public static class SvgExport
 <path d="{bed}" fill="none" stroke="#8C7B66" stroke-width="{N(g * 1.9)}" stroke-dasharray="{N(g * 0.16)} {N(g * 0.3)}"/>
 <path d="{rails}" fill="none" stroke="#4E5257" stroke-width="{N(Math.Max(g * 0.11, 0.5))}"/>
 {(stops.Length > 0 ? $"<path d=\"{stops}\" fill=\"none\" stroke=\"#C42B1C\" stroke-width=\"{N(g * 0.5)}\" stroke-linecap=\"round\"/>" : "")}
+{notes}
 <text x="0" y="-12" font-family="Segoe UI, sans-serif" font-size="14" fill="#333">{title} · Spur {plan.GaugeId} · {Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Maßstab 1:1</text>
 </svg>
 """;

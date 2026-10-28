@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex }
+public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension }
 
 /// <summary>
 /// Der geöffnete Plan mit Auswahl, aktivem Gleisende und Rückgängig-Verlauf.
@@ -132,18 +132,22 @@ public sealed class PlanSession
 
     public void Open(string path)
     {
-        var plan = PlanSerializer.FromJson(File.ReadAllText(path), out var skipped);
+        var plan = PlanSerializer.FromJson(File.ReadAllText(path), out var skipped, out var newer);
         Replace(plan, path);
-        Say($"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}.");
+        Say(OpenedMessage(plan, skipped, newer));
     }
 
     /// <summary>Öffnet einen Plan aus JSON (z. B. vom Android-Dateiauswahldialog).</summary>
     public void OpenJson(string json, string? name)
     {
-        var plan = PlanSerializer.FromJson(json, out var skipped);
+        var plan = PlanSerializer.FromJson(json, out var skipped, out var newer);
         Replace(plan, name);
-        Say($"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}.");
+        Say(OpenedMessage(plan, skipped, newer));
     }
+
+    private static string OpenedMessage(LayoutPlan plan, int skipped, bool newer)
+        => $"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}." +
+           (newer ? " Die Datei stammt aus einer neueren Version von TrackMaster Pro; Neues daraus kann fehlen – bitte das Programm aktualisieren." : "");
 
     /// <summary>Plan nach einem Neustart des Fensters (z. B. neue Darstellung) wiederherstellen, mit Dateiname und Änderungsstand.</summary>
     public void Restore(string json, string? path, bool dirty)
@@ -248,6 +252,85 @@ public sealed class PlanSession
         foreach (var c in copies) Selection.Add(c.Id);
         Active = null;
         Commit();
+    }
+
+    /// <summary>
+    /// Kopiert die gewählten Gleise mit ihren Einspeisungen, Trennstellen und Signalen sowie das gewählte Objekt
+    /// (Gelände, Beschriftung, Maß) als Plan-Text für die Zwischenablage. Null, wenn nichts gewählt ist.
+    /// </summary>
+    public string? CopySelection()
+    {
+        var temp = new LayoutPlan { GaugeId = Plan.GaugeId, Name = "Zwischenablage" };
+        foreach (var p in SelectedPieces) temp.Pieces.Add(p.Clone());
+        var ids = new HashSet<int>(temp.Pieces.Select(p => p.Id));
+        temp.Feeders.AddRange(Plan.Feeders.Where(f => ids.Contains(f.PieceId)).Select(f => f.Clone()));
+        temp.Isolations.AddRange(Plan.Isolations.Where(i => ids.Contains(i.PieceId)).Select(i => i.Clone()));
+        temp.Signals.AddRange(Plan.Signals.Where(g => ids.Contains(g.PieceId)).Select(g => g.Clone()));
+        if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item) temp.Scenery.Add(item.Clone());
+        if (temp.Pieces.Count == 0 && temp.Scenery.Count == 0) return null;
+        var n = temp.Pieces.Count + temp.Scenery.Count;
+        Say(n == 1 ? "1 Objekt kopiert." : $"{n} Objekte kopiert.");
+        return PlanSerializer.ToJson(temp, withIds: true);
+    }
+
+    /// <summary>
+    /// Fügt kopierte Gleise und Objekte ein. Mit <paramref name="at"/> landet die Mitte dort, sonst leicht versetzt zum Original.
+    /// Alle Teile bekommen neue Kennungen; die eingefügten Gleise sind danach gewählt.
+    /// </summary>
+    public bool Paste(string? json, (double X, double Y)? at = null)
+    {
+        LayoutPlan? src = null;
+        try { if (!string.IsNullOrWhiteSpace(json)) src = PlanSerializer.FromJson(json, out _); }
+        catch (InvalidDataException) { }
+        if (src is null || src.Pieces.Count == 0 && src.Scenery.Count == 0)
+        {
+            Say("In der Zwischenablage sind keine kopierten Gleise.");
+            return false;
+        }
+        if (src.GaugeId != Plan.GaugeId)
+        {
+            Say($"Die kopierten Gleise sind für Spur {src.GaugeId}, der Plan ist Spur {Plan.GaugeId} – Einfügen nicht möglich.");
+            return false;
+        }
+        var points = src.Pieces.Select(p => (p.X, p.Y)).Concat(src.Scenery.Select(s => s.Center())).ToList();
+        var cx = (points.Min(q => q.X) + points.Max(q => q.X)) / 2;
+        var cy = (points.Min(q => q.Y) + points.Max(q => q.Y)) / 2;
+        var (dx, dy) = at is { } t ? (t.X - cx, t.Y - cy) : (60.0, 60.0);
+        Record();
+        var map = new Dictionary<int, int>();
+        Selection.Clear();
+        foreach (var p in src.Pieces)
+        {
+            var q = p.Clone();
+            q.Id = Plan.NextId++;
+            q.X += dx; q.Y += dy;
+            map[p.Id] = q.Id;
+            Plan.Pieces.Add(q);
+            Selection.Add(q.Id);
+        }
+        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit });
+        foreach (var i in src.Isolations) Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = map[i.PieceId], Index = i.Index });
+        foreach (var g in src.Signals)
+        {
+            var sig = g.Clone();
+            sig.Id = Plan.NextId++; sig.PieceId = map[g.PieceId]; sig.Address = null;
+            Plan.Signals.Add(sig);
+        }
+        int? pastedObject = null;
+        foreach (var s in src.Scenery)
+        {
+            var item = s.Clone();
+            item.Id = Plan.NextId++;
+            item.MoveBy(dx, dy);
+            Plan.Scenery.Add(item);
+            pastedObject = item.Id;
+        }
+        Active = null;
+        SelectedObject = Selection.Count == 0 ? pastedObject : null;
+        Commit();
+        var n = src.Pieces.Count + src.Scenery.Count;
+        Say(n == 1 ? "1 Objekt eingefügt." : $"{n} Objekte eingefügt.");
+        return true;
     }
 
     public void SwapAnchor()
@@ -643,6 +726,27 @@ public sealed class PlanSession
             Say(e.Message);
             return null;
         }
+    }
+
+    /// <summary>Beschriftung an einer Stelle des Plans.</summary>
+    public SceneryItem AddLabel(string text, double x, double y)
+    {
+        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Label, Name = text.Trim(), X = Math.Round(x), Y = Math.Round(y), Height = Annotation.DefaultTextSize(Plan.Gauge) });
+        Say("Beschriftung gesetzt. Ziehen verschiebt sie, Text, Größe und Drehung stehen in den Eigenschaften.");
+        return item;
+    }
+
+    /// <summary>Maßlinie zwischen zwei Punkten, mit einem kleinen Abstand zur Messstrecke.</summary>
+    public SceneryItem AddDimension((double X, double Y) a, (double X, double Y) b)
+    {
+        var item = AddScenery(new SceneryItem
+        {
+            Kind = SceneryKind.Dimension, Points = [a, b], Width = Math.Round(Annotation.DefaultTextSize(Plan.Gauge) * 1.5),
+            Height = Annotation.DefaultTextSize(Plan.Gauge) * 0.8,
+        });
+        var len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+        Say($"Maß {Fmt.Num(len, 0)} mm gesetzt. Abstand der Maßlinie und Schriftgröße stehen in den Eigenschaften.");
+        return item;
     }
 
     public SceneryItem AddScenery(SceneryItem item)

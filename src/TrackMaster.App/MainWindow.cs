@@ -107,6 +107,7 @@ public sealed class MainWindow : Window
         Session.Message += ShowMessage;
         Session.ProRequired += feature => { if (Dialogs.ShowProRequired(this, feature)) Run("license"); };
         Canvas.ViewChanged += () => { _zoomText.Text = $"{Fmt.Num(Canvas.Zoom * 100, 0)} %"; UpdateStatus(); };
+        Canvas.LabelRequested += (x, y) => { if (Dialogs.AskText(this, "Beschriftung", "Text") is { } text) Session.AddLabel(text, x, y); };
         Canvas.CursorMoved += p => _cursorText.Text = p is { } w ? $"X {Fmt.Num(w.X, 0)} · Y {Fmt.Num(w.Y, 0)} mm" : "X – · Y –";
         _messageTimer.Tick += (_, _) => { _messageTimer.Stop(); _statusMessage.Text = "Bereit"; };
         PreviewKeyDown += OnPreviewKeyDown;
@@ -151,6 +152,8 @@ public sealed class MainWindow : Window
         Add("toolWater", () => SetTool(CanvasTool.Water));
         Add("toolBuilding", () => SetTool(CanvasTool.Building));
         Add("toolTree", () => SetTool(CanvasTool.Tree));
+        Add("toolLabel", () => SetTool(CanvasTool.Label));
+        Add("toolDimension", () => SetTool(CanvasTool.Dimension));
         Add("toolFeeder", () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", () => SetTool(CanvasTool.Isolation));
         foreach (var t in Enum.GetValues<SignalType>())
@@ -173,6 +176,8 @@ public sealed class MainWindow : Window
         Add("flip", Session.Flip, HasSelection);
         Add("swap", Session.SwapAnchor, () => Session.Selection.Count == 1);
         Add("duplicate", Session.Duplicate, HasSelection);
+        Add("copy", CopyToClipboard, () => HasSelection() || Session.SelectedObject is not null);
+        Add("paste", PasteFromClipboard, () => { try { return Clipboard.ContainsText(); } catch { return false; } });
         Add("delete", Session.Delete, () => HasSelection() || Session.SelectedObject is not null);
         Add("selectAll", Session.SelectAll);
         Add("selectNone", Session.ClearSelection);
@@ -459,7 +464,12 @@ public sealed class MainWindow : Window
                 Toggle("Verschieben", "Hand", true, () => Session.Tool == CanvasTool.Pan, on => SetTool(on ? CanvasTool.Pan : CanvasTool.Select), "Ansicht mit der linken Maustaste verschieben (auch: Leertaste halten).")),
             Group("Bearbeiten",
                 Small("15° links drehen", "RotateLeft", "rotL", "Umschalt+R"), Small("15° rechts drehen", "RotateRight", "rotR", "R"), Small("Frei drehen…", "RotateFree", "rotFree", "Auswahl um einen beliebigen Winkel drehen."), Small("Spiegeln", "Mirror", "flip", "Bögen, Weichen und Kreuzungen spiegeln (F)."),
-                Small("Anschluss wechseln", "Swap", "swap", "Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A)."), Small("Duplizieren", "Copy", "duplicate", "Strg+D"), Small("Löschen", "Delete", "delete", "Entf")),
+                Small("Anschluss wechseln", "Swap", "swap", "Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A)."), Small("Duplizieren", "Copy", "duplicate", "Strg+D"), Small("Löschen", "Delete", "delete", "Entf"),
+                Small("Kopieren", "Copy", "copy", "Gewählte Gleise samt Einspeisungen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan."),
+                Small("Einfügen", "Paste", "paste", "Kopiertes an der Mausposition einfügen (Strg+V).")),
+            Group("Beschriften",
+                ToolToggle("Text", "Text", true, CanvasTool.Label, "toolLabel", "Beschriftung setzen: auf die Stelle klicken und den Text eingeben."),
+                ToolToggle("Maß", "Ruler", true, CanvasTool.Dimension, "toolDimension", "Maßlinie: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein.")),
             Group("Auswahl", Small("Alles auswählen", "SelectAll", "selectAll", "Strg+A"), Small("Auswahl aufheben", "SelectNone", "selectNone", "Esc"), Small("Nächstes Gleisende", "Connector", "nextEnd", "Springt zum nächsten offenen Gleisende (E).")),
             Group("Prüfen", ProLarge("Stückliste", "List", "bom", "Alle Gleise nach Artikel gezählt, mit Zubehör."),
                 Large("Kollisions­prüfung", "Shield", "check", "Prüft Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen und Gelände (F7).")),
@@ -706,6 +716,25 @@ public sealed class MainWindow : Window
         CommandManager.InvalidateRequerySuggested();
     }
 
+    // ---------- Zwischenablage ----------
+
+    private void CopyToClipboard()
+    {
+        if (Session.CopySelection() is not { } json) return;
+        try { Clipboard.SetText(json); }
+        catch (System.Runtime.InteropServices.COMException) { Session.Say("Die Zwischenablage ist gerade belegt – bitte noch einmal kopieren."); }
+    }
+
+    private void PasteFromClipboard()
+    {
+        string text;
+        try { text = Clipboard.GetText(); }
+        catch (System.Runtime.InteropServices.COMException) { return; }
+        (double X, double Y)? at = null;
+        if (Canvas.IsMouseOver) { var w = Canvas.ToWorld(Mouse.GetPosition(Canvas)); at = (w.X, w.Y); }
+        Session.Paste(text, at);
+    }
+
     // ---------- Tastatur ----------
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
@@ -734,6 +763,8 @@ public sealed class MainWindow : Window
             (true, Key.Y) => "redo",
             (true, Key.A) => "selectAll",
             (true, Key.D) => "duplicate",
+            (true, Key.C) => "copy",
+            (true, Key.V) => "paste",
             (false, Key.Delete) or (false, Key.Back) => "delete",
             (false, Key.R) => shift ? "rotL" : "rotR",
             (false, Key.F) => "flip",

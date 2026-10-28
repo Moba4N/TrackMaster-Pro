@@ -9,11 +9,16 @@ namespace TrackMaster.Core;
 public static class PlanSerializer
 {
     public const string FileExtension = ".trackmaster.json";
+    /// <summary>
+    /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. Ältere Programmversionen
+    /// überspringen, was sie nicht kennen; neuere Dateien öffnet dieses Programm mit einem Hinweis.
+    /// </summary>
+    public const int CurrentFormat = 2;
 
     private sealed class FileDto
     {
         [JsonPropertyName("app")] public string App { get; set; } = "TrackMaster Pro";
-        [JsonPropertyName("format")] public int Format { get; set; } = 1;
+        [JsonPropertyName("format")] public int Format { get; set; } = CurrentFormat;
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("gauge")] public string? Gauge { get; set; }
         [JsonPropertyName("board")] public BoardDto? Board { get; set; }
@@ -128,7 +133,7 @@ public static class PlanSerializer
                 Id = withIds ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                Points = s.IsArea || s.Kind == SceneryKind.Dimension ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height,
             }).ToList(),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit }).ToList(),
@@ -140,7 +145,10 @@ public static class PlanSerializer
     }
 
     /// <summary>Liest einen Plan. Unbekannte Gleise werden übersprungen und in <paramref name="skipped"/> gezählt.</summary>
-    public static LayoutPlan FromJson(string json, out int skipped)
+    public static LayoutPlan FromJson(string json, out int skipped) => FromJson(json, out skipped, out _);
+
+    /// <param name="newer">Die Datei stammt aus einer neueren Programmversion (Formatversion höher als <see cref="CurrentFormat"/>).</param>
+    public static LayoutPlan FromJson(string json, out int skipped, out bool newer)
     {
         FileDto? dto;
         try { dto = JsonSerializer.Deserialize<FileDto>(json); }
@@ -148,6 +156,7 @@ public static class PlanSerializer
         if (dto is null || dto.App != "TrackMaster Pro" || dto.Pieces is null)
             throw new InvalidDataException("Die Datei ist kein TrackMaster-Plan.");
 
+        newer = dto.Format > CurrentFormat;
         var gauge = Catalog.GetGauge(dto.Gauge ?? "H0");
         var plan = new LayoutPlan
         {
@@ -197,6 +206,7 @@ public static class PlanSerializer
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
             };
             if (item.IsArea && item.Points.Count < 3) continue;
+            if (kind == SceneryKind.Dimension && item.Points.Count != 2) continue;
             plan.Scenery.Add(item);
         }
         foreach (var f in dto.Feeders ?? [])

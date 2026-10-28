@@ -39,6 +39,21 @@ public static class Appearance
 public static partial class Dialogs
 {
     /// <summary>Fragt einen Winkel in Grad ab (Ansicht drehen, Auswahl frei drehen).</summary>
+    /// <summary>Text für eine Beschriftung abfragen.</summary>
+    public static void AskText(Context c, string title, string label, Action<string> apply)
+    {
+        var body = Ui.Column(c, 8);
+        var box = Ui.TextField(c, "");
+        body.AddView(Ui.Field(c, label, box));
+        Show(c, title, body, "Übernehmen", () =>
+        {
+            var text = (box.Text ?? "").Trim();
+            if (text.Length == 0) return false;
+            apply(text);
+            return true;
+        });
+    }
+
     public static void AskAngle(Context c, string title, string hint, double value, string action, Action<double> apply)
     {
         var body = Ui.Column(c, 8);

@@ -292,9 +292,20 @@ public sealed class PropertiesPanel : DockPanel
                 }
                 name.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitName(); Keyboard.ClearFocus(); } };
                 name.LostKeyboardFocus += (_, _) => { CommitName(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
-                _body.Children.Add(Theme.Field("Name", name));
+                _body.Children.Add(Theme.Field(s.Kind == SceneryKind.Label ? "Text" : "Name", name));
                 switch (s.Kind)
                 {
+                    case SceneryKind.Label:
+                        _body.Children.Add(Columns(2,
+                            Theme.Field("Schrifthöhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 2, 500), 0)),
+                            Theme.Field("Drehung (°)", NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        break;
+                    case SceneryKind.Dimension when s.Points.Count == 2:
+                        _body.Children.Add(Columns(2,
+                            Theme.Field("Abstand der Maßlinie (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, -5000, 5000), 0)),
+                            Theme.Field("Schrifthöhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 2, 500), 0))));
+                        Rows(("Länge", $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null));
+                        break;
                     case SceneryKind.Terrain:
                         _body.Children.Add(Columns(2, Theme.Field("Höhe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, -500, 3000), 0))));
                         Rows(("Eckpunkte", s.Points.Count.ToString(), null), ("Fläche", $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));

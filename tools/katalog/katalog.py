@@ -113,16 +113,21 @@ def BW(nr, rechts, r, a, abstand):
                 r=r, a=a, right=rechts, paths=[[[abstand, 0, 0, 0], [0, r, a, t]], [[0, r, a, t]]])
 
 
-def BK(nr, rechts, r_aussen, r_innen, a):
-    """Bogenweiche aus zwei Bögen verschiedener Radien mit gleichem Winkel, die am Weichenanfang tangential beginnen."""
+def BK(nr, rechts, r_aussen, r_innen, a, a_innen=None):
+    """
+    Bogenweiche aus zwei Bögen verschiedener Radien, die am Weichenanfang tangential beginnen: Außenstrang r_aussen/a
+    (Strang 0), Innenstrang r_innen/a_innen (Strang 1, ohne Angabe gleicher Winkel).
+    """
+    ai = a_innen or a
     t = 1 if rechts else -1
     de, e = BOGENWEICHE[rechts]
-    return teil(nr, "Switch", de, f"R {zahl(r_innen)} / {zahl(r_aussen)} · {zahl(a)}°", "Weichen",
-                r=r_innen, a=a, right=rechts, paths=[[[0, r_aussen, a, t]], [[0, r_innen, a, t]]])
+    winkel = f"{zahl(a)}°" if ai == a else f"{zahl(a)}° / {zahl(ai)}°"
+    return teil(nr, "Switch", de, f"R {zahl(r_innen)} / {zahl(r_aussen)} · {winkel}", "Weichen",
+                r=r_innen, a=ai, right=rechts, paths=[[[0, r_aussen, a, t]], [[0, r_innen, ai, t]]])
 
 
-def BKK(links, rechts, r_aussen, r_innen, a):
-    return [BK(links, False, r_aussen, r_innen, a), BK(rechts, True, r_aussen, r_innen, a)]
+def BKK(links, rechts, r_aussen, r_innen, a, a_innen=None):
+    return [BK(links, False, r_aussen, r_innen, a, a_innen), BK(rechts, True, r_aussen, r_innen, a, a_innen)]
 
 
 def BWW(links, rechts, r, a, abstand, **k):

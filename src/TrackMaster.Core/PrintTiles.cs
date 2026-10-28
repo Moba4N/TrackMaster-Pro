@@ -21,7 +21,7 @@ public static class PrintTiles
     /// <param name="overlap">Klebekante in mm.</param>
     public static IReadOnlyList<PrintTile> Layout((double X0, double Y0, double X1, double Y1) area, double usableWidth, double usableHeight, double overlap = 10)
     {
-        if (usableWidth <= overlap || usableHeight <= overlap) throw new ArgumentException("Die Seite ist kleiner als die Klebekante.");
+        if (usableWidth <= overlap || usableHeight <= overlap) throw new ArgumentException(Lang.T("Die Seite ist kleiner als die Klebekante."));
         double stepX = usableWidth - overlap, stepY = usableHeight - overlap;
         double w = Math.Max(area.X1 - area.X0, 1), h = Math.Max(area.Y1 - area.Y0, 1);
         var cols = Math.Max(1, (int)Math.Ceiling((w - overlap) / stepX));

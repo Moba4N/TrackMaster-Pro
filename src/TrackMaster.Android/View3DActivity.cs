@@ -77,26 +77,26 @@ public sealed class View3DActivity : Activity
         bar.SetBackgroundColor(Color.Argb(0xF0, 0xFF, 0xFF, 0xFF));
         bar.SetPadding(Ui.Dp(10), Ui.Dp(6), Ui.Dp(10), Ui.Dp(6));
         var row1 = Ui.Row(this, 8);
-        row1.AddView(Ui.Button(this, "Rundumsicht", StopRide));
-        _ride = Ui.Button(this, "Mitfahren", () => { if (_riding) StopRide(); else StartRide(); });
+        row1.AddView(Ui.Button(this, Lang.T("Rundumsicht"), StopRide));
+        _ride = Ui.Button(this, Lang.T("Mitfahren"), () => { if (_riding) StopRide(); else StartRide(); });
         row1.AddView(_ride);
-        _trainButton = Ui.Button(this, "Zug", () => { if (_trainOn) StopTrain(); else StartTrain(); });
+        _trainButton = Ui.Button(this, Lang.T("Zug"), () => { if (_trainOn) StopTrain(); else StartTrain(); });
         row1.AddView(_trainButton);
-        _switch = Ui.Button(this, "Weiche", ToggleNextSwitch);
+        _switch = Ui.Button(this, Lang.T("Weiche"), ToggleNextSwitch);
         _switch.Enabled = false;
         row1.AddView(_switch);
         _status = Ui.Label(this, "", 12.5, color: Ui.TextSecondary);
         row1.AddView(_status, Ui.Weight(1, vertical: false));
-        row1.AddView(Ui.Button(this, "Schließen", Finish));
+        row1.AddView(Ui.Button(this, Lang.T("Schließen"), Finish));
         bar.AddView(row1, Ui.Fill());
         var row2 = Ui.Row(this, 6);
-        row2.AddView(Ui.Label(this, "Tageszeit", 12.5, color: Ui.TextSecondary));
+        row2.AddView(Ui.Label(this, Lang.T("Tageszeit"), 12.5, color: Ui.TextSecondary));
         _time = new SeekBar(this) { Max = 72, Progress = 32 };
         row2.AddView(_time, Ui.Weight(1, vertical: false));
         _timeText = Ui.Label(this, "", 12.5);
         _timeText.SetMinWidth(Ui.Dp(68));
         row2.AddView(_timeText);
-        row2.AddView(Ui.Label(this, "Tempo", 12.5, color: Ui.TextSecondary));
+        row2.AddView(Ui.Label(this, Lang.T("Tempo"), 12.5, color: Ui.TextSecondary));
         _speed = new SeekBar(this) { Max = 150, Progress = 50 };
         row2.AddView(_speed, Ui.Weight(1, vertical: false));
         _speedText = Ui.Label(this, "", 12.5);
@@ -105,7 +105,7 @@ public sealed class View3DActivity : Activity
         bar.AddView(row2, Ui.Fill());
         root.AddView(bar, new FrameLayout.LayoutParams(-1, -2, GravityFlags.Top));
 
-        var help = Ui.Label(this, "Ein Finger dreht · zwei Finger zoomen und verschieben · Mitfahren startet am gewählten Gleis", 12, color: Ui.TextSecondary);
+        var help = Ui.Label(this, Lang.T("Ein Finger dreht · zwei Finger zoomen und verschieben · Mitfahren startet am gewählten Gleis"), 12, color: Ui.TextSecondary);
         help.Background = Ui.Rounded(Color.Argb(0xE0, 0xFF, 0xFF, 0xFF), radius: 6);
         help.SetPadding(Ui.Dp(10), Ui.Dp(6), Ui.Dp(10), Ui.Dp(6));
         root.AddView(help, new FrameLayout.LayoutParams(-2, -2, GravityFlags.Bottom | GravityFlags.Start) { LeftMargin = Ui.Dp(10), BottomMargin = Ui.Dp(10), RightMargin = Ui.Dp(10) });
@@ -242,7 +242,7 @@ public sealed class View3DActivity : Activity
     {
         _path ??= RidePath.Build(_plan, _startPiece, _routes);
         if (!_path.IsEmpty) return true;
-        _status.Text = "Keine Gleise zum Mitfahren.";
+        _status.Text = Lang.T("Keine Gleise zum Mitfahren.");
         return false;
     }
 
@@ -313,13 +313,13 @@ public sealed class View3DActivity : Activity
     private void UpdateStatus()
     {
         if (_path is not { } path) return;
-        var text = path.Closed ? "Rundkurs" : "Wendet an Prellböcken";
+        var text = path.Closed ? Lang.T("Rundkurs") : Lang.T("Wendet an Prellböcken");
         if (path.NextSwitch(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
         {
             int route;
             lock (_routes) route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
-            var setting = RidePath.RouteCount(piece) > 2 ? $"Stellung {route + 1}" : route == 0 ? "gerade" : "abzweigend";
-            text += $" · Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting}";
+            var setting = RidePath.RouteCount(piece) > 2 ? Lang.F($"Stellung {route + 1}") : route == 0 ? Lang.T("gerade") : Lang.T("abzweigend");
+            text += Lang.F($" · Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting}");
         }
         _status.Text = text;
     }
@@ -468,7 +468,7 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         GLES20.GlCompileShader(s);
         var ok = new int[1];
         GLES20.GlGetShaderiv(s, GLES20.GlCompileStatus, ok, 0);
-        if (ok[0] == 0) throw new InvalidOperationException("Shader: " + GLES20.GlGetShaderInfoLog(s));
+        if (ok[0] == 0) throw new InvalidOperationException(Lang.T("Shader: ") + GLES20.GlGetShaderInfoLog(s));
         return s;
     }
 

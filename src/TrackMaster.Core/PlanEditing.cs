@@ -20,7 +20,7 @@ public static class PlanEditing
     {
         var def = Catalog.Get(key);
         if (def.GaugeId != plan.GaugeId)
-            throw new InvalidOperationException($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {plan.GaugeId}.");
+            throw new InvalidOperationException(Lang.F($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {plan.GaugeId}."));
         var piece = plan.Add(key);
         if (target is not null)
         {
@@ -121,9 +121,9 @@ public static class PlanEditing
     public static (int? NextOpen, string? Error) SwapAnchor(LayoutPlan plan, PlacedPiece piece)
     {
         var count = TrackGeometry.LocalConnectors(piece.Def, piece.Flipped).Count;
-        if (count < 2) return (null, "Ein Prellbock hat nur einen Anschluss.");
+        if (count < 2) return (null, Lang.T("Ein Prellbock hat nur einen Anschluss."));
         var linked = Connectivity.Analyze(plan).Of(piece.Id).Where(c => c.Link is not null).ToList();
-        if (linked.Count != 1) return (null, "„Anschluss wechseln“ geht bei Gleisen, die an genau einer Stelle verbunden sind.");
+        if (linked.Count != 1) return (null, Lang.T("„Anschluss wechseln“ geht bei Gleisen, die an genau einer Stelle verbunden sind."));
         var target = linked[0].Link!;
         var k = (linked[0].Index + 1) % count;
         PlaceAt(piece, k, target.Pose.X, target.Pose.Y, target.Pose.Heading);
@@ -156,7 +156,7 @@ public static class PlanEditing
         var g = gradePercent / 100;
         // Enden der Auswahl: Anschlüsse ohne Verbindung zu einem anderen gewählten Gleis
         var ends = conn.All.Where(c => ids.Contains(c.PieceId) && !(c.Link is { } l && ids.Contains(l.PieceId))).ToList();
-        if (ends.Count == 0) return new GradientResult(0, startHeight, 0, "Die Auswahl hat kein Ende – bitte eine offene Gleisfolge wählen, keinen geschlossenen Kreis.");
+        if (ends.Count == 0) return new GradientResult(0, startHeight, 0, Lang.T("Die Auswahl hat kein Ende – bitte eine offene Gleisfolge wählen, keinen geschlossenen Kreis."));
         var visited = new HashSet<int>();
         var first = reverse ? ends[^1] : ends[0];
         var gauge = plan.Gauge.TrackWidth;
@@ -187,8 +187,8 @@ public static class PlanEditing
             if (isParallel) parallel++;
         }
         var note = chains == 1 ? null
-            : parallel > 0 ? $"{chains} Gleise angepasst, alle enden auf {Fmt.Num(endZ, 0)} mm (das längere Außengleis steigt entsprechend flacher)."
-            : $"{chains} Gleisfolgen mit derselben Steigung angepasst.";
+            : parallel > 0 ? Lang.F($"{chains} Gleise angepasst, alle enden auf {Fmt.Num(endZ, 0)} mm (das längere Außengleis steigt entsprechend flacher).")
+            : Lang.F($"{chains} Gleisfolgen mit derselben Steigung angepasst.");
         return new GradientResult(visited.Count, endZ, length, note);
     }
 

@@ -159,25 +159,25 @@ public static class Electrics
         {
             var mid = plan.Find(s.PieceIds[0])!.Middle();
             if (s.Feeders.Count == 0)
-                issues.Add(new(IssueLevel.Fehler, "Einspeisung", $"Abschnitt {s.Number} ({Fmt.Num(s.LengthMm / 1000, 2)} m, {s.PieceIds.Count} Gleise) hat keine Einspeisung.", s.PieceIds, mid.X, mid.Y));
+                issues.Add(new(IssueLevel.Fehler, Lang.T("Einspeisung"), Lang.F($"Abschnitt {s.Number} ({Fmt.Num(s.LengthMm / 1000, 2)} m, {s.PieceIds.Count} Gleise) hat keine Einspeisung."), s.PieceIds, mid.X, mid.Y));
             else if (s.LengthMm / s.Feeders.Count > spacing * 1.2)
-                issues.Add(new(IssueLevel.Hinweis, "Einspeisung", $"Abschnitt {s.Number}: {Fmt.Num(s.LengthMm / 1000, 2)} m Gleis mit {s.Feeders.Count} Einspeisung(en) – empfohlen ist etwa alle {Fmt.Num(spacing / 1000, 1)} m eine.", s.PieceIds, mid.X, mid.Y));
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Einspeisung"), Lang.F($"Abschnitt {s.Number}: {Fmt.Num(s.LengthMm / 1000, 2)} m Gleis mit {s.Feeders.Count} Einspeisung(en) – empfohlen ist etwa alle {Fmt.Num(spacing / 1000, 1)} m eine."), s.PieceIds, mid.X, mid.Y));
             if (s.Circuits.Count > 1)
-                issues.Add(new(IssueLevel.Fehler, "Stromkreise", $"Abschnitt {s.Number} wird aus mehreren Stromkreisen gespeist ({string.Join(", ", s.Circuits)}). Dazwischen gehört eine Trennstelle.", s.PieceIds, mid.X, mid.Y));
+                issues.Add(new(IssueLevel.Fehler, Lang.T("Stromkreise"), Lang.F($"Abschnitt {s.Number} wird aus mehreren Stromkreisen gespeist ({string.Join(", ", s.Circuits)}). Dazwischen gehört eine Trennstelle."), s.PieceIds, mid.X, mid.Y));
         }
         foreach (var l in loops)
         {
             var mid = plan.Find(l.PieceIds[0])!.Middle();
-            issues.Add(new(IssueLevel.Fehler, "Kehrschleife",
-                $"Kehrschleife über {l.PieceIds.Count} Gleise: an beiden Enden Trennstellen setzen und den Abschnitt über ein Kehrschleifenmodul speisen.", l.PieceIds, mid.X, mid.Y));
+            issues.Add(new(IssueLevel.Fehler, Lang.T("Kehrschleife"),
+                Lang.F($"Kehrschleife über {l.PieceIds.Count} Gleise: an beiden Enden Trennstellen setzen und den Abschnitt über ein Kehrschleifenmodul speisen."), l.PieceIds, mid.X, mid.Y));
         }
         var items = SwitchingItems(plan);
         foreach (var dup in AddressConflicts(items))
-            issues.Add(new(IssueLevel.Fehler, "Adressen", $"Adresse {dup.Address} ist mehrfach belegt: {string.Join(", ", dup.Items.Select(i => i.Label))}.",
+            issues.Add(new(IssueLevel.Fehler, Lang.T("Adressen"), Lang.F($"Adresse {dup.Address} ist mehrfach belegt: {string.Join(", ", dup.Items.Select(i => i.Label))}."),
                 dup.Items.Where(i => i.PieceId is not null).Select(i => i.PieceId!.Value).ToList(), dup.Items[0].X, dup.Items[0].Y));
         var missing = items.Where(i => i.Address is null).ToList();
         if (missing.Count > 0)
-            issues.Add(new(IssueLevel.Hinweis, "Adressen", $"{missing.Count} Weichen/Signale haben noch keine Digitaladresse.", missing.Where(i => i.PieceId is not null).Select(i => i.PieceId!.Value).ToList(), missing[0].X, missing[0].Y));
+            issues.Add(new(IssueLevel.Hinweis, Lang.T("Adressen"), Lang.F($"{missing.Count} Weichen/Signale haben noch keine Digitaladresse."), missing.Where(i => i.PieceId is not null).Select(i => i.PieceId!.Value).ToList(), missing[0].X, missing[0].Y));
         return new ElectricReport(sections, loops, issues, IsThreeRail(plan));
     }
 
@@ -190,7 +190,7 @@ public static class Electrics
             if (d.Drives > 0)
             {
                 var m = p.Middle();
-                var kind = d.Kind == PieceKind.Switch ? "Weiche" : "DKW";
+                var kind = d.Kind == PieceKind.Switch ? Lang.T("Weiche") : "DKW";
                 list.Add(new SwitchingItem(kind, $"{kind} {d.Number} (Nr. {p.Id})", p.Id, null, p.Address, d.Drives, m.X, m.Y));
             }
         }
@@ -257,45 +257,45 @@ public static class Electrics
     {
         var r = Analyze(plan);
         var sb = new StringBuilder();
-        sb.AppendLine($"Kabelplan – {plan.Name} (Spur {plan.GaugeId}, {(r.ThreeRail ? "Mittelleiter" : "Zweileiter")})");
+        sb.AppendLine(Lang.F($"Kabelplan – {plan.Name} (Spur {plan.GaugeId}, {(r.ThreeRail ? Lang.T("Mittelleiter") : Lang.T("Zweileiter"))})"));
         sb.AppendLine(new string('=', 60));
         sb.AppendLine();
-        sb.AppendLine("Stromabschnitte");
+        sb.AppendLine(Lang.T("Stromabschnitte"));
         foreach (var s in r.Sections)
         {
-            sb.AppendLine($"  Abschnitt {s.Number}: {s.PieceIds.Count} Gleise, {Fmt.Num(s.LengthMm / 1000, 2)} m");
-            if (s.Feeders.Count == 0) sb.AppendLine("    keine Einspeisung!");
+            sb.AppendLine(Lang.F($"  Abschnitt {s.Number}: {s.PieceIds.Count} Gleise, {Fmt.Num(s.LengthMm / 1000, 2)} m"));
+            if (s.Feeders.Count == 0) sb.AppendLine(Lang.T("    keine Einspeisung!"));
             foreach (var f in s.Feeders)
-                sb.AppendLine($"    Einspeisung Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}");
+                sb.AppendLine(Lang.F($"    Einspeisung Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}"));
         }
         sb.AppendLine();
         sb.AppendLine($"Trennstellen ({plan.Isolations.Count})");
         foreach (var i in plan.Isolations)
             sb.AppendLine($"  Nr. {i.Id}: Gleis {plan.Find(i.PieceId)?.Def.Number} (Nr. {i.PieceId}), Ende {i.Index}");
         sb.AppendLine();
-        sb.AppendLine("Kehrschleifen");
-        if (r.ThreeRail) sb.AppendLine("  Mittelleiter: Kehrschleifen brauchen keine Sonderschaltung.");
+        sb.AppendLine(Lang.T("Kehrschleifen"));
+        if (r.ThreeRail) sb.AppendLine(Lang.T("  Mittelleiter: Kehrschleifen brauchen keine Sonderschaltung."));
         else if (r.ReverseLoops.Count == 0) sb.AppendLine("  keine");
         foreach (var l in r.ReverseLoops)
-            sb.AppendLine($"  Gleise Nr. {string.Join(", ", l.PieceIds)} – beidseitig trennen, über Kehrschleifenmodul speisen");
+            sb.AppendLine(Lang.F($"  Gleise Nr. {string.Join(", ", l.PieceIds)} – beidseitig trennen, über Kehrschleifenmodul speisen"));
         sb.AppendLine();
-        sb.AppendLine("Decoder");
+        sb.AppendLine(Lang.T("Decoder"));
         foreach (var g in SwitchingItems(plan).Where(i => i.Decoder is not null).GroupBy(i => i.Decoder!.Value).OrderBy(g => g.Key))
         {
-            sb.AppendLine($"  Decoder {g.Key} (Adressen {(g.Key - 1) * 4 + 1}–{g.Key * 4})");
+            sb.AppendLine(Lang.F($"  Decoder {g.Key} (Adressen {(g.Key - 1) * 4 + 1}–{g.Key * 4})"));
             foreach (var i in g.OrderBy(i => i.Address))
-                sb.AppendLine($"    Ausgang {i.Port}: Adresse {i.AddressText} – {i.Label}");
+                sb.AppendLine(Lang.F($"    Ausgang {i.Port}: Adresse {i.AddressText} – {i.Label}"));
         }
         var without = SwitchingItems(plan).Where(i => i.Address is null).ToList();
         if (without.Count > 0)
         {
-            sb.AppendLine("  ohne Adresse:");
+            sb.AppendLine(Lang.T("  ohne Adresse:"));
             foreach (var i in without) sb.AppendLine($"    {i.Label}");
         }
         if (r.Issues.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("Befunde");
+            sb.AppendLine(Lang.T("Befunde"));
             foreach (var i in r.Issues) sb.AppendLine($"  [{i.Level}] {i.Text}");
         }
         return sb.ToString();

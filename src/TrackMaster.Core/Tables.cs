@@ -7,30 +7,30 @@ namespace TrackMaster.Core;
 /// </summary>
 internal static class Tables
 {
-    public const string Category = "Drehscheiben und Schiebebühnen";
+    public static string Category => Lang.T("Drehscheiben und Schiebebühnen");
 
     private sealed record Entry(string Gauge, string[] Systems, Func<double, TrackPieceDef> Make);
 
     private static readonly Entry[] Entries =
     [
         // Z (mrklnz.xtp, Z-Rokuhan.xtp)
-        new("Z", ["mini"], g => Turntable("8599", "Drehscheibe", 85, 66, 85, 15, 24, g)),
-        new("Z", ["mini"], _ => Transfer("8994", "Schiebebühne", 0.34, [195.49, 160.46, 110.42, 85.40, 35.37], 220.51, [195.49, 160.46, 110.42, 85.40, 35.37], (0.34, 0.34, 220.51, 220.51))),
-        new("Z", ["rokuhan"], g => Turntable("S037", "Drehscheibe", 85, 85, 85, 15, 24, g)),
+        new("Z", ["mini"], g => Turntable("8599", Lang.T("Drehscheibe"), 85, 66, 85, 15, 24, g)),
+        new("Z", ["mini"], _ => Transfer("8994", Lang.T("Schiebebühne"), 0.34, [195.49, 160.46, 110.42, 85.40, 35.37], 220.51, [195.49, 160.46, 110.42, 85.40, 35.37], (0.34, 0.34, 220.51, 220.51))),
+        new("Z", ["rokuhan"], g => Turntable("S037", Lang.T("Drehscheibe"), 85, 85, 85, 15, 24, g)),
         // N (N-Kato Track and Structures.xtp, N-PecoCode55Finescale.xtp)
-        new("N", ["kato"], g => Turntable("20-283", "Drehscheibe", 80, 80, 108.5, 10, 36, g)),
-        new("N", ["peco-n", "peco-n80"], g => Turntable("NB-55", "Drehscheibe", 81.8, 76.2, 81.8, 10, 36, g)),
+        new("N", ["kato"], g => Turntable("20-283", Lang.T("Drehscheibe"), 80, 80, 108.5, 10, 36, g)),
+        new("N", ["peco-n", "peco-n80"], g => Turntable("NB-55", Lang.T("Drehscheibe"), 81.8, 76.2, 81.8, 10, 36, g)),
         // TT (TT-Roco-Turntable.xtp): passt mit Übergangsgleis an das Modellgleis
-        new("TT", ["tillig"], g => Turntable("35900", "Drehscheibe (Roco)", 91.5, 91.5, 128.5, 15, 24, g)),
+        new("TT", ["tillig"], g => Turntable("35900", Lang.T("Drehscheibe (Roco)"), 91.5, 91.5, 128.5, 15, 24, g)),
         // H0 (HO-Roco HO Code 83.xtp, fl-profi.xtp, fl-model.xtp, mrkhomde.xtp, HO-Marklin M-Track.xtp)
-        new("H0", ["rocoline"], g => Turntable("42615", "Drehscheibe", 126.5, 126.5, 153.5, 9, 40, g)),
-        new("H0", ["profi"], g => Turntable("6154", "Drehscheibe", 227.5, 155, 227.5, 7.5, 48, g)),
-        new("H0", ["fl-model"], g => Turntable("6050", "Drehscheibe (Handbetrieb)", 111, 82.5, 111, 15, 24, g)),
-        new("H0", ["fl-model"], g => Turntable("6052", "Drehscheibe elektrisch", 111, 82.5, 111, 15, 24, g)),
-        new("H0", ["mm"], g => Turntable("7186", "Drehscheibe", 193, 155, 193, 7.5, 48, g)),
-        new("H0", ["mm"], _ => Transfer("7294", "Schiebebühne", 0, [154.40, 77.40, 0, -77.40, -154.80], 360, [142.0, 64.6, -12.8, -90.2, -154.8], (0, -210.3, 360, 209.7))),
+        new("H0", ["rocoline"], g => Turntable("42615", Lang.T("Drehscheibe"), 126.5, 126.5, 153.5, 9, 40, g)),
+        new("H0", ["profi"], g => Turntable("6154", Lang.T("Drehscheibe"), 227.5, 155, 227.5, 7.5, 48, g)),
+        new("H0", ["fl-model"], g => Turntable("6050", Lang.T("Drehscheibe (Handbetrieb)"), 111, 82.5, 111, 15, 24, g)),
+        new("H0", ["fl-model"], g => Turntable("6052", Lang.T("Drehscheibe elektrisch"), 111, 82.5, 111, 15, 24, g)),
+        new("H0", ["mm"], g => Turntable("7186", Lang.T("Drehscheibe"), 193, 155, 193, 7.5, 48, g)),
+        new("H0", ["mm"], _ => Transfer("7294", Lang.T("Schiebebühne"), 0, [154.40, 77.40, 0, -77.40, -154.80], 360, [142.0, 64.6, -12.8, -90.2, -154.8], (0, -210.3, 360, 209.7))),
         // G (lgb.xtp)
-        new("G", ["lgb"], g => Turntable("14000", "Drehscheibe", 370, 235, 370, 22.5, 16, g)),
+        new("G", ["lgb"], g => Turntable("14000", Lang.T("Drehscheibe"), 370, 235, 370, 22.5, 16, g)),
     ];
 
     /// <summary>Hängt die Drehscheiben und Schiebebühnen an die Gleissysteme ihrer Hersteller an.</summary>
@@ -61,7 +61,7 @@ internal static class Tables
             Number = nr, Kind = PieceKind.Turntable, Name = name, Category = Category, Ports = ports,
             Center = (r, 0), PitRadius = pit, RimRadius = Math.Max(rim, r), Radius = r, Angle = step,
             Length = r - pit > 1 ? r - pit : trackWidth,
-            Spec = $"Ø {Fmt.Num(2 * Math.Max(rim, r), 0)} mm · Bühne {Fmt.Num(2 * pit, 0)} mm · {count} × {Fmt.Num(step)}°",
+            Spec = Lang.F($"Ø {Fmt.Num(2 * Math.Max(rim, r), 0)} mm · Bühne {Fmt.Num(2 * pit, 0)} mm · {count} × {Fmt.Num(step)}°"),
         };
     }
 
@@ -77,7 +77,7 @@ internal static class Tables
         {
             Number = nr, Kind = PieceKind.TransferTable, Name = name, Category = Category, Ports = ports, PitBox = pit,
             Length = 20, Radius = 0, Angle = 0,
-            Spec = $"{Fmt.Num(box.X1 - box.X0, 0)} × {Fmt.Num(box.Y1 - box.Y0, 0)} mm · {left.Length} + {right.Length} Anschlüsse",
+            Spec = Lang.F($"{Fmt.Num(box.X1 - box.X0, 0)} × {Fmt.Num(box.Y1 - box.Y0, 0)} mm · {left.Length} + {right.Length} Anschlüsse"),
         };
     }
 }

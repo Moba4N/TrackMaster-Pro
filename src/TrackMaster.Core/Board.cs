@@ -36,12 +36,12 @@ public static class BoardGeometry
 {
     public static string Name(BoardShape s) => s switch
     {
-        BoardShape.Rechteck => "Rechteck",
+        BoardShape.Rechteck => Lang.T("Rechteck"),
         BoardShape.L => "L-Form",
         BoardShape.U => "U-Form",
         BoardShape.T => "T-Form",
         BoardShape.Z => "Z-Form",
-        BoardShape.Ring => "Ring (rundum, Mitte offen)",
+        BoardShape.Ring => Lang.T("Ring (rundum, Mitte offen)"),
         _ => s.ToString(),
     };
 
@@ -129,12 +129,12 @@ public static class BoardGeometry
         var size = $"{Fmt.Num(p.BoardWidth, 0)} × {Fmt.Num(p.BoardHeight, 0)} mm";
         if (!HasLegs(p.BoardShape)) return size;
         var d = Depth(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn);
-        var text = $"{Name(p.BoardShape).Split(' ')[0]} {size}, Schenkel {Fmt.Num(d, 0)} mm";
+        var text = Lang.F($"{Name(p.BoardShape).Split(' ')[0]} {size}, Schenkel {Fmt.Num(d, 0)} mm");
         if (p.BoardShape == BoardShape.U)
         {
             var full = p.BoardTurn % 2 == 0 ? p.BoardHeight : p.BoardWidth;
             double l1 = Leg(p.BoardLegLeft, d, full), l2 = Leg(p.BoardLegRight, d, full);
-            if (Math.Abs(l1 - l2) > 0.5) text += $" · Schenkellängen {Fmt.Num(l1, 0)} / {Fmt.Num(l2, 0)} mm";
+            if (Math.Abs(l1 - l2) > 0.5) text += Lang.F($" · Schenkellängen {Fmt.Num(l1, 0)} / {Fmt.Num(l2, 0)} mm");
         }
         return text;
     }

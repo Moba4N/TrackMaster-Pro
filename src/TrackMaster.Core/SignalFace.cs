@@ -35,22 +35,22 @@ public sealed record SignalFace(
     {
         SignalType.Hauptsignal => new(1, 2.3, 0.18,
             [new(0, 0.42, 0.2, Green, false, "Hp 1"), new(0, 1.12, 0.2, Red, true, "Hp 0"), new(0, 1.84, 0.2, Yellow, false, "Hp 2")],
-            true, 1.5, "Hp 0 – Halt", "Hauptsignal (Einfahrsignal): grün oben, rot in der Mitte, gelb unten (grün + gelb = Hp 2, Langsamfahrt)."),
+            true, 1.5, "Hp 0 – Halt", Lang.T("Hauptsignal (Einfahrsignal): grün oben, rot in der Mitte, gelb unten (grün + gelb = Hp 2, Langsamfahrt).")),
         SignalType.Ausfahrsignal => new(1.15, 2.55, 0.18,
             [new(0, 0.42, 0.2, Green, false, "Hp 1"), new(-0.27, 1.1, 0.2, Red, true, "Hp 00"), new(0.27, 1.1, 0.2, Red, true, "Hp 00"),
              new(0.12, 1.76, 0.2, Yellow, false, "Hp 2"), new(-0.32, 2.3, 0.11, White, false, "Sh 1"), new(-0.05, 2.12, 0.11, White, false, "Sh 1")],
-            true, 1.5, "Hp 00 – Halt", "Ausfahrsignal: zwei rote Lampen nebeneinander (Hp 00), dazu grün, gelb und zwei weiße Lampen für Sh 1 (Rangierfahrt erlaubt)."),
+            true, 1.5, "Hp 00 – Halt", Lang.T("Ausfahrsignal: zwei rote Lampen nebeneinander (Hp 00), dazu grün, gelb und zwei weiße Lampen für Sh 1 (Rangierfahrt erlaubt).")),
         SignalType.Blocksignal => new(1, 1.9, 0.18,
             [new(0, 0.45, 0.2, Green, false, "Hp 1"), new(0, 1.4, 0.2, Red, true, "Hp 0")],
-            true, 1.5, "Hp 0 – Halt", "Blocksignal: grün oben, rot unten."),
+            true, 1.5, "Hp 0 – Halt", Lang.T("Blocksignal: grün oben, rot unten.")),
         SignalType.Vorsignal => new(1.25, 1.35, 0.2,
             [new(-0.3, 1.05, 0.17, Yellow, true, "Vr 0"), new(0.3, 0.68, 0.17, Yellow, true, "Vr 0"),
              new(-0.3, 0.68, 0.17, Green, false, "Vr 1"), new(0.3, 0.3, 0.17, Green, false, "Vr 1")],
-            false, 1.6, "Vr 0 – Halt erwarten", "Vorsignal: zwei gelbe Lampen nach rechts steigend (Vr 0), zwei grüne (Vr 1), gelb + grün (Vr 2)."),
+            false, 1.6, Lang.T("Vr 0 – Halt erwarten"), Lang.T("Vorsignal: zwei gelbe Lampen nach rechts steigend (Vr 0), zwei grüne (Vr 1), gelb + grün (Vr 2).")),
         _ => new(1, 1.1, 0.42,
             [new(0.27, 0.25, 0.14, White, false, "Sh 1"), new(-0.27, 0.55, 0.14, Red, true, "Sh 0"), new(0.27, 0.55, 0.14, Red, true, "Sh 0"),
              new(-0.27, 0.85, 0.14, White, false, "Sh 1")],
-            false, 0.25, "Sh 0 – Halt, Fahrverbot", "Sperrsignal (Zwergsignal): zwei rote Lampen waagrecht (Sh 0), zwei weiße nach rechts steigend (Sh 1)."),
+            false, 0.25, Lang.T("Sh 0 – Halt, Fahrverbot"), Lang.T("Sperrsignal (Zwergsignal): zwei rote Lampen waagrecht (Sh 0), zwei weiße nach rechts steigend (Sh 1).")),
     };
 
     /// <summary>

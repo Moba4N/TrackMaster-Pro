@@ -48,5 +48,5 @@ public static class UpdateCheck
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or InvalidOperationException) { return null; }
     }
 
-    public static string Describe(UpdateInfo info) => $"Version {info.Version.ToString(3)} ist verfügbar." + (info.Notes is { Length: > 0 } n ? " " + n : "");
+    public static string Describe(UpdateInfo info) => Lang.F($"Version {info.Version.ToString(3)} ist verfügbar.") + (info.Notes is { Length: > 0 } n ? " " + n : "");
 }

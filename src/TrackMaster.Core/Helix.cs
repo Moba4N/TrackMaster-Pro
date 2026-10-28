@@ -29,7 +29,7 @@ public sealed record HelixMaterial(IReadOnlyList<HelixPart> Parts, IReadOnlyList
 {
     public string ToText()
     {
-        var lines = new List<string> { "Materialliste Gleiswendel", "" };
+        var lines = new List<string> { Lang.T("Materialliste Gleiswendel"), "" };
         foreach (var p in Parts) lines.Add($"{p.Count} × {p.Name}{(p.Size.Length > 0 ? ": " + p.Size : "")}{(p.Note.Length > 0 ? $" ({p.Note})" : "")}");
         lines.Add("");
         lines.AddRange(Notes);
@@ -39,7 +39,7 @@ public sealed record HelixMaterial(IReadOnlyList<HelixPart> Parts, IReadOnlyList
     public string ToCsv()
     {
         static string Q(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
-        var lines = new List<string> { "Anzahl;Teil;Maße;Hinweis" };
+        var lines = new List<string> { Lang.T("Anzahl;Teil;Maße;Hinweis") };
         lines.AddRange(Parts.Select(p => $"{p.Count};{Q(p.Name)};{Q(p.Size)};{Q(p.Note)}"));
         lines.Add("");
         lines.AddRange(Notes.Select(Q));
@@ -82,14 +82,14 @@ public static class Helix
     public static (List<PlacedPiece> Inner, List<PlacedPiece> Outer) Build(LayoutPlan plan, HelixSpec spec, ConnectorRef? start, (double X, double Y) center)
     {
         var inner = spec.Curve;
-        if (inner.Kind != PieceKind.Curve) throw new InvalidOperationException("Für eine Gleiswendel bitte ein Bogengleis wählen.");
-        if (inner.GaugeId != plan.GaugeId) throw new InvalidOperationException($"Dieses Gleis ist für Spur {inner.GaugeId}, der Plan für Spur {plan.GaugeId}.");
+        if (inner.Kind != PieceKind.Curve) throw new InvalidOperationException(Lang.T("Für eine Gleiswendel bitte ein Bogengleis wählen."));
+        if (inner.GaugeId != plan.GaugeId) throw new InvalidOperationException(Lang.F($"Dieses Gleis ist für Spur {inner.GaugeId}, der Plan für Spur {plan.GaugeId}."));
         if (!Fits(inner, spec.Shape))
             throw new InvalidOperationException(spec.Shape == HelixShape.Oval
-                ? $"Mit {Fmt.Num(inner.Angle)}°-Bögen lässt sich kein Halbkreis legen. Bitte einen Bogen wählen, der 180° glatt teilt."
-                : $"Mit {Fmt.Num(inner.Angle)}°-Bögen lässt sich kein voller Kreis legen.");
+                ? Lang.F($"Mit {Fmt.Num(inner.Angle)}°-Bögen lässt sich kein Halbkreis legen. Bitte einen Bogen wählen, der 180° glatt teilt.")
+                : Lang.F($"Mit {Fmt.Num(inner.Angle)}°-Bögen lässt sich kein voller Kreis legen."));
         if (spec.Tracks == 2 && spec.OuterCurveKey is null && spec.Spacing < plan.Gauge.TrackWidth * PlanCheck.MinSpacingFactor)
-            throw new InvalidOperationException($"Der Gleisabstand muss mindestens {Fmt.Num(plan.Gauge.TrackWidth * PlanCheck.MinSpacingFactor, 0)} mm betragen.");
+            throw new InvalidOperationException(Lang.F($"Der Gleisabstand muss mindestens {Fmt.Num(plan.Gauge.TrackWidth * PlanCheck.MinSpacingFactor, 0)} mm betragen."));
 
         Pose at;
         double z;
@@ -196,19 +196,19 @@ public static class Helix
 
         var parts = new List<HelixPart>
         {
-            new($"Trassensegment (Kreisring {Fmt.Num(angle, 0)}°)", segments,
-                $"Zuschnitt {Fmt.Num(segLength, 0)} × {Fmt.Num(segDepth, 0)} × {Fmt.Num(thickness, 0)} mm, Ring innen R {Fmt.Num(ri, 0)} / außen R {Fmt.Num(ro, 0)} mm",
-                $"Sperrholz {Fmt.Num(thickness, 0)} mm, {perCircle} Segmente je Kreis", segments * segLength * segDepth / 1e6),
+            new(Lang.F($"Trassensegment (Kreisring {Fmt.Num(angle, 0)}°)"), segments,
+                Lang.F($"Zuschnitt {Fmt.Num(segLength, 0)} × {Fmt.Num(segDepth, 0)} × {Fmt.Num(thickness, 0)} mm, Ring innen R {Fmt.Num(ri, 0)} / außen R {Fmt.Num(ro, 0)} mm"),
+                Lang.F($"Sperrholz {Fmt.Num(thickness, 0)} mm, {perCircle} Segmente je Kreis"), segments * segLength * segDepth / 1e6),
         };
         if (boards > 0)
-            parts.Add(new("Gerades Trassenbrett", boards, $"{Fmt.Num(boardLength, 0)} × {Fmt.Num(boardWidth, 0)} × {Fmt.Num(thickness, 0)} mm",
-                $"je Längsseite eins, Gerade {Fmt.Num(straight, 0)} mm", boards * boardLength * boardWidth / 1e6));
-        parts.Add(new("Stoßlasche", joints, $"{Fmt.Num(lascheLength, 0)} × {Fmt.Num(lascheWidth, 0)} × {Fmt.Num(thickness, 0)} mm",
-            "unter jeden Stoß, verleimt und verschraubt", joints * lascheLength * lascheWidth / 1e6));
+            parts.Add(new(Lang.T("Gerades Trassenbrett"), boards, $"{Fmt.Num(boardLength, 0)} × {Fmt.Num(boardWidth, 0)} × {Fmt.Num(thickness, 0)} mm",
+                Lang.F($"je Längsseite eins, Gerade {Fmt.Num(straight, 0)} mm"), boards * boardLength * boardWidth / 1e6));
+        parts.Add(new(Lang.T("Stoßlasche"), joints, $"{Fmt.Num(lascheLength, 0)} × {Fmt.Num(lascheWidth, 0)} × {Fmt.Num(thickness, 0)} mm",
+            Lang.T("unter jeden Stoß, verleimt und verschraubt"), joints * lascheLength * lascheWidth / 1e6));
 
         // Grundplatte mit 50 mm Rand
         double baseW = Math.Ceiling(2 * ro + straight + 100), baseD = Math.Ceiling(2 * ro + 100);
-        parts.Add(new("Grundplatte", 1, $"{Fmt.Num(baseW, 0)} × {Fmt.Num(baseD, 0)} × {Fmt.Num(Math.Max(thickness, 12), 0)} mm", "oder Wendel auf die Anlagenplatte stellen", baseW * baseD / 1e6));
+        parts.Add(new(Lang.T("Grundplatte"), 1, $"{Fmt.Num(baseW, 0)} × {Fmt.Num(baseD, 0)} × {Fmt.Num(Math.Max(thickness, 12), 0)} mm", Lang.T("oder Wendel auf die Anlagenplatte stellen"), baseW * baseD / 1e6));
 
         // Stützen: an jedem Segmentstoß innen und außen, beim Oval zusätzlich an den Enden und alle 400 mm der Geraden
         var straightPosts = straight > 0 ? 2 * (1 + (int)Math.Floor(straight / 400)) : 0;
@@ -217,27 +217,27 @@ public static class Helix
         var rodLength = Math.Ceiling((spec.TotalHeight + Math.Max(thickness, 12) + thickness + 60) / 10) * 10;
         var levels = (int)Math.Ceiling(spec.Turns) + 1;
         var rodSize = gauge.TrackWidth >= 30 ? "M10" : "M8";
-        parts.Add(new($"Gewindestange {rodSize}", rods, $"{Fmt.Num(rodLength, 0)} mm lang (aus {Math.Max(1, (int)Math.Ceiling(rodLength / 1000))} m-Stangen)",
-            $"{posts} Stützpunkte, je einer innen und außen, 12 mm vom Rand"));
-        parts.Add(new($"Mutter {rodSize}", rods * levels * 2, "", "je Stütze und Ebene oben und unten, zum Einstellen der Höhe"));
-        parts.Add(new($"Unterlegscheibe {rodSize} (groß)", rods * levels * 2, "", "unter jede Mutter"));
+        parts.Add(new(Lang.F($"Gewindestange {rodSize}"), rods, Lang.F($"{Fmt.Num(rodLength, 0)} mm lang (aus {Math.Max(1, (int)Math.Ceiling(rodLength / 1000))} m-Stangen)"),
+            Lang.F($"{posts} Stützpunkte, je einer innen und außen, 12 mm vom Rand")));
+        parts.Add(new(Lang.F($"Mutter {rodSize}"), rods * levels * 2, "", Lang.T("je Stütze und Ebene oben und unten, zum Einstellen der Höhe")));
+        parts.Add(new(Lang.F($"Unterlegscheibe {rodSize} (groß)"), rods * levels * 2, "", Lang.T("unter jede Mutter")));
 
-        var area = parts.Where(p => p.Name.StartsWith("Trassen") || p.Name.StartsWith("Gerades") || p.Name.StartsWith("Stoß")).Sum(p => p.AreaM2);
+        var area = parts.Where(p => p.Name.StartsWith(Lang.T("Trassen")) || p.Name.StartsWith(Lang.T("Gerades")) || p.Name.StartsWith(Lang.T("Stoß"))).Sum(p => p.AreaM2);
         var sheets = Math.Max(1, (int)Math.Ceiling(area * 1.25 / (SheetLength * SheetWidth / 1e6)));
         var clear = spec.Rise - thickness - Math.Round(g * 0.4);
         var notes = new List<string>
         {
-            $"Trassenbreite {Fmt.Num(width, 0)} mm = {(spec.Tracks == 2 ? $"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + " : "")}Gleisbreite {Fmt.Num(bed, 0)} mm + je Seite {Fmt.Num(edge, 0)} mm Randaufmaß.",
-            $"Sägezugabe {Fmt.Num(saw, 0)} mm in jedem Zuschnittmaß enthalten; Segmente mit Stichsäge auf Radius schneiden (Zirkel/Schnur vom Wendelmittelpunkt).",
-            $"Sperrholz {Fmt.Num(thickness, 0)} mm: etwa {Fmt.Num(area, 2)} m² Trassenfläche, mit 25 % Verschnitt {sheets} Platte(n) {Fmt.Num(SheetLength, 0)} × {Fmt.Num(SheetWidth, 0)} mm. Segmente lassen sich ineinander geschachtelt zuschneiden.",
-            $"Höhe je Windung {Fmt.Num(spec.Rise, 0)} mm, Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm, Steigung innen {Fmt.Num(GradePercent(spec), 1)} %{(spec.Tracks == 2 ? $", außen {Fmt.Num(spec.Rise / TurnLength(spec, spec.OuterRadius) * 100, 1)} %" : "")}.",
-            $"Lichte Höhe unter der Trasse etwa {Fmt.Num(clear, 0)} mm (Höhe je Windung − Brett − Gleis); nötig sind {Fmt.Num(gauge.ClearanceHeight - thickness, 0)} mm für Spur {gauge.Id}.",
-            $"Platzbedarf {Fmt.Num(2 * ro + straight, 0)} × {Fmt.Num(2 * ro, 0)} mm (Außenkante Trasse).",
+            Lang.F($"Trassenbreite {Fmt.Num(width, 0)} mm = {(spec.Tracks == 2 ? Lang.F($"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + ") : "")}Gleisbreite {Fmt.Num(bed, 0)} mm + je Seite {Fmt.Num(edge, 0)} mm Randaufmaß."),
+            Lang.F($"Sägezugabe {Fmt.Num(saw, 0)} mm in jedem Zuschnittmaß enthalten; Segmente mit Stichsäge auf Radius schneiden (Zirkel/Schnur vom Wendelmittelpunkt)."),
+            Lang.F($"Sperrholz {Fmt.Num(thickness, 0)} mm: etwa {Fmt.Num(area, 2)} m² Trassenfläche, mit 25 % Verschnitt {sheets} Platte(n) {Fmt.Num(SheetLength, 0)} × {Fmt.Num(SheetWidth, 0)} mm. Segmente lassen sich ineinander geschachtelt zuschneiden."),
+            Lang.F($"Höhe je Windung {Fmt.Num(spec.Rise, 0)} mm, Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm, Steigung innen {Fmt.Num(GradePercent(spec), 1)} %{(spec.Tracks == 2 ? Lang.F($", außen {Fmt.Num(spec.Rise / TurnLength(spec, spec.OuterRadius) * 100, 1)} %") : "")}."),
+            Lang.F($"Lichte Höhe unter der Trasse etwa {Fmt.Num(clear, 0)} mm (Höhe je Windung − Brett − Gleis); nötig sind {Fmt.Num(gauge.ClearanceHeight - thickness, 0)} mm für Spur {gauge.Id}."),
+            Lang.F($"Platzbedarf {Fmt.Num(2 * ro + straight, 0)} × {Fmt.Num(2 * ro, 0)} mm (Außenkante Trasse)."),
         };
         if (spec.Tracks == 2 && spec.OuterCurveKey is null)
-            notes.Add($"Außengleis aus Flexgleis mit Radius {Fmt.Num(spec.OuterRadius, 0)} mm (kein passendes Bogengleis im Katalog).");
+            notes.Add(Lang.F($"Außengleis aus Flexgleis mit Radius {Fmt.Num(spec.OuterRadius, 0)} mm (kein passendes Bogengleis im Katalog)."));
         if (clear < gauge.ClearanceHeight - thickness)
-            notes.Add("Achtung: Die lichte Höhe ist knapp – Höhe je Windung vergrößern oder dünneres Holz nehmen.");
+            notes.Add(Lang.T("Achtung: Die lichte Höhe ist knapp – Höhe je Windung vergrößern oder dünneres Holz nehmen."));
         return new HelixMaterial(parts, notes, thickness, bed, edge, saw, ri, ro, sheets);
     }
 

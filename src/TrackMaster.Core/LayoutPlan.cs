@@ -138,12 +138,12 @@ public sealed class SceneryItem
 
     public static string KindName(SceneryKind k) => k switch
     {
-        SceneryKind.Terrain => "Höhenfläche",
-        SceneryKind.Water => "Gewässer",
-        SceneryKind.Building => "Gebäude",
-        SceneryKind.Label => "Beschriftung",
-        SceneryKind.Dimension => "Maß",
-        _ => "Baum",
+        SceneryKind.Terrain => Lang.T("Höhenfläche"),
+        SceneryKind.Water => Lang.T("Gewässer"),
+        SceneryKind.Building => Lang.T("Gebäude"),
+        SceneryKind.Label => Lang.T("Beschriftung"),
+        SceneryKind.Dimension => Lang.T("Maß"),
+        _ => Lang.T("Baum"),
     };
 }
 
@@ -180,11 +180,11 @@ public sealed class Signal
 
     public static string TypeName(SignalType t) => t switch
     {
-        SignalType.Hauptsignal => "Hauptsignal",
-        SignalType.Vorsignal => "Vorsignal",
-        SignalType.Ausfahrsignal => "Ausfahrsignal",
-        SignalType.Sperrsignal => "Sperrsignal",
-        _ => "Blocksignal",
+        SignalType.Hauptsignal => Lang.T("Hauptsignal"),
+        SignalType.Vorsignal => Lang.T("Vorsignal"),
+        SignalType.Ausfahrsignal => Lang.T("Ausfahrsignal"),
+        SignalType.Sperrsignal => Lang.T("Sperrsignal"),
+        _ => Lang.T("Blocksignal"),
     };
 
     /// <summary>Wie viele Weichendecoder-Adressen das Signal belegt (Vorsignal und Sperrsignal 1, Hauptsignale 2 für Hp0/Hp1/Hp2).</summary>
@@ -193,7 +193,7 @@ public sealed class Signal
 
 public sealed class LayoutPlan
 {
-    public string Name { get; set; } = "Neuer Plan";
+    public string Name { get; set; } = Lang.T("Neuer Plan");
     public string GaugeId { get; set; } = "H0";
     public double BoardWidth { get; set; } = 2000;
     public double BoardHeight { get; set; } = 1250;

@@ -21,7 +21,7 @@ public sealed class LibraryPanel : DockPanel
     private readonly TextBlock _count = Theme.Secondary("");
     private readonly ListBox _items = new() { BorderThickness = new Thickness(0), Background = Brushes.Transparent, HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private readonly TextBlock _headerRight;
-    private string _category = "Alle";
+    private string _category = Lang.T("Alle");
     private string? _shownGauge;
     private Point _pressPoint;
     private string? _pressKey;
@@ -33,40 +33,40 @@ public sealed class LibraryPanel : DockPanel
         Background = Theme.PanelBrush;
         LastChildFill = true;
 
-        var header = Theme.PaneHeader("Gleisbibliothek", out _headerRight);
+        var header = Theme.PaneHeader(Lang.T("Gleisbibliothek"), out _headerRight);
         SetDock(header, Dock.Top);
         Children.Add(header);
 
         var top = new StackPanel { Margin = new Thickness(12, 10, 12, 0) };
-        top.Children.Add(Theme.Label("Spurweite", 11, true, Theme.TextSecondaryBrush));
+        top.Children.Add(Theme.Label(Lang.T("Spurweite"), 11, true, Theme.TextSecondaryBrush));
         top.Children.Add(new Border { Height = 4 });
         top.Children.Add(_gauges);
         top.Children.Add(_gaugeMeta);
         top.Children.Add(new Border { Height = 8 });
-        var sysLabel = Theme.Label("Hersteller / Gleissystem", 11, true, Theme.TextSecondaryBrush);
+        var sysLabel = Theme.Label(Lang.T("Hersteller / Gleissystem"), 11, true, Theme.TextSecondaryBrush);
         top.Children.Add(sysLabel);
-        System.Windows.Automation.AutomationProperties.SetName(_systems, "Hersteller / Gleissystem");
+        System.Windows.Automation.AutomationProperties.SetName(_systems, Lang.T("Hersteller / Gleissystem"));
         top.Children.Add(_systems);
         _warning = new Border
         {
             Background = Theme.WarningBackBrush, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 8),
-            Child = Theme.Label("Geometriedaten vorläufig. Vor dem Bau bitte mit dem Herstellerkatalog abgleichen.", 11, false, Theme.WarningTextBrush),
+            Child = Theme.Label(Lang.T("Geometriedaten vorläufig. Vor dem Bau bitte mit dem Herstellerkatalog abgleichen."), 11, false, Theme.WarningTextBrush),
         };
         top.Children.Add(_warning);
 
         var searchHost = new Grid();
-        var placeholder = Theme.Secondary("Artikel-Nr. oder Name suchen");
+        var placeholder = Theme.Secondary(Lang.T("Artikel-Nr. oder Name suchen"));
         placeholder.Margin = new Thickness(9, 0, 0, 0);
         placeholder.VerticalAlignment = VerticalAlignment.Center;
         placeholder.IsHitTestVisible = false;
         searchHost.Children.Add(_search);
         searchHost.Children.Add(placeholder);
-        System.Windows.Automation.AutomationProperties.SetName(_search, "Gleise suchen");
+        System.Windows.Automation.AutomationProperties.SetName(_search, Lang.T("Gleise suchen"));
         _search.TextChanged += (_, _) => { placeholder.Visibility = _search.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed; FillItems(); };
         top.Children.Add(searchHost);
         top.Children.Add(_categories);
         var countRow = new DockPanel { Margin = new Thickness(0, 2, 0, 4) };
-        var hint = Theme.Secondary("Klicken oder ziehen");
+        var hint = Theme.Secondary(Lang.T("Klicken oder ziehen"));
         DockPanel.SetDock(hint, Dock.Right);
         countRow.Children.Add(hint);
         countRow.Children.Add(_count);
@@ -162,7 +162,7 @@ public sealed class LibraryPanel : DockPanel
             _gauges.Children.Add(b);
         }
         var gauge = plan.Gauge;
-        _gaugeMeta.Text = $"Spur {gauge.Id} · Maßstab {gauge.Scale} · Spurweite {Fmt.Num(gauge.TrackWidth)} mm";
+        _gaugeMeta.Text = Lang.F($"Spur {gauge.Id} · Maßstab {gauge.Scale} · Spurweite {Fmt.Num(gauge.TrackWidth)} mm");
         _systems.Items.Clear();
         var current = _session.CurrentSystem;
         foreach (var s in gauge.Systems)
@@ -179,8 +179,8 @@ public sealed class LibraryPanel : DockPanel
         var sys = _session.CurrentSystem;
         _headerRight.Text = sys.Name;
         _warning.Visibility = sys.Verified ? Visibility.Collapsed : Visibility.Visible;
-        var cats = new[] { "Alle" }.Concat(sys.Pieces.Select(p => p.Category).Distinct()).Append("Flexgleis").Distinct().ToList();
-        if (!cats.Contains(_category)) _category = "Alle";
+        var cats = new[] { Lang.T("Alle") }.Concat(sys.Pieces.Select(p => p.Category).Distinct()).Append(Lang.T("Flexgleis")).Distinct().ToList();
+        if (!cats.Contains(_category)) _category = Lang.T("Alle");
         _categories.Children.Clear();
         foreach (var c in cats)
         {
@@ -202,12 +202,12 @@ public sealed class LibraryPanel : DockPanel
     {
         var sys = _session.CurrentSystem;
         var q = _search.Text.Trim();
-        var list = sys.Pieces.Where(p => (_category == "Alle" || p.Category == _category)
+        var list = sys.Pieces.Where(p => (_category == Lang.T("Alle") || p.Category == _category)
                                          && (q.Length == 0 || $"{p.Number} {p.Name} {p.Spec}".Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
         _items.Items.Clear();
         var gauge = _session.Plan.Gauge;
-        var flexes = _category is "Alle" or "Flexgleis"
-            ? Catalog.Flexes(gauge, sys).Where(f => q.Length == 0 || $"Flexgleis {f.Number} {f.Name}".Contains(q, StringComparison.OrdinalIgnoreCase)).ToList()
+        var flexes = _category == Lang.T("Alle") || _category == Lang.T("Flexgleis")
+            ? Catalog.Flexes(gauge, sys).Where(f => q.Length == 0 || Lang.F($"Flexgleis {f.Number} {f.Name}").Contains(q, StringComparison.OrdinalIgnoreCase)).ToList()
             : [];
         foreach (var stock in flexes)
         {
@@ -219,13 +219,13 @@ public sealed class LibraryPanel : DockPanel
                 Child = new System.Windows.Controls.Image { Source = TrackDrawing.Thumbnail(sample), Stretch = Stretch.Uniform, Margin = new Thickness(4) },
             });
             var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            texts.Children.Add(Theme.Label(flexes.Count > 1 ? $"Flexgleis {stock.Number}…" : "Flexgleis…", 12, true));
-            texts.Children.Add(Theme.Secondary($"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · Stück {Fmt.Num(stock.Length, 0)} mm"));
+            texts.Children.Add(Theme.Label(flexes.Count > 1 ? $"Flexgleis {stock.Number}…" : Lang.T("Flexgleis…"), 12, true));
+            texts.Children.Add(Theme.Secondary(Lang.F($"{(stock.Number == Lang.T("Flexgleis") ? Lang.T("allgemein") : stock.Number)} · Stück {Fmt.Num(stock.Length, 0)} mm")));
             row.Children.Add(texts);
             _items.Items.Add(new ListBoxItem
             {
                 Content = row, Tag = FlexTag + stock.SystemId, Padding = new Thickness(4), Cursor = Cursors.Hand,
-                ToolTip = $"Flexgleis {stock.Name} · Stücke zu {Fmt.Num(stock.Length, 0)} mm\nKlicken: Länge oder Bogen wählen und am aktiven Gleisende ansetzen\nFrei biegen: Werkzeug „Flexgleis ziehen“ (Register Gleise)",
+                ToolTip = Lang.F($"Flexgleis {stock.Name} · Stücke zu {Fmt.Num(stock.Length, 0)} mm\nKlicken: Länge oder Bogen wählen und am aktiven Gleisende ansetzen\nFrei biegen: Werkzeug „Flexgleis ziehen“ (Register Gleise)"),
             });
         }
         foreach (var p in list)
@@ -244,10 +244,10 @@ public sealed class LibraryPanel : DockPanel
             _items.Items.Add(new ListBoxItem
             {
                 Content = row, Tag = p.Key, Padding = new Thickness(4), Cursor = Cursors.Hand,
-                ToolTip = $"{p.Name} · {p.Spec} · {sys.Name}\nKlicken: am aktiven Gleisende ansetzen\nZiehen: frei auf der Platte platzieren",
+                ToolTip = Lang.F($"{p.Name} · {p.Spec} · {sys.Name}\nKlicken: am aktiven Gleisende ansetzen\nZiehen: frei auf der Platte platzieren"),
             });
         }
         var total = list.Count + flexes.Count;
-        _count.Text = total == 0 ? "Keine passenden Gleise" : $"{total} Artikel";
+        _count.Text = total == 0 ? Lang.T("Keine passenden Gleise") : Lang.F($"{total} Artikel");
     }
 }

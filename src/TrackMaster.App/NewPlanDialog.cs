@@ -7,7 +7,7 @@ namespace TrackMaster.App;
 
 public static partial class Dialogs
 {
-    private static readonly string[] Turns = ["Grundstellung", "90° gedreht", "180° gedreht", "270° gedreht"];
+    private static readonly string[] Turns = [Lang.T("Grundstellung"), "90° gedreht", "180° gedreht", "270° gedreht"];
 
     /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring), Maße und Ausrichtung.</summary>
     public static BoardSetup? AskNewPlan(Window owner, string currentGauge)
@@ -30,8 +30,8 @@ public static partial class Dialogs
         var legLeft = new TextBox();
         var legRight = new TextBox();
         var depthField = Theme.Field("Schenkeltiefe (mm)", depth);
-        var legsRow = Columns2(Theme.Field("Linker Schenkel lang (mm, leer = ganz)", legLeft), Theme.Field("Rechter Schenkel lang (mm, leer = ganz)", legRight));
-        var turnField = Theme.Field("Ausrichtung", turnBox);
+        var legsRow = Columns2(Theme.Field(Lang.T("Linker Schenkel lang (mm, leer = ganz)"), legLeft), Theme.Field(Lang.T("Rechter Schenkel lang (mm, leer = ganz)"), legRight));
+        var turnField = Theme.Field(Lang.T("Ausrichtung"), turnBox);
         var preview = new System.Windows.Shapes.Path { Fill = Theme.BoardBrush, Stroke = Theme.BoardStrokeBrush, StrokeThickness = 1.5, Stretch = Stretch.Uniform, StrokeLineJoin = PenLineJoin.Round };
         var previewBox = new Border
         {
@@ -61,8 +61,8 @@ public static partial class Dialogs
             preview.Data = geometry;
             var area = BoardGeometry.Rects(shape, w, h, d, turnBox.SelectedIndex, l1, l2).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
             info.Text = BoardGeometry.HasLegs(shape)
-                ? $"Außenmaße {Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Schenkel {Fmt.Num(BoardGeometry.Depth(shape, w, h, d, turnBox.SelectedIndex), 0)} mm · Fläche {Fmt.Num(area, 2)} m²"
-                : $"{Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Fläche {Fmt.Num(area, 2)} m²";
+                ? Lang.F($"Außenmaße {Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Schenkel {Fmt.Num(BoardGeometry.Depth(shape, w, h, d, turnBox.SelectedIndex), 0)} mm · Fläche {Fmt.Num(area, 2)} m²")
+                : Lang.F($"{Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} mm · Fläche {Fmt.Num(area, 2)} m²");
         }
         void Suggest()
         {
@@ -82,35 +82,35 @@ public static partial class Dialogs
             box.TextChanged += (_, _) => { if (!updating) Update(); };
 
         var body = new StackPanel();
-        body.Children.Add(Hint("Der aktuelle Plan wird verworfen; Rückgängig holt ihn zurück. Form und Maße lassen sich später in den Planeigenschaften ändern."));
-        body.Children.Add(Theme.Field("Spur", gaugeBox));
-        body.Children.Add(Theme.Field("Form der Anlagenplatte", shapeBox));
+        body.Children.Add(Hint(Lang.T("Der aktuelle Plan wird verworfen; Rückgängig holt ihn zurück. Form und Maße lassen sich später in den Planeigenschaften ändern.")));
+        body.Children.Add(Theme.Field(Lang.T("Spur"), gaugeBox));
+        body.Children.Add(Theme.Field(Lang.T("Form der Anlagenplatte"), shapeBox));
         body.Children.Add(previewBox);
-        body.Children.Add(Columns2(Theme.Field("Breite außen (mm)", width), Theme.Field("Tiefe außen (mm)", height)));
+        body.Children.Add(Columns2(Theme.Field(Lang.T("Breite außen (mm)"), width), Theme.Field(Lang.T("Tiefe außen (mm)"), height)));
         body.Children.Add(Columns2(depthField, turnField));
         body.Children.Add(legsRow);
         body.Children.Add(info);
         body.Children.Add(error);
         Update();
 
-        var ok = Theme.Button("Plan anlegen", "New", accent: true);
+        var ok = Theme.Button(Lang.T("Plan anlegen"), "New", accent: true);
         ok.IsDefault = true;
-        var cancel = Theme.Button("Abbrechen");
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
-        var win = Small(owner, "Neuer Plan", body, 520, 700, cancel, ok);
+        var win = Small(owner, Lang.T("Neuer Plan"), body, 520, 700, cancel, ok);
         BoardSetup? result = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
-            Read(width, "Breite", 100, 50000, errors, out var w);
-            Read(height, "Tiefe", 100, 50000, errors, out var h);
+            Read(width, Lang.T("Breite"), 100, 50000, errors, out var w);
+            Read(height, Lang.T("Tiefe"), 100, 50000, errors, out var h);
             var d = 0.0;
-            if (BoardGeometry.HasLegs(Shape())) Read(depth, "Schenkeltiefe", 50, 50000, errors, out d);
+            if (BoardGeometry.HasLegs(Shape())) Read(depth, Lang.T("Schenkeltiefe"), 50, 50000, errors, out d);
             double l1 = 0, l2 = 0;
             if (Shape() == BoardShape.U)
             {
-                if (legLeft.Text.Trim().Length > 0) Read(legLeft, "Linker Schenkel", 50, 50000, errors, out l1);
-                if (legRight.Text.Trim().Length > 0) Read(legRight, "Rechter Schenkel", 50, 50000, errors, out l2);
+                if (legLeft.Text.Trim().Length > 0) Read(legLeft, Lang.T("Linker Schenkel"), 50, 50000, errors, out l1);
+                if (legRight.Text.Trim().Length > 0) Read(legRight, Lang.T("Rechter Schenkel"), 50, 50000, errors, out l2);
             }
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
             var full = turnBox.SelectedIndex % 2 == 0 ? h : w;

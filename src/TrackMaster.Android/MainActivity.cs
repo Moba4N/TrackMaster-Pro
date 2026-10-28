@@ -40,7 +40,7 @@ public sealed class MainActivity : Activity
     private TextView _toolText = null!;
     private Button _toolFinish = null!, _toolBack = null!;
     private Button _undo = null!, _redo = null!;
-    private string _tab = "Start";
+    private string _tab = Lang.T("Start");
     private readonly Dictionary<string, Command> _commands = [];
     private readonly List<(Button Button, Func<bool> Active)> _toggles = [];
     private (byte[] Data, string Mime)? _pendingExport;
@@ -94,7 +94,7 @@ public sealed class MainActivity : Activity
                 Run("props");
                 break;
             default:
-                if (demo.StartsWith("tab:")) { _tab = demo[4..]; BuildActions(); }
+                if (demo.StartsWith(Lang.T("tab:"))) { _tab = demo[4..]; BuildActions(); }
                 break;
         }
     }
@@ -148,86 +148,87 @@ public sealed class MainActivity : Activity
 
     private void RegisterCommands()
     {
-        Add("new", "Neu", () => Dialogs.AskNewPlan(this, _session.Plan.GaugeId, setup =>
+        Add("new", Lang.T("Neu"), () => Dialogs.AskNewPlan(this, _session.Plan.GaugeId, setup =>
         {
             _session.NewPlan(setup);
             _library.Refresh(force: true);
             _canvas.Fit();
         }));
-        Add("open", "Öffnen", () => Pick(RequestOpen));
-        Add("save", "Speichern", () => { if (_session.RequireSave()) SavePlan(); });
-        Add("sample", "Beispielanlage", () => { _session.LoadSample(); _library.Refresh(force: true); _canvas.Fit(); });
-        Add("license", "Lizenz", ShowLicense);
-        Add("help", "Bedienung", () => Dialogs.ShowHelp(this));
-        Add("undo", "Rückgängig", _session.Undo, () => _session.History.CanUndo);
-        Add("redo", "Wiederholen", _session.Redo, () => _session.History.CanRedo);
-        Add("rotL", "Drehen", () => _session.Rotate(-15), HasSelection);
-        Add("rotR", "Drehen", () => _session.Rotate(15), HasSelection);
-        Add("rotFree", "Frei drehen", AskFreeRotation, HasSelection);
-        Add("flip", "Spiegeln", _session.Flip, HasSelection);
-        Add("swap", "Anschluss wechseln", _session.SwapAnchor, () => _session.Selection.Count == 1);
-        Add("duplicate", "Duplizieren", _session.Duplicate, HasSelection);
-        Add("copy", "Kopieren", CopyToClipboard, () => HasSelection() || _session.SelectedObject is not null);
-        Add("paste", "Einfügen", PasteFromClipboard);
-        Add("delete", "Löschen", _session.Delete, () => HasSelection() || _session.SelectedObject is not null);
-        Add("selectAll", "Alles auswählen", _session.SelectAll);
-        Add("selectNone", "Auswahl aufheben", _session.ClearSelection);
-        Add("nextEnd", "Nächstes Gleisende", () => { if (_session.NextOpenEnd() is { } p) _canvas.Reveal(p.X, p.Y); });
-        Add("props", "Eigenschaften", () => Dialogs.ShowProperties(this, _session, Run));
-        Pro("bom", "Stückliste", () => Dialogs.ShowBillOfMaterials(this, _session.Plan, _license.IsPro, () => Run("csv")));
-        Add("check", "Planprüfung", ShowCheck);
-        Add("fit", "Einpassen", _canvas_Fit);
-        Add("zoomIn", "Vergrößern", () => _canvas.ZoomBy(1.3f));
-        Add("zoomOut", "Verkleinern", () => _canvas.ZoomBy(1 / 1.3f));
-        Add("viewRotL", "Ansicht nach links drehen", () => _canvas.RotateViewBy(-15));
-        Add("viewRotR", "Ansicht nach rechts drehen", () => _canvas.RotateViewBy(15));
-        Add("viewReset", "Ansicht gerade ausrichten", () => _canvas.SetViewRotation(0));
-        Add("viewAngle", "Ansicht drehen", AskViewAngle);
-        Add("appearance", "Darstellung", ChangeAppearance);
-        Add("about", "Über das Programm", ShowAbout);
-        Add("update", "Nach Updates suchen", () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainActivity).Assembly) is not null);
-        Add("straight", "Gerade", () => _session.Quick(PieceKind.Straight, null, _canvas.CenterWorld()));
-        Add("curve", "Bogen", () => _session.Quick(PieceKind.Curve, null, _canvas.CenterWorld()));
-        Add("switchL", "Weiche links", () => _session.Quick(PieceKind.Switch, false, _canvas.CenterWorld()));
-        Add("switchR", "Weiche rechts", () => _session.Quick(PieceKind.Switch, true, _canvas.CenterWorld()));
-        Add("buffer", "Prellbock", () => _session.Quick(PieceKind.Buffer, null, _canvas.CenterWorld()));
-        Add("crossing", "Kreuzung", () => _session.Quick(PieceKind.Crossing, null, _canvas.CenterWorld()));
-        Add("flex", "Flexgleis", () => Dialogs.AskFlex(this, _session.Plan.Gauge, _session.CurrentFlex, key => _session.AttachFlex(key, _canvas.CenterWorld())));
-        Add("toolFlex", "Flexgleis ziehen", () => SetTool(CanvasTool.Flex));
-        Add("flexConnect", "Lücke schließen", () => _session.ConnectEnds(_session.CurrentFlex));
-        Add("board", "Anlagenplatte", () => { _session.ClearSelection(); Dialogs.ShowProperties(this, _session, Run); });
-        Add("grid", "Raster", () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
-        Add("ends", "Gleisenden", () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
-        Add("labels", "Beschriftung", () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));
-        Add("snap", "Einrasten", () => Toggle(() => _session.SnapEnabled = !_session.SnapEnabled));
-        Add("toolSelect", "Auswählen", () => SetTool(CanvasTool.Select));
+        Add("open", Lang.T("Öffnen"), () => Pick(RequestOpen));
+        Add("save", Lang.T("Speichern"), () => { if (_session.RequireSave()) SavePlan(); });
+        Add("sample", Lang.T("Beispielanlage"), () => { _session.LoadSample(); _library.Refresh(force: true); _canvas.Fit(); });
+        Add("license", Lang.T("Lizenz"), ShowLicense);
+        Add("help", Lang.T("Bedienung"), () => Dialogs.ShowHelp(this));
+        Add("undo", Lang.T("Rückgängig"), _session.Undo, () => _session.History.CanUndo);
+        Add("redo", Lang.T("Wiederholen"), _session.Redo, () => _session.History.CanRedo);
+        Add("rotL", Lang.T("Drehen"), () => _session.Rotate(-15), HasSelection);
+        Add("rotR", Lang.T("Drehen"), () => _session.Rotate(15), HasSelection);
+        Add("rotFree", Lang.T("Frei drehen"), AskFreeRotation, HasSelection);
+        Add("flip", Lang.T("Spiegeln"), _session.Flip, HasSelection);
+        Add("swap", Lang.T("Anschluss wechseln"), _session.SwapAnchor, () => _session.Selection.Count == 1);
+        Add("duplicate", Lang.T("Duplizieren"), _session.Duplicate, HasSelection);
+        Add("copy", Lang.T("Kopieren"), CopyToClipboard, () => HasSelection() || _session.SelectedObject is not null);
+        Add("paste", Lang.T("Einfügen"), PasteFromClipboard);
+        Add("delete", Lang.T("Löschen"), _session.Delete, () => HasSelection() || _session.SelectedObject is not null);
+        Add("selectAll", Lang.T("Alles auswählen"), _session.SelectAll);
+        Add("selectNone", Lang.T("Auswahl aufheben"), _session.ClearSelection);
+        Add("nextEnd", Lang.T("Nächstes Gleisende"), () => { if (_session.NextOpenEnd() is { } p) _canvas.Reveal(p.X, p.Y); });
+        Add("props", Lang.T("Eigenschaften"), () => Dialogs.ShowProperties(this, _session, Run));
+        Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, _session.Plan, _license.IsPro, () => Run("csv")));
+        Add("check", Lang.T("Planprüfung"), ShowCheck);
+        Add("fit", Lang.T("Einpassen"), _canvas_Fit);
+        Add("zoomIn", Lang.T("Vergrößern"), () => _canvas.ZoomBy(1.3f));
+        Add("zoomOut", Lang.T("Verkleinern"), () => _canvas.ZoomBy(1 / 1.3f));
+        Add("viewRotL", Lang.T("Ansicht nach links drehen"), () => _canvas.RotateViewBy(-15));
+        Add("viewRotR", Lang.T("Ansicht nach rechts drehen"), () => _canvas.RotateViewBy(15));
+        Add("viewReset", Lang.T("Ansicht gerade ausrichten"), () => _canvas.SetViewRotation(0));
+        Add("viewAngle", Lang.T("Ansicht drehen"), AskViewAngle);
+        Add("appearance", Lang.T("Darstellung"), ChangeAppearance);
+        Add("language", "Sprache / Language", ChangeLanguage);
+        Add("about", Lang.T("Über das Programm"), ShowAbout);
+        Add("update", Lang.T("Nach Updates suchen"), () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainActivity).Assembly) is not null);
+        Add("straight", Lang.T("Gerade"), () => _session.Quick(PieceKind.Straight, null, _canvas.CenterWorld()));
+        Add("curve", Lang.T("Bogen"), () => _session.Quick(PieceKind.Curve, null, _canvas.CenterWorld()));
+        Add("switchL", Lang.T("Weiche links"), () => _session.Quick(PieceKind.Switch, false, _canvas.CenterWorld()));
+        Add("switchR", Lang.T("Weiche rechts"), () => _session.Quick(PieceKind.Switch, true, _canvas.CenterWorld()));
+        Add("buffer", Lang.T("Prellbock"), () => _session.Quick(PieceKind.Buffer, null, _canvas.CenterWorld()));
+        Add("crossing", Lang.T("Kreuzung"), () => _session.Quick(PieceKind.Crossing, null, _canvas.CenterWorld()));
+        Add("flex", Lang.T("Flexgleis"), () => Dialogs.AskFlex(this, _session.Plan.Gauge, _session.CurrentFlex, key => _session.AttachFlex(key, _canvas.CenterWorld())));
+        Add("toolFlex", Lang.T("Flexgleis ziehen"), () => SetTool(CanvasTool.Flex));
+        Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
+        Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); Dialogs.ShowProperties(this, _session, Run); });
+        Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
+        Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
+        Add("labels", Lang.T("Beschriftung"), () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));
+        Add("snap", Lang.T("Einrasten"), () => Toggle(() => _session.SnapEnabled = !_session.SnapEnabled));
+        Add("toolSelect", Lang.T("Auswählen"), () => SetTool(CanvasTool.Select));
 
-        Add("heights", "Höhen zeigen", () => Toggle(() => _session.ShowHeights = !_session.ShowHeights));
-        Add("scenery", "Gelände zeigen", () => Toggle(() => _session.ShowScenery = !_session.ShowScenery));
-        Add("sections", "Stromkreise zeigen", () => Toggle(() => _session.ShowSections = !_session.ShowSections));
-        Add("gradient", "Steigung", AskGradient, HasSelection);
-        Add("helix", "Gleiswendel", AskHelix);
+        Add("heights", Lang.T("Höhen zeigen"), () => Toggle(() => _session.ShowHeights = !_session.ShowHeights));
+        Add("scenery", Lang.T("Gelände zeigen"), () => Toggle(() => _session.ShowScenery = !_session.ShowScenery));
+        Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
+        Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
+        Add("helix", Lang.T("Gleiswendel"), AskHelix);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
-        Add("toolTerrain", "Gelände formen", () => SetTool(CanvasTool.Terrain));
-        Add("toolWater", "Gewässer", () => SetTool(CanvasTool.Water));
-        Add("toolBuilding", "Gebäude", () => SetTool(CanvasTool.Building));
-        Add("toolTree", "Vegetation", () => SetTool(CanvasTool.Tree));
+        Add("toolTerrain", Lang.T("Gelände formen"), () => SetTool(CanvasTool.Terrain));
+        Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
+        Add("toolBuilding", Lang.T("Gebäude"), () => SetTool(CanvasTool.Building));
+        Add("toolTree", Lang.T("Vegetation"), () => SetTool(CanvasTool.Tree));
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
-        Add("toolDimension", "Maß", () => SetTool(CanvasTool.Dimension));
-        Add("toolFeeder", "Einspeisung", () => SetTool(CanvasTool.Feeder));
-        Add("toolIsolation", "Trennstelle", () => SetTool(CanvasTool.Isolation));
-        Add("toolSignal", "Signal setzen", () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
-        Add("elecCheck", "Elektrik prüfen", ShowElectricCheck);
-        Add("addresses", "Decoder und Adressen", () => Dialogs.ShowAddresses(this, _session, ShowWiring));
-        Add("wiring", "Kabelplan", ShowWiring);
-        Add("routes", "Fahrstraßen", ShowRoutes);
-        Pro("controlExport", "Export für Steuerprogramme", () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
+        Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
+        Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
+        Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
+        Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
+        Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
+        Add("addresses", Lang.T("Decoder und Adressen"), () => Dialogs.ShowAddresses(this, _session, ShowWiring));
+        Add("wiring", Lang.T("Kabelplan"), ShowWiring);
+        Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
+        Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
         Add("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
-        Add("ride", "Mitfahren", () => Open3D(View3DMode.Ride));
-        Add("daytime", "Tageszeit", () => Open3D(View3DMode.Evening));
-        Pro("csv", "Export als CSV", () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", $"{SafeName} – Stückliste.csv"));
-        Pro("pdf", "Drucken als PDF", () => Export(PlanPdf.Build(_session.Plan, _license.IsPro), "application/pdf", $"{SafeName}.pdf"));
-        Pro("svg", "Export als SVG", () => Export(SvgExport.Build(_session.Plan), "image/svg+xml", $"{SafeName}.svg"));
+        Add("ride", Lang.T("Mitfahren"), () => Open3D(View3DMode.Ride));
+        Add("daytime", Lang.T("Tageszeit"), () => Open3D(View3DMode.Evening));
+        Pro("csv", Lang.T("Export als CSV"), () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Stückliste.csv")));
+        Pro("pdf", Lang.T("Drucken als PDF"), () => Export(PlanPdf.Build(_session.Plan, _license.IsPro), "application/pdf", $"{SafeName}.pdf"));
+        Pro("svg", Lang.T("Export als SVG"), () => Export(SvgExport.Build(_session.Plan), "image/svg+xml", $"{SafeName}.svg"));
     }
 
     private void _canvas_Fit() => _canvas.Fit();
@@ -241,13 +242,28 @@ public sealed class MainActivity : Activity
         Recreate();
     });
 
-    private void AskViewAngle() => Dialogs.AskAngle(this, "Ansicht drehen",
-        "Dreht nur die Ansicht – der Plan selbst bleibt unverändert. Mit zwei Fingern lässt sich die Ansicht auch direkt drehen; Tippen auf den Kompass richtet sie wieder gerade aus.",
-        Math.Round(_canvas.ViewRotation, 1), "Drehen", a => _canvas.SetViewRotation(a));
+    private void ChangeLanguage()
+    {
+        var langs = new[] { Language.Deutsch, Language.English };
+        new AlertDialog.Builder(this).SetTitle("Sprache / Language")!
+            .SetSingleChoiceItems(new[] { "Deutsch", "English" }, Array.IndexOf(langs, Lang.Current), (_, e) =>
+            {
+                var chosen = langs[e.Which];
+                if (chosen == Lang.Current) return;
+                Lang.Save(chosen);
+                Dialogs.Message(this, "Sprache / Language", "Die Sprache gilt nach dem nächsten Start der App.\nThe language applies after the app is restarted.");
+            })!
+            .SetNegativeButton("OK", (_, _) => { })!
+            .Show();
+    }
 
-    private void AskFreeRotation() => Dialogs.AskAngle(this, "Auswahl frei drehen",
-        "Dreht die gewählten Gleise um ihren gemeinsamen Mittelpunkt, um einen beliebigen Winkel.",
-        7.5, "Drehen", a => _session.Rotate(a));
+    private void AskViewAngle() => Dialogs.AskAngle(this, Lang.T("Ansicht drehen"),
+        Lang.T("Dreht nur die Ansicht – der Plan selbst bleibt unverändert. Mit zwei Fingern lässt sich die Ansicht auch direkt drehen; Tippen auf den Kompass richtet sie wieder gerade aus."),
+        Math.Round(_canvas.ViewRotation, 1), Lang.T("Drehen"), a => _canvas.SetViewRotation(a));
+
+    private void AskFreeRotation() => Dialogs.AskAngle(this, Lang.T("Auswahl frei drehen"),
+        Lang.T("Dreht die gewählten Gleise um ihren gemeinsamen Mittelpunkt, um einen beliebigen Winkel."),
+        7.5, Lang.T("Drehen"), a => _session.Rotate(a));
 
     private async Task CheckForUpdates(bool manual)
     {
@@ -257,14 +273,14 @@ public sealed class MainActivity : Activity
         RunOnUiThread(() =>
         {
             if (IsFinishing) return;
-            string? text = info is null ? (manual ? "Die Update-Prüfung hat keine Antwort bekommen. Bitte die Internetverbindung prüfen." : null)
-                : !UpdateCheck.IsNewer(info, current) ? (manual ? $"Version {current?.ToString(3)} ist aktuell." : null)
+            string? text = info is null ? (manual ? Lang.T("Die Update-Prüfung hat keine Antwort bekommen. Bitte die Internetverbindung prüfen.") : null)
+                : !UpdateCheck.IsNewer(info, current) ? (manual ? Lang.F($"Version {current?.ToString(3)} ist aktuell.") : null)
                 : UpdateCheck.Describe(info);
             if (text is null) return;
-            if (!manual) { _session.Say(text + " Datei › Updates…"); return; }
-            var b = new AlertDialog.Builder(this).SetTitle("Updates")!.SetMessage(text)!;
+            if (!manual) { _session.Say(text + Lang.T(" Datei › Updates…")); return; }
+            var b = new AlertDialog.Builder(this).SetTitle(Lang.T("Updates"))!.SetMessage(text)!;
             if (info?.Url is { } link && UpdateCheck.IsNewer(info, current))
-                b.SetPositiveButton("Download-Seite öffnen", (_, _) => StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(link))))!.SetNegativeButton("Später", (_, _) => { });
+                b.SetPositiveButton(Lang.T("Download-Seite öffnen"), (_, _) => StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(link))))!.SetNegativeButton(Lang.T("Später"), (_, _) => { });
             else b.SetPositiveButton("OK", (_, _) => { });
             b.Show();
         });
@@ -288,7 +304,7 @@ public sealed class MainActivity : Activity
         get
         {
             var n = string.Concat(_session.Plan.Name.Select(ch => System.IO.Path.GetInvalidFileNameChars().Contains(ch) || ch is '/' or ':' ? '_' : ch)).Trim();
-            return n.Length == 0 ? "Plan" : n;
+            return n.Length == 0 ? Lang.T("Plan") : n;
         }
     }
 
@@ -312,23 +328,23 @@ public sealed class MainActivity : Activity
 
     private static readonly (string Tab, (string Label, string Command, bool Toggle)[] Items)[] Ribbon =
     [
-        ("Start", [("Eigenschaften", "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), ("Frei drehen…", "rotFree", false), ("Spiegeln", "flip", false), ("Anschluss wechseln", "swap", false),
-                   ("Duplizieren", "duplicate", false), ("Kopieren", "copy", false), ("Einfügen", "paste", false), ("Löschen", "delete", false), ("Alles wählen", "selectAll", false), ("Auswahl aufheben", "selectNone", false),
-                   ("Nächstes Gleisende", "nextEnd", false), ("Text", "toolLabel", true), ("Maß", "toolDimension", true), ("Stückliste", "bom", false), ("Planprüfung", "check", false)]),
-        ("Gleise", [("Gerade", "straight", false), ("Bogen", "curve", false), ("Weiche links", "switchL", false), ("Weiche rechts", "switchR", false),
-                    ("Kreuzung", "crossing", false), ("Prellbock", "buffer", false), ("Flexgleis…", "flex", false),
-                    ("Flexgleis ziehen", "toolFlex", true), ("Lücke schließen", "flexConnect", false),
-                    ("Steigung…", "gradient", false), ("Gleiswendel…", "helix", false), ("Tunnel", "tunnel", false)]),
-        ("Gelände", [("Anlagenplatte…", "board", false), ("Gelände formen", "toolTerrain", true), ("Gewässer", "toolWater", true), ("Gebäude", "toolBuilding", true),
-                     ("Vegetation", "toolTree", true), ("Gelände zeigen", "scenery", true)]),
-        ("Elektrik", [("Einspeisung", "toolFeeder", true), ("Trennstelle", "toolIsolation", true), ("Signal setzen…", "toolSignal", true),
-                      ("Adressen…", "addresses", false), ("Stromkreise zeigen", "sections", true), ("Elektrik prüfen", "elecCheck", false), ("Kabelplan", "wiring", false), ("Fahrstraßen", "routes", false), ("Export Steuerung", "controlExport", false)]),
-        ("Ansicht", [("Einpassen", "fit", false), ("Raster", "grid", true), ("Gleisenden", "ends", true), ("Beschriftung", "labels", true),
-                     ("Höhen", "heights", true), ("Einrasten", "snap", true), ("Ansicht ↺ 15°", "viewRotL", false), ("Ansicht ↻ 15°", "viewRotR", false),
-                     ("Gerade ausrichten", "viewReset", false), ("Ansicht drehen…", "viewAngle", false), ("Design und Schrift…", "appearance", false)]),
-        ("3D", [("3D-Ansicht", "view3d", false), ("Mitfahren", "ride", false), ("Abendstimmung", "daytime", false)]),
-        ("Datei", [("Neu…", "new", false), ("Öffnen…", "open", false), ("Speichern…", "save", false), ("Beispielanlage", "sample", false),
-                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Drucken (PDF, auch 1:1)…", "pdf", false), ("Lizenz…", "license", false), ("Darstellung…", "appearance", false), ("Bedienung", "help", false), ("Updates…", "update", false), ("Über…", "about", false)]),
+        (Lang.T("Start"), [(Lang.T("Eigenschaften"), "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), (Lang.T("Frei drehen…"), "rotFree", false), (Lang.T("Spiegeln"), "flip", false), (Lang.T("Anschluss wechseln"), "swap", false),
+                   (Lang.T("Duplizieren"), "duplicate", false), (Lang.T("Kopieren"), "copy", false), (Lang.T("Einfügen"), "paste", false), (Lang.T("Löschen"), "delete", false), (Lang.T("Alles wählen"), "selectAll", false), (Lang.T("Auswahl aufheben"), "selectNone", false),
+                   (Lang.T("Nächstes Gleisende"), "nextEnd", false), ("Text", "toolLabel", true), (Lang.T("Maß"), "toolDimension", true), (Lang.T("Stückliste"), "bom", false), (Lang.T("Planprüfung"), "check", false)]),
+        (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
+                    (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
+                    (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false),
+                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), ("Tunnel", "tunnel", false)]),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+                     (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
+        (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
+                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
+        (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
+                     (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), ("Ansicht ↺ 15°", "viewRotL", false), ("Ansicht ↻ 15°", "viewRotR", false),
+                     (Lang.T("Gerade ausrichten"), "viewReset", false), (Lang.T("Ansicht drehen…"), "viewAngle", false), (Lang.T("Design und Schrift…"), "appearance", false)]),
+        ("3D", [("3D-Ansicht", "view3d", false), (Lang.T("Mitfahren"), "ride", false), (Lang.T("Abendstimmung"), "daytime", false)]),
+        (Lang.T("Datei"), [(Lang.T("Neu…"), "new", false), (Lang.T("Öffnen…"), "open", false), (Lang.T("Speichern…"), "save", false), (Lang.T("Beispielanlage"), "sample", false),
+                   (Lang.T("Stückliste als CSV"), "csv", false), (Lang.T("Plan als SVG"), "svg", false), (Lang.T("Drucken (PDF, auch 1:1)…"), "pdf", false), (Lang.T("Lizenz…"), "license", false), (Lang.T("Darstellung…"), "appearance", false), ("Sprache / Language", "language", false), (Lang.T("Bedienung"), "help", false), (Lang.T("Updates…"), "update", false), (Lang.T("Über…"), "about", false)]),
     ];
 
     private void BuildUi()
@@ -399,7 +415,7 @@ public sealed class MainActivity : Activity
         _canvas = new PlanView(this, _session);
         _canvas.PropertiesRequested += () => Run("props");
         _canvas.PolygonChanged += UpdateToolBar;
-        _canvas.LabelRequested += (x, y) => Dialogs.AskText(this, "Beschriftung", "Text", text => _session.AddLabel(text, x, y));
+        _canvas.LabelRequested += (x, y) => Dialogs.AskText(this, Lang.T("Beschriftung"), "Text", text => _session.AddLabel(text, x, y));
         stage.AddView(_canvas, new FrameLayout.LayoutParams(-1, -1));
 
         _toolBar = Ui.Row(this, 8);
@@ -407,11 +423,11 @@ public sealed class MainActivity : Activity
         _toolBar.SetPadding(Ui.Dp(10), Ui.Dp(6), Ui.Dp(6), Ui.Dp(6));
         _toolText = Ui.Label(this, "", 13);
         _toolBar.AddView(_toolText, Ui.Weight(1, vertical: false));
-        _toolBack = Ui.Button(this, "Punkt zurück", () => _canvas.UndoPolygonPoint());
-        _toolFinish = Ui.Button(this, "Fertig", () => _canvas.FinishPolygon(), accent: true);
+        _toolBack = Ui.Button(this, Lang.T("Punkt zurück"), () => _canvas.UndoPolygonPoint());
+        _toolFinish = Ui.Button(this, Lang.T("Fertig"), () => _canvas.FinishPolygon(), accent: true);
         _toolBar.AddView(_toolBack);
         _toolBar.AddView(_toolFinish);
-        _toolBar.AddView(Ui.Button(this, "Beenden", () => SetTool(CanvasTool.Select)));
+        _toolBar.AddView(Ui.Button(this, Lang.T("Beenden"), () => SetTool(CanvasTool.Select)));
         var tlp = new FrameLayout.LayoutParams(-1, -2, GravityFlags.Top) { LeftMargin = Ui.Dp(8), RightMargin = Ui.Dp(8), TopMargin = Ui.Dp(8) };
         stage.AddView(_toolBar, tlp);
 
@@ -526,11 +542,11 @@ public sealed class MainActivity : Activity
     {
         var plan = _session.Plan;
         _title.Text = plan.Name + (_session.Dirty ? " •" : "");
-        _edition.Text = _license.EditionName == "Pro (Entwicklerversion)" ? "Pro (Entwickler)" : _license.EditionName;
+        _edition.Text = _license.EditionName == Lang.T("Pro (Entwicklerversion)") ? Lang.T("Pro (Entwickler)") : _license.EditionName;
         _edition.Background = Ui.Rounded(_license.IsPro ? Ui.Pro : Ui.TextSecondary, radius: 10);
         var stats = plan.Statistics(_session.Connections);
         var sel = _session.Selection.Count;
-        _status.Text = $"Spur {plan.GaugeId} · {stats.Pieces} Gleise · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · offene Enden {stats.OpenEnds}" + (sel > 0 ? $" · {sel} gewählt" : "");
+        _status.Text = Lang.F($"Spur {plan.GaugeId} · {stats.Pieces} Gleise · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · offene Enden {stats.OpenEnds}") + (sel > 0 ? Lang.F($" · {sel} gewählt") : "");
         RefreshActions();
         UpdateToolBar();
     }
@@ -547,14 +563,14 @@ public sealed class MainActivity : Activity
         Ui.SetButtonState(_toolBack, false, false);
         _toolText.Text = tool switch
         {
-            CanvasTool.Terrain => $"Gelände formen: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“.",
-            CanvasTool.Water => $"Gewässer: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“.",
-            CanvasTool.Flex => "Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein.",
-            CanvasTool.Building => "Gebäude: antippen oder Rechteck aufziehen.",
-            CanvasTool.Tree => "Vegetation: jeder Tipp setzt einen Baum.",
-            CanvasTool.Feeder => "Einspeisung: auf ein Gleis tippen.",
-            CanvasTool.Isolation => "Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen.",
-            CanvasTool.Signal => $"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen.",
+            CanvasTool.Terrain => Lang.F($"Gelände formen: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
+            CanvasTool.Water => Lang.F($"Gewässer: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
+            CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein."),
+            CanvasTool.Building => Lang.T("Gebäude: antippen oder Rechteck aufziehen."),
+            CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
+            CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis tippen."),
+            CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
+            CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),
             _ => "",
         };
     }
@@ -605,7 +621,7 @@ public sealed class MainActivity : Activity
         var issues = PlanCheck.Run(_session.Plan);
         _session.Issues = issues;
         _canvas.Invalidate();
-        Dialogs.ShowIssues(this, "Planprüfung", issues, Pick);
+        Dialogs.ShowIssues(this, Lang.T("Planprüfung"), issues, Pick);
     }
 
     private void ShowElectricCheck()
@@ -614,8 +630,8 @@ public sealed class MainActivity : Activity
         _session.Issues = report.Issues;
         if (!_session.ShowSections) { _session.ShowSections = true; _session.Commit(); }
         _canvas.Invalidate();
-        Dialogs.ShowIssues(this, "Elektrik prüfen", report.Issues, Pick,
-            $"{report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? "Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich." : "Zweileiter-System.")}");
+        Dialogs.ShowIssues(this, Lang.T("Elektrik prüfen"), report.Issues, Pick,
+            Lang.F($"{report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}"));
     }
 
     private void Pick(PlanIssue issue)
@@ -636,7 +652,7 @@ public sealed class MainActivity : Activity
         var gauge = _session.Plan.Gauge;
         var curves = _session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
         if (curves.Count == 0) curves = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
-        if (curves.Count == 0) { ShowMessage("Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen."); return; }
+        if (curves.Count == 0) { ShowMessage(Lang.T("Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen.")); return; }
         var straights = _session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
         if (straights.Count == 0) straights = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
         Dialogs.AskHelix(this, gauge, curves, straights, _session.ActiveConnector is not null, spec =>
@@ -644,26 +660,26 @@ public sealed class MainActivity : Activity
             if (_session.BuildHelix(spec, _canvas.CenterWorld()) is not { } material) return;
             _canvas.Fit();
             // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
-            if (_session.RequirePro("Holzliste der Gleiswendel"))
-                Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", $"{SafeName} – Holzliste Gleiswendel.csv"));
+            if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
+                Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
         });
     }
 
     private void ShowWiring()
     {
         var text = Electrics.WiringPlan(_session.Plan);
-        Dialogs.ShowText(this, "Kabelplan", text, "Als Text speichern", () =>
+        Dialogs.ShowText(this, Lang.T("Kabelplan"), text, Lang.T("Als Text speichern"), () =>
         {
-            if (_session.RequirePro("Kabelplan")) Export(text, "text/plain", $"{SafeName} – Kabelplan.txt");
+            if (_session.RequirePro(Lang.T("Kabelplan"))) Export(text, "text/plain", $"{SafeName} – Kabelplan.txt");
         });
     }
 
     private void ShowRoutes()
     {
         var routes = TrainRoutes.Find(_session.Plan);
-        Dialogs.ShowText(this, "Fahrstraßen", TrainRoutes.ToText(_session.Plan, routes), "Als CSV speichern", () =>
+        Dialogs.ShowText(this, Lang.T("Fahrstraßen"), TrainRoutes.ToText(_session.Plan, routes), Lang.T("Als CSV speichern"), () =>
         {
-            if (_session.RequirePro("Fahrstraßen speichern")) Export(TrainRoutes.ToCsv(routes), "text/csv", $"{SafeName} – Fahrstraßen.csv");
+            if (_session.RequirePro(Lang.T("Fahrstraßen speichern"))) Export(TrainRoutes.ToCsv(routes), "text/csv", Lang.F($"{SafeName} – Fahrstraßen.csv"));
         });
     }
 
@@ -685,13 +701,13 @@ public sealed class MainActivity : Activity
         var result = _license.Install(text);
         if (result.IsValid)
         {
-            Dialogs.Message(this, "Lizenz", $"Pro-Lizenz eingespielt: {_license.Summary}");
+            Dialogs.Message(this, Lang.T("Lizenz"), Lang.F($"Pro-Lizenz eingespielt: {_license.Summary}"));
             BuildActions();
             Refresh();
             _canvas.Invalidate();
         }
         else
-            Dialogs.Message(this, "Lizenz", $"Die Lizenzdatei wurde nicht übernommen: {result.StatusText}.");
+            Dialogs.Message(this, Lang.T("Lizenz"), Lang.F($"Die Lizenzdatei wurde nicht übernommen: {result.StatusText}."));
     }
 
     // ---------- Dateien ----------
@@ -745,14 +761,14 @@ public sealed class MainActivity : Activity
                     break;
                 case RequestExport when _pendingExport is { } export:
                     WriteBytes(uri, export.Data);
-                    ShowMessage($"Gespeichert: {DisplayName(uri)}");
+                    ShowMessage(Lang.F($"Gespeichert: {DisplayName(uri)}"));
                     _pendingExport = null;
                     break;
             }
         }
         catch (Exception e) when (e is IOException or InvalidDataException or System.Text.Json.JsonException or Java.Lang.Exception)
         {
-            Dialogs.Message(this, "Datei", $"Die Datei konnte nicht verarbeitet werden: {e.Message}");
+            Dialogs.Message(this, Lang.T("Datei"), Lang.F($"Die Datei konnte nicht verarbeitet werden: {e.Message}"));
         }
     }
 
@@ -767,26 +783,26 @@ public sealed class MainActivity : Activity
         }
         catch (Exception e) when (e is IOException or InvalidDataException or System.Text.Json.JsonException or Java.Lang.Exception)
         {
-            Dialogs.Message(this, "Öffnen", $"Die Datei ist kein TrackMaster-Plan: {e.Message}");
+            Dialogs.Message(this, Lang.T("Öffnen"), Lang.F($"Die Datei ist kein TrackMaster-Plan: {e.Message}"));
         }
     }
 
     private string ReadText(Android.Net.Uri uri)
     {
-        using var stream = ContentResolver!.OpenInputStream(uri) ?? throw new IOException("Datei nicht lesbar.");
+        using var stream = ContentResolver!.OpenInputStream(uri) ?? throw new IOException(Lang.T("Datei nicht lesbar."));
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }
 
     private void WriteBytes(Android.Net.Uri uri, byte[] data)
     {
-        using var stream = ContentResolver!.OpenOutputStream(uri, "wt") ?? throw new IOException("Datei nicht beschreibbar.");
+        using var stream = ContentResolver!.OpenOutputStream(uri, "wt") ?? throw new IOException(Lang.T("Datei nicht beschreibbar."));
         stream.Write(data);
     }
 
     private void WriteText(Android.Net.Uri uri, string text)
     {
-        using var stream = ContentResolver!.OpenOutputStream(uri, "wt") ?? throw new IOException("Datei nicht beschreibbar.");
+        using var stream = ContentResolver!.OpenOutputStream(uri, "wt") ?? throw new IOException(Lang.T("Datei nicht beschreibbar."));
         using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
         writer.Write(text);
     }

@@ -97,7 +97,7 @@ public sealed class PlanSession
         Selection.Clear();
         Active = null;
         Commit();
-        Say("Neuer Plan angelegt. Rückgängig holt den vorherigen zurück.");
+        Say(Lang.T("Neuer Plan angelegt. Rückgängig holt den vorherigen zurück."));
     }
 
     /// <summary>Neuer Plan mit Spur und Plattenform.</summary>
@@ -117,7 +117,7 @@ public sealed class PlanSession
         Selection.Clear();
         Active = null;
         Commit();
-        Say($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}. Rückgängig holt den vorherigen zurück.");
+        Say(Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}. Rückgängig holt den vorherigen zurück."));
     }
 
     public void LoadSample()
@@ -146,8 +146,8 @@ public sealed class PlanSession
     }
 
     private static string OpenedMessage(LayoutPlan plan, int skipped, bool newer)
-        => $"„{plan.Name}“ geöffnet{(skipped > 0 ? $" – {skipped} unbekannte Teile übersprungen" : "")}." +
-           (newer ? " Die Datei stammt aus einer neueren Version von TrackMaster Pro; Neues daraus kann fehlen – bitte das Programm aktualisieren." : "");
+        => Lang.F($"„{plan.Name}“ geöffnet{(skipped > 0 ? Lang.F($" – {skipped} unbekannte Teile übersprungen") : "")}.") +
+           (newer ? Lang.T(" Die Datei stammt aus einer neueren Version von TrackMaster Pro; Neues daraus kann fehlen – bitte das Programm aktualisieren.") : "");
 
     /// <summary>Plan nach einem Neustart des Fensters (z. B. neue Darstellung) wiederherstellen, mit Dateiname und Änderungsstand.</summary>
     public void Restore(string json, string? path, bool dirty)
@@ -163,7 +163,7 @@ public sealed class PlanSession
         FilePath = name;
         Dirty = false;
         Changed?.Invoke();
-        Say($"Gespeichert: {name}");
+        Say(Lang.F($"Gespeichert: {name}"));
     }
 
     public void Save(string path)
@@ -172,7 +172,7 @@ public sealed class PlanSession
         FilePath = path;
         Dirty = false;
         Changed?.Invoke();
-        Say($"Gespeichert: {Path.GetFileName(path)}");
+        Say(Lang.F($"Gespeichert: {Path.GetFileName(path)}"));
     }
 
     // ---------- Bearbeiten ----------
@@ -180,7 +180,7 @@ public sealed class PlanSession
     public void Attach(string key, (double X, double Y) fallbackCenter)
     {
         var def = Catalog.Get(key);
-        if (def.GaugeId != Plan.GaugeId) { Say($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {Plan.GaugeId}."); return; }
+        if (def.GaugeId != Plan.GaugeId) { Say(Lang.F($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {Plan.GaugeId}.")); return; }
         Record();
         var piece = PlanEditing.Attach(Plan, key, ActiveConnector, fallbackCenter);
         Selection.Clear();
@@ -193,7 +193,7 @@ public sealed class PlanSession
     {
         var def = Catalog.Find(key);
         if (def is null) return;
-        if (def.GaugeId != Plan.GaugeId) { Say($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {Plan.GaugeId}."); return; }
+        if (def.GaugeId != Plan.GaugeId) { Say(Lang.F($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {Plan.GaugeId}.")); return; }
         Record();
         var piece = Plan.Add(key);
         PlanEditing.PlaceAt(piece, 0, x, y, 0);
@@ -216,7 +216,7 @@ public sealed class PlanSession
     public void Flip()
     {
         var sel = SelectedPieces;
-        if (!sel.Any(p => p.Def.CanFlip)) { Say("Gerade Gleise und Prellböcke lassen sich nicht spiegeln."); return; }
+        if (!sel.Any(p => p.Def.CanFlip)) { Say(Lang.T("Gerade Gleise und Prellböcke lassen sich nicht spiegeln.")); return; }
         Record();
         PlanEditing.Flip(sel);
         Commit();
@@ -230,7 +230,7 @@ public sealed class PlanSession
             Plan.RemoveObject(obj);
             SelectedObject = null;
             Commit();
-            Say("Gelöscht. Rückgängig holt es zurück.");
+            Say(Lang.T("Gelöscht. Rückgängig holt es zurück."));
             return;
         }
         var n = Selection.Count;
@@ -239,7 +239,7 @@ public sealed class PlanSession
         Plan.RemovePieces(Selection);
         Selection.Clear();
         Commit();
-        Say($"{n} {(n == 1 ? "Gleis" : "Gleise")} gelöscht. Rückgängig holt sie zurück.");
+        Say(Lang.F($"{n} {(n == 1 ? Lang.T("Gleis") : Lang.T("Gleise"))} gelöscht. Rückgängig holt sie zurück."));
     }
 
     public void Duplicate()
@@ -260,7 +260,7 @@ public sealed class PlanSession
     /// </summary>
     public string? CopySelection()
     {
-        var temp = new LayoutPlan { GaugeId = Plan.GaugeId, Name = "Zwischenablage" };
+        var temp = new LayoutPlan { GaugeId = Plan.GaugeId, Name = Lang.T("Zwischenablage") };
         foreach (var p in SelectedPieces) temp.Pieces.Add(p.Clone());
         var ids = new HashSet<int>(temp.Pieces.Select(p => p.Id));
         temp.Feeders.AddRange(Plan.Feeders.Where(f => ids.Contains(f.PieceId)).Select(f => f.Clone()));
@@ -269,7 +269,7 @@ public sealed class PlanSession
         if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item) temp.Scenery.Add(item.Clone());
         if (temp.Pieces.Count == 0 && temp.Scenery.Count == 0) return null;
         var n = temp.Pieces.Count + temp.Scenery.Count;
-        Say(n == 1 ? "1 Objekt kopiert." : $"{n} Objekte kopiert.");
+        Say(n == 1 ? Lang.T("1 Objekt kopiert.") : Lang.F($"{n} Objekte kopiert."));
         return PlanSerializer.ToJson(temp, withIds: true);
     }
 
@@ -284,12 +284,12 @@ public sealed class PlanSession
         catch (InvalidDataException) { }
         if (src is null || src.Pieces.Count == 0 && src.Scenery.Count == 0)
         {
-            Say("In der Zwischenablage sind keine kopierten Gleise.");
+            Say(Lang.T("In der Zwischenablage sind keine kopierten Gleise."));
             return false;
         }
         if (src.GaugeId != Plan.GaugeId)
         {
-            Say($"Die kopierten Gleise sind für Spur {src.GaugeId}, der Plan ist Spur {Plan.GaugeId} – Einfügen nicht möglich.");
+            Say(Lang.F($"Die kopierten Gleise sind für Spur {src.GaugeId}, der Plan ist Spur {Plan.GaugeId} – Einfügen nicht möglich."));
             return false;
         }
         var points = src.Pieces.Select(p => (p.X, p.Y)).Concat(src.Scenery.Select(s => s.Center())).ToList();
@@ -329,7 +329,7 @@ public sealed class PlanSession
         SelectedObject = Selection.Count == 0 ? pastedObject : null;
         Commit();
         var n = src.Pieces.Count + src.Scenery.Count;
-        Say(n == 1 ? "1 Objekt eingefügt." : $"{n} Objekte eingefügt.");
+        Say(n == 1 ? Lang.T("1 Objekt eingefügt.") : Lang.F($"{n} Objekte eingefügt."));
         return true;
     }
 
@@ -354,7 +354,7 @@ public sealed class PlanSession
     public Pose? NextOpenEnd()
     {
         var open = Connections.Open;
-        if (open.Count == 0) { Say("Keine offenen Gleisenden – der Plan ist geschlossen."); return null; }
+        if (open.Count == 0) { Say(Lang.T("Keine offenen Gleisenden – der Plan ist geschlossen.")); return null; }
         var i = Active is { } a ? open.ToList().FindIndex(c => c.PieceId == a.PieceId && c.Index == a.Index) : -1;
         var next = open[(i + 1) % open.Count];
         Active = (next.PieceId, next.Index);
@@ -439,7 +439,7 @@ public sealed class PlanSession
         if (gaugeId == Plan.GaugeId) return true;
         if (Plan.Pieces.Count > 0)
         {
-            Say($"Dieser Plan ist für Spur {Plan.GaugeId}. Für Spur {gaugeId} bitte einen neuen Plan anlegen (Datei › Neu).");
+            Say(Lang.F($"Dieser Plan ist für Spur {Plan.GaugeId}. Für Spur {gaugeId} bitte einen neuen Plan anlegen (Datei › Neu)."));
             return false;
         }
         Record();
@@ -464,7 +464,7 @@ public sealed class PlanSession
     {
         bool Fits(TrackPieceDef p) => p.Kind == kind && (rightHand is null || p.RightHand == rightHand) && (kind != PieceKind.Switch || p.IsSimpleSwitch) && !p.IsDoubleSlip;
         var def = CurrentSystem.Pieces.FirstOrDefault(Fits) ?? Plan.Gauge.Systems.SelectMany(s => s.Pieces).FirstOrDefault(Fits);
-        if (def is null) { Say("Dieses Gleissystem hat kein passendes Teil."); return; }
+        if (def is null) { Say(Lang.T("Dieses Gleissystem hat kein passendes Teil.")); return; }
         Attach(def.Key, fallbackCenter);
     }
 
@@ -529,7 +529,7 @@ public sealed class PlanSession
     public bool RequireSave()
     {
         if (IsPro() || Plan.Pieces.Count <= BasisSaveLimit) return true;
-        ProRequired?.Invoke($"Speichern von Plänen mit mehr als {BasisSaveLimit} Gleisen");
+        ProRequired?.Invoke(Lang.F($"Speichern von Plänen mit mehr als {BasisSaveLimit} Gleisen"));
         return false;
     }
 
@@ -549,9 +549,9 @@ public sealed class PlanSession
     /// <summary>Legt ein geformtes Flexgleis ab <paramref name="start"/> (Fahrtrichtung). <paramref name="from"/>/<paramref name="to"/> sind die Gleisenden an Anfang und Ende, falls vorhanden.</summary>
     public PlacedPiece? PlaceFlex(FlexStock stock, Pose start, IReadOnlyList<Segment> segments, ConnectorRef? from, ConnectorRef? to)
     {
-        if (segments.Count == 0) { Say("Das Flexgleis ist zu kurz."); return null; }
+        if (segments.Count == 0) { Say(Lang.T("Das Flexgleis ist zu kurz.")); return null; }
         var (key, flipped) = FlexTrack.Key(Plan.GaugeId, stock.SystemId, segments);
-        if (Catalog.Find(key) is not { } def) { Say("Diese Form lässt sich nicht als Flexgleis anlegen."); return null; }
+        if (Catalog.Find(key) is not { } def) { Say(Lang.T("Diese Form lässt sich nicht als Flexgleis anlegen.")); return null; }
         Record();
         var piece = Plan.Add(key);
         piece.Flipped = flipped;
@@ -570,7 +570,7 @@ public sealed class PlanSession
         Selection.Add(piece.Id);
         Active = to is null ? (piece.Id, 1) : null;
         Commit();
-        Say(FlexMessage(segments) + (to is not null ? " – Lücke geschlossen." : ""));
+        Say(FlexMessage(segments) + (to is not null ? Lang.T(" – Lücke geschlossen.") : ""));
         return piece;
     }
 
@@ -579,7 +579,7 @@ public sealed class PlanSession
         var text = FlexTrack.Describe(segments);
         var catalogMin = Plan.Gauge.Systems.SelectMany(s => s.Pieces).Where(p => p.Kind == PieceKind.Curve).Select(p => p.Radius).DefaultIfEmpty(0).Min();
         if (FlexTrack.SmallestRadius(segments) is { } r && catalogMin > 0 && r < catalogMin * 0.95)
-            text += $". Achtung: enger als der kleinste Katalogradius der Spur ({Fmt.Num(catalogMin, 0)} mm)";
+            text += Lang.F($". Achtung: enger als der kleinste Katalogradius der Spur ({Fmt.Num(catalogMin, 0)} mm)");
         return text;
     }
 
@@ -611,12 +611,12 @@ public sealed class PlanSession
         }
         if (a is null || b is null)
         {
-            Say("Lücke schließen: ein Gleisende anklicken (orange) und das Zielgleis mit Strg+Klick dazu wählen – oder zwei Gleise mit offenen Enden wählen.");
+            Say(Lang.T("Lücke schließen: ein Gleisende anklicken (orange) und das Zielgleis mit Strg+Klick dazu wählen – oder zwei Gleise mit offenen Enden wählen."));
             return;
         }
         var start = new Pose(a.Pose.X, a.Pose.Y, a.Pose.Heading);
         var segments = FlexTrack.Connect(start, new Pose(b.Pose.X, b.Pose.Y, b.Pose.Heading + 180));
-        if (segments.Count == 0) { Say("Diese beiden Gleisenden lassen sich nicht mit einem Flexgleis verbinden."); return; }
+        if (segments.Count == 0) { Say(Lang.T("Diese beiden Gleisenden lassen sich nicht mit einem Flexgleis verbinden.")); return; }
         PlaceFlex(stock, start, segments, a, b);
     }
 
@@ -682,21 +682,21 @@ public sealed class PlanSession
     public void SetTunnel(bool on)
     {
         var sel = SelectedPieces;
-        if (sel.Count == 0) { Say("Bitte zuerst die Gleise wählen, die im Tunnel liegen."); return; }
+        if (sel.Count == 0) { Say(Lang.T("Bitte zuerst die Gleise wählen, die im Tunnel liegen.")); return; }
         Record();
         foreach (var p in sel) p.Tunnel = on;
         Commit();
-        Say(on ? $"{sel.Count} Gleis(e) als Tunnel markiert." : $"Tunnel bei {sel.Count} Gleis(en) aufgehoben.");
+        Say(on ? Lang.F($"{sel.Count} Gleis(e) als Tunnel markiert.") : Lang.F($"Tunnel bei {sel.Count} Gleis(en) aufgehoben."));
     }
 
     public void ApplyGradient(double startHeight, double percent, bool reverse)
     {
-        if (Selection.Count == 0) { Say("Bitte zuerst die Gleise der Rampe wählen."); return; }
+        if (Selection.Count == 0) { Say(Lang.T("Bitte zuerst die Gleise der Rampe wählen.")); return; }
         Record();
         var r = PlanEditing.ApplyGradient(Plan, Selection, startHeight, percent, reverse);
-        if (r.Pieces == 0) { History.DiscardLast(); Say(r.Note ?? "Keine Steigung gesetzt."); return; }
+        if (r.Pieces == 0) { History.DiscardLast(); Say(r.Note ?? Lang.T("Keine Steigung gesetzt.")); return; }
         Commit();
-        Say($"Steigung {Fmt.Num(percent, 1)} % über {r.Pieces} Gleise ({Fmt.Num(r.Length / 1000, 2)} m), Endhöhe {Fmt.Num(r.EndHeight, 0)} mm.{(r.Note is null ? "" : " " + r.Note)}");
+        Say(Lang.F($"Steigung {Fmt.Num(percent, 1)} % über {r.Pieces} Gleise ({Fmt.Num(r.Length / 1000, 2)} m), Endhöhe {Fmt.Num(r.EndHeight, 0)} mm.{(r.Note is null ? "" : " " + r.Note)}"));
     }
 
     public void BuildHelix(string curveKey, double turns, double rise, bool rightHand, (double X, double Y) center)
@@ -715,9 +715,9 @@ public sealed class PlanSession
             Active = (last.Id, 1);
             SelectedObject = null;
             Commit();
-            var shape = spec.Shape == HelixShape.Oval ? "Ovale" : "Runde";
-            var tracks = spec.Tracks == 2 ? "zweigleisige" : "eingleisige";
-            Say($"{shape} {tracks} Gleiswendel mit {inner.Count + outer.Count} Gleisen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm.");
+            var shape = spec.Shape == HelixShape.Oval ? Lang.T("Ovale") : Lang.T("Runde");
+            var tracks = spec.Tracks == 2 ? Lang.T("zweigleisige") : Lang.T("eingleisige");
+            Say(Lang.F($"{shape} {tracks} Gleiswendel mit {inner.Count + outer.Count} Gleisen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm."));
             return Helix.Material(spec, Plan.Gauge);
         }
         catch (InvalidOperationException e)
@@ -732,7 +732,7 @@ public sealed class PlanSession
     public SceneryItem AddLabel(string text, double x, double y)
     {
         var item = AddScenery(new SceneryItem { Kind = SceneryKind.Label, Name = text.Trim(), X = Math.Round(x), Y = Math.Round(y), Height = Annotation.DefaultTextSize(Plan.Gauge) });
-        Say("Beschriftung gesetzt. Ziehen verschiebt sie, Text, Größe und Drehung stehen in den Eigenschaften.");
+        Say(Lang.T("Beschriftung gesetzt. Ziehen verschiebt sie, Text, Größe und Drehung stehen in den Eigenschaften."));
         return item;
     }
 
@@ -745,7 +745,7 @@ public sealed class PlanSession
             Height = Annotation.DefaultTextSize(Plan.Gauge) * 0.8,
         });
         var len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
-        Say($"Maß {Fmt.Num(len, 0)} mm gesetzt. Abstand der Maßlinie und Schriftgröße stehen in den Eigenschaften.");
+        Say(Lang.F($"Maß {Fmt.Num(len, 0)} mm gesetzt. Abstand der Maßlinie und Schriftgröße stehen in den Eigenschaften."));
         return item;
     }
 
@@ -765,12 +765,12 @@ public sealed class PlanSession
     /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
     public void RemoveObject(int id)
     {
-        var what = FindObject(id) switch { Feeder => "Einspeisung", Signal => "Signal", Isolation => "Trennstelle", _ => "Objekt" };
+        var what = FindObject(id) switch { Feeder => Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), _ => Lang.T("Objekt") };
         Record();
         if (!Plan.RemoveObject(id)) { History.DiscardLast(); return; }
         if (SelectedObject == id) SelectedObject = null;
         Commit();
-        Say($"{what} entfernt. Rückgängig holt es zurück.");
+        Say(Lang.F($"{what} entfernt. Rückgängig holt es zurück."));
     }
 
     public void AddFeeder(int pieceId)
@@ -782,7 +782,7 @@ public sealed class PlanSession
         SelectedObject = f.Id;
         Selection.Clear();
         Commit();
-        Say($"Einspeisung an Gleis Nr. {pieceId} ({circuit}).");
+        Say(Lang.F($"Einspeisung an Gleis Nr. {pieceId} ({circuit})."));
     }
 
     /// <summary>Setzt oder entfernt eine Trennstelle an einem Gleisende (an verbundenen Enden auch auf der Gegenseite).</summary>
@@ -794,12 +794,12 @@ public sealed class PlanSession
         if (existing is not null)
         {
             Plan.Isolations.Remove(existing);
-            Say("Trennstelle entfernt.");
+            Say(Lang.T("Trennstelle entfernt."));
         }
         else
         {
             Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = pieceId, Index = index });
-            Say("Trennstelle gesetzt.");
+            Say(Lang.T("Trennstelle gesetzt."));
         }
         Commit();
     }
@@ -821,6 +821,6 @@ public sealed class PlanSession
         Record();
         var n = Electrics.AssignAddresses(Plan, first, onlyMissing);
         Commit();
-        Say($"{n} Adressen vergeben.");
+        Say(Lang.F($"{n} Adressen vergeben."));
     }
 }

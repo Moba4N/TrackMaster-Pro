@@ -82,10 +82,10 @@ public static class PlanCheck
             var pa = plan.Find(a)!.Def.Number;
             var pb = plan.Find(b)!.Def.Number;
             issues.Add(w.Dz > gauge.TrackWidth
-                ? new PlanIssue(IssueLevel.Fehler, "Durchfahrtshöhe",
-                    $"Gleise {pa} (Nr. {a}) und {pb} (Nr. {b}) kreuzen mit nur {Fmt.Num(w.Dz, 0)} mm Höhenunterschied – nötig sind mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm.", [a, b], w.X, w.Y)
-                : new PlanIssue(IssueLevel.Fehler, "Kollision",
-                    $"Gleise {pa} (Nr. {a}) und {pb} (Nr. {b}) kommen sich auf {Fmt.Num(w.D, 0)} mm nahe – Mindestabstand {Fmt.Num(minSpacing, 0)} mm.", [a, b], w.X, w.Y));
+                ? new PlanIssue(IssueLevel.Fehler, Lang.T("Durchfahrtshöhe"),
+                    Lang.F($"Gleise {pa} (Nr. {a}) und {pb} (Nr. {b}) kreuzen mit nur {Fmt.Num(w.Dz, 0)} mm Höhenunterschied – nötig sind mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm."), [a, b], w.X, w.Y)
+                : new PlanIssue(IssueLevel.Fehler, Lang.T("Kollision"),
+                    Lang.F($"Gleise {pa} (Nr. {a}) und {pb} (Nr. {b}) kommen sich auf {Fmt.Num(w.D, 0)} mm nahe – Mindestabstand {Fmt.Num(minSpacing, 0)} mm."), [a, b], w.X, w.Y));
         }
 
         // Außerhalb der Platte
@@ -93,7 +93,7 @@ public static class PlanCheck
         if (outside.Count > 0)
         {
             var first = outside[0].First();
-            issues.Add(new PlanIssue(IssueLevel.Warnung, "Plattenrand", $"{outside.Count} Gleis(e) ragen über die Anlagenplatte hinaus.", outside.Select(g => g.Key).ToList(), first.X, first.Y));
+            issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Plattenrand"), Lang.F($"{outside.Count} Gleis(e) ragen über die Anlagenplatte hinaus."), outside.Select(g => g.Key).ToList(), first.X, first.Y));
         }
 
         // Steigungen
@@ -102,14 +102,14 @@ public static class PlanCheck
             var pct = Math.Abs(p.EffectiveGrade) * 100;
             if (pct <= WarnGradePercent + 1e-6) continue;
             var m = p.Middle();
-            issues.Add(new PlanIssue(pct > MaxGradePercent + 1e-6 ? IssueLevel.Fehler : IssueLevel.Warnung, "Steigung",
-                $"Gleis {p.Def.Number} (Nr. {p.Id}) hat {Fmt.Num(pct, 1)} % Steigung – empfohlen sind höchstens {Fmt.Num(WarnGradePercent, 0)} %, in Bögen weniger.", [p.Id], m.X, m.Y));
+            issues.Add(new PlanIssue(pct > MaxGradePercent + 1e-6 ? IssueLevel.Fehler : IssueLevel.Warnung, Lang.T("Steigung"),
+                Lang.F($"Gleis {p.Def.Number} (Nr. {p.Id}) hat {Fmt.Num(pct, 1)} % Steigung – empfohlen sind höchstens {Fmt.Num(WarnGradePercent, 0)} %, in Bögen weniger."), [p.Id], m.X, m.Y));
         }
         if (plan.Pieces.Any(p => p.Height < -0.5))
         {
             var p = plan.Pieces.First(p => p.Height < -0.5);
             var m = p.Middle();
-            issues.Add(new PlanIssue(IssueLevel.Hinweis, "Höhe", "Gleise liegen unter der Plattenoberkante – dafür muss die Platte ausgeschnitten werden.", plan.Pieces.Where(q => q.Height < -0.5).Select(q => q.Id).ToList(), m.X, m.Y));
+            issues.Add(new PlanIssue(IssueLevel.Hinweis, Lang.T("Höhe"), Lang.T("Gleise liegen unter der Plattenoberkante – dafür muss die Platte ausgeschnitten werden."), plan.Pieces.Where(q => q.Height < -0.5).Select(q => q.Id).ToList(), m.X, m.Y));
         }
 
         CurvesForVehicles(plan, conn, issues);
@@ -125,16 +125,16 @@ public static class PlanCheck
             switch (s.Kind)
             {
                 case SceneryKind.Building when hits.Any(q => q.Z < s.Height):
-                    issues.Add(new PlanIssue(IssueLevel.Warnung, "Gebäude", $"Gleise führen durch das Gebäude „{s.Name}“.", ids, cx, cy));
+                    issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Gebäude"), Lang.F($"Gleise führen durch das Gebäude „{s.Name}“."), ids, cx, cy));
                     break;
                 case SceneryKind.Water when hits.Any(q => q.Z < 5):
-                    issues.Add(new PlanIssue(IssueLevel.Warnung, "Gewässer", $"Gleise liegen im Gewässer „{s.Name}“ – hier fehlt eine Brücke (Gleis höher legen).", ids, cx, cy));
+                    issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Gewässer"), Lang.F($"Gleise liegen im Gewässer „{s.Name}“ – hier fehlt eine Brücke (Gleis höher legen)."), ids, cx, cy));
                     break;
                 case SceneryKind.Terrain:
                     var field = TerrainField.For(s);
                     var buried = hits.Where(q => q.Z < field.At(q.X, q.Y) - gauge.TrackWidth && plan.Find(q.PieceId) is { Tunnel: false }).Select(q => q.PieceId).Distinct().ToList();
                     if (buried.Count > 0)
-                        issues.Add(new PlanIssue(IssueLevel.Hinweis, "Tunnel", $"{buried.Count} Gleis(e) liegen unter der Höhenfläche „{s.Name}“ – als Tunnel markieren?", buried, cx, cy));
+                        issues.Add(new PlanIssue(IssueLevel.Hinweis, "Tunnel", Lang.F($"{buried.Count} Gleis(e) liegen unter der Höhenfläche „{s.Name}“ – als Tunnel markieren?"), buried, cx, cy));
                     break;
             }
         }
@@ -143,7 +143,7 @@ public static class PlanCheck
         if (open > 0 && plan.Pieces.Count > 0)
         {
             var c = conn.Open[0];
-            issues.Add(new PlanIssue(IssueLevel.Hinweis, "Gleisenden", $"{open} offene Gleisende(n) ohne Prellbock.", conn.Open.Select(o => o.PieceId).Distinct().ToList(), c.Pose.X, c.Pose.Y));
+            issues.Add(new PlanIssue(IssueLevel.Hinweis, Lang.T("Gleisenden"), Lang.F($"{open} offene Gleisende(n) ohne Prellbock."), conn.Open.Select(o => o.PieceId).Distinct().ToList(), c.Pose.X, c.Pose.Y));
         }
         return issues.OrderByDescending(i => i.Level).ToList();
     }
@@ -165,9 +165,9 @@ public static class PlanCheck
         {
             var (inner, outer) = VehicleDefaults.Swing(group.Key, length);
             var m = group.First().Piece.Middle();
-            issues.Add(new PlanIssue(IssueLevel.Hinweis, "Radius",
-                $"{group.Count()} Gleis(e) mit R {Fmt.Num(group.Key, 0)} mm: eng für Fahrzeuge mit {Fmt.Num(length, 0)} mm Länge (Faustregel: Radius ab {Fmt.Num(minRadius, 0)} mm). " +
-                $"Die Wagenmitte schwenkt etwa {Fmt.Num(inner, 0)} mm nach innen, die Enden {Fmt.Num(outer, 0)} mm nach außen – Gleisabstand und Bahnsteige im Bogen entsprechend größer wählen.",
+            issues.Add(new PlanIssue(IssueLevel.Hinweis, Lang.T("Radius"),
+                Lang.F($"{group.Count()} Gleis(e) mit R {Fmt.Num(group.Key, 0)} mm: eng für Fahrzeuge mit {Fmt.Num(length, 0)} mm Länge (Faustregel: Radius ab {Fmt.Num(minRadius, 0)} mm). ") +
+                Lang.F($"Die Wagenmitte schwenkt etwa {Fmt.Num(inner, 0)} mm nach innen, die Enden {Fmt.Num(outer, 0)} mm nach außen – Gleisabstand und Bahnsteige im Bogen entsprechend größer wählen."),
                 group.Select(x => x.Piece.Id).ToList(), m.X, m.Y));
         }
 
@@ -178,8 +178,8 @@ public static class PlanCheck
         {
             var m = steep[0].Middle();
             var max = steep.Max(p => Math.Abs(p.EffectiveGrade)) * 100;
-            issues.Add(new PlanIssue(IssueLevel.Warnung, "Steigung im Bogen",
-                $"{steep.Count} Bogengleis(e) steigen um bis zu {Fmt.Num(max, 1)} %. Im Bogen bremst die Reibung zusätzlich – dort höchstens {Fmt.Num(VehicleDefaults.CurveGradePercent, 0)} % empfohlen.",
+            issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Steigung im Bogen"),
+                Lang.F($"{steep.Count} Bogengleis(e) steigen um bis zu {Fmt.Num(max, 1)} %. Im Bogen bremst die Reibung zusätzlich – dort höchstens {Fmt.Num(VehicleDefaults.CurveGradePercent, 0)} % empfohlen."),
                 steep.Select(p => p.Id).ToList(), m.X, m.Y));
         }
 
@@ -211,7 +211,7 @@ public static class PlanCheck
         }
         if (sCurves.Count > 0)
             issues.Add(new PlanIssue(IssueLevel.Hinweis, "S-Bogen",
-                $"{sCurves.Count} S-Bogen/-Bögen ohne Zwischengerade. Lange Wagen können sich dort mit den Puffern verhaken – möglichst ein gerades Stück von etwa {Fmt.Num(length, 0)} mm dazwischen legen.",
+                Lang.F($"{sCurves.Count} S-Bogen/-Bögen ohne Zwischengerade. Lange Wagen können sich dort mit den Puffern verhaken – möglichst ein gerades Stück von etwa {Fmt.Num(length, 0)} mm dazwischen legen."),
                 sCurves.SelectMany(s => new[] { s.A, s.B }).Distinct().ToList(), sCurves[0].X, sCurves[0].Y));
     }
 }

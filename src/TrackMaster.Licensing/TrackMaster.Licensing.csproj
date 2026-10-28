@@ -3,4 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>TrackMaster.Licensing</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TrackMaster.Core\TrackMaster.Core.csproj" />
+  </ItemGroup>
 </Project>

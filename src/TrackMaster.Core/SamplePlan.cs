@@ -5,7 +5,7 @@ public static class SamplePlan
 {
     public static LayoutPlan Build()
     {
-        var plan = new LayoutPlan { Name = "Bahnhof Neustadt", GaugeId = "H0", BoardWidth = 2000, BoardHeight = 1250 };
+        var plan = new LayoutPlan { Name = Lang.T("Bahnhof Neustadt"), GaugeId = "H0", BoardWidth = 2000, BoardHeight = 1250 };
 
         PlacedPiece Add(string nr, Pose at, bool flip = false)
         {
@@ -38,15 +38,15 @@ public static class SamplePlan
             plan.Scenery.Add(item);
             return item;
         }
-        Scenery(new SceneryItem { Kind = SceneryKind.Terrain, Name = "Hügel", Height = 110, Points = [(420, 470), (640, 400), (780, 520), (760, 760), (600, 880), (430, 800), (380, 640)] });
-        Scenery(new SceneryItem { Kind = SceneryKind.Water, Name = "Teich", Points = [(1240, 700), (1380, 640), (1520, 690), (1540, 820), (1420, 900), (1270, 860)] });
-        Scenery(new SceneryItem { Kind = SceneryKind.Building, Name = "Empfangsgebäude", X = 1060, Y = 110, Width = 300, Depth = 100, Height = 110 });
-        Scenery(new SceneryItem { Kind = SceneryKind.Building, Name = "Lokschuppen", X = 1000, Y = 470, Width = 260, Depth = 120, Height = 95, Rotation = 0 });
-        Scenery(new SceneryItem { Kind = SceneryKind.Building, Name = "Wohnhaus", X = 1560, Y = 120, Width = 140, Depth = 110, Height = 120, Rotation = 8 });
+        Scenery(new SceneryItem { Kind = SceneryKind.Terrain, Name = Lang.T("Hügel"), Height = 110, Points = [(420, 470), (640, 400), (780, 520), (760, 760), (600, 880), (430, 800), (380, 640)] });
+        Scenery(new SceneryItem { Kind = SceneryKind.Water, Name = Lang.T("Teich"), Points = [(1240, 700), (1380, 640), (1520, 690), (1540, 820), (1420, 900), (1270, 860)] });
+        Scenery(new SceneryItem { Kind = SceneryKind.Building, Name = Lang.T("Empfangsgebäude"), X = 1060, Y = 110, Width = 300, Depth = 100, Height = 110 });
+        Scenery(new SceneryItem { Kind = SceneryKind.Building, Name = Lang.T("Lokschuppen"), X = 1000, Y = 470, Width = 260, Depth = 120, Height = 95, Rotation = 0 });
+        Scenery(new SceneryItem { Kind = SceneryKind.Building, Name = Lang.T("Wohnhaus"), X = 1560, Y = 120, Width = 140, Depth = 110, Height = 120, Rotation = 8 });
         foreach (var (x, y, h) in new[] { (500.0, 560.0, 90.0), (640, 640, 110), (560, 760, 80), (1220, 560, 100), (1600, 560, 90), (1660, 980, 110), (300, 1180, 90), (1880, 160, 100) })
-            Scenery(new SceneryItem { Kind = SceneryKind.Tree, X = x, Y = y, Width = h * 0.6, Depth = h * 0.6, Height = h, Name = "Baum" });
+            Scenery(new SceneryItem { Kind = SceneryKind.Tree, X = x, Y = y, Width = h * 0.6, Depth = h * 0.6, Height = h, Name = Lang.T("Baum") });
 
-        plan.Feeders.Add(new Feeder { Id = plan.NextId++, PieceId = 3, Circuit = "Fahrstrom" });
+        plan.Feeders.Add(new Feeder { Id = plan.NextId++, PieceId = 3, Circuit = Lang.T("Fahrstrom") });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 4, Index = 1, Type = SignalType.Hauptsignal, Name = "A1" });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 14, Index = 1, Type = SignalType.Ausfahrsignal, Name = "N1" });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 2, Index = 0, Type = SignalType.Vorsignal, Name = "V1" });

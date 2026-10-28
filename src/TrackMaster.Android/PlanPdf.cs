@@ -48,7 +48,7 @@ public static class PlanPdf
         var c = page.Canvas!;
         c.DrawText(plan.Name, 30, 40, Text(16, true));
         var stats = plan.Statistics();
-        c.DrawText($"Spur {plan.GaugeId} ({plan.Gauge.Scale}) · Platte {BoardGeometry.Describe(plan)} · {stats.Pieces} Gleise, {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · {DateTime.Now:dd.MM.yyyy}", 30, 56, Text(9));
+        c.DrawText(Lang.F($"Spur {plan.GaugeId} ({plan.Gauge.Scale}) · Platte {BoardGeometry.Describe(plan)} · {stats.Pieces} Gleise, {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · {DateTime.Now:dd.MM.yyyy}"), 30, 56, Text(9));
         var (x0, y0, x1, y1) = plan.Bounds();
         double bw = Math.Max(x1 - x0, 1), bh = Math.Max(y1 - y0, 1);
         var scale = (float)Math.Min((w - 60) / bw, (h - 130) / bh);
@@ -58,10 +58,10 @@ public static class PlanPdf
         new PlanPainter(plan, new HashSet<int>(), false).Draw(c, scale, true, new HashSet<int>(), null);
         c.Restore();
         var tiles = Tiles(plan);
-        c.DrawText($"Maßstab etwa 1:{Fmt.Num(Pt / scale, 0)} · Ab Seite 2: Bauvorlage 1:1 auf {tiles.Count} Seiten A4 (beim Drucken „Tatsächliche Größe“ wählen) · TrackMaster Pro {(pro ? "Pro" : "Basis")}",
+        c.DrawText(Lang.F($"Maßstab etwa 1:{Fmt.Num(Pt / scale, 0)} · Ab Seite 2: Bauvorlage 1:1 auf {tiles.Count} Seiten A4 (beim Drucken „Tatsächliche Größe“ wählen) · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"),
                    30, h - 24, Text(8));
         var bom = string.Join(" · ", BillOfMaterials.Build(plan).Take(14).Select(r => $"{r.Count}× {r.Def.Number}"));
-        if (bom.Length > 0) c.DrawText(("Stückliste: " + bom)[..Math.Min(bom.Length + 12, 190)], 30, h - 38, Text(8));
+        if (bom.Length > 0) c.DrawText((Lang.T("Stückliste: ") + bom)[..Math.Min(bom.Length + 12, 190)], 30, h - 38, Text(8));
         doc.FinishPage(page);
     }
 
@@ -97,15 +97,15 @@ public static class PlanPdf
         c.DrawRect(left, top, left + tw, top + th, frame);
 
         string? N(int r, int col) => r >= 0 && r < rows && col >= 0 && col < cols ? $"{PrintTiles.RowName(r)}{col + 1}" : null;
-        var near = new[] { ("oben", N(t.Row - 1, t.Column)), ("unten", N(t.Row + 1, t.Column)), ("links", N(t.Row, t.Column - 1)), ("rechts", N(t.Row, t.Column + 1)) }
+        var near = new[] { (Lang.T("oben"), N(t.Row - 1, t.Column)), (Lang.T("unten"), N(t.Row + 1, t.Column)), (Lang.T("links"), N(t.Row, t.Column - 1)), (Lang.T("rechts"), N(t.Row, t.Column + 1)) }
             .Where(x => x.Item2 is not null).Select(x => $"{x.Item1} {x.Item2}");
-        c.DrawText($"Seite {t.Label}", left, top - 8, Text(11, true));
-        c.DrawText($"{plan.Name} · Bauvorlage 1:1 · {rows} × {cols} Seiten · {string.Join(", ", near)}", left + 60, top - 8, Text(7));
+        c.DrawText(Lang.F($"Seite {t.Label}"), left, top - 8, Text(11, true));
+        c.DrawText(Lang.F($"{plan.Name} · Bauvorlage 1:1 · {rows} × {cols} Seiten · {string.Join(", ", near)}"), left + 60, top - 8, Text(7));
         var line = new Paint { Color = Color.Black, StrokeWidth = 0.8f };
         var y0 = top + th + 14;
         c.DrawLine(left, y0, left + 100 * Pt, y0, line);
         for (var i = 0; i <= 10; i++) c.DrawLine(left + i * 10 * Pt, y0 - (i % 5 == 0 ? 4 : 2), left + i * 10 * Pt, y0, line);
-        c.DrawText($"Prüfmaß 100 mm – bitte nachmessen · TrackMaster Pro {(pro ? "Pro" : "Basis")}", left + 100 * Pt + 8, y0 + 3, Text(7));
+        c.DrawText(Lang.F($"Prüfmaß 100 mm – bitte nachmessen · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), left + 100 * Pt + 8, y0 + 3, Text(7));
         doc.FinishPage(page);
     }
 }

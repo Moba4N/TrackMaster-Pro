@@ -23,8 +23,8 @@ public static class BillOfMaterials
             var stock = Catalog.FlexOf(plan.GaugeId, group.Key) ?? Catalog.Flex(plan.Gauge, null);
             var def = new TrackPieceDef
             {
-                Number = stock.Number, Kind = PieceKind.Straight, Length = flex, Category = "Flexgleis",
-                Name = $"Flexgleis, Stücke zu {Fmt.Num(stock.Length, 0)} mm", Spec = $"gesamt {Fmt.Num(flex / 1000, 2)} m",
+                Number = stock.Number, Kind = PieceKind.Straight, Length = flex, Category = Lang.T("Flexgleis"),
+                Name = Lang.F($"Flexgleis, Stücke zu {Fmt.Num(stock.Length, 0)} mm"), Spec = $"gesamt {Fmt.Num(flex / 1000, 2)} m",
                 GaugeId = plan.GaugeId, SystemId = group.Key, SystemName = group.First().Def.SystemName, Verified = group.First().Def.Verified,
                 Key = $"{plan.GaugeId}|{group.Key}|summe",
             };
@@ -37,19 +37,19 @@ public static class BillOfMaterials
     {
         var rows = new List<AccessoryRow>();
         var drives = plan.Pieces.Sum(p => p.Def.Drives);
-        if (drives > 0) rows.Add(new("Weichenantrieb", "je Weiche einer, DKW zwei", drives));
+        if (drives > 0) rows.Add(new(Lang.T("Weichenantrieb"), Lang.T("je Weiche einer, DKW zwei"), drives));
         foreach (var g in plan.Signals.GroupBy(s => s.Type).OrderBy(g => g.Key))
-            rows.Add(new(Signal.TypeName(g.Key), "Lichtsignal", g.Count()));
-        if (plan.Feeders.Count > 0) rows.Add(new("Anschlussgleis / Einspeiser", "Einspeisungen", plan.Feeders.Count));
+            rows.Add(new(Signal.TypeName(g.Key), Lang.T("Lichtsignal"), g.Count()));
+        if (plan.Feeders.Count > 0) rows.Add(new(Lang.T("Anschlussgleis / Einspeiser"), Lang.T("Einspeisungen"), plan.Feeders.Count));
         if (plan.Isolations.Count > 0)
         {
             var threeRail = Electrics.IsThreeRail(plan);
             rows.Add(threeRail
-                ? new("Mittelleiter-Trennstelle", "Isolierung des Mittelleiters", plan.Isolations.Count)
-                : new("Isolierschienenverbinder", "zwei je Trennstelle", plan.Isolations.Count * 2));
+                ? new(Lang.T("Mittelleiter-Trennstelle"), Lang.T("Isolierung des Mittelleiters"), plan.Isolations.Count)
+                : new(Lang.T("Isolierschienenverbinder"), Lang.T("zwei je Trennstelle"), plan.Isolations.Count * 2));
         }
         var addresses = Electrics.SwitchingItems(plan).Sum(i => i.AddressCount);
-        if (addresses > 0) rows.Add(new("Weichendecoder (4 Ausgänge)", $"{addresses} Adressen", (int)Math.Ceiling(addresses / 4.0)));
+        if (addresses > 0) rows.Add(new(Lang.T("Weichendecoder (4 Ausgänge)"), Lang.F($"{addresses} Adressen"), (int)Math.Ceiling(addresses / 4.0)));
         return rows;
     }
 
@@ -57,11 +57,11 @@ public static class BillOfMaterials
     public static string ToCsv(LayoutPlan plan)
     {
         var sb = new StringBuilder("﻿");
-        sb.Append("\"Hersteller/System\";\"Artikel\";\"Bezeichnung\";\"Daten\";\"Anzahl\"\r\n");
+        sb.Append(Lang.T("\"Hersteller/System\";\"Artikel\";\"Bezeichnung\";\"Daten\";\"Anzahl\"\r\n"));
         foreach (var r in Build(plan))
             sb.Append(string.Join(';', new[] { r.Def.SystemName, r.Def.Number, r.Def.Name, r.Def.Spec, r.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
         foreach (var a in Accessories(plan))
-            sb.Append(string.Join(';', new[] { "Zubehör", "", a.Name, a.Detail, a.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
+            sb.Append(string.Join(';', new[] { Lang.T("Zubehör"), "", a.Name, a.Detail, a.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
         return sb.ToString();
     }
 
@@ -83,8 +83,8 @@ public static class SvgExport
         foreach (var t in plan.Pieces.Where(p => p.Def.IsTable).Select(p => TableShape.Of(p)!))
         {
             if (t.Round)
-                tables.Append($"<circle cx=\"{N(t.Center.X)}\" cy=\"{N(t.Center.Y)}\" r=\"{N(t.RimRadius)}\" fill=\"#C9C2B6\" stroke=\"#555\" stroke-width=\"0.6\"/>")
-                      .Append($"<circle cx=\"{N(t.Center.X)}\" cy=\"{N(t.Center.Y)}\" r=\"{N(t.PitRadius)}\" fill=\"#7A7062\" stroke=\"#555\" stroke-width=\"0.6\"/>");
+                tables.Append(Lang.F($"<circle cx=\"{N(t.Center.X)}\" cy=\"{N(t.Center.Y)}\" r=\"{N(t.RimRadius)}\" fill=\"#C9C2B6\" stroke=\"#555\" stroke-width=\"0.6\"/>"))
+                      .Append(Lang.F($"<circle cx=\"{N(t.Center.X)}\" cy=\"{N(t.Center.Y)}\" r=\"{N(t.PitRadius)}\" fill=\"#7A7062\" stroke=\"#555\" stroke-width=\"0.6\"/>"));
             else
                 tables.Append($"<path d=\"M{string.Join("L", t.Pit.Select(q => $"{N(q.X)} {N(q.Y)}"))}Z\" fill=\"#7A7062\" stroke=\"#555\" stroke-width=\"0.6\"/>");
             tables.Append($"<path d=\"M{N(t.BridgeA.X)} {N(t.BridgeA.Y)}L{N(t.BridgeB.X)} {N(t.BridgeB.Y)}\" stroke=\"#4E463E\" stroke-width=\"{N(g * 2.6)}\"/>");
@@ -111,14 +111,14 @@ public static class SvgExport
         {
             if (s.Kind == SceneryKind.Label)
             {
-                notes.Append($"<text x=\"{N(s.X)}\" y=\"{N(s.Y)}\" font-size=\"{N(s.Height)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"Segoe UI, sans-serif\" font-weight=\"600\" transform=\"rotate({N(s.Rotation)} {N(s.X)} {N(s.Y)})\">{Esc(s.Name)}</text>");
+                notes.Append(Lang.F($"<text x=\"{N(s.X)}\" y=\"{N(s.Y)}\" font-size=\"{N(s.Height)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"Segoe UI, sans-serif\" font-weight=\"600\" transform=\"rotate({N(s.Rotation)} {N(s.X)} {N(s.Y)})\">{Esc(s.Name)}</text>"));
                 continue;
             }
             if (s.Points.Count < 2) continue;
             var d = Annotation.Dimension(s, s.Height);
             var sw = N(Math.Max(d.TextSize * 0.06, 0.4));
             notes.Append($"<path d=\"M{N(d.P1.X)} {N(d.P1.Y)}L{N(d.A.X)} {N(d.A.Y)}M{N(d.P2.X)} {N(d.P2.Y)}L{N(d.B.X)} {N(d.B.Y)}M{N(d.A.X)} {N(d.A.Y)}L{N(d.B.X)} {N(d.B.Y)}\" stroke=\"#1F4E79\" stroke-width=\"{sw}\" fill=\"none\"/>");
-            notes.Append($"<text x=\"{N(d.TextAt.X)}\" y=\"{N(d.TextAt.Y)}\" font-size=\"{N(d.TextSize)}\" fill=\"#1F4E79\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"Segoe UI, sans-serif\" transform=\"rotate({N(d.TextAngle)} {N(d.TextAt.X)} {N(d.TextAt.Y)})\">{Esc(d.Text)}</text>");
+            notes.Append(Lang.F($"<text x=\"{N(d.TextAt.X)}\" y=\"{N(d.TextAt.Y)}\" font-size=\"{N(d.TextSize)}\" fill=\"#1F4E79\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"Segoe UI, sans-serif\" transform=\"rotate({N(d.TextAngle)} {N(d.TextAt.X)} {N(d.TextAt.Y)})\">{Esc(d.Text)}</text>"));
         }
         const double m = 40;
         double w = plan.BoardWidth, h = plan.BoardHeight;

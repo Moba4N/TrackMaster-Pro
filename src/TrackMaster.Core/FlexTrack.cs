@@ -115,7 +115,7 @@ public static class FlexTrack
 
     /// <summary>Kurzbeschreibung für die Statuszeile: „Flexgleis 812 mm, Radius 430 mm“.</summary>
     public static string Describe(IReadOnlyList<Segment> segments)
-        => $"Flexgleis {Fmt.Num(Length(segments), 0)} mm" + (SmallestRadius(segments) is { } r ? $", kleinster Radius {Fmt.Num(r, 0)} mm" : ", gerade");
+        => Lang.F($"Flexgleis {Fmt.Num(Length(segments), 0)} mm") + (SmallestRadius(segments) is { } r ? Lang.F($", kleinster Radius {Fmt.Num(r, 0)} mm") : ", gerade");
 
     /// <summary>Gerade Stücke zusammenfassen, sehr kurze weglassen.</summary>
     private static IReadOnlyList<Segment> Merge(IReadOnlyList<Segment> segments)

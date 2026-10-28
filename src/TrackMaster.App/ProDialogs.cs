@@ -25,7 +25,7 @@ public static partial class Dialogs
         value = Fmt.Parse(box.Text) ?? double.NaN;
         if (double.IsNaN(value) || value < min || value > max)
         {
-            errors.Add($"{name}: bitte eine Zahl zwischen {Fmt.Num(min)} und {Fmt.Num(max)} eingeben.");
+            errors.Add(Lang.F($"{name}: bitte eine Zahl zwischen {Fmt.Num(min)} und {Fmt.Num(max)} eingeben."));
             return false;
         }
         return true;
@@ -50,8 +50,8 @@ public static partial class Dialogs
         body.Children.Add(summary);
         if (footerNote is not null) body.Children.Add(Hint(footerNote));
         body.Children.Add(list);
-        var again = Theme.Button("Erneut prüfen", "Shield");
-        var close = Theme.Button("Schließen", accent: true);
+        var again = Theme.Button(Lang.T("Erneut prüfen"), "Shield");
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
         var window = Frame(owner, title, body, again, close);
         window.Width = 620;
@@ -62,7 +62,7 @@ public static partial class Dialogs
             list.Children.Clear();
             var errors = issues.Count(i => i.Level == IssueLevel.Fehler);
             var warnings = issues.Count(i => i.Level == IssueLevel.Warnung);
-            summary.Text = issues.Count == 0 ? "Keine Befunde – alles in Ordnung." : $"{errors} Fehler, {warnings} Warnungen, {issues.Count - errors - warnings} Hinweise. Klick auf einen Eintrag zeigt die Stelle.";
+            summary.Text = issues.Count == 0 ? Lang.T("Keine Befunde – alles in Ordnung.") : Lang.F($"{errors} Fehler, {warnings} Warnungen, {issues.Count - errors - warnings} Hinweise. Klick auf einen Eintrag zeigt die Stelle.");
             foreach (var i in issues)
             {
                 var color = i.Level switch { IssueLevel.Fehler => Theme.DangerBrush, IssueLevel.Warnung => Theme.OpenEndBrush, _ => Theme.AccentBrush };
@@ -98,26 +98,26 @@ public static partial class Dialogs
     {
         var start = NumberBox(startHeight, 0);
         var percent = NumberBox(2.5);
-        var reverse = new CheckBox { Content = "Am anderen Ende beginnen", Margin = new Thickness(0, 4, 0, 8) };
+        var reverse = new CheckBox { Content = Lang.T("Am anderen Ende beginnen"), Margin = new Thickness(0, 4, 0, 8) };
         var error = ErrorText();
         var body = new StackPanel();
-        body.Children.Add(Hint($"Die Steigung wird gleichmäßig über die {pieces} gewählten Gleise gelegt, vom einen Ende der Gleisfolge zum anderen. " +
-                               "Empfohlen: höchstens 2,5–3 %, in Bögen weniger. Negative Werte ergeben ein Gefälle."));
-        body.Children.Add(Theme.Field("Höhe am Anfang (mm über Platte)", start));
+        body.Children.Add(Hint(Lang.F($"Die Steigung wird gleichmäßig über die {pieces} gewählten Gleise gelegt, vom einen Ende der Gleisfolge zum anderen. ") +
+                               Lang.T("Empfohlen: höchstens 2,5–3 %, in Bögen weniger. Negative Werte ergeben ein Gefälle.")));
+        body.Children.Add(Theme.Field(Lang.T("Höhe am Anfang (mm über Platte)"), start));
         body.Children.Add(Theme.Field("Steigung (%)", percent));
         body.Children.Add(reverse);
         body.Children.Add(error);
-        var ok = Theme.Button("Steigung anlegen", "Slope", accent: true);
+        var ok = Theme.Button(Lang.T("Steigung anlegen"), "Slope", accent: true);
         ok.IsDefault = true;
-        var cancel = Theme.Button("Abbrechen");
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
-        var w = Small(owner, "Steigung", body, 460, 430, cancel, ok);
+        var w = Small(owner, Lang.T("Steigung"), body, 460, 430, cancel, ok);
         GradientInput? result = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
-            Read(start, "Höhe am Anfang", -500, 3000, errors, out var s);
-            Read(percent, "Steigung", -15, 15, errors, out var p);
+            Read(start, Lang.T("Höhe am Anfang"), -500, 3000, errors, out var s);
+            Read(percent, Lang.T("Steigung"), -15, 15, errors, out var p);
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
             result = new GradientInput(s, p, reverse.IsChecked == true);
             w.Close();
@@ -129,8 +129,8 @@ public static partial class Dialogs
     /// <summary>Gleiswendel: rund oder oval, ein- oder zweigleisig. Liefert die Angaben zum Bauen oder null.</summary>
     public static HelixSpec? AskHelix(Window owner, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd)
     {
-        var shape = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = "Rund" }, new ComboBoxItem { Content = "Oval (mit Geraden an den Längsseiten)" } }, SelectedIndex = 0 };
-        var tracks = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = "eingleisig" }, new ComboBoxItem { Content = "zweigleisig" } }, SelectedIndex = 0 };
+        var shape = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("Rund") }, new ComboBoxItem { Content = Lang.T("Oval (mit Geraden an den Längsseiten)") } }, SelectedIndex = 0 };
+        var tracks = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("eingleisig") }, new ComboBoxItem { Content = Lang.T("zweigleisig") } }, SelectedIndex = 0 };
         var curveBox = new ComboBox { Height = 28 };
         var straightBox = new ComboBox { Height = 28 };
         foreach (var st in straights.OrderBy(x => x.Length))
@@ -141,19 +141,19 @@ public static partial class Dialogs
         var spacing = NumberBox(Helix.DefaultSpacing(gauge), 1);
         var turns = NumberBox(2);
         var rise = NumberBox(gauge.ClearanceHeight + 10, 0);
-        var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = "links herum (gegen den Uhrzeigersinn)" }, new ComboBoxItem { Content = "rechts herum (im Uhrzeigersinn)" } }, SelectedIndex = 0 };
+        var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("links herum (gegen den Uhrzeigersinn)") }, new ComboBoxItem { Content = Lang.T("rechts herum (im Uhrzeigersinn)") } }, SelectedIndex = 0 };
         var info = Theme.Secondary("");
         var error = ErrorText();
         var ovalPanel = new StackPanel();
-        ovalPanel.Children.Add(Theme.Label("Gerades Gleis an den Längsseiten", 11, false, Theme.TextSecondaryBrush));
+        ovalPanel.Children.Add(Theme.Label(Lang.T("Gerades Gleis an den Längsseiten"), 11, false, Theme.TextSecondaryBrush));
         ovalPanel.Children.Add(straightBox);
         ovalPanel.Children.Add(new Border { Height = 6 });
-        ovalPanel.Children.Add(Theme.Field("Anzahl Geraden je Längsseite", straightCount));
+        ovalPanel.Children.Add(Theme.Field(Lang.T("Anzahl Geraden je Längsseite"), straightCount));
         var outerPanel = new StackPanel();
-        outerPanel.Children.Add(Theme.Label("Außengleis", 11, false, Theme.TextSecondaryBrush));
+        outerPanel.Children.Add(Theme.Label(Lang.T("Außengleis"), 11, false, Theme.TextSecondaryBrush));
         outerPanel.Children.Add(outerBox);
         outerPanel.Children.Add(new Border { Height = 6 });
-        var spacingField = Theme.Field("Gleisabstand bei Flexgleis (mm)", spacing);
+        var spacingField = Theme.Field(Lang.T("Gleisabstand bei Flexgleis (mm)"), spacing);
         outerPanel.Children.Add(spacingField);
 
         HelixShape Shape() => shape.SelectedIndex == 1 ? HelixShape.Oval : HelixShape.Rund;
@@ -180,8 +180,8 @@ public static partial class Dialogs
                 var sp = Fmt.Parse(spacing.Text) ?? Helix.DefaultSpacing(gauge);
                 var best = Helix.OuterCurve(curves, inner, sp, Shape());
                 foreach (var c in curves.Where(c => c.Radius > inner.Radius && Helix.Fits(c, Shape())).OrderBy(c => c.Radius))
-                    outerBox.Items.Add(new ComboBoxItem { Content = $"{c.Number} – R {Fmt.Num(c.Radius)} mm (Abstand {Fmt.Num(c.Radius - inner.Radius)} mm)", Tag = c, IsSelected = c == best });
-                outerBox.Items.Insert(0, new ComboBoxItem { Content = "Flexgleis mit frei gewähltem Abstand", Tag = null, IsSelected = best is null });
+                    outerBox.Items.Add(new ComboBoxItem { Content = Lang.F($"{c.Number} – R {Fmt.Num(c.Radius)} mm (Abstand {Fmt.Num(c.Radius - inner.Radius)} mm)"), Tag = c, IsSelected = c == best });
+                outerBox.Items.Insert(0, new ComboBoxItem { Content = Lang.T("Flexgleis mit frei gewähltem Abstand"), Tag = null, IsSelected = best is null });
             }
             updating = false;
             Update();
@@ -189,9 +189,9 @@ public static partial class Dialogs
         HelixSpec? Spec(List<string>? errors)
         {
             errors ??= [];
-            if (Inner() is not { } inner) { errors.Add("Bitte ein Bogengleis wählen."); return null; }
-            Read(turns, "Windungen", 0.25, 20, errors, out var t);
-            Read(rise, "Höhe je Windung", 10, 1000, errors, out var r);
+            if (Inner() is not { } inner) { errors.Add(Lang.T("Bitte ein Bogengleis wählen.")); return null; }
+            Read(turns, Lang.T("Windungen"), 0.25, 20, errors, out var t);
+            Read(rise, Lang.T("Höhe je Windung"), 10, 1000, errors, out var r);
             var oval = Shape() == HelixShape.Oval;
             var two = tracks.SelectedIndex == 1;
             double n = 0, sp = 0;
@@ -199,11 +199,11 @@ public static partial class Dialogs
             if (oval)
             {
                 straight = straightBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef st } ? st : null;
-                if (straight is null) errors.Add("Bitte ein gerades Gleis wählen.");
-                Read(straightCount, "Geraden je Längsseite", 1, 50, errors, out n);
+                if (straight is null) errors.Add(Lang.T("Bitte ein gerades Gleis wählen."));
+                Read(straightCount, Lang.T("Geraden je Längsseite"), 1, 50, errors, out n);
             }
             var outer = two && outerBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef oc } ? oc : null;
-            if (two && outer is null) Read(spacing, "Gleisabstand", gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
+            if (two && outer is null) Read(spacing, Lang.T("Gleisabstand"), gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
             if (errors.Count > 0) return null;
             return new HelixSpec(inner.Key, t, r, direction.SelectedIndex == 1, Shape(), straight?.Key, (int)Math.Round(n), two ? 2 : 1,
                 outer is not null ? outer.Radius - inner.Radius : sp, outer?.Key);
@@ -216,7 +216,7 @@ public static partial class Dialogs
             spacingField.Visibility = outerBox.SelectedItem is ComboBoxItem { Tag: null } ? Visibility.Visible : Visibility.Collapsed;
             if (Spec(null) is not { } spec) { info.Text = ""; return; }
             var m = Helix.Material(spec, gauge);
-            info.Text = $"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm";
+            info.Text = Lang.F($"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm");
         }
         shape.SelectionChanged += (_, _) => FillCurves();
         curveBox.SelectionChanged += (_, _) => { if (!updating) FillOuter(); };
@@ -228,36 +228,36 @@ public static partial class Dialogs
 
         var body = new StackPanel();
         body.Children.Add(Hint(fromEnd
-            ? "Die Wendel beginnt am aktiven Gleisende und steigt gleichmäßig an. Nach dem Bauen folgt die Holzliste."
-            : "Die Wendel entsteht in der Mitte der Ansicht. Tipp: Vorher ein Gleisende anklicken, dann schließt sie dort an. Nach dem Bauen folgt die Holzliste."));
+            ? Lang.T("Die Wendel beginnt am aktiven Gleisende und steigt gleichmäßig an. Nach dem Bauen folgt die Holzliste.")
+            : Lang.T("Die Wendel entsteht in der Mitte der Ansicht. Tipp: Vorher ein Gleisende anklicken, dann schließt sie dort an. Nach dem Bauen folgt die Holzliste.")));
         body.Children.Add(Columns(shape, tracks));
         body.Children.Add(new Border { Height = 8 });
-        body.Children.Add(Theme.Label("Bogengleis (innen)", 11, false, Theme.TextSecondaryBrush));
+        body.Children.Add(Theme.Label(Lang.T("Bogengleis (innen)"), 11, false, Theme.TextSecondaryBrush));
         body.Children.Add(curveBox);
         body.Children.Add(new Border { Height = 8 });
         body.Children.Add(ovalPanel);
         body.Children.Add(outerPanel);
         body.Children.Add(new Border { Height = 4 });
-        body.Children.Add(Theme.Field("Windungen", turns));
-        body.Children.Add(Theme.Field($"Höhe je Windung (mm, mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm Durchfahrtshöhe)", rise));
-        body.Children.Add(Theme.Label("Richtung", 11, false, Theme.TextSecondaryBrush));
+        body.Children.Add(Theme.Field(Lang.T("Windungen"), turns));
+        body.Children.Add(Theme.Field(Lang.F($"Höhe je Windung (mm, mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm Durchfahrtshöhe)"), rise));
+        body.Children.Add(Theme.Label(Lang.T("Richtung"), 11, false, Theme.TextSecondaryBrush));
         body.Children.Add(direction);
         body.Children.Add(new Border { Height = 8 });
         body.Children.Add(info);
         body.Children.Add(error);
         FillCurves();
-        var ok = Theme.Button("Gleiswendel bauen", "Helix", accent: true);
+        var ok = Theme.Button(Lang.T("Gleiswendel bauen"), "Helix", accent: true);
         ok.IsDefault = true;
-        var cancel = Theme.Button("Abbrechen");
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
-        var w = Small(owner, "Gleiswendel", new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, 560, 720, cancel, ok);
+        var w = Small(owner, Lang.T("Gleiswendel"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, 560, 720, cancel, ok);
         HelixSpec? result = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
             var spec = Spec(errors);
             if (spec is null) { error.Text = string.Join("\n", errors); return; }
-            if (spec.Rise < gauge.ClearanceHeight) { error.Text = $"Mit {Fmt.Num(spec.Rise, 0)} mm passt kein Zug unter die nächste Windung (mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm)."; return; }
+            if (spec.Rise < gauge.ClearanceHeight) { error.Text = Lang.F($"Mit {Fmt.Num(spec.Rise, 0)} mm passt kein Zug unter die nächste Windung (mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm)."); return; }
             result = spec;
             w.Close();
         };
@@ -291,7 +291,7 @@ public static partial class Dialogs
             grid.Children.Add(e);
         }
         grid.RowDefinitions.Add(new RowDefinition());
-        string[] heads = ["Anzahl", "Teil", "Maße"];
+        string[] heads = [Lang.T("Anzahl"), Lang.T("Teil"), Lang.T("Maße")];
         for (var c = 0; c < heads.Length; c++) Cell(Theme.Label(heads[c], 11, true, Theme.TextSecondaryBrush), 0, c);
         for (var i = 0; i < m.Parts.Count; i++)
         {
@@ -309,15 +309,15 @@ public static partial class Dialogs
         }
         body.Children.Add(grid);
         var notes = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-        foreach (var n in m.Notes) notes.Children.Add(new TextBlock { Text = "• " + n, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2), Foreground = n.StartsWith("Achtung") ? Theme.DangerBrush : Theme.TextSecondaryBrush });
+        foreach (var n in m.Notes) notes.Children.Add(new TextBlock { Text = "• " + n, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2), Foreground = n.StartsWith(Lang.T("Achtung")) ? Theme.DangerBrush : Theme.TextSecondaryBrush });
         body.Children.Add(notes);
-        var copy = Theme.Button("Kopieren");
+        var copy = Theme.Button(Lang.T("Kopieren"));
         copy.Click += (_, _) => { try { Clipboard.SetText(m.ToText()); } catch (System.Runtime.InteropServices.COMException) { } };
-        var csv = Theme.Button("Als CSV speichern…");
+        var csv = Theme.Button(Lang.T("Als CSV speichern…"));
         csv.Click += (_, _) => saveCsv(m.ToCsv());
-        var close = Theme.Button("Schließen", accent: true);
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var w = Frame(owner, "Holzliste Gleiswendel", new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, copy, csv, close);
+        var w = Frame(owner, Lang.T("Holzliste Gleiswendel"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, copy, csv, close);
         w.Width = 760;
         w.Height = 620;
         close.Click += (_, _) => w.Close();
@@ -327,15 +327,15 @@ public static partial class Dialogs
     /// <summary>Fragt Maße für ein Flexgleis ab und liefert den Katalogschlüssel.</summary>
     public static string? AskFlex(Window owner, Gauge gauge, FlexStock stock)
     {
-        var straight = new RadioButton { Content = "Gerade", IsChecked = true, Margin = new Thickness(0, 0, 16, 0) };
-        var curve = new RadioButton { Content = "Bogen" };
+        var straight = new RadioButton { Content = Lang.T("Gerade"), IsChecked = true, Margin = new Thickness(0, 0, 16, 0) };
+        var curve = new RadioButton { Content = Lang.T("Bogen") };
         var kinds = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
         kinds.Children.Add(straight);
         kinds.Children.Add(curve);
         var length = NumberBox(Math.Round(stock.Length / 2), 0);
         var radius = NumberBox(Math.Round(gauge.TrackWidth * 30), 0);
         var angle = NumberBox(30);
-        var lengthField = Theme.Field("Länge (mm)", length);
+        var lengthField = Theme.Field(Lang.T("Länge (mm)"), length);
         var radiusField = Theme.Field("Radius (mm)", radius);
         var angleField = Theme.Field("Winkel (°)", angle);
         void Sync()
@@ -347,30 +347,30 @@ public static partial class Dialogs
         curve.Checked += (_, _) => Sync();
         var error = ErrorText();
         var body = new StackPanel();
-        body.Children.Add(Hint($"Flexgleis {stock.Name}{(stock.Number == "Flexgleis" ? "" : $" ({stock.Number})")}. Es wird am aktiven Gleisende angesetzt; Bögen lassen sich danach mit F spiegeln. In der Stückliste wird die Gesamtlänge in Stücke zu {Fmt.Num(stock.Length, 0)} mm umgerechnet."));
+        body.Children.Add(Hint(Lang.F($"Flexgleis {stock.Name}{(stock.Number == Lang.T("Flexgleis") ? "" : $" ({stock.Number})")}. Es wird am aktiven Gleisende angesetzt; Bögen lassen sich danach mit F spiegeln. In der Stückliste wird die Gesamtlänge in Stücke zu {Fmt.Num(stock.Length, 0)} mm umgerechnet.")));
         body.Children.Add(kinds);
         body.Children.Add(lengthField);
         body.Children.Add(radiusField);
         body.Children.Add(angleField);
         body.Children.Add(error);
         Sync();
-        var ok = Theme.Button("Ansetzen", "Flex", accent: true);
+        var ok = Theme.Button(Lang.T("Ansetzen"), "Flex", accent: true);
         ok.IsDefault = true;
-        var cancel = Theme.Button("Abbrechen");
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
-        var w = Small(owner, "Flexgleis", body, 440, 400, cancel, ok);
+        var w = Small(owner, Lang.T("Flexgleis"), body, 440, 400, cancel, ok);
         string? key = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
             if (straight.IsChecked == true)
             {
-                if (Read(length, "Länge", 5, 5000, errors, out var l)) key = Catalog.FlexStraightKey(gauge.Id, l, stock.SystemId);
+                if (Read(length, Lang.T("Länge"), 5, 5000, errors, out var l)) key = Catalog.FlexStraightKey(gauge.Id, l, stock.SystemId);
             }
             else
             {
-                var okR = Read(radius, "Radius", 50, 20000, errors, out var r);
-                var okA = Read(angle, "Winkel", 1, 180, errors, out var a);
+                var okR = Read(radius, Lang.T("Radius"), 50, 20000, errors, out var r);
+                var okA = Read(angle, Lang.T("Winkel"), 1, 180, errors, out var a);
                 if (okR && okA) key = Catalog.FlexCurveKey(gauge.Id, r, a, stock.SystemId);
             }
             if (errors.Count > 0) { key = null; error.Text = string.Join("\n", errors); return; }
@@ -387,8 +387,8 @@ public static partial class Dialogs
         var grid = new Grid();
         var first = NumberBox(1, 0);
         first.Width = 70;
-        var onlyMissing = new CheckBox { Content = "nur fehlende", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
-        var auto = Theme.Button("Automatisch vergeben ab", "Hash");
+        var onlyMissing = new CheckBox { Content = Lang.T("nur fehlende"), IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+        var auto = Theme.Button(Lang.T("Automatisch vergeben ab"), "Hash");
         auto.Margin = new Thickness(0, 0, 8, 0);
         var autoRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 10) };
         autoRow.Children.Add(auto);
@@ -397,7 +397,7 @@ public static partial class Dialogs
         autoRow.Children.Add(first);
         autoRow.Children.Add(onlyMissing);
         var body = new StackPanel();
-        body.Children.Add(Hint("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). Ein Weichendecoder hat vier Ausgänge: Adressen 1–4 = Decoder 1, 5–8 = Decoder 2 usw."));
+        body.Children.Add(Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). Ein Weichendecoder hat vier Ausgänge: Adressen 1–4 = Decoder 1, 5–8 = Decoder 2 usw.")));
         body.Children.Add(autoRow);
         body.Children.Add(grid);
         void Fill()
@@ -410,7 +410,7 @@ public static partial class Dialogs
             var items = Electrics.SwitchingItems(session.Plan);
             var conflicts = Electrics.AddressConflicts(items).SelectMany(c => c.Items).ToHashSet();
             grid.RowDefinitions.Add(new RowDefinition());
-            string[] heads = ["Art", "Bezeichnung", "Adresse", "Decoder", "Ausgang"];
+            string[] heads = [Lang.T("Art"), Lang.T("Bezeichnung"), Lang.T("Adresse"), Lang.T("Decoder"), Lang.T("Ausgang")];
             for (var c = 0; c < heads.Length; c++)
             {
                 var h = Theme.Label(heads[c], 11, true, Theme.TextSecondaryBrush);
@@ -421,7 +421,7 @@ public static partial class Dialogs
             if (items.Count == 0)
             {
                 grid.RowDefinitions.Add(new RowDefinition());
-                var none = Theme.Label("Der Plan hat noch keine Weichen oder Signale.", 12, false, Theme.TextSecondaryBrush);
+                var none = Theme.Label(Lang.T("Der Plan hat noch keine Weichen oder Signale."), 12, false, Theme.TextSecondaryBrush);
                 Grid.SetRow(none, 1); Grid.SetColumnSpan(none, 5);
                 grid.Children.Add(none);
             }
@@ -438,12 +438,12 @@ public static partial class Dialogs
                 Cell(Theme.Label(it.Kind), 0);
                 Cell(Theme.Label(it.Label, 12, false, conflicts.Contains(it) ? Theme.DangerBrush : null), 1);
                 var box = new TextBox { Text = it.Address?.ToString() ?? "", Height = 26, VerticalContentAlignment = VerticalAlignment.Center, BorderBrush = conflicts.Contains(it) ? Theme.DangerBrush : Theme.ControlBorderBrush };
-                System.Windows.Automation.AutomationProperties.SetName(box, "Adresse " + it.Label);
+                System.Windows.Automation.AutomationProperties.SetName(box, Lang.T("Adresse ") + it.Label);
                 var item = it;
                 void Commit()
                 {
                     int? value = string.IsNullOrWhiteSpace(box.Text) ? null : int.TryParse(box.Text.Trim(), out var v) && v is > 0 and <= 2048 ? v : -1;
-                    if (value == -1) { session.Say("Adressen von 1 bis 2048."); box.Text = item.Address?.ToString() ?? ""; return; }
+                    if (value == -1) { session.Say(Lang.T("Adressen von 1 bis 2048.")); box.Text = item.Address?.ToString() ?? ""; return; }
                     if (value == item.Address) return;
                     session.Edit(() =>
                     {
@@ -465,10 +465,10 @@ public static partial class Dialogs
             session.AssignAddresses(Math.Clamp(start, 1, 2048), onlyMissing.IsChecked == true);
             Fill();
         };
-        var csv = Theme.Button("Kabelplan…", "Wire");
-        var close = Theme.Button("Schließen", accent: true);
+        var csv = Theme.Button(Lang.T("Kabelplan…"), "Wire");
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var window = Frame(owner, "Decoder und Digitaladressen", body, csv, close);
+        var window = Frame(owner, Lang.T("Decoder und Digitaladressen"), body, csv, close);
         window.Width = 760;
         window.Height = 620;
         csv.Click += (_, _) => exportCsv();
@@ -481,11 +481,11 @@ public static partial class Dialogs
     {
         var box = new TextBox
         {
-            Text = text, IsReadOnly = true, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 12, TextWrapping = TextWrapping.NoWrap,
+            Text = text, IsReadOnly = true, FontFamily = new FontFamily(Lang.T("Cascadia Mono, Consolas")), FontSize = 12, TextWrapping = TextWrapping.NoWrap,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, BorderThickness = new Thickness(0), MinHeight = 360,
         };
         var saveButton = Theme.Button(saveLabel, "Save");
-        var close = Theme.Button("Schließen", accent: true);
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
         var window = Frame(owner, title, box, saveButton, close);
         window.Width = 780;
@@ -505,7 +505,7 @@ public static partial class Dialogs
         var detail = Theme.Secondary("");
         void Sync()
         {
-            status.Text = $"TrackMaster Pro {license.EditionName}";
+            status.Text = Lang.F($"TrackMaster Pro {license.EditionName}");
             status.Foreground = license.IsPro ? Theme.SuccessBrush : Theme.TextBrush;
             detail.Text = license.Summary;
         }
@@ -530,26 +530,26 @@ public static partial class Dialogs
             foreach (var l in lines) s.Children.Add(Theme.Label("• " + l, 11.5, false, Theme.TextSecondaryBrush));
             return new Border { Background = highlight ? Theme.TipBackBrush : Theme.WindowBrush, CornerRadius = new CornerRadius(6), Padding = new Thickness(10), Child = s };
         }
-        editions.Children.Add(Card("Basis (ohne Lizenz)", EditionInfo.Basis, !license.IsPro));
-        var pro = Card("Pro (mit Lizenz)", EditionInfo.Pro, license.IsPro);
+        editions.Children.Add(Card(Lang.T("Basis (ohne Lizenz)"), EditionInfo.Basis, !license.IsPro));
+        var pro = Card(Lang.T("Pro (mit Lizenz)"), EditionInfo.Pro, license.IsPro);
         Grid.SetColumn(pro, 2);
         editions.Children.Add(pro);
         body.Children.Add(editions);
         var machine = new TextBox { Text = license.MachineId, IsReadOnly = true };
         var machineRow = new DockPanel { Margin = new Thickness(0, 0, 6, 0) };
-        var copy = Theme.Button("Kopieren", "Copy");
+        var copy = Theme.Button(Lang.T("Kopieren"), "Copy");
         copy.Margin = new Thickness(6, 0, 0, 8);
         DockPanel.SetDock(copy, Dock.Right);
         machineRow.Children.Add(copy);
-        machineRow.Children.Add(Theme.Field("Rechnerkennung (für eine rechnergebundene Lizenz an den Hersteller schicken)", machine));
+        machineRow.Children.Add(Theme.Field(Lang.T("Rechnerkennung (für eine rechnergebundene Lizenz an den Hersteller schicken)"), machine));
         copy.Click += (_, _) => { try { Clipboard.SetText(machine.Text); } catch (System.Runtime.InteropServices.COMException) { } };
         body.Children.Add(machineRow);
         var message = Theme.Label("", 12);
         body.Children.Add(message);
-        var installButton = Theme.Button("Lizenz einspielen…", "Open");
-        var close = Theme.Button("Schließen", accent: true);
+        var installButton = Theme.Button(Lang.T("Lizenz einspielen…"), "Open");
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var window = Frame(owner, "Lizenz", body, installButton, close);
+        var window = Frame(owner, Lang.T("Lizenz"), body, installButton, close);
         window.Width = 720;
         window.Height = 560;
         installButton.Click += (_, _) =>
@@ -564,16 +564,16 @@ public static partial class Dialogs
     public static bool ShowProRequired(Window owner, string feature)
     {
         var body = new StackPanel();
-        body.Children.Add(Theme.Label($"„{feature}“ gehört zu TrackMaster Pro.", 13, true));
+        body.Children.Add(Theme.Label(Lang.F($"„{feature}“ gehört zu TrackMaster Pro."), 13, true));
         body.Children.Add(new Border { Height = 8 });
-        body.Children.Add(Theme.Label("Die Basisversion enthält alle Planungsfunktionen – Gleise, Höhen, Gleiswendel, Gelände, Elektrik und 3D. " +
-                                      "Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu."));
+        body.Children.Add(Theme.Label(Lang.T("Die Basisversion enthält alle Planungsfunktionen – Gleise, Höhen, Gleiswendel, Gelände, Elektrik und 3D. ") +
+                                      Lang.T("Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu.")));
         body.Children.Add(new Border { Height = 8 });
         foreach (var l in EditionInfo.Pro.Skip(1)) body.Children.Add(Theme.Label("• " + l, 11.5, false, Theme.TextSecondaryBrush));
-        var open = Theme.Button("Lizenz…", "Shield", accent: true);
-        var close = Theme.Button("Schließen");
+        var open = Theme.Button(Lang.T("Lizenz…"), "Shield", accent: true);
+        var close = Theme.Button(Lang.T("Schließen"));
         close.IsCancel = true;
-        var window = Small(owner, "Pro-Funktion", body, 520, 400, close, open);
+        var window = Small(owner, Lang.T("Pro-Funktion"), body, 520, 400, close, open);
         var wants = false;
         open.Click += (_, _) => { wants = true; window.Close(); };
         close.Click += (_, _) => window.Close();

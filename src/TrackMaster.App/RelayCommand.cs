@@ -1,5 +1,7 @@
 using System.Windows.Input;
 
+using TrackMaster.Core;
+
 namespace TrackMaster.App;
 
 public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) : ICommand

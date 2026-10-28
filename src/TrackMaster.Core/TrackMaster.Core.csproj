@@ -3,4 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>TrackMaster.Core</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Lang.en.json" LogicalName="TrackMaster.Core.Lang.en.json" WithCulture="false" />
+  </ItemGroup>
 </Project>

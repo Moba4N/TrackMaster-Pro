@@ -45,7 +45,7 @@ public static partial class Dialogs
         var body = Ui.Column(c, 8);
         var box = Ui.TextField(c, "");
         body.AddView(Ui.Field(c, label, box));
-        Show(c, title, body, "Übernehmen", () =>
+        Show(c, title, body, Lang.T("Übernehmen"), () =>
         {
             var text = (box.Text ?? "").Trim();
             if (text.Length == 0) return false;
@@ -59,7 +59,7 @@ public static partial class Dialogs
         var body = Ui.Column(c, 8);
         body.AddView(Hint(c, hint));
         var box = Ui.Number(c, value, 1, true);
-        body.AddView(Ui.Field(c, "Winkel (°, positiv = im Uhrzeigersinn)", box));
+        body.AddView(Ui.Field(c, Lang.T("Winkel (°, positiv = im Uhrzeigersinn)"), box));
         var quick = Ui.Row(c, 6);
         foreach (var a in new[] { -90, -45, -15, 15, 45, 90 })
             quick.AddView(Ui.Button(c, $"{(a > 0 ? "+" : "")}{a}°", () => box.Text = Fmt.Num(a, 1)), Ui.Weight(1, vertical: false));
@@ -69,7 +69,7 @@ public static partial class Dialogs
         Show(c, title, body, action, () =>
         {
             var errors = new List<string>();
-            Read(box, "Winkel", -360, 360, errors, out var v);
+            Read(box, Lang.T("Winkel"), -360, 360, errors, out var v);
             SetError(error, errors);
             if (errors.Count > 0) return false;
             apply(v);
@@ -81,8 +81,8 @@ public static partial class Dialogs
     public static void AskAppearance(Context c, AppearanceSettings current, Action<AppearanceSettings> apply)
     {
         var body = Ui.Column(c, 8);
-        body.AddView(Hint(c, "Das Design bestimmt Akzentfarbe, Zeichenfläche und Gleisdarstellung. Nach „Übernehmen“ wird die Oberfläche neu aufgebaut; der Plan bleibt erhalten."));
-        body.AddView(Section(c, "Design"));
+        body.AddView(Hint(c, Lang.T("Das Design bestimmt Akzentfarbe, Zeichenfläche und Gleisdarstellung. Nach „Übernehmen“ wird die Oberfläche neu aufgebaut; der Plan bleibt erhalten.")));
+        body.AddView(Section(c, Lang.T("Design")));
         var design = current.Design;
         var cards = new List<(LinearLayout Card, string Id)>();
         void Mark()
@@ -109,9 +109,9 @@ public static partial class Dialogs
         var font = Choice(c, UiFonts.All.Select(f => f.Name).ToList(), UiFonts.All.ToList().FindIndex(f => f.Id == current.FontChoice.Id));
         var sizeIndex = UiFonts.Sizes.ToList().FindIndex(s => Math.Abs(s.Scale - current.Scale) < 0.01);
         var size = Choice(c, UiFonts.Sizes.Select(s => s.Name).ToList(), sizeIndex < 0 ? 1 : sizeIndex);
-        body.AddView(Ui.Field(c, "Schriftart", font));
-        body.AddView(Ui.Field(c, "Schriftgröße", size));
-        var sample = Ui.Label(c, "Gleisplan Bahnhof Neustadt · R 437,5 mm · 2,5 %", 14);
+        body.AddView(Ui.Field(c, Lang.T("Schriftart"), font));
+        body.AddView(Ui.Field(c, Lang.T("Schriftgröße"), size));
+        var sample = Ui.Label(c, Lang.T("Gleisplan Bahnhof Neustadt · R 437,5 mm · 2,5 %"), 14);
         sample.Background = Ui.Rounded(Ui.Window);
         sample.SetPadding(Ui.Dp(10), Ui.Dp(8), Ui.Dp(10), Ui.Dp(8));
         void Sample()
@@ -125,7 +125,7 @@ public static partial class Dialogs
         Sample();
         body.AddView(sample, Ui.Fill());
 
-        Show(c, "Darstellung", body, "Übernehmen", () =>
+        Show(c, Lang.T("Darstellung"), body, Lang.T("Übernehmen"), () =>
         {
             var chosen = new AppearanceSettings(design,
                 UiFonts.All[Math.Max(0, font.SelectedItemPosition)].Id,
@@ -179,8 +179,8 @@ public static partial class Dialogs
         foreach (var (text, size, bold) in new[]
                  {
                      ($"{AppFolders.Name} {license.EditionName}", 16.0, true),
-                     ($"Version {version}", 13.0, false),
-                     ("Gleisplanung für Modellbahnanlagen – Gleise, Höhen, Gleiswendel, Landschaft, Elektrik und 3D.", 13.0, false),
+                     (Lang.F($"Version {version}"), 13.0, false),
+                     (Lang.T("Gleisplanung für Modellbahnanlagen – Gleise, Höhen, Gleiswendel, Landschaft, Elektrik und 3D."), 13.0, false),
                      (license.Summary, 12.0, false),
                  })
         {
@@ -188,6 +188,6 @@ public static partial class Dialogs
             t.Gravity = GravityFlags.CenterHorizontal;
             body.AddView(t, Ui.Fill());
         }
-        Show(c, "Über das Programm", body, "Schließen", cancelText: null);
+        Show(c, Lang.T("Über das Programm"), body, Lang.T("Schließen"), cancelText: null);
     }
 }

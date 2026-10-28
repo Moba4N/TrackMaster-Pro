@@ -50,19 +50,19 @@ public static class TrainRoutes
     public static string PositionName(PlacedPiece piece, int path)
     {
         var paths = piece.WorldPaths();
-        if (path < 0 || path >= paths.Count) return $"Strang {path + 1}";
+        if (path < 0 || path >= paths.Count) return Lang.F($"Strang {path + 1}");
         bool Straight(int p) => paths[p].All(l => !l.IsArc);
-        if (Straight(path)) return "gerade";
+        if (Straight(path)) return Lang.T("gerade");
         var straightOthers = Enumerable.Range(0, paths.Count).Count(Straight);
         if (paths.Count >= 3 && straightOthers > 0)
         {
             var turn = paths[path].Where(l => l.IsArc).Sum(l => l.Turn * l.Angle);
-            return turn > 0 ? "rechts" : "links";
+            return turn > 0 ? Lang.T("rechts") : Lang.T("links");
         }
-        return straightOthers > 0 ? "abzweigend" : $"Strang {path + 1}";
+        return straightOthers > 0 ? Lang.T("abzweigend") : Lang.F($"Strang {path + 1}");
     }
 
-    public static string SignalName(Signal s) => string.IsNullOrWhiteSpace(s.Name) ? $"Signal Nr. {s.Id}" : s.Name;
+    public static string SignalName(Signal s) => string.IsNullOrWhiteSpace(s.Name) ? Lang.F($"Signal Nr. {s.Id}") : s.Name;
 
     public static IReadOnlyList<TrainRoute> Find(LayoutPlan plan)
     {
@@ -104,7 +104,7 @@ public static class TrainRoutes
             void Add(int? endSignal, int? endPiece, double length)
             {
                 var target = endSignal is { } id ? SignalName(plan.Signals.First(s => s.Id == id))
-                    : plan.Find(endPiece!.Value)?.Def.Kind == PieceKind.Buffer ? $"Prellbock Nr. {endPiece}" : $"Gleisende Nr. {endPiece}";
+                    : plan.Find(endPiece!.Value)?.Def.Kind == PieceKind.Buffer ? Lang.F($"Prellbock Nr. {endPiece}") : Lang.F($"Gleisende Nr. {endPiece}");
                 routes.Add(new TrainRoute($"{SignalName(start)} → {target}", start.Id, endSignal, endSignal is null ? endPiece : null, [.. pieces], [.. settings], length));
             }
             Walk(first.PieceId, first.Index, 0);
@@ -126,21 +126,21 @@ public static class TrainRoutes
     public static string ToText(LayoutPlan plan, IReadOnlyList<TrainRoute> routes)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Fahrstraßen – {plan.Name}");
+        sb.AppendLine(Lang.F($"Fahrstraßen – {plan.Name}"));
         sb.AppendLine(new string('=', 60));
-        if (plan.Signals.Count == 0) sb.AppendLine("Noch keine Signale gesetzt. Fahrstraßen beginnen und enden an Signalen (Register Elektrik › Signal).");
-        else if (routes.Count == 0) sb.AppendLine("Keine Fahrstraßen gefunden: Hinter den Signalen fehlt ein angeschlossenes Gleis.");
+        if (plan.Signals.Count == 0) sb.AppendLine(Lang.T("Noch keine Signale gesetzt. Fahrstraßen beginnen und enden an Signalen (Register Elektrik › Signal)."));
+        else if (routes.Count == 0) sb.AppendLine(Lang.T("Keine Fahrstraßen gefunden: Hinter den Signalen fehlt ein angeschlossenes Gleis."));
         var conflicts = Conflicts(routes);
         for (var i = 0; i < routes.Count; i++)
         {
             var r = routes[i];
             sb.AppendLine();
             sb.AppendLine($"{i + 1}. {r.Name} ({Fmt.Num(r.LengthMm / 1000, 2)} m, {r.PieceIds.Count} Gleise)");
-            if (r.Settings.Count == 0) sb.AppendLine("   ohne Weichen");
+            if (r.Settings.Count == 0) sb.AppendLine(Lang.T("   ohne Weichen"));
             foreach (var s in r.Settings)
-                sb.AppendLine($"   Weiche Nr. {s.PieceId}{(s.Address is { } a ? $" (Adresse {a})" : "")}: {s.Position}");
+                sb.AppendLine(Lang.F($"   Weiche Nr. {s.PieceId}{(s.Address is { } a ? $" (Adresse {a})" : "")}: {s.Position}"));
             var excl = conflicts.Where(c => c.A == i || c.B == i).Select(c => (c.A == i ? c.B : c.A) + 1).ToList();
-            if (excl.Count > 0) sb.AppendLine($"   schließt aus: {string.Join(", ", excl)}");
+            if (excl.Count > 0) sb.AppendLine(Lang.F($"   schließt aus: {string.Join(", ", excl)}"));
         }
         return sb.ToString();
     }
@@ -148,7 +148,7 @@ public static class TrainRoutes
     /// <summary>Tabelle für Tabellenkalkulation und Steuerprogramme: eine Zeile je Weichenstellung.</summary>
     public static string ToCsv(IReadOnlyList<TrainRoute> routes)
     {
-        var sb = new StringBuilder("Fahrstraße;Name;Länge (mm);Weiche Nr.;Adresse;Stellung\r\n");
+        var sb = new StringBuilder(Lang.T("Fahrstraße;Name;Länge (mm);Weiche Nr.;Adresse;Stellung\r\n"));
         static string Q(string s) => s.Contains(';') || s.Contains('"') ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
         for (var i = 0; i < routes.Count; i++)
         {

@@ -6,11 +6,13 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using TrackMaster.Licensing;
 
+using TrackMaster.Core;
+
 namespace TrackMaster.App;
 
 /// <summary>
 /// Startpunkt. Aufruf: TrackMasterPro.exe [Plan.trackmaster.json]
-/// Für den Build: --screenshot Datei.png [--tab Gleise] [--select] [--pro] [--3d orbit|ride|evening]
+/// Für den Build: --screenshot Datei.png [--tab Gleise] [--select] [--pro] [--3d orbit|ride|evening] [--english]
 /// erzeugt ein Bildschirmfoto und beendet sich. --pro schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.
 /// </summary>
 public static class Program
@@ -22,6 +24,8 @@ public static class Program
     {
         var screenshot = ArgumentAfter(args, "--screenshot");
         ScreenshotMode = screenshot is not null;
+        // Bildschirmfotos für Handbuch und Prüfung: Deutsch, außer ausdrücklich --english
+        if (ScreenshotMode) Core.Lang.Current = args.Contains("--english") ? Core.Language.English : Core.Language.Deutsch;
         // Darstellung vor dem ersten Zugriff auf Theme festlegen
         Appearance.Load();
         if (screenshot is not null)
@@ -41,8 +45,8 @@ public static class Program
             {
                 LogError(e.Exception);
                 (app.MainWindow as MainWindow)?.BackupNow();
-                MessageBox.Show(app.MainWindow!, "Im Programm ist ein Fehler aufgetreten. Ihr Plan wurde automatisch gesichert.\n\n" +
-                                "Speichern Sie den Plan jetzt am besten unter einem neuen Namen. Falls das Programm sich beendet, wird die Sicherung beim nächsten Start angeboten.\n\n" +
+                MessageBox.Show(app.MainWindow!, Lang.T("Im Programm ist ein Fehler aufgetreten. Ihr Plan wurde automatisch gesichert.\n\n") +
+                                Lang.T("Speichern Sie den Plan jetzt am besten unter einem neuen Namen. Falls das Programm sich beendet, wird die Sicherung beim nächsten Start angeboten.\n\n") +
                                 e.Exception.Message, "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Error);
                 e.Handled = true;
             };
@@ -153,7 +157,7 @@ public static class Program
                         if (open is null || open != found)
                         {
                             found = open;
-                            if (++ticks > 50) { timer.Stop(); WriteError(screenshot, new TimeoutException($"Dialog „{dialog}“ wurde nicht geöffnet.")); app.Shutdown(1); }
+                            if (++ticks > 50) { timer.Stop(); WriteError(screenshot, new TimeoutException(Lang.F($"Dialog „{dialog}“ wurde nicht geöffnet."))); app.Shutdown(1); }
                             return;
                         }
                         timer.Stop();
@@ -227,7 +231,7 @@ public static class Program
 
     private static void WriteError(string screenshotPath, Exception? ex)
     {
-        try { File.WriteAllText(screenshotPath + ".error.txt", ex?.ToString() ?? "Unbekannter Fehler"); }
+        try { File.WriteAllText(screenshotPath + ".error.txt", ex?.ToString() ?? Lang.T("Unbekannter Fehler")); }
         catch (IOException) { }
     }
 }

@@ -22,7 +22,7 @@ public static class PlanPrint
         var title = T(plan.Name, 18, face);
         dc.DrawText(title, new Point(margin, margin));
         var stats = plan.Statistics();
-        var sub = T($"Spur {plan.GaugeId} ({plan.Gauge.Scale}) · Platte {BoardGeometry.Describe(plan)} · {stats.Pieces} Gleise, " +
+        var sub = T(Lang.F($"Spur {plan.GaugeId} ({plan.Gauge.Scale}) · Platte {BoardGeometry.Describe(plan)} · {stats.Pieces} Gleise, ") +
                     $"{Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · {DateTime.Now:dd.MM.yyyy}", 10, regular, Brushes.DimGray);
         dc.DrawText(sub, new Point(margin, margin + title.Height + 2));
 
@@ -39,12 +39,12 @@ public static class PlanPrint
         dc.Pop();
         dc.Pop();
 
-        var footer = T($"Maßstab etwa 1:{Fmt.Num(ratio, 0)} · Raster der Platte nicht gedruckt · TrackMaster Pro {(pro ? "Pro" : "Basis")}", 9, regular, Brushes.DimGray);
+        var footer = T(Lang.F($"Maßstab etwa 1:{Fmt.Num(ratio, 0)} · Raster der Platte nicht gedruckt · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), 9, regular, Brushes.DimGray);
         dc.DrawText(footer, new Point(margin, pageHeight - margin - footer.Height));
         var bom = string.Join(" · ", BillOfMaterials.Build(plan).Take(12).Select(r => $"{r.Count}× {r.Def.Number}"));
         if (bom.Length > 0)
         {
-            var list = T("Stückliste: " + bom, 9, regular);
+            var list = T(Lang.T("Stückliste: ") + bom, 9, regular);
             list.MaxTextWidth = pageWidth - 2 * margin;
             dc.DrawText(list, new Point(margin, pageHeight - margin - footer.Height - list.Height - 4));
         }
@@ -91,11 +91,11 @@ public static class PlanPrint
 
         // Kopfzeile: Seite, Nachbarn, Planname
         string? Neighbour(int r, int c) => r >= 0 && r < rows && c >= 0 && c < cols ? $"{PrintTiles.RowName(r)}{c + 1}" : null;
-        var label = T($"Seite {tile.Label}", 11, bold);
+        var label = T(Lang.F($"Seite {tile.Label}"), 11, bold);
         dc.DrawText(label, new Point(left, top - label.Height - 3));
-        var info = T($"{plan.Name} · Bauvorlage 1:1 · {rows} × {cols} Seiten · " +
-                     string.Join(", ", new[] { ("oben", Neighbour(tile.Row - 1, tile.Column)), ("unten", Neighbour(tile.Row + 1, tile.Column)),
-                                               ("links", Neighbour(tile.Row, tile.Column - 1)), ("rechts", Neighbour(tile.Row, tile.Column + 1)) }
+        var info = T(Lang.F($"{plan.Name} · Bauvorlage 1:1 · {rows} × {cols} Seiten · ") +
+                     string.Join(", ", new[] { (Lang.T("oben"), Neighbour(tile.Row - 1, tile.Column)), (Lang.T("unten"), Neighbour(tile.Row + 1, tile.Column)),
+                                               (Lang.T("links"), Neighbour(tile.Row, tile.Column - 1)), (Lang.T("rechts"), Neighbour(tile.Row, tile.Column + 1)) }
                          .Where(n => n.Item2 is not null).Select(n => $"{n.Item1} {n.Item2}")), 8, regular);
         dc.DrawText(info, new Point(left + label.Width + 10, top - info.Height - 4));
         // Prüfmaß 100 mm unten links
@@ -104,7 +104,7 @@ public static class PlanPrint
         dc.DrawLine(pen, new Point(left, y0), new Point(left + 100 * mm, y0));
         for (var i = 0; i <= 10; i++)
             dc.DrawLine(pen, new Point(left + i * 10 * mm, y0 - (i % 5 == 0 ? 4 : 2)), new Point(left + i * 10 * mm, y0));
-        var check = T($"Prüfmaß 100 mm – bitte nachmessen · TrackMaster Pro {(pro ? "Pro" : "Basis")}", 8, regular);
+        var check = T(Lang.F($"Prüfmaß 100 mm – bitte nachmessen · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), 8, regular);
         dc.DrawText(check, new Point(left + 100 * mm + 8, y0 - check.Height / 2));
         return visual;
     }

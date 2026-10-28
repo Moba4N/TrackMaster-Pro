@@ -79,7 +79,7 @@ public sealed class TrackPieceDef
     /// <summary>Anzahl Fahrwege (Stränge).</summary>
     public int RouteCount => Ports?.Count ?? Routes?.Count ?? Paths?.Count ?? (Kind is PieceKind.Switch or PieceKind.Crossing ? 2 : 1);
     /// <summary>Doppelte Kreuzungsweiche: zwei Antriebe.</summary>
-    public bool IsDoubleSlip => Kind == PieceKind.Crossing && Name.StartsWith("DKW");
+    public bool IsDoubleSlip => Kind == PieceKind.Crossing && (Name.StartsWith("DKW") || Name.StartsWith("Double slip"));
     /// <summary>Anzahl Weichenantriebe (Dreiwegweiche und DKW zwei).</summary>
     public int Drives => DriveCount ?? (Kind == PieceKind.Switch ? Math.Max(1, RouteCount - 1) : IsDoubleSlip ? 2 : 0);
 }
@@ -134,18 +134,18 @@ public sealed class Gauge
 /// </summary>
 public static partial class Catalog
 {
-    private static TrackPieceDef S(string nr, double len, string name = "Gerade") => new()
-        { Number = nr, Kind = PieceKind.Straight, Length = len, Name = name, Spec = $"{Fmt.Num(len)} mm", Category = name == "Gerade" ? "Gerade" : "Sonstige" };
+    private static TrackPieceDef S(string nr, double len, string? name = null) => new()
+        { Number = nr, Kind = PieceKind.Straight, Length = len, Name = name ?? Lang.T("Gerade"), Spec = $"{Fmt.Num(len)} mm", Category = name is null || name == Lang.T("Gerade") ? Lang.T("Gerade") : Lang.T("Sonstige") };
 
-    private static TrackPieceDef C(string nr, double r, double a, string? radiusName = null, string name = "Bogen") => new()
-        { Number = nr, Kind = PieceKind.Curve, Radius = r, Angle = a, Name = $"{name} {(radiusName is null ? "" : radiusName + " · ")}{Fmt.Num(a)}°", Spec = $"R {Fmt.Num(r)} mm",
-          Category = name == "Bogen" ? "Bögen" : "Sonstige" };
+    private static TrackPieceDef C(string nr, double r, double a, string? radiusName = null, string? name = null) => new()
+        { Number = nr, Kind = PieceKind.Curve, Radius = r, Angle = a, Name = $"{name ?? Lang.T("Bogen")} {(radiusName is null ? "" : radiusName + " · ")}{Fmt.Num(a)}°", Spec = $"R {Fmt.Num(r)} mm",
+          Category = name is null || name == Lang.T("Bogen") ? Lang.T("Bögen") : Lang.T("Sonstige") };
 
     /// <summary>Einfache Weiche: gerader Strang <paramref name="len"/>, Abzweig als Bogen, optional mit gerader Verlängerung <paramref name="tail"/>.</summary>
     private static TrackPieceDef W(string nr, bool right, double len, double r, double a, string? extra = null, double tail = 0) => new()
         { Number = nr, Kind = PieceKind.Switch, RightHand = right, Length = len, Radius = r, Angle = a,
           Paths = tail > 0 ? [[Segment.Line(len)], [Segment.Arc(r, a, right), Segment.Line(tail)]] : null,
-          Name = $"Weiche {(right ? "rechts" : "links")}{(extra is null ? "" : " " + extra)}", Spec = $"{Fmt.Num(len)} mm · R {Fmt.Num(r)} · {Fmt.Num(a)}°", Category = "Weichen" };
+          Name = (right ? Lang.T("Weiche rechts") : Lang.T("Weiche links")) + (extra is null ? "" : " " + Lang.T(extra)), Spec = $"{Fmt.Num(len)} mm · R {Fmt.Num(r)} · {Fmt.Num(a)}°", Category = Lang.T("Weichen") };
 
     /// <summary>Weichenpaar links und rechts.</summary>
     private static TrackPieceDef[] WW(string left, string right, double len, double r, double a, string? extra = null, double tail = 0)
@@ -155,25 +155,25 @@ public static partial class Catalog
     private static TrackPieceDef W3(string nr, double len, double r, double a) => new()
         { Number = nr, Kind = PieceKind.Switch, Length = len, Radius = r, Angle = a,
           Paths = [[Segment.Line(len)], [Segment.Arc(r, a, false)], [Segment.Arc(r, a, true)]],
-          Name = "Dreiwegweiche", Spec = $"{Fmt.Num(len)} mm · R {Fmt.Num(r)} · {Fmt.Num(a)}°", Category = "Weichen" };
+          Name = Lang.T("Dreiwegweiche"), Spec = $"{Fmt.Num(len)} mm · R {Fmt.Num(r)} · {Fmt.Num(a)}°", Category = Lang.T("Weichen") };
 
     /// <summary>Y-Weiche: beide Stränge biegen gleich weit nach links und rechts ab.</summary>
     private static TrackPieceDef Y(string nr, double r, double a, double tail = 0) => new()
         { Number = nr, Kind = PieceKind.Switch, Radius = r, Angle = a,
           Paths = tail > 0 ? [[Segment.Arc(r, a, false), Segment.Line(tail)], [Segment.Arc(r, a, true), Segment.Line(tail)]] : [[Segment.Arc(r, a, false)], [Segment.Arc(r, a, true)]],
-          Name = "Y-Weiche", Spec = $"R {Fmt.Num(r)} · 2 × {Fmt.Num(a)}°", Category = "Weichen" };
+          Name = "Y-Weiche", Spec = $"R {Fmt.Num(r)} · 2 × {Fmt.Num(a)}°", Category = Lang.T("Weichen") };
 
     /// <summary>Bogenweiche: beide Stränge biegen zur selben Seite, außen der größere Radius, innen optional mit Vorlauf.</summary>
     private static TrackPieceDef BW(string nr, bool right, double rOuter, double aOuter, double rInner, double aInner, double lead = 0, bool uncheckedGeometry = true) => new()
         { Number = nr, Kind = PieceKind.Switch, RightHand = right, Radius = rInner, Angle = aInner, Unchecked = uncheckedGeometry,
           Paths = [lead > 0 ? [Segment.Line(lead), Segment.Arc(rOuter, aOuter, right)] : [Segment.Arc(rOuter, aOuter, right)], [Segment.Arc(rInner, aInner, right)]],
-          Name = $"Bogenweiche {(right ? "rechts" : "links")}", Spec = $"R {Fmt.Num(rInner)} / {Fmt.Num(rOuter)} · {Fmt.Num(aInner)}°", Category = "Weichen" };
+          Name = right ? Lang.T("Bogenweiche rechts") : Lang.T("Bogenweiche links"), Spec = $"R {Fmt.Num(rInner)} / {Fmt.Num(rOuter)} · {Fmt.Num(aInner)}°", Category = Lang.T("Weichen") };
 
     private static TrackPieceDef[] BWW(string left, string right, double rOuter, double aOuter, double rInner, double aInner, double lead = 0, bool uncheckedGeometry = true)
         => [BW(left, false, rOuter, aOuter, rInner, aInner, lead, uncheckedGeometry), BW(right, true, rOuter, aOuter, rInner, aInner, lead, uncheckedGeometry)];
 
     private static TrackPieceDef X(string nr, double len, double a, bool doubleSlip = false) => new()
-        { Number = nr, Kind = PieceKind.Crossing, Length = len, Angle = a, Name = doubleSlip ? $"DKW {Fmt.Num(a)}°" : $"Kreuzung {Fmt.Num(a)}°", Spec = $"{Fmt.Num(len)} mm", Category = "Kreuzungen" };
+        { Number = nr, Kind = PieceKind.Crossing, Length = len, Angle = a, Name = doubleSlip ? $"DKW {Fmt.Num(a)}°" : $"Kreuzung {Fmt.Num(a)}°", Spec = $"{Fmt.Num(len)} mm", Category = Lang.T("Kreuzungen") };
 
     /// <summary>Gleisstück mit Fahrwegen aus Herstellerdaten (erzeugter Katalog).</summary>
     private static TrackPieceDef G(string nr, PieceKind kind, string name, string spec, string category, bool right, int drives, Route[] routes, Route[]? decor = null)
@@ -193,14 +193,14 @@ public static partial class Catalog
     private static Segment Ar(double radius, double angle, int turn) => new(0, radius, angle, turn);
 
     private static TrackPieceDef P(string nr, double len, bool uncheckedGeometry = false) => new()
-        { Number = nr, Kind = PieceKind.Buffer, Length = len, Unchecked = uncheckedGeometry, Name = uncheckedGeometry ? "Prellbock (allgemein)" : "Prellbock", Spec = $"{Fmt.Num(len)} mm", Category = "Sonstige" };
+        { Number = nr, Kind = PieceKind.Buffer, Length = len, Unchecked = uncheckedGeometry, Name = uncheckedGeometry ? Lang.T("Prellbock (allgemein)") : Lang.T("Prellbock"), Spec = $"{Fmt.Num(len)} mm", Category = Lang.T("Sonstige") };
 
     /// <summary>Märklin C-Gleis; Trix C-Gleis hat dieselben Maße mit Nummern 62… statt 24….</summary>
     private static List<TrackPieceDef> CGleis(string prefix, bool contactTracks) =>
     [
         S($"{prefix}360", 360), S($"{prefix}236", 236.1), S($"{prefix}229", 229.3), S($"{prefix}188", 188.3), S($"{prefix}172", 171.7),
         S($"{prefix}094", 94.2), S($"{prefix}077", 77.5), S($"{prefix}071", 70.8), S($"{prefix}064", 64.3),
-        .. (contactTracks ? new[] { S($"{prefix}997", 94.2, "Entkupplungsgleis"), S($"{prefix}994", 94.2, "Schaltgleis") } : []),
+        .. (contactTracks ? new[] { S($"{prefix}997", 94.2, Lang.T("Entkupplungsgleis")), S($"{prefix}994", 94.2, Lang.T("Schaltgleis")) } : []),
         C($"{prefix}130", 360, 30, "R1"), C($"{prefix}115", 360, 15, "R1"), C($"{prefix}107", 360, 7.5, "R1"),
         C($"{prefix}230", 437.5, 30, "R2"), C($"{prefix}224", 437.5, 24.3, "R2"), C($"{prefix}215", 437.5, 15, "R2"), C($"{prefix}207", 437.5, 7.5, "R2"),
         C($"{prefix}330", 515, 30, "R3"), C($"{prefix}430", 579.3, 30, "R4"), C($"{prefix}530", 643.6, 30, "R5"), C($"{prefix}912", 1114.6, 12.1, "R9"),
@@ -246,7 +246,7 @@ public static partial class Catalog
             for (var i = 0; i < gauge.Systems.Count; i++)
             {
                 var system = gauge.Systems[i];
-                system.NeutralName = $"Gleissystem {(char)('A' + i % 26)}{(i >= 26 ? (i / 26).ToString() : "")}";
+                system.NeutralName = Lang.F($"Gleissystem {(char)('A' + i % 26)}{(i >= 26 ? (i / 26).ToString() : "")}");
                 foreach (var piece in system.Pieces.Concat(system.Legacy)) piece.SystemName = system.Name;
             }
     }
@@ -264,7 +264,7 @@ public static partial class Catalog
         => ByKey.TryGetValue(key, out var d) ? d
          : Aliases.TryGetValue(key, out var alias) ? ByKey[alias]
          : FlexCache.GetOrAdd(key, ParseFlex);
-    public static TrackPieceDef Get(string key) => Find(key) ?? throw new KeyNotFoundException($"Unbekanntes Gleis „{key}“.");
+    public static TrackPieceDef Get(string key) => Find(key) ?? throw new KeyNotFoundException(Lang.F($"Unbekanntes Gleis „{key}“."));
 
     public static bool IsFlexSystem(string systemId) => systemId == FlexSystemId || systemId.StartsWith(FlexSystemId + "-", StringComparison.Ordinal);
 
@@ -273,8 +273,8 @@ public static partial class Catalog
     /// </summary>
     public static FlexStock Flex(Gauge gauge, TrackSystem? system)
         => system is { FlexLength: { } len }
-            ? new FlexStock($"{FlexSystemId}-{system.Id}", system.FlexNumber ?? "Flexgleis", len, system.Name)
-            : new FlexStock(FlexSystemId, "Flexgleis", gauge.FlexStockLength, $"Spur {gauge.Id} allgemein");
+            ? new FlexStock($"{FlexSystemId}-{system.Id}", system.FlexNumber ?? Lang.T("Flexgleis"), len, system.Name)
+            : new FlexStock(FlexSystemId, Lang.T("Flexgleis"), gauge.FlexStockLength, Lang.F($"Spur {gauge.Id} allgemein"));
 
     /// <summary>Alle Flexgleise eines Systems: das Standard-Flexgleis und weitere Ausführungen („flex-&lt;System&gt;~&lt;Artikel&gt;“).</summary>
     public static IReadOnlyList<FlexStock> Flexes(Gauge gauge, TrackSystem? system)
@@ -314,27 +314,27 @@ public static partial class Catalog
         var spec = parts[2];
         TrackPieceDef? def = null;
         if (spec.StartsWith('L') && double.TryParse(spec[1..], System.Globalization.NumberStyles.Float, inv, out var len) && len is >= 5 and <= 20000)
-            def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Straight, Length = len, Name = "Flexgleis gerade", Spec = $"{Fmt.Num(len)} mm", Category = "Flexgleis" };
+            def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Straight, Length = len, Name = Lang.T("Flexgleis gerade"), Spec = $"{Fmt.Num(len)} mm", Category = Lang.T("Flexgleis") };
         else if (spec.StartsWith('R') && spec.IndexOf('A') is > 1 and var a
                  && double.TryParse(spec[1..a], System.Globalization.NumberStyles.Float, inv, out var r) && r is >= 10 and <= 1_000_000
                  && double.TryParse(spec[(a + 1)..], System.Globalization.NumberStyles.Float, inv, out var ang) && ang is > 0 and < 360
                  && r * ang * Math.PI / 180 <= FlexTrack.MaxLength)
-            def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Curve, Radius = r, Angle = ang, Name = $"Flexgleis Bogen {Fmt.Num(ang)}°", Spec = $"R {Fmt.Num(r)} mm", Category = "Flexgleis" };
+            def = new TrackPieceDef { Number = stock.Number, Kind = PieceKind.Curve, Radius = r, Angle = ang, Name = Lang.F($"Flexgleis Bogen {Fmt.Num(ang)}°"), Spec = $"R {Fmt.Num(r)} mm", Category = Lang.T("Flexgleis") };
         else if (spec.StartsWith('P') && FlexTrack.ParsePath(spec[1..]) is { } segments)
         {
             var total = FlexTrack.Length(segments);
             def = new TrackPieceDef
             {
                 Number = stock.Number, Kind = PieceKind.Straight, Length = total, Routes = [new Route(0, 0, 0, segments)],
-                Name = segments.All(x => x.Turn == 0) ? "Flexgleis gerade" : "Flexgleis geformt",
+                Name = segments.All(x => x.Turn == 0) ? Lang.T("Flexgleis gerade") : Lang.T("Flexgleis geformt"),
                 Spec = $"{Fmt.Num(total)} mm" + (FlexTrack.SmallestRadius(segments) is { } minR ? $" · R ≥ {Fmt.Num(minR, 0)} mm" : ""),
-                Radius = FlexTrack.SmallestRadius(segments) ?? 0, Category = "Flexgleis",
+                Radius = FlexTrack.SmallestRadius(segments) ?? 0, Category = Lang.T("Flexgleis"),
             };
         }
         if (def is null) return null;
         def.GaugeId = parts[0];
         def.SystemId = parts[1];
-        def.SystemName = parts[1] == FlexSystemId ? "Flexgleis" : $"Flexgleis {stock.Name}";
+        def.SystemName = parts[1] == FlexSystemId ? Lang.T("Flexgleis") : Lang.F($"Flexgleis {stock.Name}");
         def.Verified = parts[1] == FlexSystemId || GetSystem(parts[0], parts[1][(FlexSystemId.Length + 1)..].Split('~')[0])?.Verified == true;
         def.Key = key;
         return def;

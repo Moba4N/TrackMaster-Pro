@@ -35,7 +35,7 @@ public static partial class Dialogs
         var error = ErrorText();
         var body = new StackPanel();
         body.Children.Add(Hint(hint));
-        body.Children.Add(Theme.Field("Winkel (°, positiv = im Uhrzeigersinn)", box));
+        body.Children.Add(Theme.Field(Lang.T("Winkel (°, positiv = im Uhrzeigersinn)"), box));
         var quick = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
         foreach (var a in new[] { -90, -45, -15, 15, 45, 90 })
         {
@@ -47,16 +47,41 @@ public static partial class Dialogs
         body.Children.Add(error);
         var ok = Theme.Button(action, "RotateFree", accent: true);
         ok.IsDefault = true;
-        var cancel = Theme.Button("Abbrechen");
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
         var w = Small(owner, title, body, 460, 360, cancel, ok);
         double? result = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
-            Read(box, "Winkel", -360, 360, errors, out var v);
+            Read(box, Lang.T("Winkel"), -360, 360, errors, out var v);
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
             result = v;
+            w.Close();
+        };
+        w.ShowDialog();
+        return result;
+    }
+
+    /// <summary>Sprache der Oberfläche wählen; zweisprachig beschriftet, damit jeder sie findet.</summary>
+    public static Language? AskLanguage(Window owner, Language current)
+    {
+        var body = new StackPanel();
+        var list = new ListBox { BorderThickness = new Thickness(0), Margin = new Thickness(0, 4, 0, 8) };
+        foreach (var (lang, text) in new[] { (Language.Deutsch, "Deutsch"), (Language.English, "English") })
+            list.Items.Add(new ListBoxItem { Content = text, Tag = lang, IsSelected = lang == current, Padding = new Thickness(8, 6, 8, 6) });
+        body.Children.Add(Hint("Sprache der Oberfläche / User interface language"));
+        body.Children.Add(list);
+        body.Children.Add(Hint("Das Programm startet danach neu. / The program restarts afterwards."));
+        var ok = Theme.Button("OK", accent: true);
+        ok.IsDefault = true;
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
+        cancel.IsCancel = true;
+        var w = Small(owner, "Sprache / Language", body, 460, 360, cancel, ok);
+        Language? result = null;
+        ok.Click += (_, _) =>
+        {
+            if (list.SelectedItem is ListBoxItem { Tag: Language l }) result = l;
             w.Close();
         };
         w.ShowDialog();
@@ -68,8 +93,8 @@ public static partial class Dialogs
     {
         var design = current.Design;
         var body = new StackPanel();
-        body.Children.Add(Hint("Das Design bestimmt Akzentfarbe, Zeichenfläche und Gleisdarstellung. Nach „Übernehmen“ startet das Fenster kurz neu; der geöffnete Plan bleibt erhalten."));
-        body.Children.Add(Theme.Label("Design", 12.5, true));
+        body.Children.Add(Hint(Lang.T("Das Design bestimmt Akzentfarbe, Zeichenfläche und Gleisdarstellung. Nach „Übernehmen“ startet das Fenster kurz neu; der geöffnete Plan bleibt erhalten.")));
+        body.Children.Add(Theme.Label(Lang.T("Design"), 12.5, true));
         var cards = new WrapPanel { Margin = new Thickness(0, 6, 0, 10) };
         var borders = new List<(Border Card, string Id)>();
         void Mark()
@@ -106,13 +131,13 @@ public static partial class Dialogs
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition());
-        var fontField = Theme.Field("Schriftart", font);
-        var sizeField = Theme.Field("Schriftgröße", size);
+        var fontField = Theme.Field(Lang.T("Schriftart"), font);
+        var sizeField = Theme.Field(Lang.T("Schriftgröße"), size);
         Grid.SetColumn(sizeField, 1);
         row.Children.Add(fontField);
         row.Children.Add(sizeField);
         body.Children.Add(row);
-        var sample = new TextBlock { Text = "Gleisplan Bahnhof Neustadt · Weiche links 24611 · R 437,5 mm · 2,5 %", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 6, 0), Foreground = Theme.TextBrush };
+        var sample = new TextBlock { Text = Lang.T("Gleisplan Bahnhof Neustadt · Weiche links 24611 · R 437,5 mm · 2,5 %"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 6, 0), Foreground = Theme.TextBrush };
         void Sample()
         {
             if (font.SelectedItem is ComboBoxItem { Tag: string fid }) sample.FontFamily = new FontFamily(UiFonts.Find(fid).Windows);
@@ -123,11 +148,11 @@ public static partial class Dialogs
         Sample();
         body.Children.Add(new Border { Background = Theme.WindowBrush, CornerRadius = new CornerRadius(6), Padding = new Thickness(10), Margin = new Thickness(0, 0, 6, 0), Child = sample });
 
-        var ok = Theme.Button("Übernehmen", "Palette", accent: true);
+        var ok = Theme.Button(Lang.T("Übernehmen"), "Palette", accent: true);
         ok.IsDefault = true;
-        var cancel = Theme.Button("Abbrechen");
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
-        var w = Frame(owner, "Darstellung", new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, cancel, ok);
+        var w = Frame(owner, Lang.T("Darstellung"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, cancel, ok);
         w.Width = 700;
         w.Height = 720;
         AppearanceSettings? result = null;
@@ -169,7 +194,7 @@ public static partial class Dialogs
                  {
                      ($"{AppFolders.Name} {license.EditionName}", 16.0, true),
                      ($"Version {version?.Major}.{version?.Minor}.{version?.Build}", 12.0, false),
-                     ("Gleisplanung für Modellbahnanlagen – Gleise, Höhen, Gleiswendel, Landschaft, Elektrik und 3D.", 12.0, false),
+                     (Lang.T("Gleisplanung für Modellbahnanlagen – Gleise, Höhen, Gleiswendel, Landschaft, Elektrik und 3D."), 12.0, false),
                      (license.Summary, 11.0, false),
                  })
         {
@@ -178,10 +203,10 @@ public static partial class Dialogs
             t.Margin = new Thickness(0, 0, 0, 4);
             body.Children.Add(t);
         }
-        var close = Theme.Button("Schließen", accent: true);
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
         close.IsDefault = true;
-        var w = Small(owner, "Über das Programm", body, 460, 520, close);
+        var w = Small(owner, Lang.T("Über das Programm"), body, 460, 520, close);
         close.Click += (_, _) => w.Close();
         w.ShowDialog();
     }

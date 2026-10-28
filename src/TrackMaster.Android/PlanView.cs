@@ -160,7 +160,7 @@ public sealed class PlanView : View
     {
         if (_polygon.Count < 3)
         {
-            _session.Say("Eine Fläche braucht mindestens drei Punkte.");
+            _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
         var water = _session.Tool == CanvasTool.Water;
@@ -172,7 +172,7 @@ public sealed class PlanView : View
         });
         _polygon.Clear();
         PolygonChanged?.Invoke();
-        _session.Say(water ? "Gewässer angelegt. Tiefe und Name stehen in den Eigenschaften." : "Höhenfläche angelegt. Höhe und Name stehen in den Eigenschaften.");
+        _session.Say(water ? Lang.T("Gewässer angelegt. Tiefe und Name stehen in den Eigenschaften.") : Lang.T("Höhenfläche angelegt. Höhe und Name stehen in den Eigenschaften."));
         Invalidate();
     }
 
@@ -674,7 +674,7 @@ public sealed class PlanView : View
                         break;
                     case DragMode.FlexDraw when _flexDraft is { } draft:
                         draft.Update(world.X, world.Y, _session.FlexTarget(world.X, world.Y, Ui.Dp(26) / _zoom, exclude: draft.From));
-                        if (draft.Segments.Count > 0) _session.Say(FlexTrack.Describe(draft.Segments) + (draft.Target is not null ? " – rastet am Gleisende ein" : ""));
+                        if (draft.Segments.Count > 0) _session.Say(FlexTrack.Describe(draft.Segments) + (draft.Target is not null ? Lang.T(" – rastet am Gleisende ein") : ""));
                         Invalidate();
                         break;
                     case DragMode.FlexEnd when _flexEnd is { } fe:
@@ -750,7 +750,7 @@ public sealed class PlanView : View
                     var rect = new RectF(Math.Min(_downX, x), Math.Min(_downY, y), Math.Max(_downX, x), Math.Max(_downY, y));
                     var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); var sp = ToScreen(m.X, m.Y); return rect.Contains(sp.X, sp.Y); }).Select(p => p.Id).ToList();
                     _session.Select(ids, add: true);
-                    _session.Say($"{_session.Selection.Count} Gleise gewählt.");
+                    _session.Say(Lang.F($"{_session.Selection.Count} Gleise gewählt."));
                 }
                 Invalidate();
                 return;
@@ -763,7 +763,7 @@ public sealed class PlanView : View
                     Kind = SceneryKind.Building, X = Math.Round((r.X0 + r.X1) / 2), Y = Math.Round((r.Y0 + r.Y1) / 2),
                     Width = Math.Round(r.X1 - r.X0), Depth = Math.Round(r.Y1 - r.Y0), Height = Math.Round(_gauge * 6),
                 });
-                _session.Say("Gebäude gesetzt. Größe, Höhe und Drehung stehen in den Eigenschaften.");
+                _session.Say(Lang.T("Gebäude gesetzt. Größe, Höhe und Drehung stehen in den Eigenschaften."));
                 Invalidate();
                 return;
             case DragMode.Pan:
@@ -771,7 +771,7 @@ public sealed class PlanView : View
                 return;
             case DragMode.FlexDraw:
                 if (_moved && _flexDraft is { } draft) _session.FinishFlexDraw(draft);
-                else _session.Say("Flexgleis ziehen: an einem offenen Gleisende (oder frei) aufsetzen und mit dem Finger ziehen.");
+                else _session.Say(Lang.T("Flexgleis ziehen: an einem offenen Gleisende (oder frei) aufsetzen und mit dem Finger ziehen."));
                 EndFlex();
                 Invalidate();
                 return;
@@ -788,7 +788,7 @@ public sealed class PlanView : View
         if (HitCompass(x, y))
         {
             SetViewRotation(0);
-            _session.Say("Ansicht wieder gerade ausgerichtet.");
+            _session.Say(Lang.T("Ansicht wieder gerade ausgerichtet."));
             return;
         }
         switch (_session.Tool)
@@ -801,14 +801,14 @@ public sealed class PlanView : View
                 return;
             case CanvasTool.Tree:
                 var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
-                _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = "Baum" });
+                _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = Lang.T("Baum") });
                 return;
             case CanvasTool.Label:
                 LabelRequested?.Invoke(Math.Round(world.X), Math.Round(world.Y));
                 return;
             case CanvasTool.Dimension:
                 var snap = Annotation.Snap(_session.Plan, world.X, world.Y, Ui.Dp(22) / _zoom);
-                if (_dimStart is not { } from) { _dimStart = snap; _session.Say("Maß: jetzt den zweiten Punkt antippen (Gleisenden und Plattenecken rasten ein)."); }
+                if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt antippen (Gleisenden und Plattenecken rasten ein).")); }
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
                 Invalidate();
                 return;
@@ -816,17 +816,17 @@ public sealed class PlanView : View
                 // Tippen auf eine vorhandene Einspeisung entfernt sie wieder
                 if (HitSmallObject(x, y, world) is { } fo && _session.Plan.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
-                else _session.Say("Für eine Einspeisung bitte direkt auf ein Gleis tippen.");
+                else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis tippen."));
                 return;
             case CanvasTool.Isolation:
                 if (HitConnector(x, y, openOnly: false, radiusDp: 26) is { } ic) _session.ToggleIsolation(ic.PieceId, ic.Index);
-                else _session.Say("Für eine Trennstelle bitte auf eine Gleisverbindung (grüner Punkt) tippen.");
+                else _session.Say(Lang.T("Für eine Trennstelle bitte auf eine Gleisverbindung (grüner Punkt) tippen."));
                 return;
             case CanvasTool.Signal:
                 // Tippen auf ein vorhandenes Signal entfernt es wieder
                 if (HitSmallObject(x, y, world) is { } so && _session.Plan.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
                 else if (HitConnector(x, y, openOnly: false, radiusDp: 26) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
-                else _session.Say("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung tippen.");
+                else _session.Say(Lang.T("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung tippen."));
                 return;
         }
         if (HitConnector(x, y) is { } conn) { _session.SetActive(conn.PieceId, conn.Index); return; }
@@ -849,13 +849,13 @@ public sealed class PlanView : View
         {
             // Langes Drücken: Gleis zur Auswahl hinzufügen oder herausnehmen
             _session.Toggle(piece.Id);
-            _session.Say($"{_session.Selection.Count} Gleise gewählt. Ziehen verschiebt alle gewählten Gleise.");
+            _session.Say(Lang.F($"{_session.Selection.Count} Gleise gewählt. Ziehen verschiebt alle gewählten Gleise."));
             _drag = DragMode.None;
             return;
         }
         // Auf leerer Fläche: Rahmen aufziehen
         _drag = DragMode.Band;
-        _session.Say("Rahmen aufziehen: alle Gleise darin werden gewählt.");
+        _session.Say(Lang.T("Rahmen aufziehen: alle Gleise darin werden gewählt."));
     }
 
     private void DoubleTap(float x, float y)

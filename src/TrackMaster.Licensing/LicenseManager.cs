@@ -1,3 +1,5 @@
+using TrackMaster.Core;
+
 namespace TrackMaster.Licensing;
 
 /// <summary>
@@ -49,7 +51,7 @@ public sealed class LicenseManager
         return result;
     }
 
-    public string EditionName => Result.IsValid ? "Pro" : IsDeveloperMode ? "Pro (Entwicklerversion)" : "Basis";
+    public string EditionName => Result.IsValid ? Lang.T("Pro") : IsDeveloperMode ? Lang.T("Pro (Entwicklerversion)") : Lang.T("Basis");
 
     public string Summary
     {
@@ -58,10 +60,10 @@ public sealed class LicenseManager
             if (Result.IsValid)
             {
                 var l = Result.License!;
-                return $"Pro – lizenziert für {l.Licensee}{(l.ExpiresAt is { } e ? $", gültig bis {e:dd.MM.yyyy}" : "")}";
+                return Lang.F($"Pro – lizenziert für {l.Licensee}{(l.ExpiresAt is { } e ? Lang.F($", gültig bis {e:dd.MM.yyyy}") : "")}");
             }
-            if (IsDeveloperMode) return "Entwicklerversion (alle Funktionen frei)";
-            return Result.Status == LicenseStatus.Missing ? "Basisversion (ohne Lizenz)" : $"Basisversion – Lizenz {Result.StatusText}";
+            if (IsDeveloperMode) return Lang.T("Entwicklerversion (alle Funktionen frei)");
+            return Result.Status == LicenseStatus.Missing ? Lang.T("Basisversion (ohne Lizenz)") : Lang.F($"Basisversion – Lizenz {Result.StatusText}");
         }
     }
 }

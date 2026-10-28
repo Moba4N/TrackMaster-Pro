@@ -36,10 +36,10 @@ public static partial class Dialogs
         var rows = BillOfMaterials.Build(plan);
         var stats = plan.Statistics();
         var body = new StackPanel();
-        body.Children.Add(Theme.Secondary($"{plan.Name} · Spur {plan.GaugeId} · {stats.Pieces} Teile · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m Gleis"));
+        body.Children.Add(Theme.Secondary(Lang.F($"{plan.Name} · Spur {plan.GaugeId} · {stats.Pieces} Teile · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m Gleis")));
         if (rows.Count == 0)
         {
-            var empty = Theme.Label("Der Plan enthält noch keine Gleise.", 12, false, Theme.TextSecondaryBrush);
+            var empty = Theme.Label(Lang.T("Der Plan enthält noch keine Gleise."), 12, false, Theme.TextSecondaryBrush);
             empty.Margin = new Thickness(0, 16, 0, 0);
             body.Children.Add(empty);
         }
@@ -55,7 +55,7 @@ public static partial class Dialogs
                 grid.Children.Add(e);
             }
             grid.RowDefinitions.Add(new RowDefinition());
-            string[] heads = ["Artikel", "Bezeichnung", "System", "Anzahl"];
+            string[] heads = [Lang.T("Artikel"), Lang.T("Bezeichnung"), Lang.T("System"), Lang.T("Anzahl")];
             for (var c = 0; c < heads.Length; c++) Cell(Theme.Label(heads[c], 11, true, Theme.TextSecondaryBrush), 0, c, c == 3);
             for (var i = 0; i < rows.Count; i++)
             {
@@ -77,7 +77,7 @@ public static partial class Dialogs
         var extras = BillOfMaterials.Accessories(plan);
         if (extras.Count > 0)
         {
-            var head = Theme.Label("Zubehör", 13, true);
+            var head = Theme.Label(Lang.T("Zubehör"), 13, true);
             head.Margin = new Thickness(0, 14, 0, 4);
             body.Children.Add(head);
             foreach (var a in extras)
@@ -90,11 +90,11 @@ public static partial class Dialogs
                 body.Children.Add(row);
             }
         }
-        var csv = Theme.Button("Als CSV speichern…", "Csv");
-        var close = Theme.Button("Schließen", accent: true);
+        var csv = Theme.Button(Lang.T("Als CSV speichern…"), "Csv");
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsDefault = true;
         close.IsCancel = true;
-        var window = Frame(owner, "Stückliste", body, csv, close);
+        var window = Frame(owner, Lang.T("Stückliste"), body, csv, close);
         csv.Click += (_, _) => exportCsv();
         close.Click += (_, _) => window.Close();
         window.ShowDialog();
@@ -102,24 +102,24 @@ public static partial class Dialogs
 
     public static readonly (string Keys, string Action)[] Shortcuts =
     [
-        ("Klick auf Gleis in der Bibliothek", "am aktiven Gleisende ansetzen"),
-        ("Gleis aus der Bibliothek ziehen", "frei platzieren, rastet an nahen Enden ein"),
-        ("Klick auf orangefarbenes Ende", "als aktives Gleisende wählen"),
-        ("Gleis ziehen", "verschieben (mit Einrasten)"),
-        ("Ziehen auf freier Fläche", "Rahmen zum Auswählen"),
-        ("Rechte/mittlere Maustaste, Leertaste", "Ansicht verschieben"),
-        ("Mausrad", "zoomen"),
-        ("R / Umschalt+R", "um 15° drehen"),
-        ("F", "spiegeln"),
-        ("A", "Anschluss wechseln"),
-        ("E", "nächstes offenes Gleisende"),
-        ("Entf", "löschen"),
-        ("Pfeiltasten", "1 mm verschieben (Umschalt: 10 mm)"),
-        ("Strg+Z / Strg+Y", "rückgängig / wiederholen"),
-        ("Strg+D", "duplizieren"),
-        ("Strg+A", "alles auswählen"),
-        ("Strg+N / Strg+O / Strg+S", "neu / öffnen / speichern"),
-        ("0", "ganze Anlage zeigen"),
+        (Lang.T("Klick auf Gleis in der Bibliothek"), Lang.T("am aktiven Gleisende ansetzen")),
+        (Lang.T("Gleis aus der Bibliothek ziehen"), Lang.T("frei platzieren, rastet an nahen Enden ein")),
+        (Lang.T("Klick auf orangefarbenes Ende"), Lang.T("als aktives Gleisende wählen")),
+        (Lang.T("Gleis ziehen"), Lang.T("verschieben (mit Einrasten)")),
+        (Lang.T("Ziehen auf freier Fläche"), Lang.T("Rahmen zum Auswählen")),
+        (Lang.T("Rechte/mittlere Maustaste, Leertaste"), Lang.T("Ansicht verschieben")),
+        (Lang.T("Mausrad"), Lang.T("zoomen")),
+        (Lang.T("R / Umschalt+R"), "um 15° drehen"),
+        ("F", Lang.T("spiegeln")),
+        ("A", Lang.T("Anschluss wechseln")),
+        ("E", Lang.T("nächstes offenes Gleisende")),
+        (Lang.T("Entf"), Lang.T("löschen")),
+        (Lang.T("Pfeiltasten"), Lang.T("1 mm verschieben (Umschalt: 10 mm)")),
+        (Lang.T("Strg+Z / Strg+Y"), Lang.T("rückgängig / wiederholen")),
+        (Lang.T("Strg+D"), Lang.T("duplizieren")),
+        (Lang.T("Strg+A"), Lang.T("alles auswählen")),
+        (Lang.T("Strg+N / Strg+O / Strg+S"), Lang.T("neu / öffnen / speichern")),
+        ("0", Lang.T("ganze Anlage zeigen")),
     ];
 
     public static void ShowShortcuts(Window owner)
@@ -141,10 +141,10 @@ public static partial class Dialogs
             Grid.SetRow(key, i); Grid.SetRow(action, i); Grid.SetColumn(action, 1);
             grid.Children.Add(key); grid.Children.Add(action);
         }
-        var close = Theme.Button("Schließen", accent: true);
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsDefault = true;
         close.IsCancel = true;
-        var window = Frame(owner, "Bedienung und Tastenkürzel", grid, close);
+        var window = Frame(owner, Lang.T("Bedienung und Tastenkürzel"), grid, close);
         close.Click += (_, _) => window.Close();
         window.ShowDialog();
     }

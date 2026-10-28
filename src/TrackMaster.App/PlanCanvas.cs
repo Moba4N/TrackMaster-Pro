@@ -168,7 +168,7 @@ public sealed class PlanCanvas : FrameworkElement
     {
         if (_polygon.Count < 3)
         {
-            if (_polygon.Count > 0) _session.Say("Eine Fläche braucht mindestens drei Punkte.");
+            if (_polygon.Count > 0) _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
         var water = _session.Tool == CanvasTool.Water;
@@ -179,7 +179,7 @@ public sealed class PlanCanvas : FrameworkElement
             Height = water ? 10 : Math.Round(_gauge * 4 / 5) * 5,
         });
         _polygon.Clear();
-        _session.Say(water ? "Gewässer angelegt. Tiefe und Name stehen in den Eigenschaften." : "Höhenfläche angelegt. Höhe und Name stehen in den Eigenschaften.");
+        _session.Say(water ? Lang.T("Gewässer angelegt. Tiefe und Name stehen in den Eigenschaften.") : Lang.T("Höhenfläche angelegt. Höhe und Name stehen in den Eigenschaften."));
         InvalidateVisual();
     }
 
@@ -577,29 +577,29 @@ public sealed class PlanCanvas : FrameworkElement
                 return;
             case CanvasTool.Dimension:
                 var snap = Annotation.Snap(_session.Plan, world.X, world.Y, 12 / _zoom);
-                if (_dimStart is not { } from) { _dimStart = snap; _session.Say("Maß: jetzt den zweiten Punkt anklicken (Gleisenden und Plattenecken rasten ein, Esc bricht ab)."); }
+                if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt anklicken (Gleisenden und Plattenecken rasten ein, Esc bricht ab).")); }
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
                 InvalidateVisual();
                 return;
             case CanvasTool.Tree:
                 var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
-                _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = "Baum" });
+                _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = Lang.T("Baum") });
                 return;
             case CanvasTool.Feeder:
                 // Klick auf eine vorhandene Einspeisung entfernt sie wieder
                 if (HitSmallObject(screen, world) is { } fo && _session.Plan.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
-                else _session.Say("Für eine Einspeisung bitte direkt auf ein Gleis klicken.");
+                else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis klicken."));
                 return;
             case CanvasTool.Isolation:
                 if (HitConnector(screen, openOnly: false, radius: 14) is { } ic) _session.ToggleIsolation(ic.PieceId, ic.Index);
-                else _session.Say("Für eine Trennstelle bitte auf eine Gleisverbindung (grüner Punkt) klicken.");
+                else _session.Say(Lang.T("Für eine Trennstelle bitte auf eine Gleisverbindung (grüner Punkt) klicken."));
                 return;
             case CanvasTool.Signal:
                 // Klick auf ein vorhandenes Signal entfernt es wieder
                 if (HitSmallObject(screen, world) is { } so && _session.Plan.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
                 else if (HitConnector(screen, openOnly: false, radius: 14) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
-                else _session.Say("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung klicken.");
+                else _session.Say(Lang.T("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung klicken."));
                 return;
             case CanvasTool.Flex:
                 CaptureMouse();
@@ -688,7 +688,7 @@ public sealed class PlanCanvas : FrameworkElement
                 if (!_moved && (screen - _dragStartScreen).Length < 4) return;
                 _moved = true;
                 draft.Update(world.X, world.Y, _session.FlexTarget(world.X, world.Y, 14 / _zoom, exclude: draft.From));
-                if (draft.Segments.Count > 0) _session.Say(FlexTrack.Describe(draft.Segments) + (draft.Target is not null ? " – rastet am Gleisende ein" : ""));
+                if (draft.Segments.Count > 0) _session.Say(FlexTrack.Describe(draft.Segments) + (draft.Target is not null ? Lang.T(" – rastet am Gleisende ein") : ""));
                 InvalidateVisual();
                 break;
             case DragMode.FlexEnd when _flexEnd is { } fe:
@@ -747,7 +747,7 @@ public sealed class PlanCanvas : FrameworkElement
                 var draft = _flexDraft;
                 _flexDraft = null;
                 if (_moved && draft is not null) _session.FinishFlexDraw(draft);
-                else _session.Say("Flexgleis ziehen: an einem offenen Gleisende (oder frei) drücken und mit gedrückter Maustaste ziehen.");
+                else _session.Say(Lang.T("Flexgleis ziehen: an einem offenen Gleisende (oder frei) drücken und mit gedrückter Maustaste ziehen."));
                 InvalidateVisual();
                 break;
             case DragMode.FlexEnd:

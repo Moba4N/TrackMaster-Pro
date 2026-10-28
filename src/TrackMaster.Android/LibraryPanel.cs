@@ -19,11 +19,11 @@ public sealed class LibraryPanel : LinearLayout
     private readonly LinearLayout _categories;
     private readonly LinearLayout _pieces;
     private readonly HorizontalScrollView _pieceScroll;
-    private string _category = "Alle";
+    private string _category = Lang.T("Alle");
     private string _shownGauge = "";
     private bool _updatingSystems;
 
-    private static readonly string[] Categories = ["Alle", "Gerade", "Bögen", "Weichen", "Kreuzungen", "Flexgleis", "Sonstige"];
+    private static readonly string[] Categories = [Lang.T("Alle"), Lang.T("Gerade"), Lang.T("Bögen"), Lang.T("Weichen"), Lang.T("Kreuzungen"), Lang.T("Flexgleis"), Lang.T("Sonstige")];
 
     public LibraryPanel(Context c, PlanSession session, Func<(double X, double Y)> center) : base(c)
     {
@@ -97,36 +97,36 @@ public sealed class LibraryPanel : LinearLayout
             if (_categories.GetChildAt(i) is Button b) Ui.SetButtonState(b, false, b.Text == _category);
 
         _updatingSystems = true;
-        var names = gauge.Systems.Select(s => s.Name + (s.Verified ? "" : " (vorläufig)")).ToList();
+        var names = gauge.Systems.Select(s => s.Name + (s.Verified ? "" : Lang.T(" (vorläufig)"))).ToList();
         _systems.Adapter = new ArrayAdapter<string>(Context!, global::Android.Resource.Layout.SimpleSpinnerDropDownItem, names);
         _systems.SetSelection(Math.Max(0, gauge.Systems.ToList().IndexOf(_session.CurrentSystem)));
         _updatingSystems = false;
         FillPieces();
     }
 
-    private bool Matches(TrackPieceDef d) => _category switch
+    private bool Matches(TrackPieceDef d)
     {
-        "Gerade" => d.Kind == PieceKind.Straight,
-        "Bögen" => d.Kind == PieceKind.Curve,
-        "Weichen" => d.Kind == PieceKind.Switch,
-        "Kreuzungen" => d.Kind == PieceKind.Crossing,
-        "Flexgleis" => false,
-        "Sonstige" => d.Kind is not (PieceKind.Straight or PieceKind.Curve or PieceKind.Switch or PieceKind.Crossing),
-        _ => true,
-    };
+        if (_category == Lang.T("Gerade")) return d.Kind == PieceKind.Straight;
+        if (_category == Lang.T("Bögen")) return d.Kind == PieceKind.Curve;
+        if (_category == Lang.T("Weichen")) return d.Kind == PieceKind.Switch;
+        if (_category == Lang.T("Kreuzungen")) return d.Kind == PieceKind.Crossing;
+        if (_category == Lang.T("Flexgleis")) return false;
+        if (_category == Lang.T("Sonstige")) return d.Kind is not (PieceKind.Straight or PieceKind.Curve or PieceKind.Switch or PieceKind.Crossing);
+        return true;
+    }
 
     private void FillPieces()
     {
         _pieces.RemoveAllViews();
         var system = _session.CurrentSystem;
-        if (_category is "Alle" or "Flexgleis")
+        if (_category == Lang.T("Alle") || _category == Lang.T("Flexgleis"))
         {
             var gauge = _session.Plan.Gauge;
             var stocks = Catalog.Flexes(gauge, system);
             foreach (var stock in stocks)
             {
                 var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
-                var flex = new PieceTile(Context!, sample, stocks.Count > 1 ? $"Flexgleis {stock.Number}…" : "Flexgleis…", $"{(stock.Number == "Flexgleis" ? "allgemein" : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
+                var flex = new PieceTile(Context!, sample, stocks.Count > 1 ? $"Flexgleis {stock.Number}…" : Lang.T("Flexgleis…"), $"{(stock.Number == Lang.T("Flexgleis") ? Lang.T("allgemein") : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
                 flex.Click += (_, _) =>
                 {
                     // Dieses Flexgleis gilt ab jetzt auch für „Flexgleis ziehen“ und „Lücke schließen“

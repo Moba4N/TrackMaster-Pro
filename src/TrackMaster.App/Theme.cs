@@ -125,10 +125,10 @@ public static class Theme
         var t = new ControlTemplate(typeof(System.Windows.Controls.Primitives.ButtonBase));
         var bd = new FrameworkElementFactory(typeof(Border), "Bd");
         bd.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        bd.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        bd.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding(Lang.T("Background")) { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
         bd.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
         bd.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-        bd.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding("Padding") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        bd.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding(Lang.T("Padding")) { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
         var cp = new FrameworkElementFactory(typeof(ContentPresenter));
         cp.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         cp.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);

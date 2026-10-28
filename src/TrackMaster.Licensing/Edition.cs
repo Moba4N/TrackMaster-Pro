@@ -1,3 +1,5 @@
+using TrackMaster.Core;
+
 namespace TrackMaster.Licensing;
 
 /// <summary>Funktionspakete. Jede gültige Lizenz ist eine Pro-Lizenz.</summary>
@@ -8,8 +10,8 @@ public static class Features
 
     public static string DisplayName(string feature) => feature switch
     {
-        Basis => "Basis",
-        Pro => "Pro",
+        Basis => Lang.T("Basis"),
+        Pro => Lang.T("Pro"),
         _ => feature,
     };
 }
@@ -19,23 +21,23 @@ public static class EditionInfo
 {
     public static readonly string[] Basis =
     [
-        "Gleisplanung in allen Spuren (Z, N, TT, H0, 0, G) mit allen Gleissystemen",
-        "Flexgleis, Weichen, Kreuzungen, Prellböcke, Bearbeiten und Rückgängig",
-        "Höhenplanung: Steigung, Gleiswendel rund und oval, ein- und zweigleisig",
-        "Gelände, Gewässer, Gebäude, Vegetation und Tunnel",
-        "Elektrik: Einspeisungen, Trennstellen, Signale, Decoder-Adressen, Kabelplan",
-        "3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung",
-        "Gleispläne öffnen und Pläne mit bis zu 50 Gleisen speichern",
+        Lang.T("Gleisplanung in allen Spuren (Z, N, TT, H0, 0, G) mit allen Gleissystemen"),
+        Lang.T("Flexgleis, Weichen, Kreuzungen, Prellböcke, Bearbeiten und Rückgängig"),
+        Lang.T("Höhenplanung: Steigung, Gleiswendel rund und oval, ein- und zweigleisig"),
+        Lang.T("Gelände, Gewässer, Gebäude, Vegetation und Tunnel"),
+        Lang.T("Elektrik: Einspeisungen, Trennstellen, Signale, Decoder-Adressen, Kabelplan"),
+        Lang.T("3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung"),
+        Lang.T("Gleispläne öffnen und Pläne mit bis zu 50 Gleisen speichern"),
     ];
 
     public static readonly string[] Pro =
     [
-        "Alles aus Basis",
-        "Speichern von Plänen jeder Größe",
-        "Stückliste der Gleise, auch als CSV",
-        "Holzliste der Gleiswendel mit allen Zuschnitten",
-        "Drucken des Gleisplans",
-        "Export: Gleisplan als SVG im Maßstab 1:1, Kabelplan als Text",
+        Lang.T("Alles aus Basis"),
+        Lang.T("Speichern von Plänen jeder Größe"),
+        Lang.T("Stückliste der Gleise, auch als CSV"),
+        Lang.T("Holzliste der Gleiswendel mit allen Zuschnitten"),
+        Lang.T("Drucken des Gleisplans"),
+        Lang.T("Export: Gleisplan als SVG im Maßstab 1:1, Kabelplan als Text"),
     ];
 }
 
@@ -49,5 +51,5 @@ public static class AppFolders
     public static string Data => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Name);
 
     /// <summary>Dokumente\TrackMaster Pro Lizenzen (Lizenzverwaltung)</summary>
-    public static string LicensesInDocuments => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Name + " Lizenzen");
+    public static string LicensesInDocuments => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Name + Lang.T(" Lizenzen"));
 }

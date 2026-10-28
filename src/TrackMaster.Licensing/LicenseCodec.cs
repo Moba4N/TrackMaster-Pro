@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
+using TrackMaster.Core;
+
 namespace TrackMaster.Licensing;
 
 public enum LicenseStatus { Valid, Missing, Malformed, InvalidSignature, Expired, WrongMachine, WrongProduct }
@@ -12,13 +14,13 @@ public sealed record LicenseCheckResult(LicenseStatus Status, LicenseData? Licen
 
     public string StatusText => Status switch
     {
-        LicenseStatus.Valid => "gültig",
-        LicenseStatus.Missing => "keine Lizenzdatei gefunden",
-        LicenseStatus.Malformed => "Lizenzdatei ist beschädigt",
-        LicenseStatus.InvalidSignature => "Signatur ungültig",
+        LicenseStatus.Valid => Lang.T("gültig"),
+        LicenseStatus.Missing => Lang.T("keine Lizenzdatei gefunden"),
+        LicenseStatus.Malformed => Lang.T("Lizenzdatei ist beschädigt"),
+        LicenseStatus.InvalidSignature => Lang.T("Signatur ungültig"),
         LicenseStatus.Expired => "abgelaufen",
-        LicenseStatus.WrongMachine => "für einen anderen Rechner ausgestellt",
-        LicenseStatus.WrongProduct => "Lizenz für ein anderes Programm",
+        LicenseStatus.WrongMachine => Lang.T("für einen anderen Rechner ausgestellt"),
+        LicenseStatus.WrongProduct => Lang.T("Lizenz für ein anderes Programm"),
         _ => Status.ToString(),
     };
 }

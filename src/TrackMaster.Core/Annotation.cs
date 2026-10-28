@@ -38,7 +38,7 @@ public static class Annotation
         var lift = textSize * 0.75 * side;
         var text = (a.Item1 + b.Item1) / 2 + nx * -lift;
         var texty = (a.Item2 + b.Item2) / 2 + ny * -lift;
-        var label = string.IsNullOrWhiteSpace(s.Name) || s.Name.StartsWith("Maß", StringComparison.Ordinal) ? $"{Fmt.Num(len, 0)} mm" : $"{s.Name}: {Fmt.Num(len, 0)} mm";
+        var label = string.IsNullOrWhiteSpace(s.Name) || s.Name.StartsWith(Lang.T("Maß"), StringComparison.Ordinal) ? $"{Fmt.Num(len, 0)} mm" : $"{s.Name}: {Fmt.Num(len, 0)} mm";
         return new DimensionShape(p1, p2, a, b, (text, texty), angle, len, label, textSize);
     }
 

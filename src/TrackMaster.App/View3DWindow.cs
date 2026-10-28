@@ -77,10 +77,10 @@ public sealed class View3DWindow : Window
         _distance = Math.Max(x1 - x0, y1 - y0) * 1.15;
 
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 8, 12, 8) };
-        var orbit = Theme.Button("Rundumsicht", "Cube");
+        var orbit = Theme.Button(Lang.T("Rundumsicht"), "Cube");
         orbit.Click += (_, _) => { StopRide(); };
         toolbar.Children.Add(orbit);
-        _rideButton.Content = "Mitfahren";
+        _rideButton.Content = Lang.T("Mitfahren");
         _rideButton.Height = 30;
         _rideButton.Padding = new Thickness(10, 0, 10, 0);
         _rideButton.Margin = new Thickness(0, 0, 16, 6);
@@ -88,26 +88,26 @@ public sealed class View3DWindow : Window
         _rideButton.BorderThickness = new Thickness(1);
         _rideButton.Click += (_, _) => { if (_rideButton.IsChecked == true) StartRide(); else StopRide(); };
         toolbar.Children.Add(_rideButton);
-        _trainButton.Content = "Zug fahren";
+        _trainButton.Content = Lang.T("Zug fahren");
         _trainButton.Height = 30;
         _trainButton.Padding = new Thickness(10, 0, 10, 0);
         _trainButton.Margin = new Thickness(0, 0, 8, 6);
         _trainButton.Template = Theme.RoundedTemplate();
         _trainButton.BorderThickness = new Thickness(1);
-        _trainButton.ToolTip = "Ein Zug fährt über die Anlage, die Ansicht bleibt frei drehbar.";
+        _trainButton.ToolTip = Lang.T("Ein Zug fährt über die Anlage, die Ansicht bleibt frei drehbar.");
         _trainButton.Click += (_, _) => { if (_trainButton.IsChecked == true) StartTrain(); else StopTrain(); };
         toolbar.Children.Add(_trainButton);
-        _switchButton = Theme.Button("Weiche umstellen", "Swap");
-        _switchButton.ToolTip = "Stellt die nächste Weiche vor dem Zug um (W).";
+        _switchButton = Theme.Button(Lang.T("Weiche umstellen"), "Swap");
+        _switchButton.ToolTip = Lang.T("Stellt die nächste Weiche vor dem Zug um (W).");
         _switchButton.Click += (_, _) => ToggleNextSwitch();
         _switchButton.IsEnabled = false;
         toolbar.Children.Add(_switchButton);
-        toolbar.Children.Add(Theme.Label("Tageszeit", 12, false, Theme.TextSecondaryBrush));
+        toolbar.Children.Add(Theme.Label(Lang.T("Tageszeit"), 12, false, Theme.TextSecondaryBrush));
         toolbar.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         toolbar.Children.Add(new Border { Width = 8 });
         toolbar.Children.Add(_time);
         toolbar.Children.Add(_timeText);
-        toolbar.Children.Add(Theme.Label("Geschwindigkeit", 12, false, Theme.TextSecondaryBrush));
+        toolbar.Children.Add(Theme.Label(Lang.T("Geschwindigkeit"), 12, false, Theme.TextSecondaryBrush));
         toolbar.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         toolbar.Children.Add(new Border { Width = 8 });
         toolbar.Children.Add(_speed);
@@ -123,7 +123,7 @@ public sealed class View3DWindow : Window
         {
             Background = new SolidColorBrush(Color.FromArgb(0xE0, 0xFF, 0xFF, 0xFF)), CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(12),
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false,
-            Child = Theme.Label("Linke Maustaste: drehen · Rechte Maustaste: verschieben · Mausrad: zoomen · Mitfahren startet am gewählten Gleis", 11.5, false, Theme.TextSecondaryBrush),
+            Child = Theme.Label(Lang.T("Linke Maustaste: drehen · Rechte Maustaste: verschieben · Mausrad: zoomen · Mitfahren startet am gewählten Gleis"), 11.5, false, Theme.TextSecondaryBrush),
         };
         stage.Children.Add(help);
         // Eingaben auf einer durchsichtigen Fläche, damit auch Klicks in den Himmel ankommen
@@ -226,7 +226,7 @@ public sealed class View3DWindow : Window
     {
         _path ??= RidePath.Build(_plan, _startPiece, _routes);
         if (!_path.IsEmpty) return true;
-        _status.Text = "Keine Gleise zum Mitfahren.";
+        _status.Text = Lang.T("Keine Gleise zum Mitfahren.");
         return false;
     }
 
@@ -291,12 +291,12 @@ public sealed class View3DWindow : Window
     private void UpdateStatus()
     {
         if (_path is null) return;
-        var text = _path.Closed ? "Rundkurs" : "Wendet an Prellböcken und Gleisenden";
+        var text = _path.Closed ? Lang.T("Rundkurs") : Lang.T("Wendet an Prellböcken und Gleisenden");
         if (_path.NextSwitch(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
         {
             var route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
-            var setting = RidePath.RouteCount(piece) > 2 ? $"Stellung {route + 1}" : route == 0 ? "Grundstellung" : "abzweigend";
-            text += $" · Nächste Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting} (W stellt um)";
+            var setting = RidePath.RouteCount(piece) > 2 ? Lang.F($"Stellung {route + 1}") : route == 0 ? Lang.T("Grundstellung") : Lang.T("abzweigend");
+            text += Lang.F($" · Nächste Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting} (W stellt um)");
         }
         _status.Text = text;
     }

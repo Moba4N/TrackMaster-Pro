@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TrackMaster Pro – User Manual</title>
+<meta name="pdf-footer" content="TrackMaster Pro 1.4.1 · User Manual">
+<meta name="pdf-start" content="is a planning program for model railway layouts">
+<style>
+  @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
+  @page :first { margin: 0; }
+  :root { --accent: #437E1E; --accent-soft: #EEF5E4; --logo: #76AD33; --logo-dark: #1F2428; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #437E1E; }
+  * { box-sizing: border-box; }
+  html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
+  body { margin: 0; }
+  h1, h2, h3 { color: var(--text); line-height: 1.25; font-weight: 600; }
+  h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 3mm; border-bottom: 2.5pt solid var(--accent); break-before: page; }
+  h1 .no { color: var(--accent); margin-right: 3mm; }
+  h2 { font-size: 13.5pt; margin: 7mm 0 2mm; break-after: avoid; }
+  h3 { font-size: 11pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.6mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin: 0 0 1mm; }
+  a { color: var(--accent); text-decoration: none; }
+  .lead { font-size: 11pt; color: var(--muted); margin-bottom: 5mm; }
+  b, strong { font-weight: 600; }
+  .ui { font-weight: 600; }
+  kbd { font-family: inherit; font-size: 8.8pt; border: 0.6pt solid #AEB6C0; border-bottom-width: 1.4pt; border-radius: 3pt; padding: 0 1.4mm; background: #F6F8FA; white-space: nowrap; }
+  figure { margin: 3mm 0 5mm; break-inside: avoid; }
+  figure img { width: 100%; border: 0.6pt solid var(--line); border-radius: 2mm; display: block; }
+  figure.half img { width: 72%; margin: 0 auto; }
+  figure.third img { width: 56%; margin: 0 auto; }
+  body { counter-reset: fig; }
+  figure { counter-increment: fig; }
+  figcaption { font-size: 8.8pt; color: var(--muted); margin-top: 1.6mm; text-align: center; }
+  figcaption::before { content: "Figure " counter(fig) " – "; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 5mm; font-size: 9.4pt; break-inside: auto; }
+  th, td { text-align: left; vertical-align: top; padding: 1.6mm 2.4mm; border-bottom: 0.6pt solid var(--line); }
+  th { background: var(--accent-soft); font-weight: 600; }
+  tr { break-inside: avoid; }
+  .note, .tip, .warn, .pro { border-radius: 2mm; padding: 2.6mm 3.6mm; margin: 3mm 0 4mm; break-inside: avoid; font-size: 9.6pt; }
+  .tip { background: var(--accent-soft); border-left: 3pt solid var(--accent); }
+  .warn { background: var(--warn-soft); border-left: 3pt solid #E0A100; }
+  .pro { background: #F1F4F8; border-left: 3pt solid #5B6470; }
+  .tip b:first-child, .warn b:first-child, .pro b:first-child { display: block; margin-bottom: 0.6mm; }
+  .badge { display: inline-block; font-size: 7.6pt; font-weight: 700; letter-spacing: .04em; color: #fff; background: var(--pro); border-radius: 2pt; padding: 0 1.4mm; vertical-align: 1pt; }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 9mm; margin-bottom: 2mm; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 0.2mm; width: 6mm; height: 6mm; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 8.6pt; text-align: center; line-height: 6mm; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .keep { break-inside: avoid; }
+
+  /* Titelseite */
+  .cover { height: 297mm; padding: 0; position: relative; background: linear-gradient(160deg, #76AD33 0%, #437E1E 55%, #2B5410 100%); color: #fff; overflow: hidden; }
+  .cover .inner { position: absolute; left: 22mm; right: 22mm; top: 62mm; }
+  .cover .logocard { display: inline-block; background: #fff; border-radius: 7mm; padding: 6mm 8mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.25); }
+  .cover .logocard img { width: 74mm; display: block; }
+  .cover h1 { border: none; color: #fff; font-size: 38pt; margin: 10mm 0 2mm; padding: 0; break-before: auto; letter-spacing: -.01em; }
+  .cover .sub { font-size: 15pt; opacity: .92; margin-bottom: 14mm; }
+  .cover .what { font-size: 11pt; opacity: .9; max-width: 140mm; line-height: 1.6; }
+  .cover .foot { position: absolute; left: 22mm; right: 22mm; bottom: 22mm; font-size: 9.5pt; opacity: .85; display: flex; justify-content: space-between; border-top: 0.6pt solid rgba(255,255,255,.4); padding-top: 4mm; }
+  .cover .rails { position: absolute; right: -40mm; bottom: 40mm; width: 170mm; height: 170mm; border: 7mm solid rgba(255,255,255,.08); border-radius: 50%; }
+  .cover .rails2 { position: absolute; right: -22mm; bottom: 58mm; width: 134mm; height: 134mm; border: 7mm solid rgba(255,255,255,.08); border-radius: 50%; }
+
+  /* Inhaltsverzeichnis */
+  .toc h1 { break-before: page; }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc > ol > li { margin: 0 0 0.9mm; font-weight: 600; font-size: 9.6pt; line-height: 1.35; }
+  .toc li ol { margin: 0.4mm 0 0 8mm; }
+  .toc li li { font-weight: 400; margin: 0; font-size: 8.7pt; line-height: 1.3; }
+  .toc a { color: var(--text); display: flex; }
+  .toc a .t { flex: 0 1 auto; }
+  .toc a .dots { flex: 1 1 auto; border-bottom: 0.8pt dotted #AEB6C0; margin: 0 2mm 1.4mm; }
+  .toc a .pg { flex: 0 0 auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .toc .no { color: var(--accent); display: inline-block; width: 8mm; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="rails"></div><div class="rails2"></div>
+  <div class="inner">
+    <div class="logocard"><img src="img/logo.png" alt=""></div>
+    <h1>TrackMaster Pro</h1>
+    <div class="sub">User Manual · Version 1.4.1</div>
+    <div class="what">Track planning for model railway layouts in all common gauges – with height planning, helix and
+      timber list, scenery, wiring and signals, plan check and 3D view. For Windows and Android.</div>
+  </div>
+  <div class="foot"><span>TrackMaster Pro 1.4.1 · Basic and Pro</span><span>As of October 2026</span></div>
+</section>
+
+<section class="toc">
+  <h1>Contents</h1>
+  <ol id="toc"></ol>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k1"><span class="no">1</span>Welcome</h1>
+<p class="lead">TrackMaster Pro is a planning program for model railway layouts. You set up the baseboard, lay track
+from the catalogues of the common track systems, plan gradients and helixes, design the scenery, wire the
+layout and look at the result in 3D – before you buy the first piece of rail.</p>
+
+<h2 id="k1-1">What TrackMaster Pro can do</h2>
+<ul>
+  <li><b>Track plans in all common gauges:</b> Z, N, TT, H0, H0m, H0e, 0, gauge 1 and G, with many track systems
+    and about 1300 track pieces – straights, curves, turnouts, crossings, double slips, buffer stops and flexible track.</li>
+  <li><b>Baseboards in many shapes:</b> rectangle, L, U, T and Z shape, or a ring with an open centre.</li>
+  <li><b>Free-form flexible track:</b> start at a track end and drag; the track bends along and snaps onto the target.</li>
+  <li><b>Height planning:</b> gradients over whole track sequences, round or oval helixes, single or double track.</li>
+  <li><b>Timber list for the helix:</b> all cut pieces with edge allowance and saw allowance, supports, fixings and sheet requirement.</li>
+  <li><b>Scenery:</b> hills and mountains, water, buildings, trees and tunnels.</li>
+  <li><b>Wiring and digital:</b> feeders, isolating joints, power sections, reverse loop detection, light signals with
+    prototypical aspects, decoder addresses, routes and a wiring plan.</li>
+  <li><b>Plan check:</b> track spacing, clearance heights, baseboard edge, gradients, scenery, open track ends and checks for long vehicles.</li>
+  <li><b>3D view:</b> the layout from every side, a cab ride, a running train and light according to the time of day.</li>
+  <li><b>Your way of working:</b> view rotatable to any angle, five designs, seven fonts in four sizes, German or English interface.</li>
+  <li><b>Results</b> <span class="badge">PRO</span> saving large plans (more than 50 tracks), parts list, helix timber list, printing and exports.</li>
+</ul>
+
+<h2 id="k1-2">Basic and Pro</h2>
+<p>TrackMaster Pro comes in two editions. Without a licence, the <b>Basic edition</b> runs. It contains <b>all planning features</b>
+– so you can design, check and view any layout in 3D in full. A licence file turns it into the
+<b>Pro edition</b>, which unlocks the results of your planning.</p>
+<table>
+  <tr><th style="width:50%">Basic (without licence)</th><th>Pro (with licence) – in addition</th></tr>
+  <tr><td>Track planning in all gauges with all track systems, flexible track</td><td>Saving plans of any size (Basic: up to 50 tracks)</td></tr>
+  <tr><td>Height planning: gradients, round and oval helixes, single and double track</td><td>Parts list of the tracks with accessories, also as a CSV file</td></tr>
+  <tr><td>Terrain, water, buildings, vegetation, tunnels</td><td>Helix timber list with all cut pieces</td></tr>
+  <tr><td>Wiring: feeders, isolating joints, signals, decoders, routes, wiring plan</td><td>Printing the track plan, also as a 1:1 building template</td></tr>
+  <tr><td>3D view with cab ride, train and time of day, plan and wiring check</td><td>Export as SVG at 1:1, wiring plan as text, export for control software</td></tr>
+  <tr><td>Opening track plans, saving plans with up to 50 tracks</td><td></td></tr>
+</table>
+<p>Pro features are marked in the program: in the tooltip as “Pro feature”, in the Android app with a padlock.
+If you choose a Pro feature in the Basic edition, a note explains what Pro offers and takes you straight to the licence dialog if you wish.</p>
+
+<h2 id="k1-3">About this manual</h2>
+<p>This manual describes the Windows version. The Android app works the same way; what is different there – mainly
+touch operation – is described in chapter <a href="#k13">13</a>. Ribbon commands are written as
+<span class="ui">Tab › Command</span>, for example <span class="ui">Tracks › Helix</span>. Keys look like this: <kbd>Ctrl</kbd>+<kbd>S</kbd>.
+The manual shows the English interface; how to switch the language is described in chapter <a href="#k4">4</a>.</p>
+<div class="tip"><b>Tip</b>Notes like this show shortcuts and proven ways of working.</div>
+<div class="warn"><b>Caution</b>Notes marked like this should be observed before building.</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k2"><span class="no">2</span>Installation</h1>
+
+<h2 id="k2-1">Windows</h2>
+<h3>Requirements</h3>
+<ul>
+  <li>Windows 10 or Windows 11, 64-bit</li>
+  <li>about 400 MB of free disk space</li>
+  <li>screen of at least 1280 × 720 pixels, 1920 × 1080 recommended</li>
+  <li>for the 3D view, a graphics card with DirectX support (present in every current PC)</li>
+</ul>
+<p>No additional runtime is needed – everything TrackMaster Pro requires is included in the installation package.</p>
+
+<h3>Installing</h3>
+<ol class="steps">
+  <li>Double-click the file <b>TrackMasterPro-1.4.1.msi</b>.</li>
+  <li>If Windows SmartScreen reports “Windows protected your PC”: click <span class="ui">More info</span>
+      and then <span class="ui">Run anyway</span>.</li>
+  <li>Follow the setup wizard: accept the licence terms and choose the destination folder (default <i>C:\Program Files\TrackMaster Pro</i>).</li>
+  <li>Start the installation. Windows asks for permission to make changes – confirm with <span class="ui">Yes</span>.</li>
+  <li>After a few seconds the installation is complete. Close the wizard.</li>
+</ol>
+<p>You will then find TrackMaster Pro in the <b>Start menu</b> and as a shortcut on the <b>desktop</b>. The manual is also in the Start menu.</p>
+
+<h3>Updating and uninstalling</h3>
+<p>Simply install a new version over the existing one: the installer detects the older version and replaces it.
+Your plans and your licence are kept. To remove the program, open <span class="ui">Settings › Apps › Installed apps</span>,
+select <b>TrackMaster Pro</b> and click <span class="ui">Uninstall</span>. Your plan files and the licence file are not deleted.</p>
+
+<h3>Silent installation for administrators</h3>
+<p>The package can be deployed to several computers without prompts:</p>
+<table>
+  <tr><th style="width:52%">Command</th><th>Effect</th></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.4.1.msi /qn</code></td><td>installation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.4.1.msi INSTALLFOLDER="D:\Programs\TrackMaster Pro" /qn</code></td><td>installation into another folder</td></tr>
+  <tr><td><code>msiexec /x TrackMasterPro-1.4.1.msi /qn</code></td><td>uninstallation without user interface</td></tr>
+</table>
+
+<h2 id="k2-2">Android</h2>
+<h3>Requirements</h3>
+<ul>
+  <li>smartphone or tablet with Android 8.0 or later; a tablet of 10 inches or more is particularly pleasant for planning</li>
+  <li>about 100 MB of free storage</li>
+</ul>
+<h3>Installing</h3>
+<ol class="steps">
+  <li>Copy the file <b>TrackMasterPro-1.4.1.apk</b> to the device – via USB cable, cloud storage or as an e-mail attachment.</li>
+  <li>Tap the file on the device, for example in the <span class="ui">Files</span> app in the <span class="ui">Downloads</span> folder.</li>
+  <li>The first time, Android asks whether this app may <b>install unknown apps</b>. Tap <span class="ui">Settings</span>,
+      allow it and go back.</li>
+  <li>Confirm with <span class="ui">Install</span>. TrackMaster Pro then appears in the app overview.</li>
+</ol>
+<p>Install an update the same way over the existing app; your current plan is kept.</p>
+
+<h2 id="k2-3">New versions</h2>
+<p>At start-up the program briefly checks the download page for a new version and reports it in the
+status bar. Under <span class="ui">File › Updates…</span> you can check yourself at any time and open the download page with installer,
+app and manual if you wish. Nothing is ever installed automatically; without an internet connection the check is simply skipped.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k3"><span class="no">3</span>Licence and activation</h1>
+<p class="lead">The Pro edition is activated with a personal licence file. The file is digitally signed and
+cannot be altered; the program checks it at every start, without an internet connection.</p>
+
+<h2 id="k3-1">Installing the licence</h2>
+<ol class="steps">
+  <li>Save the licence file you received (extension <b>.lic</b>) on the computer, for example in the <i>Downloads</i> folder.</li>
+  <li>Open <span class="ui">File › Licence…</span> or <span class="ui">Home › Licence</span>.</li>
+  <li>Click <span class="ui">Install licence…</span> and select the file.</li>
+  <li>The dialog now shows <b>Pro</b>, the name of the licensee and, if applicable, the expiry date. The indicator at the bottom left
+      of the status bar changes from “Basic” to “Pro”.</li>
+</ol>
+<figure class="half"><img src="img-en/lizenz.png" alt=""><figcaption>The licence dialog shows the edition and what Basic and Pro contain.</figcaption></figure>
+<p>The licence is stored in the user data (<i>%APPDATA%\TrackMaster Pro\trackmaster.lic</i>) and applies from now on at every start.
+On Android you install the licence the same way via <span class="ui">File › Licence</span>; you choose the file from the device storage.</p>
+
+<h2 id="k3-2">Computer-bound licence</h2>
+<p>A licence can be bound to a particular computer or device. For this the publisher needs the
+<b>machine ID</b> (on Android: <b>device ID</b>). It is shown in the licence dialog; with <span class="ui">Copy</span>
+you put it on the clipboard and can paste it into an e-mail.</p>
+
+<h2 id="k3-3">When a Pro feature is chosen</h2>
+<p>In the Basic edition, a note appears when you save plans with more than 50 tracks, and for the parts list, timber list, printing and the exports. With
+<span class="ui">Licence…</span> you open the licence dialog directly. Your plan stays open unchanged.</p>
+<div class="warn"><b>Caution</b>In the Basic edition, plans with more than 50 tracks cannot be saved. When you close the program, start a
+new plan or open another one, TrackMaster Pro asks whether the changes should be discarded.</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k4"><span class="no">4</span>The workspace</h1>
+<figure><img src="img-en/start.png" alt=""><figcaption>The main window with the sample plan “Newtown station”.</figcaption></figure>
+<p>The main window is divided into five areas:</p>
+<table>
+  <tr><th style="width:26%">Area</th><th>Purpose</th></tr>
+  <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo and Redo.</td></tr>
+  <tr><td><b>Track library</b> (left)</td><td>Choose gauge and track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
+  <tr><td><b>Drawing area</b> (centre)</td><td>The track plan on the baseboard, with dimension chains, grid and the open track ends. The zoom can be set at the bottom right.</td></tr>
+  <tr><td><b>Properties</b> (right)</td><td>Shows what is currently selected: the plan with baseboard dimensions and overview, a track with position, height and digital address, or an object such as a building, signal or feeder. Values can be entered directly.</td></tr>
+  <tr><td><b>Status bar</b> (bottom)</td><td>Edition, gauge, number of tracks and turnouts, track length, open ends, zoom and mouse position in millimetres; plus the switches for snapping and grid.</td></tr>
+</table>
+
+<h2 id="k4-1">Moving the view</h2>
+<ul>
+  <li><b>Zoom:</b> mouse wheel, the keys <kbd>+</kbd> and <kbd>−</kbd> or the zoom bar at the bottom right.</li>
+  <li><b>Pan:</b> hold the right or middle mouse button and drag – or hold <kbd>Space</kbd> and drag with the left mouse button.
+    Alternatively use the tool <span class="ui">Home › Pan</span>.</li>
+  <li><b>Show the whole layout:</b> key <kbd>0</kbd> or <span class="ui">View › Whole layout</span>.</li>
+</ul>
+
+<h2 id="k4-2">Rotating the view freely</h2>
+<p>The track plan can be rotated on screen to any angle – for example so that the layout lies the way you will
+later stand in front of it. Only the view is rotated: tracks, dimensions, parts list and printout remain unchanged.</p>
+<ul>
+  <li><b>With the mouse:</b> hold <kbd>Ctrl</kbd> and turn the mouse wheel – in 5° steps, with <kbd>Shift</kbd> as well in 1° steps.</li>
+  <li><b>Via the ribbon:</b> <span class="ui">View › Rotate</span> with <span class="ui">15° left</span>, <span class="ui">15° right</span>
+    and <span class="ui">Rotate view…</span> for an exact angle.</li>
+  <li><b>Back:</b> while the view is rotated, a compass at the top right shows the plan's north direction and the angle.
+    A click on it – or <span class="ui">View › Straighten</span> – straightens the view again.</li>
+</ul>
+<p>The dimension chains at the baseboard rotate along; their labels always stay readable.</p>
+<figure class="half"><img src="img-en/gedreht.png" alt=""><figcaption>View rotated by 30° with the compass at the top right.</figcaption></figure>
+
+<h2 id="k4-3">Design and font</h2>
+<p>Under <span class="ui">View › Design and font</span> (also in the menu <span class="ui">File › Appearance…</span>) you choose the look of the program.
+The choice is saved and also applies at the next start. After <span class="ui">Apply</span> the window is briefly rebuilt; the open plan is kept.</p>
+<table>
+  <tr><th style="width:24%">Design</th><th>Appearance</th></tr>
+  <tr><td><b>Logo green</b></td><td>Default: green and anthracite from the logo, light workspace.</td></tr>
+  <tr><td><b>Classic blue</b></td><td>Blue accents, light workspace.</td></tr>
+  <tr><td><b>Blueprint</b></td><td>The plan as a technical drawing: white tracks on a blue background.</td></tr>
+  <tr><td><b>High contrast</b></td><td>Black tracks on a white baseboard – easy to read, even in bright light.</td></tr>
+  <tr><td><b>Workshop</b></td><td>Warm wood tones: baseboard like plywood, accents in copper.</td></tr>
+</table>
+<p>Seven <b>fonts</b> are available – from the standard font and a narrow technical font to a serif font
+and a typewriter font. The <b>font size</b> can be set in four steps (Small, Normal, Large, Very large);
+a preview in the dialog shows the effect immediately.</p>
+<figure class="half"><img src="img-en/darstellung.png" alt=""><figcaption>Appearance dialog with designs, font and font size.</figcaption></figure>
+<div class="cols">
+  <figure><img src="img-en/design-blaupause.png" alt=""><figcaption>Blueprint design.</figcaption></figure>
+  <figure><img src="img-en/design-werkstatt.png" alt=""><figcaption>Workshop design with a narrow font.</figcaption></figure>
+</div>
+
+<h2 id="k4-5">Language</h2>
+<p>The interface is available in German and English. At the first start it follows the system language. Under
+<span class="ui">File › Sprache / Language…</span> you switch it; on Windows the window then restarts and the open plan is kept,
+on Android the new language applies from the next start of the app. Plans do not depend on the language.</p>
+
+<h2 id="k4-4">View tab</h2>
+<p>In the <span class="ui">View</span> tab you switch on what the drawing area shows: <b>Grid</b>, <b>Track ends</b>,
+<b>Article numbers</b> on every track, <b>Heights</b> (top of rail at the track ends) and <b>Scenery</b>.
+There are also the groups <b>Rotate</b> and <b>Appearance</b> (see above) and <span class="ui">About</span> with version and edition.
+<span class="ui">Controls and keyboard shortcuts</span> (<kbd>F1</kbd>) shows all mouse and keyboard commands at a glance.</p>
+<figure><img src="img-en/ansicht.png" alt=""><figcaption>View tab.</figcaption></figure>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k5"><span class="no">5</span>Your first plan</h1>
+<p class="lead">A simple oval with a passing loop in a few steps – this is how you learn the most important moves.</p>
+
+<h2 id="k5-1">Creating a new plan</h2>
+<ol class="steps">
+  <li>Choose <span class="ui">File › New</span> (<kbd>Ctrl</kbd>+<kbd>N</kbd>).</li>
+  <li>Choose the <b>gauge</b>.</li>
+  <li>Choose the <b>shape of the baseboard</b> and enter the dimensions. The preview shows the shape immediately.</li>
+  <li>Confirm with <span class="ui">Create plan</span>.</li>
+  <li>Then enter the name of the plan in the properties under <span class="ui">Plan name</span>.</li>
+</ol>
+<figure class="half"><img src="img-en/neu.png" alt=""><figcaption>New plan: gauge, baseboard shape and dimensions.</figcaption></figure>
+<table>
+  <tr><th style="width:24%">Baseboard shape</th><th>Dimensions and particulars</th></tr>
+  <tr><td>Rectangle</td><td>width and depth</td></tr>
+  <tr><td>L shape</td><td>outer dimensions and leg depth, orientation in 90° steps</td></tr>
+  <tr><td>U shape</td><td>outer dimensions and leg depth; the two legs may have different lengths</td></tr>
+  <tr><td>T and Z shape</td><td>outer dimensions, leg depth and orientation</td></tr>
+  <tr><td>Ring</td><td>layout all round with an open centre, for example for an access hatch in the middle</td></tr>
+</table>
+<p>Shape and dimensions can be changed at any time later: click a free spot of the drawing area or choose
+<span class="ui">Scenery › Baseboard</span>; the properties then show the baseboard dimensions.</p>
+
+<h2 id="k5-2">Choosing a track system</h2>
+<p>In the track library, choose the track system you want to build with under <span class="ui">Manufacturer / track system</span>.
+The library then shows all track pieces of this system with article number and dimensions. You can also mix several systems in one plan.</p>
+
+<h2 id="k5-3">Attaching tracks</h2>
+<ol class="steps">
+  <li>Click a curved track in the library. It appears in the middle of the baseboard; its free end is
+      marked <b>orange</b> – this is the <b>active track end</b>.</li>
+  <li>Keep clicking curves. Each new track is attached to the active end until the semicircle is complete.</li>
+  <li>Add straights and the second semicircle. When the oval closes, TrackMaster Pro connects the ends automatically.</li>
+  <li>Click the orange end of another track to continue building there, or press <kbd>E</kbd> for the next open end.</li>
+  <li>Insert a turnout, run a parallel track and connect it again with a second turnout.</li>
+</ol>
+<div class="tip"><b>Tip</b>With <kbd>A</kbd> (switch connector) you lay the most recently placed track with its other connector –
+this quickly turns a right-hand turnout in the direction of travel into one that receives the track from the other side.</div>
+
+<h2 id="k5-4">Checking the plan</h2>
+<p>Click <span class="ui">Home › Collision check</span> (<kbd>F7</kbd>). The list shows overlaps, spacing that is too tight
+and open ends; a click on an entry shows the spot in the plan (chapter <a href="#k10">10</a>).</p>
+
+<h2 id="k5-5">Sample plan</h2>
+<p>Under <span class="ui">File › Load sample plan</span> the layout “Newtown station” opens, with scenery, wiring and signals.
+It is well suited for trying out all features.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k6"><span class="no">6</span>Laying and editing track</h1>
+<figure><img src="img-en/gleise.png" alt=""><figcaption>Tracks tab with a selected turnout; the properties show its dimensions, height and digital address.</figcaption></figure>
+
+<h2 id="k6-1">Track library</h2>
+<ul>
+  <li>Choose the <b>gauge</b> at the top (Z, N, TT, H0, 0, G and further gauges in the list).</li>
+  <li>Choose the <b>track system</b> in the drop-down list.</li>
+  <li><b>Search</b> by article number or name; <span class="ui">Tracks › Search track</span> jumps straight into the search field.</li>
+  <li><b>Filter</b> by All, Straight, Curves, Turnouts, Crossings and Other.</li>
+  <li><b>Clicking</b> attaches the track to the active end, <b>dragging</b> places it freely on the baseboard; near a free end it snaps on.</li>
+</ul>
+<p>The group <span class="ui">Tracks › Lay track</span> offers quick commands for <b>Straight</b>, <b>Curve</b>, <b>Left turnout</b>,
+<b>Right turnout</b>, <b>Buffer stop</b> and <b>Crossing</b> of the selected system.</p>
+<p>Where the catalogue of a track system contains <b>turntables and transfer tables</b>, they have a group of their own in the library.
+They are attached like tracks; every track exit is a track end of its own.</p>
+<div class="note pro"><b>Note on dimensions</b>The track geometry follows the catalogue data. A few track systems are stored with
+provisional dimensions and marked in the library; check these against the real product before building.</div>
+
+<h2 id="k6-2">Selecting and moving</h2>
+<ul>
+  <li><b>Click</b> on a track selects it, <kbd>Shift</kbd>+click adds more.</li>
+  <li><b>Dragging on a free area</b> draws a selection rectangle; <kbd>Ctrl</kbd>+<kbd>A</kbd> selects everything.</li>
+  <li><b>Dragging</b> moves the selection. If a free end comes close to another one, the whole group snaps on there.</li>
+  <li><b>Arrow keys</b> move by 1 mm, with <kbd>Shift</kbd> by 10 mm.</li>
+  <li>Snapping can be switched off in the status bar with <span class="ui">Snap</span>.</li>
+</ul>
+
+<h2 id="k6-3">Editing</h2>
+<table>
+  <tr><th style="width:30%">Command</th><th style="width:22%">Key</th><th>Effect</th></tr>
+  <tr><td>Rotate 15° left / right</td><td><kbd>Shift</kbd>+<kbd>R</kbd> / <kbd>R</kbd></td><td>rotates the selection about its centre</td></tr>
+  <tr><td>Free rotate…</td><td>–</td><td>rotates the selection by any angle (quick choice ±15°, ±45°, ±90°)</td></tr>
+  <tr><td>Mirror</td><td><kbd>F</kbd></td><td>curves, turnouts and crossings reversed</td></tr>
+  <tr><td>Switch connector</td><td><kbd>A</kbd></td><td>lays the track with the next connector at the same spot</td></tr>
+  <tr><td>Duplicate</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>copy of the selection</td></tr>
+  <tr><td>Copy / Paste</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>tracks including feeders, isolating joints and signals via the clipboard, also into another plan of the same gauge; pasted at the mouse position</td></tr>
+  <tr><td>Delete</td><td><kbd>Del</kbd></td><td>removes tracks or the selected object</td></tr>
+  <tr><td>Undo / Redo</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>any number of steps</td></tr>
+</table>
+<p>The position (X, Y in millimetres) and rotation of a track can also be entered exactly in the properties.</p>
+
+<h3>Labels and dimension lines</h3>
+<p>In the group <span class="ui">Home › Annotate</span> you place <b>text</b> (click the spot and enter the text) and <b>dimension lines</b>
+(click two points; track ends and baseboard corners snap on). The program calculates the length itself. Change text height, rotation and text in the properties;
+labels and dimensions also appear in the printout.</p>
+
+<h2 id="k6-4">Flexible track</h2>
+<p>Flexible track can be laid in three ways:</p>
+<h3>Draw flexible track</h3>
+<ol class="steps">
+  <li>Switch on <span class="ui">Tracks › Draw flexible track</span>.</li>
+  <li>Put the mouse on an open track end and drag. The flexible track leaves the track tangentially and bends along.</li>
+  <li>If you come close to another track end, it snaps on: the flexible track is then laid as a matching double curve
+      that joins both ends without a kink.</li>
+  <li>Release the mouse button. Length and smallest radius are shown while dragging.</li>
+</ol>
+<p><b>Reshaping:</b> with the tool switched on, grab a laid flexible track at one end and drag – the other end stays in place.</p>
+<h3>Close gap</h3>
+<p>Click a track end (active end), select the counterpart and click <span class="ui">Tracks › Close gap</span>.
+TrackMaster Pro connects both ends with a suitably bent flexible track.</p>
+<h3>Flexible track with dimensions</h3>
+<p>Via <span class="ui">Tracks › Flexible track…</span> or the entry “Flexible track…” in the library you create a straight piece of
+any length or a curve with any radius and angle.</p>
+<p>If a track system has flexible tracks of its own, they are listed individually in the library. The parts list counts flexible track in whole lengths
+of the respective size, with 5 % waste.</p>
+<div class="warn"><b>Caution</b>When dragging, watch the smallest radius shown. It should not be smaller than the smallest
+curve radius your vehicles can negotiate.</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k7"><span class="no">7</span>Heights, gradients and helixes</h1>
+
+<h2 id="k7-1">Height of a track</h2>
+<p>Every track has a <b>top-of-rail height</b> at its start and a <b>gradient</b> in percent. You enter both in the properties;
+TrackMaster Pro calculates the height at the other end. With <span class="ui">View › Heights</span> the heights at the track ends appear in the plan;
+higher sections are always drawn above lower ones.</p>
+
+<h2 id="k7-2">Gradient over a track sequence</h2>
+<ol class="steps">
+  <li>Select the tracks of the ramp (draw a rectangle or <kbd>Shift</kbd>+click).</li>
+  <li>Click <span class="ui">Tracks › Gradient…</span>.</li>
+  <li>Enter the <b>start height</b> and the <b>gradient in percent</b>; reverse the direction if needed.</li>
+</ol>
+<p>The gradient is applied evenly over all selected tracks. If two parallel track sequences are selected – such as the two tracks of a
+double-track ramp or helix – the inner, shorter track gets exactly the gradient entered; the outer one rises so that it arrives at the same height.</p>
+<table>
+  <tr><th style="width:30%">Gradient</th><th>Assessment</th></tr>
+  <tr><td>up to 2 %</td><td>close to the prototype, suitable for all trains</td></tr>
+  <tr><td>2 to 3 %</td><td>common on model railway layouts</td></tr>
+  <tr><td>over 3 %</td><td>the plan check warns; long trains need a second locomotive</td></tr>
+  <tr><td>over 5 %</td><td>the plan check reports an error</td></tr>
+</table>
+
+<h2 id="k7-3">Helix</h2>
+<p>A helix overcomes large differences in height on a small area. TrackMaster Pro builds it from curved tracks of the catalogue –
+<b>round</b> or <b>oval</b>, <b>single-track</b> or <b>double-track</b>.</p>
+<figure class="half"><img src="img-en/wendel.png" alt=""><figcaption>Helix dialog with gradient, total height and space required.</figcaption></figure>
+<ol class="steps">
+  <li>Click a free track end if the helix should connect there. Without an active end it is created in the middle of the view.</li>
+  <li>Choose <span class="ui">Tracks › Helix…</span>.</li>
+  <li>Choose the <b>shape</b>: <i>Round</i> or <i>Oval</i> – with the oval, straight tracks lie along the two long sides; choose the straight track and the number per side.</li>
+  <li>Choose <i>single-track</i> or <i>double-track</i>. With double track the second track lies outside: as a catalogue curve with a matching
+      radius or as flexible track with a freely chosen track spacing.</li>
+  <li>Choose the <b>curved track</b> for the inner track, the number of <b>turns</b>, the <b>height per turn</b> and the <b>direction</b>.</li>
+  <li>Below the fields, gradient, total height and space required are shown continuously. Click <span class="ui">Build helix</span>.</li>
+</ol>
+<p>The height per turn must at least reach the clearance height of the gauge, otherwise no train fits under the next turn; the dialog
+points this out. Turns lying on top of each other are not connected to each other.</p>
+
+<h2 id="k7-4">Helix timber list <span class="badge">PRO</span></h2>
+<p>After building, TrackMaster Pro shows the <b>timber list</b> – everything you need for the helix substructure, with finished cutting dimensions.
+It can be copied or saved as a CSV file for a spreadsheet.</p>
+<figure class="half"><img src="img-en/holzliste.png" alt=""><figcaption>Timber list of a double-track helix.</figcaption></figure>
+<table>
+  <tr><th style="width:28%">Part</th><th>Content</th></tr>
+  <tr><td>Track bed segments</td><td>ring segments of plywood with cutting dimensions (length × depth × thickness) and inner and outer radius. 4, 6, 8 or 12 segments per circle, so that none is longer than 1200 mm.</td></tr>
+  <tr><td>Straight track bed boards</td><td>with the oval, one board per long side and turn</td></tr>
+  <tr><td>Joint plates</td><td>under every joint, for gluing and screwing</td></tr>
+  <tr><td>Base plate</td><td>with a 50 mm margin all round – or stand the helix directly on the baseboard</td></tr>
+  <tr><td>Threaded rods, nuts, washers</td><td>one rod inside and outside per support point; nuts and large washers above and below each level, so that the height can be fine-tuned</td></tr>
+  <tr><td>Notes</td><td>track bed width, sheet requirement, gradient inside and outside, clear height and space required</td></tr>
+</table>
+<h3>Allowances</h3>
+<ul>
+  <li><b>Track bed:</b> about 2.7 times the track gauge per track; with double track plus the track spacing.</li>
+  <li><b>Edge allowance:</b> at least 25 mm per side (for large gauges 1.5 times the track gauge) – room for the threaded rod hole 12 mm from the edge and for a guard rail.</li>
+  <li><b>Saw allowance:</b> 5 mm, already included in every cutting dimension.</li>
+  <li><b>Wood thickness:</b> 8 mm for small gauges, 10 mm up to gauge 0, 15 mm for large gauges; base plate at least 12 mm.</li>
+  <li><b>Threaded rods:</b> M8, M10 for large gauges. The length results from total height, base plate and projection.</li>
+  <li><b>Sheet requirement:</b> calculated in sheets of 2500 × 1250 mm with 25 % waste. The segments can be nested when cutting.</li>
+</ul>
+<div class="tip"><b>Tip</b>Mark out the segments with a string compass from the centre of the helix and cut them with a jigsaw.
+Drill the holes for the threaded rods with a template so that all levels lie exactly on top of each other.</div>
+<div class="warn"><b>Caution</b>If the clear height under the track bed is tight, the list shows a warning. Then increase the height per turn or choose thinner wood.</div>
+
+<h2 id="k7-5">Tunnel</h2>
+<p>Select tracks and click <span class="ui">Tracks › Tunnel</span>. Tunnel tracks are drawn below the other tracks in the plan, get portals in 3D
+and count as permitted under terrain in the plan check.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k8"><span class="no">8</span>Scenery</h1>
+<figure><img src="img-en/gelaende.png" alt=""><figcaption>Scenery tab with hill, lake, buildings and trees.</figcaption></figure>
+<table>
+  <tr><th style="width:24%">Tool</th><th>How it works</th></tr>
+  <tr><td>Shape terrain</td><td>Clicks set the corner points of a height area (hill, mountain, plateau). <kbd>Enter</kbd> closes the area, <kbd>Esc</kbd> cancels. Enter the height in the properties.</td></tr>
+  <tr><td>Water</td><td>Draw a lake or river as a polygon, as with terrain; the depth is in the properties.</td></tr>
+  <tr><td>Building</td><td>Draw a rectangle; width, depth, height and rotation can then be entered exactly.</td></tr>
+  <tr><td>Vegetation</td><td>Each click places a tree; diameter and height are adjustable.</td></tr>
+</table>
+<p>Every object has a name and can be clicked, moved and deleted with <kbd>Del</kbd>. <span class="ui">Scenery › Show scenery</span>
+hides the scenery when you only want to see the tracks. The plan check reports tracks lying in buildings, in water or under terrain without a tunnel.</p>
+<h2 id="k8-1">How the terrain is shown</h2>
+<ul>
+  <li><b>Hills and mountains</b> rise from the edge of the area with a natural slope up to the height entered. In the track plan,
+    height bands and contour lines show how steep the terrain is, as on a hiking map; every fifth line is bolder.
+    The line spacing depends on the height (for example every 20 mm).</li>
+  <li><b>In the 3D view</b> gentle slopes are meadow, steeper ones earth and very steep ones rock. The meadow on the baseboard has several shades of green.</li>
+  <li><b>Water</b> has a shore strip. <b>Trees</b> are deciduous or conifers, shown with shadows in the track plan.</li>
+  <li>Buildings, trees and piers stand on the terrain – a tree on the hill therefore stands on top of the slope.</li>
+</ul>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k9"><span class="no">9</span>Wiring, signals and digital</h1>
+<figure><img src="img-en/elektrik.png" alt=""><figcaption>Wiring tab with feeders, isolating joints and signals.</figcaption></figure>
+
+<h2 id="k9-1">Feeders and isolating joints</h2>
+<ul>
+  <li><span class="ui">Wiring › Feeder</span>: a click on a track places a connection. In the properties you assign it to a circuit or booster.</li>
+  <li><span class="ui">Wiring › Isolating joint</span>: a click on a track joint places insulated rail joiners.</li>
+  <li><span class="ui">Wiring › Show circuits</span> colours every power section in a colour of its own.</li>
+  <li>A second click with the same tool on an existing feeder or signal removes it again; delete selected objects with <kbd>Del</kbd>.</li>
+</ul>
+
+<h2 id="k9-2">Checking the wiring</h2>
+<p><span class="ui">Wiring › Check wiring</span> shows sections without a feeder, reverse loops and addresses used twice.
+TrackMaster Pro detects <b>reverse loops</b> automatically in two-rail systems – there a reverse loop circuit with isolating joints is required.
+For centre-rail track systems this check is omitted, because reverse loops need no special circuit there.</p>
+
+<h2 id="k9-3">Signals</h2>
+<p>Under <span class="ui">Wiring › Place signal</span> you choose the type of signal and then click a track end. The signals are shown as
+light signals of the German H/V signal system with a prototypical signal head – in the plan, in the 3D view and in the selection.
+Each shows its stop aspect; dark lamps can be seen in their real positions.</p>
+<table>
+  <tr><th style="width:22%">Signal</th><th style="width:22%">Stop aspect</th><th>Signal head</th></tr>
+  <tr><td>Main signal</td><td>Hp 0 – stop</td><td>green at the top, red in the middle, yellow at the bottom (green + yellow = Hp 2, proceed slowly); red and white mast plate</td></tr>
+  <tr><td>Exit signal</td><td>Hp 00 – stop</td><td>two red lamps side by side, plus green, yellow and two white lamps for Sh 1 (shunting permitted)</td></tr>
+  <tr><td>Block signal</td><td>Hp 0 – stop</td><td>green at the top, red at the bottom</td></tr>
+  <tr><td>Distant signal</td><td>Vr 0 – expect stop</td><td>two yellow lamps rising to the right, two green (Vr 1), yellow + green (Vr 2)</td></tr>
+  <tr><td>Shunting signal</td><td>Sh 0 – stop, no movement</td><td>dwarf signal: two red lamps horizontally, two white rising to the right (Sh 1)</td></tr>
+</table>
+
+<h2 id="k9-4">Decoders and addresses</h2>
+<p><span class="ui">Wiring › Decoders</span> lists all turnouts and signals with their digital addresses. Addresses can be entered individually
+or assigned automatically; conflicts are marked. Turnouts with two motors (three-way turnout, double slip) use two addresses.</p>
+
+<h2 id="k9-5">Wiring plan</h2>
+<p><span class="ui">Wiring › Wiring plan</span> summarises the wiring: power sections with their feeders, all isolating joints and the
+decoder assignment. It can be saved as a text file in the Pro edition.</p>
+<figure class="half"><img src="img-en/kabelplan.png" alt=""><figcaption>Wiring plan.</figcaption></figure>
+
+<h2 id="k9-6">Routes</h2>
+<p><span class="ui">Wiring › Routes</span> finds all paths from one signal to the next signal in the direction of travel, to a buffer stop or to an
+open track end. Each route shows the turnouts with their position (straight, diverging, left or right), the length and the decoder addresses.
+Routes that need the same turnouts set differently are marked as a conflict.</p>
+
+<h2 id="k9-7">Export for control software <span class="badge">PRO</span></h2>
+<p><span class="ui">Wiring › Control export</span> saves turnouts, signals, addresses, power sections and routes as a JSON file.
+From the routes window they can also be saved as text or CSV. This lets you take your planning into a layout control program
+without typing addresses twice.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k10"><span class="no">10</span>Plan check</h1>
+<p><span class="ui">Home › Collision check</span> (<kbd>F7</kbd>) examines the whole plan and lists all findings as error, warning or note.
+A click on an entry selects the tracks concerned and shows the spot.</p>
+<figure class="half"><img src="img-en/pruefung.png" alt=""><figcaption>Result of the plan check.</figcaption></figure>
+<table>
+  <tr><th style="width:32%">Check</th><th>What is reported</th></tr>
+  <tr><td>Track spacing and overlap</td><td>tracks that touch or lie too close together; for crossings at different heights the clearance height of the gauge is taken into account</td></tr>
+  <tr><td>Baseboard edge</td><td>tracks that project over the edge of the baseboard or into an open centre</td></tr>
+  <tr><td>Gradient</td><td>warning from 3 %, error from 5 %</td></tr>
+  <tr><td>Scenery</td><td>tracks in buildings, in water or under terrain without a tunnel</td></tr>
+  <tr><td>Open track ends</td><td>ends without a connection and without a buffer stop</td></tr>
+  <tr><td>Radius for vehicles</td><td>curves that are too tight for the longest vehicle, with the overhang of the vehicle's centre and ends</td></tr>
+  <tr><td>Gradient in curve</td><td>warning if a curve climbs more steeply than 2 % – in a curve a train pulls noticeably harder</td></tr>
+  <tr><td>S-curve</td><td>reverse curves with a small radius and no straight in between, where long coaches can lock buffers</td></tr>
+</table>
+<p>For the three vehicle checks, enter the <b>longest vehicle</b> in millimetres in the plan properties (section <span class="ui">Plan check</span>, field <span class="ui">Longest vehicle (mm)</span>).
+Without an entry the program assumes a long passenger coach at the scale of the gauge.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k11"><span class="no">11</span>3D view</h1>
+<figure><img src="img-en/3d.png" alt=""><figcaption>The layout in 3D with terrain, buildings, trees and signals.</figcaption></figure>
+<ul>
+  <li><span class="ui">3D › 3D view</span>: dragging with the mouse rotates the layout, the mouse wheel zooms.</li>
+  <li><span class="ui">3D › Ride along</span>: you travel in the driver's cab over the tracks, starting at the selected track. You set the speed in prototype km/h.</li>
+  <li><span class="ui">3D › Time of day</span>: light from 5 am to 11 pm with the position of the sun, evening sky and lit windows.</li>
+  <li><span class="ui">Run train</span> in the 3D window: a train of a locomotive and three coaches runs over the layout. <span class="ui">Switch turnout</span> (<kbd>W</kbd>)
+    switches the next turnout ahead of the train; the status line names it.</li>
+</ul>
+<div class="cols">
+  <figure><img src="img-en/mitfahren.png" alt=""><figcaption>Cab ride.</figcaption></figure>
+  <figure><img src="img-en/abend.png" alt=""><figcaption>Evening light.</figcaption></figure>
+</div>
+<p>The 3D view shows ballast bed, wooden sleepers and rails with a polished railhead, piers under raised tracks, tunnels, terrain, water,
+buildings, trees and signals. During the cab ride the view at cab height points slightly downwards, so that track, sleepers and turnouts ahead of the train are clearly visible.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k12"><span class="no">12</span>Saving, parts list, printing and export</h1>
+<p class="lead">Saving small plans and opening work in both editions; the parts list, printing, the exports and saving large plans belong to the Pro edition.</p>
+
+<h2 id="k12-1">Saving and opening</h2>
+<p>In the Basic edition, plans with up to 50 tracks can be saved; the Pro edition saves larger plans.</p>
+<p><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span> store the plan as a file with the extension
+<b>.trackmaster.json</b>. Opening (<kbd>Ctrl</kbd>+<kbd>O</kbd>) is also possible in the Basic edition. Plan files are interchangeable between Windows and Android
+and do not depend on the interface language. A plan file can also be opened with “Open with” or as a start parameter:
+<code>TrackMasterPro.exe MyLayout.trackmaster.json</code>.</p>
+<p><b>Automatic backup:</b> while you work, the program regularly backs up the plan in the background. If it was not closed properly –
+for example after a power cut – it offers to restore the backed-up state at the next start. The backup does not replace saving.</p>
+
+<h2 id="k12-2">Parts list <span class="badge">PRO</span></h2>
+<p><span class="ui">Home › Parts list</span> counts all tracks by article number, with description and quantity, and adds the accessories: turnout motors,
+signals, feeders, insulated rail joiners and decoders. Flexible track is counted in whole lengths. With <span class="ui">Save as CSV</span>
+you take the list into a spreadsheet or your shopping list.</p>
+<figure class="half"><img src="img-en/stueckliste.png" alt=""><figcaption>Parts list with accessories.</figcaption></figure>
+
+<h2 id="k12-3">Printing <span class="badge">PRO</span></h2>
+<p><span class="ui">File › Print…</span> (<kbd>Ctrl</kbd>+<kbd>P</kbd>) offers two kinds:</p>
+<ul>
+  <li><b>Overview</b>: the plan with title, baseboard and summary, reduced to one page.</li>
+  <li><b>Building template 1:1</b>: the plan at full size on several pages. Neighbouring pages overlap by a glue strip; registration marks and the
+    page labels (A1, A2, B1 …) help when gluing them together. Lay the template on the baseboard and transfer the track layout.
+    Set the actual size (100 %) in the print dialog and measure the 100 mm test dimension on each page.</li>
+</ul>
+<p>Via the Windows print dialog you can also print to a PDF file.</p>
+
+<h2 id="k12-4">Export <span class="badge">PRO</span></h2>
+<ul>
+  <li><b>SVG at 1:1 scale</b> (<span class="ui">File › Export as SVG (1:1)…</span>): a vector graphic at full size, for example as a
+    template for a plotter or for printing on several pages.</li>
+  <li><b>Parts list as CSV</b> (<span class="ui">File › Parts list as CSV</span>).</li>
+  <li><b>Timber list as CSV</b> from the timber list window.</li>
+  <li><b>Wiring plan as a text file</b> from the wiring plan window.</li>
+  <li><b>Export for control software</b> (chapter <a href="#k9">9</a>).</li>
+</ul>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k13"><span class="no">13</span>The Android app</h1>
+<p class="lead">The app offers the same features as the Windows program, adapted to touch operation.</p>
+<p>At the top is the ribbon with the tabs <b>Home, Tracks, Scenery, Wiring, View, 3D</b> and <b>File</b>, at the bottom the track library as a bar.
+Properties, plan check, helix, signals and the 3D view open as separate windows. In the Basic edition, Pro features carry a padlock.
+Choose design, font and font size under <span class="ui">View › Design and font</span> – with the same designs as on Windows.
+Copy and paste, routes, the language (<span class="ui">File › Sprache / Language</span>) as well as the train and turnouts in the 3D view are available too.</p>
+<table>
+  <tr><th style="width:38%">Gesture</th><th>Effect</th></tr>
+  <tr><td>Tap a piece in the library</td><td>attach at the active track end</td></tr>
+  <tr><td>Tap</td><td>select; make a free track end active</td></tr>
+  <tr><td>Drag</td><td>pan the view; on a selected piece: move the piece</td></tr>
+  <tr><td>Two fingers</td><td>zoom and pan</td></tr>
+  <tr><td>Rotate with two fingers</td><td>rotate the view freely; tapping the compass straightens it again</td></tr>
+  <tr><td>Long press</td><td>add a piece to the selection; on a free area: selection rectangle</td></tr>
+  <tr><td>Double tap</td><td>properties; on a free area: show the whole plan</td></tr>
+</table>
+<p>The current plan is kept when you switch apps or lock the device. You save and open files via the Android file picker
+– in device storage or in cloud storage. This lets you start a plan on the tablet while on the move and continue on the PC.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k14"><span class="no">14</span>Keyboard shortcuts and mouse commands</h1>
+<div class="cols">
+<table class="keep">
+  <tr><th>Key</th><th>Function</th></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>New plan</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save (Basic up to 50 tracks)</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print <span class="badge">PRO</span></td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / Redo</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Copy / Paste</td></tr>
+  <tr><td><kbd>Del</kbd></td><td>Delete</td></tr>
+  <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Rotate 15° right / left</td></tr>
+  <tr><td><kbd>F</kbd></td><td>Mirror</td></tr>
+  <tr><td><kbd>A</kbd></td><td>Switch connector</td></tr>
+  <tr><td><kbd>E</kbd></td><td>Next open track end</td></tr>
+  <tr><td>Arrow keys</td><td>Move 1 mm (<kbd>Shift</kbd>: 10 mm)</td></tr>
+  <tr><td><kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></td><td>Zoom in / Zoom out / Whole layout</td></tr>
+  <tr><td><kbd>F7</kbd></td><td>Plan check</td></tr>
+  <tr><td><kbd>Enter</kbd> / <kbd>Esc</kbd></td><td>Close area / End tool</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>Show keyboard shortcuts</td></tr>
+  <tr><td><kbd>W</kbd> (3D window)</td><td>Switch the next turnout ahead of the train</td></tr>
+</table>
+<table class="keep">
+  <tr><th>Mouse</th><th>Function</th></tr>
+  <tr><td>Click on a track in the library</td><td>attach at the active track end</td></tr>
+  <tr><td>Drag a track from the library</td><td>place freely, snaps to nearby ends</td></tr>
+  <tr><td>Click on an orange end</td><td>select as the active track end</td></tr>
+  <tr><td>Drag a track</td><td>move (with snapping)</td></tr>
+  <tr><td><kbd>Shift</kbd>+click</td><td>add to the selection</td></tr>
+  <tr><td>Drag on a free area</td><td>selection rectangle</td></tr>
+  <tr><td>Right / middle mouse button</td><td>pan the view</td></tr>
+  <tr><td><kbd>Space</kbd> + drag</td><td>pan the view</td></tr>
+  <tr><td>Mouse wheel</td><td>zoom</td></tr>
+  <tr><td><kbd>Ctrl</kbd> + mouse wheel</td><td>rotate the view (5°, with <kbd>Shift</kbd> 1°)</td></tr>
+  <tr><td>Click on the compass</td><td>straighten the view</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k15"><span class="no">15</span>Questions and solutions</h1>
+<h3>A track does not snap on.</h3>
+<p>Check whether <span class="ui">Snap</span> is switched on in the status bar. Tracks only snap onto <b>free</b> ends; if the end is already connected,
+choose the next open end with <kbd>E</kbd>.</p>
+<h3>An oval does not quite close.</h3>
+<p>Small gaps occur when straights of different lengths are mixed. Close the gap with <span class="ui">Tracks › Close gap</span>
+or draw a flexible track.</p>
+<h3>A note about the Pro edition appears when saving.</h3>
+<p>The Basic edition saves plans with up to 50 tracks. The Pro edition saves larger plans. Install your licence under <span class="ui">File › Licence</span> (chapter <a href="#k3">3</a>).</p>
+<h3>The licence is reported as invalid.</h3>
+<p>The file must not be changed – not even by opening and saving it in a text editor. If the licence is bound to a computer,
+it applies only there; if an expiry date is entered, only until that day. Contact the publisher with your machine ID.</p>
+<h3>Windows reports “Windows protected your PC” during installation.</h3>
+<p>Click <span class="ui">More info</span> and <span class="ui">Run anyway</span>. The message appears for programs that Windows has not yet seen often.</p>
+<h3>Android does not install the app.</h3>
+<p>Allow the app you use to open the file (for example “Files” or the browser) to install unknown apps. If an
+older version with a different signature was already installed, uninstall it first.</p>
+<h3>The 3D view stays black or stutters.</h3>
+<p>Update the graphics driver. For very large layouts it helps to place trees and buildings sparingly at first.</p>
+<h3>The interface appears in the wrong language.</h3>
+<p>Choose <span class="ui">File › Sprache / Language…</span> and select the language. The menu item is labelled in both languages so it can always be found.</p>
+<h3>Where is my data?</h3>
+<p>Plans are where you saved them. Licence, settings and the automatic backup are in <i>%APPDATA%\TrackMaster Pro</i>.
+The program sends no data to third parties; at start-up it only fetches the current version number from the download page.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k16"><span class="no">16</span>Glossary</h1>
+<table>
+  <tr><th style="width:28%">Term</th><th>Meaning</th></tr>
+  <tr><td>Active track end</td><td>The free end marked in orange, where the next track is attached.</td></tr>
+  <tr><td>Connector</td><td>One end of a track piece; a turnout has three, a crossing four connectors.</td></tr>
+  <tr><td>Clearance height</td><td>Minimum height between two tracks lying on top of each other so that vehicles fit underneath; depends on the gauge.</td></tr>
+  <tr><td>Feeder</td><td>Power connection of a track section to a transformer, command station or booster.</td></tr>
+  <tr><td>Flexible track</td><td>Track supplied in lengths that can be bent to any radius and cut to length.</td></tr>
+  <tr><td>Helix</td><td>Spiral climbing line for overcoming large differences in height on a small area.</td></tr>
+  <tr><td>Stop aspect</td><td>Signal indication that means “stop” (Hp 0, Hp 00, Vr 0, Sh 0).</td></tr>
+  <tr><td>Reverse loop</td><td>Track arrangement in which a train returns to the line in the opposite direction; in two-rail systems this creates a short circuit that needs a special circuit.</td></tr>
+  <tr><td>Clear height</td><td>Free space between the top of rail and the underside of the track bed above.</td></tr>
+  <tr><td>Edge allowance</td><td>Addition to the track bed width for fixing and a guard rail.</td></tr>
+  <tr><td>Saw allowance</td><td>Addition to the cutting dimension for the saw cut and finishing.</td></tr>
+  <tr><td>Isolating joint</td><td>Insulated rail joint that separates two power sections.</td></tr>
+  <tr><td>Route</td><td>Path from one signal to the next with the turnout positions required.</td></tr>
+  <tr><td>Top of rail</td><td>Reference height of all height values in the plan.</td></tr>
+</table>
+<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.4 · User manual, as of October 2026. Subject to change.
+All dimensions without guarantee; check the dimensions against the real product before cutting and buying.</p>
+</section>
+
+<script>
+  // Table of contents from the headings; build.js fills in the page numbers (window.PAGES)
+  const toc = document.getElementById('toc');
+  const pages = window.PAGES || {};
+  let current = null;
+  document.querySelectorAll('section:not(.cover):not(.toc) h1[id], section:not(.cover):not(.toc) h2[id]').forEach(h => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = '#' + h.id;
+    const no = h.querySelector('.no');
+    const text = [...h.childNodes].filter(n => !(n.classList && (n.classList.contains('no') || n.classList.contains('badge')))).map(n => n.textContent).join('').trim();
+    a.innerHTML = (h.tagName === 'H1' ? `<span class="no">${no ? no.textContent : ''}</span>` : '') +
+      `<span class="t"></span><span class="dots"></span><span class="pg">${pages[h.id] || ''}</span>`;
+    a.querySelector('.t').textContent = text;
+    li.appendChild(a);
+    if (h.tagName === 'H1') { toc.appendChild(li); current = document.createElement('ol'); li.appendChild(current); }
+    else current.appendChild(li);
+  });
+</script>
+</body>
+</html>

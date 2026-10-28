@@ -126,7 +126,7 @@ public sealed class LibraryPanel : LinearLayout
             foreach (var stock in stocks)
             {
                 var sample = Catalog.Get(Catalog.FlexCurveKey(gauge.Id, Math.Round(gauge.TrackWidth * 30), 30, stock.SystemId));
-                var flex = new PieceTile(Context!, sample, stocks.Count > 1 ? $"Flexgleis {stock.Number}…" : Lang.T("Flexgleis…"), $"{(stock.Number == Lang.T("Flexgleis") ? Lang.T("allgemein") : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
+                var flex = new PieceTile(Context!, sample, stocks.Count > 1 ? Lang.F($"Flexgleis {stock.Number}…") : Lang.T("Flexgleis…"), $"{(stock.Number == Lang.T("Flexgleis") ? Lang.T("allgemein") : stock.Number)} · {Fmt.Num(stock.Length, 0)} mm");
                 flex.Click += (_, _) =>
                 {
                     // Dieses Flexgleis gilt ab jetzt auch für „Flexgleis ziehen“ und „Lücke schließen“

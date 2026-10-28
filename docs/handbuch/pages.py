@@ -3,8 +3,8 @@ from pypdf import PdfReader
 r = PdfReader(sys.argv[1]); ids = json.loads(sys.argv[2])
 norm = lambda s: re.sub(r'[\W_]+', '', s).lower()
 texts = [norm(p.extract_text() or '') for p in r.pages]
-# Inhaltsverzeichnis überspringen: der Textteil beginnt mit dem Einleitungssatz von Kapitel 1
-start = next(i for i, t in enumerate(texts) if norm('ist ein Planungsprogramm für Modellbahnanlagen') in t)
+# Inhaltsverzeichnis überspringen: der Textteil beginnt mit dem Einleitungssatz von Kapitel 1 (<meta name="pdf-start">)
+start = next(i for i, t in enumerate(texts) if norm(sys.argv[3]) in t)
 res = {}
 for hid, title in ids:
     t = norm(title)

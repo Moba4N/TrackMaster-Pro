@@ -53,7 +53,7 @@ public sealed class View3DWindow : Window
     {
         _plan = plan;
         _startPiece = startPiece;
-        Title = $"3D-Ansicht – {plan.Name}";
+        Title = Lang.F($"3D-Ansicht – {plan.Name}");
         Width = 1280; Height = 800; MinWidth = 640; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FontFamily = Theme.Font;

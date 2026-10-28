@@ -101,7 +101,7 @@ public static class Program
             if (ArgumentAfter(args, "--tab") is { } tab)
                 window.Loaded += (_, _) =>
                 {
-                    if (window.Ribbon.Items.OfType<RibbonTab>().FirstOrDefault(t => Equals(t.Header, tab)) is { } ribbonTab)
+                    if (window.Ribbon.Items.OfType<RibbonTab>().FirstOrDefault(t => Equals(t.Header, tab) || Equals(t.Header, Core.Lang.T(tab))) is { } ribbonTab)
                         window.Ribbon.SelectedItem = ribbonTab;
                 };
             if (args.Contains("--select"))

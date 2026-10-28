@@ -109,7 +109,7 @@ public static partial class Dialogs
         (Lang.T("Ziehen auf freier Fläche"), Lang.T("Rahmen zum Auswählen")),
         (Lang.T("Rechte/mittlere Maustaste, Leertaste"), Lang.T("Ansicht verschieben")),
         (Lang.T("Mausrad"), Lang.T("zoomen")),
-        (Lang.T("R / Umschalt+R"), "um 15° drehen"),
+        (Lang.T("R / Umschalt+R"), Lang.T("um 15° drehen")),
         ("F", Lang.T("spiegeln")),
         ("A", Lang.T("Anschluss wechseln")),
         ("E", Lang.T("nächstes offenes Gleisende")),

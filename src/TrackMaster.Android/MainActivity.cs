@@ -223,7 +223,7 @@ public sealed class MainActivity : Activity
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
-        Add("view3d", "3D-Ansicht", () => Open3D(View3DMode.Orbit));
+        Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
         Add("ride", Lang.T("Mitfahren"), () => Open3D(View3DMode.Ride));
         Add("daytime", Lang.T("Tageszeit"), () => Open3D(View3DMode.Evening));
         Pro("csv", Lang.T("Export als CSV"), () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Stückliste.csv")));
@@ -340,9 +340,9 @@ public sealed class MainActivity : Activity
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
-                     (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), ("Ansicht ↺ 15°", "viewRotL", false), ("Ansicht ↻ 15°", "viewRotR", false),
+                     (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), (Lang.T("Ansicht ↺ 15°"), "viewRotL", false), (Lang.T("Ansicht ↻ 15°"), "viewRotR", false),
                      (Lang.T("Gerade ausrichten"), "viewReset", false), (Lang.T("Ansicht drehen…"), "viewAngle", false), (Lang.T("Design und Schrift…"), "appearance", false)]),
-        ("3D", [("3D-Ansicht", "view3d", false), (Lang.T("Mitfahren"), "ride", false), (Lang.T("Abendstimmung"), "daytime", false)]),
+        ("3D", [(Lang.T("3D-Ansicht"), "view3d", false), (Lang.T("Mitfahren"), "ride", false), (Lang.T("Abendstimmung"), "daytime", false)]),
         (Lang.T("Datei"), [(Lang.T("Neu…"), "new", false), (Lang.T("Öffnen…"), "open", false), (Lang.T("Speichern…"), "save", false), (Lang.T("Beispielanlage"), "sample", false),
                    (Lang.T("Stückliste als CSV"), "csv", false), (Lang.T("Plan als SVG"), "svg", false), (Lang.T("Drucken (PDF, auch 1:1)…"), "pdf", false), (Lang.T("Lizenz…"), "license", false), (Lang.T("Darstellung…"), "appearance", false), ("Sprache / Language", "language", false), (Lang.T("Bedienung"), "help", false), (Lang.T("Updates…"), "update", false), (Lang.T("Über…"), "about", false)]),
     ];
@@ -670,7 +670,7 @@ public sealed class MainActivity : Activity
         var text = Electrics.WiringPlan(_session.Plan);
         Dialogs.ShowText(this, Lang.T("Kabelplan"), text, Lang.T("Als Text speichern"), () =>
         {
-            if (_session.RequirePro(Lang.T("Kabelplan"))) Export(text, "text/plain", $"{SafeName} – Kabelplan.txt");
+            if (_session.RequirePro(Lang.T("Kabelplan"))) Export(text, "text/plain", Lang.F($"{SafeName} – Kabelplan.txt"));
         });
     }
 

@@ -134,6 +134,30 @@ jobs:
           Hb "darstellung" @("--dialog", "appearance")
           Hb "ueber" @("--dialog", "about")
           Hb "frei-drehen" @("--select", "--dialog", "rotFree")
+          # Dieselben Bilder mit englischer Oberfläche für das englische Handbuch
+          New-Item -ItemType Directory -Force artifacts/handbuch-en | Out-Null
+          function HbEn($name, [string[]]$more) {
+            try { Shot $app "handbuch-en/$name" (@("--neutral", "--english") + $more) } catch { Write-Warning "Handbuchbild en ${name}: $_" }
+          }
+          HbEn "start" @()
+          HbEn "gleise" @("--tab", "Gleise", "--select")
+          HbEn "gelaende" @("--tab", "Gelände")
+          HbEn "elektrik" @("--tab", "Elektrik")
+          HbEn "ansicht" @("--tab", "Ansicht")
+          HbEn "3d" @("--3d", "orbit")
+          HbEn "mitfahren" @("--3d", "ride")
+          HbEn "abend" @("--3d", "evening")
+          HbEn "neu" @("--dialog", "new")
+          HbEn "wendel" @("--dialog", "helix")
+          HbEn "pruefung" @("--dialog", "check")
+          HbEn "kabelplan" @("--dialog", "wiring")
+          HbEn "lizenz" @("--dialog", "license")
+          HbEn "stueckliste" @("--pro", "--dialog", "bom")
+          HbEn "holzliste" @("--pro", "--dialog", "holzliste")
+          HbEn "gedreht" @("--rotate", "30")
+          HbEn "design-blaupause" @("--design", "blaupause")
+          HbEn "design-werkstatt" @("--design", "werkstatt", "--font", "bahnschrift")
+          HbEn "darstellung" @("--dialog", "appearance")
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh
@@ -178,6 +202,7 @@ jobs:
             artifacts/*.png
             artifacts/*.error.txt
             artifacts/handbuch
+            artifacts/handbuch-en
           if-no-files-found: ignore
 
   android:
@@ -334,6 +359,7 @@ jobs:
           v=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
           tag="v$v"
           if [ -f docs/TrackMaster-Pro-Handbuch.pdf ]; then cp docs/TrackMaster-Pro-Handbuch.pdf out/; fi
+          if [ -f docs/TrackMaster-Pro-Manual.pdf ]; then cp docs/TrackMaster-Pro-Manual.pdf out/; fi
           mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
           # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
           # "url" ist die Release-Seite dieser Version mit MSI, APK und Handbuch

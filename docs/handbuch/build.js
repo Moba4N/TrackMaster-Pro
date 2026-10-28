@@ -1,12 +1,15 @@
-// Handbuch als PDF: erst ohne Seitenzahlen rendern, Seiten der Überschriften ermitteln, dann mit Inhaltsverzeichnis neu rendern
+// Handbuch als PDF: erst ohne Seitenzahlen rendern, Seiten der Überschriften ermitteln, dann mit Inhaltsverzeichnis neu rendern.
+// Aufruf: node build.js Ausgabe.pdf [handbuch.html | manual.html]; die Fußzeile steht im <meta name="pdf-footer"> der Quelle.
 const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const html = 'file://' + path.resolve(__dirname, 'handbuch.html');
+const source = path.resolve(__dirname, process.argv[3] || 'handbuch.html');
+const html = 'file://' + source;
 const out = process.argv[2] || path.resolve(__dirname, 'Handbuch.pdf');
+const meta = name => (fs.readFileSync(source, 'utf8').match(new RegExp(`<meta name="${name}" content="([^"]*)"`)) || [])[1];
 const footer = `<div style="width:100%;font-family:'Segoe UI','Noto Sans','DejaVu Sans',sans-serif;font-size:7.5pt;color:#5B6470;padding:0 20mm;display:flex;justify-content:space-between">
-  <span>TrackMaster Pro 1.4.1 · Handbuch</span><span><span class="pageNumber"></span></span></div>`;
+  <span>${meta('pdf-footer')}</span><span><span class="pageNumber"></span></span></div>`;
 async function render(page, pages, file) {
   await page.addInitScript(p => { window.PAGES = p; }, pages);
   await page.goto(html, { waitUntil: 'networkidle' });
@@ -24,7 +27,7 @@ async function render(page, pages, file) {
     const tmp = out + '.tmp.pdf';
     await render(p2, pages, tmp);
     await p2.close();
-    const found = JSON.parse(execFileSync('python3', ['-I', path.resolve(__dirname, 'pages.py'), tmp, JSON.stringify(ids)]).toString());
+    const found = JSON.parse(execFileSync('python3', ['-I', path.resolve(__dirname, 'pages.py'), tmp, JSON.stringify(ids), meta('pdf-start')]).toString());
     const same = JSON.stringify(found) === JSON.stringify(pages);
     pages = found;
     if (same) { fs.renameSync(tmp, out); break; }

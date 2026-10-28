@@ -567,7 +567,7 @@ public sealed class MainWindow : Window
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));
 
         Ribbon.Items.Add(Tab(Lang.T("Ansicht"),
-            Group(Lang.T("Zoom"), Large(Lang.T("Ganze Anlage"), "Fit", "fit", "Taste 0"), Small(Lang.T("Vergrößern"), "ZoomIn", "zoomIn", "+"), Small(Lang.T("Verkleinern"), "ZoomOut", "zoomOut", "-")),
+            Group(Lang.T("Zoom"), Large(Lang.T("Ganze Anlage"), "Fit", "fit", Lang.T("Taste 0")), Small(Lang.T("Vergrößern"), "ZoomIn", "zoomIn", "+"), Small(Lang.T("Verkleinern"), "ZoomOut", "zoomOut", "-")),
             Group(Lang.T("Anzeigen"),
                 Toggle(Lang.T("Raster"), "Grid", false, () => Session.ShowGrid, on => { Session.ShowGrid = on; Canvas.InvalidateVisual(); }),
                 Toggle(Lang.T("Gleisenden"), "Connector", false, () => Session.ShowEnds, on => { Session.ShowEnds = on; Canvas.InvalidateVisual(); }),
@@ -576,14 +576,14 @@ public sealed class MainWindow : Window
                 Toggle(Lang.T("Gelände"), "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); })),
             Group(Lang.T("Drehen"),
                 Large(Lang.T("Ansicht drehen…"), "ViewRotate", "viewAngle", Lang.T("Die Ansicht frei drehen – der Plan bleibt unverändert. Auch mit Strg + Mausrad.")),
-                Small("15° links", "RotateLeft", "viewRotL", Lang.T("Ansicht 15° gegen den Uhrzeigersinn drehen.")),
-                Small("15° rechts", "RotateRight", "viewRotR", Lang.T("Ansicht 15° im Uhrzeigersinn drehen.")),
+                Small(Lang.T("15° links"), "RotateLeft", "viewRotL", Lang.T("Ansicht 15° gegen den Uhrzeigersinn drehen.")),
+                Small(Lang.T("15° rechts"), "RotateRight", "viewRotR", Lang.T("Ansicht 15° im Uhrzeigersinn drehen.")),
                 Small(Lang.T("Gerade ausrichten"), "North", "viewReset", Lang.T("Ansicht wieder auf 0° stellen (oder auf den Kompass klicken)."))),
             Group(Lang.T("Darstellung"), Large(Lang.T("Design und Schrift"), "Palette", "appearance", Lang.T("Farbschema, Schriftart und Schriftgröße wählen."))),
             Group(Lang.T("Hilfe"), Large(Lang.T("Tasten­kürzel"), "Help", "help", Lang.T("Alle Maus- und Tastaturbefehle (F1).")), Large(Lang.T("Über"), "Info", "about", Lang.T("Logo, Version und Ausbaustufe.")))));
 
         Ribbon.Items.Add(Tab("3D",
-            Group("3D", Large("3D-Ansicht", "Cube", "view3d", Lang.T("Die Anlage räumlich ansehen: ziehen dreht, Mausrad zoomt.")),
+            Group("3D", Large(Lang.T("3D-Ansicht"), "Cube", "view3d", Lang.T("Die Anlage räumlich ansehen: ziehen dreht, Mausrad zoomt.")),
                 Large(Lang.T("Mitfahren"), "Train", "ride", Lang.T("Im Führerstand über die Gleise fahren, ab dem gewählten Gleis.")),
                 Large(Lang.T("Tageszeit"), "Sun", "daytime", Lang.T("3D-Ansicht mit Licht nach Uhrzeit, vom Morgen bis zur Nacht.")))));
     }
@@ -726,7 +726,7 @@ public sealed class MainWindow : Window
         _statusLeft.Children.Clear();
         foreach (var text in new[]
                  {
-                     $"Spur {g.Id} · {g.Scale}", Lang.F($"Gleise: {s.Pieces}"), Lang.F($"Weichen: {s.Switches}"),
+                     Lang.F($"Spur {g.Id} · {g.Scale}"), Lang.F($"Gleise: {s.Pieces}"), Lang.F($"Weichen: {s.Switches}"),
                      Lang.F($"Gleislänge: {Fmt.Num(s.TrackLengthMm / 1000, 2)} m"), Lang.F($"Offene Enden: {s.OpenEnds}"), $"Zoom {Fmt.Num(Canvas.Zoom * 100, 0)} %",
                  })
             _statusLeft.Children.Add(new TextBlock { Text = text, Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.TextSecondaryBrush });
@@ -747,7 +747,7 @@ public sealed class MainWindow : Window
         var file = Session.FilePath is { } path ? Path.GetFileName(path) : plan.Name;
         _title.Text = Lang.F($"{file}{(Session.Dirty ? " *" : "")} – TrackMaster Pro{(License.IsPro ? "" : Lang.T(" Basis"))}");
         Title = _title.Text;
-        _docTab.Text = $"{plan.Name} · Spur {plan.GaugeId}";
+        _docTab.Text = Lang.F($"{plan.Name} · Spur {plan.GaugeId}");
         _hint.Text = Session.Tool is not (CanvasTool.Select or CanvasTool.Pan)
             ? ToolHint(Session.Tool)
             : plan.Pieces.Count == 0
@@ -962,7 +962,7 @@ public sealed class MainWindow : Window
     /// <summary>Öffnet für Bildschirmfotos (Handbuch) einen Dialog: helix, holzliste, bom, license, check, new, wiring.</summary>
     public void OpenForScreenshot(string name)
     {
-        if (name == "druckart") { Dialogs.AskPrintMode(this, 60, "Seiten 200 × 287 mm"); return; }
+        if (name == "druckart") { Dialogs.AskPrintMode(this, 60, Lang.T("Seiten 200 × 287 mm")); return; }
         if (name == "bauvorlage") { ShowTilePreview(); return; }
         if (name != "holzliste") { Run(name == "helix" ? "helix" : name); return; }
         var curves = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).OrderBy(p => p.Radius).ToList();
@@ -1017,7 +1017,7 @@ public sealed class MainWindow : Window
     {
         var text = Electrics.WiringPlan(Session.Plan);
         Dialogs.ShowText(this, Lang.T("Kabelplan"), text, Lang.T("Als Textdatei speichern…"),
-            () => { if (Session.RequirePro(Lang.T("Kabelplan speichern"))) ExportTo(Lang.T("Kabelplan speichern"), Lang.T("Textdatei (*.txt)|*.txt"), $"{SafeName} – Kabelplan.txt", text); });
+            () => { if (Session.RequirePro(Lang.T("Kabelplan speichern"))) ExportTo(Lang.T("Kabelplan speichern"), Lang.T("Textdatei (*.txt)|*.txt"), Lang.F($"{SafeName} – Kabelplan.txt"), text); });
     }
 
     private void ShowRoutes()
@@ -1041,7 +1041,7 @@ public sealed class MainWindow : Window
         const double mm = 96 / 25.4, overlap = 10;
         double pageW = dlg.PrintableAreaWidth, pageH = dlg.PrintableAreaHeight;
         var tiles = PrintTiles.Layout(Session.Plan.Bounds(), pageW / mm - 10, pageH / mm - 24, overlap);
-        var paper = $"Seiten {Fmt.Num(pageW / mm, 0)} × {Fmt.Num(pageH / mm, 0)} mm";
+        var paper = Lang.F($"Seiten {Fmt.Num(pageW / mm, 0)} × {Fmt.Num(pageH / mm, 0)} mm");
         if (Dialogs.AskPrintMode(this, tiles.Count, paper) is not { } full) return;
         if (full)
             dlg.PrintDocument(new TilePaginator(Session.Plan, tiles, new Size(pageW, pageH), License.IsPro, overlap), Lang.F($"TrackMaster Pro – {Session.Plan.Name} (Bauvorlage 1:1)"));

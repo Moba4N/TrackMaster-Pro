@@ -10,4 +10,15 @@ git archive FETCH_HEAD windows/handbuch | tar -x && mkdir -p img && cp windows/h
 node build.js ../TrackMaster-Pro-Handbuch.pdf     # braucht Playwright mit Chromium und Python mit pypdf
 ```
 
+Das englische Handbuch `manual.html` (PDF `docs/TrackMaster-Pro-Manual.pdf`) nutzt dieselbe Gestaltung und die Bilder mit
+englischer Oberfläche aus `windows/handbuch-en` im Ordner `img-en/`:
+
+```
+mkdir -p img-en && cp windows/handbuch-en/*.png img-en/
+node build.js ../TrackMaster-Pro-Manual.pdf manual.html
+```
+
+Fußzeile und Startsatz für die Seitenzählung stehen jeweils in den `<meta>`-Angaben `pdf-footer` und `pdf-start` der Quelle.
+Beide Fassungen bitte gemeinsam ändern.
+
 Das Handbuch nennt keine Hersteller- oder Fremdproduktnamen.

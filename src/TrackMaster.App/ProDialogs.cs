@@ -104,7 +104,7 @@ public static partial class Dialogs
         body.Children.Add(Hint(Lang.F($"Die Steigung wird gleichmäßig über die {pieces} gewählten Gleise gelegt, vom einen Ende der Gleisfolge zum anderen. ") +
                                Lang.T("Empfohlen: höchstens 2,5–3 %, in Bögen weniger. Negative Werte ergeben ein Gefälle.")));
         body.Children.Add(Theme.Field(Lang.T("Höhe am Anfang (mm über Platte)"), start));
-        body.Children.Add(Theme.Field("Steigung (%)", percent));
+        body.Children.Add(Theme.Field(Lang.T("Steigung (%)"), percent));
         body.Children.Add(reverse);
         body.Children.Add(error);
         var ok = Theme.Button(Lang.T("Steigung anlegen"), "Slope", accent: true);
@@ -337,7 +337,7 @@ public static partial class Dialogs
         var angle = NumberBox(30);
         var lengthField = Theme.Field(Lang.T("Länge (mm)"), length);
         var radiusField = Theme.Field("Radius (mm)", radius);
-        var angleField = Theme.Field("Winkel (°)", angle);
+        var angleField = Theme.Field(Lang.T("Winkel (°)"), angle);
         void Sync()
         {
             lengthField.Visibility = straight.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;

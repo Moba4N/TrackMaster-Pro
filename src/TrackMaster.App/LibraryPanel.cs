@@ -155,7 +155,7 @@ public sealed class LibraryPanel : DockPanel
                 Content = g.Id, IsChecked = on, Height = 30, Margin = new Thickness(0, 0, 4, 0), FontWeight = FontWeights.SemiBold,
                 Background = on ? Theme.AccentBrush : Brushes.White, Foreground = on ? Brushes.White : Theme.TextBrush,
                 BorderBrush = on ? Theme.AccentBrush : Theme.ControlBorderBrush, BorderThickness = new Thickness(1),
-                Template = Theme.RoundedTemplate(), ToolTip = $"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm",
+                Template = Theme.RoundedTemplate(), ToolTip = Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm"),
             };
             var id = g.Id;
             b.Click += (_, _) => { if (!_session.SetGauge(id)) b.IsChecked = false; };
@@ -219,7 +219,7 @@ public sealed class LibraryPanel : DockPanel
                 Child = new System.Windows.Controls.Image { Source = TrackDrawing.Thumbnail(sample), Stretch = Stretch.Uniform, Margin = new Thickness(4) },
             });
             var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            texts.Children.Add(Theme.Label(flexes.Count > 1 ? $"Flexgleis {stock.Number}…" : Lang.T("Flexgleis…"), 12, true));
+            texts.Children.Add(Theme.Label(flexes.Count > 1 ? Lang.F($"Flexgleis {stock.Number}…") : Lang.T("Flexgleis…"), 12, true));
             texts.Children.Add(Theme.Secondary(Lang.F($"{(stock.Number == Lang.T("Flexgleis") ? Lang.T("allgemein") : stock.Number)} · Stück {Fmt.Num(stock.Length, 0)} mm")));
             row.Children.Add(texts);
             _items.Items.Add(new ListBoxItem

@@ -19,7 +19,7 @@ public enum View3DMode { Orbit, Ride, Evening }
 /// 3D-Ansicht mit OpenGL ES: Rundumsicht (ein Finger dreht, zwei Finger zoomen und verschieben),
 /// Mitfahren im Führerstand und Licht nach Tageszeit. Modell, Licht und Fahrweg kommen aus dem gemeinsamen Kern.
 /// </summary>
-[Activity(Name = "de.moba4n.trackmaster.View3DActivity", Label = "3D-Ansicht", Theme = "@android:style/Theme.Material.NoActionBar",
+[Activity(Name = "de.moba4n.trackmaster.View3DActivity", Label = "3D", Theme = "@android:style/Theme.Material.NoActionBar",
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.KeyboardHidden)]
 public sealed class View3DActivity : Activity
 {

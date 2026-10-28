@@ -7,14 +7,14 @@ namespace TrackMaster.App;
 
 public static partial class Dialogs
 {
-    private static readonly string[] Turns = [Lang.T("Grundstellung"), "90° gedreht", "180° gedreht", "270° gedreht"];
+    private static readonly string[] Turns = [Lang.T("Grundstellung"), Lang.T("90° gedreht"), Lang.T("180° gedreht"), Lang.T("270° gedreht")];
 
     /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring), Maße und Ausrichtung.</summary>
     public static BoardSetup? AskNewPlan(Window owner, string currentGauge)
     {
         var gauges = Catalog.Gauges.ToList();
         var gaugeBox = new ComboBox { Height = 28 };
-        foreach (var g in gauges) gaugeBox.Items.Add($"Spur {g.Id} ({g.Scale})");
+        foreach (var g in gauges) gaugeBox.Items.Add(Lang.F($"Spur {g.Id} ({g.Scale})"));
         gaugeBox.SelectedIndex = Math.Max(0, gauges.FindIndex(g => g.Id == currentGauge));
         var shapeBox = new ComboBox { Height = 28 };
         foreach (var s in BoardGeometry.All) shapeBox.Items.Add(BoardGeometry.Name(s));
@@ -29,7 +29,7 @@ public static partial class Dialogs
         // Schenkellängen der U-Form: leer = volle Länge
         var legLeft = new TextBox();
         var legRight = new TextBox();
-        var depthField = Theme.Field("Schenkeltiefe (mm)", depth);
+        var depthField = Theme.Field(Lang.T("Schenkeltiefe (mm)"), depth);
         var legsRow = Columns2(Theme.Field(Lang.T("Linker Schenkel lang (mm, leer = ganz)"), legLeft), Theme.Field(Lang.T("Rechter Schenkel lang (mm, leer = ganz)"), legRight));
         var turnField = Theme.Field(Lang.T("Ausrichtung"), turnBox);
         var preview = new System.Windows.Shapes.Path { Fill = Theme.BoardBrush, Stroke = Theme.BoardStrokeBrush, StrokeThickness = 1.5, Stretch = Stretch.Uniform, StrokeLineJoin = PenLineJoin.Round };

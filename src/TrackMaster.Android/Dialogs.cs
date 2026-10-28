@@ -136,7 +136,7 @@ public static partial class Dialogs
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Breite außen (mm)"), w), Ui.Field(c, Lang.T("Tiefe außen (mm)"), h)));
         var depth = Ui.Number(c, BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn));
         var turn = Choice(c, BoardTurns, plan.BoardTurn);
-        var legs = Columns(c, Ui.Field(c, "Schenkeltiefe (mm)", depth), Ui.Field(c, Lang.T("Ausrichtung"), turn));
+        var legs = Columns(c, Ui.Field(c, Lang.T("Schenkeltiefe (mm)"), depth), Ui.Field(c, Lang.T("Ausrichtung"), turn));
         body.AddView(legs);
         var full0 = plan.BoardTurn % 2 == 0 ? plan.BoardHeight : plan.BoardWidth;
         var d0 = BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn);
@@ -236,11 +236,11 @@ public static partial class Dialogs
         var x = Ui.Number(c, p.X, 1, true);
         var y = Ui.Number(c, p.Y, 1, true);
         var rot = Ui.Number(c, p.Rotation, 1, true);
-        body.AddView(Columns(c, Ui.Field(c, "X (mm)", x), Ui.Field(c, "Y (mm)", y), Ui.Field(c, "Drehung (°)", rot)));
+        body.AddView(Columns(c, Ui.Field(c, "X (mm)", x), Ui.Field(c, "Y (mm)", y), Ui.Field(c, Lang.T("Drehung (°)"), rot)));
         body.AddView(Section(c, Lang.T("Höhe")));
         var height = Ui.Number(c, p.Height, 1, true);
         var grade = Ui.Number(c, p.EffectiveGrade * 100, 2, true);
-        body.AddView(Columns(c, Ui.Field(c, Lang.T("Höhe Anfang (mm)"), height), Ui.Field(c, "Steigung (%)", grade)));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Höhe Anfang (mm)"), height), Ui.Field(c, Lang.T("Steigung (%)"), grade)));
         var heights = p.ConnectorHeights();
         if (heights.Count > 1) body.AddView(Rows(c, (Lang.T("Höhe am Ende"), $"{Fmt.Num(heights[1], 1)} mm", null)));
         var tunnel = new CheckBox(c) { Text = Lang.T("liegt im Tunnel"), Checked = p.Tunnel };
@@ -304,7 +304,7 @@ public static partial class Dialogs
             foreach (var (t, cmd) in items) row.AddView(Ui.Button(c, t, () => { dialog?.Dismiss(); run(cmd); }), Ui.Weight(1, vertical: false));
             grid.AddView(row, Ui.Fill());
         }
-        Line(("15° links", "rotL"), ("15° rechts", "rotR"));
+        Line((Lang.T("15° links"), "rotL"), (Lang.T("15° rechts"), "rotR"));
         Line((Lang.T("Duplizieren"), "duplicate"), (Lang.T("Löschen"), "delete"));
         Line((Lang.T("Steigung…"), "gradient"), (sel.All(p => p.Tunnel) ? Lang.T("Tunnel aufheben") : Lang.T("Als Tunnel"), "tunnel"));
         body.AddView(grid);
@@ -336,11 +336,11 @@ public static partial class Dialogs
                     case SceneryKind.Label:
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Schrifthöhe (mm)"), Num(s.Height, Lang.T("Schrifthöhe"), 2, 500, v => s.Height = v)),
-                            Ui.Field(c, "Drehung (°)", Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                            Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
                         break;
                     case SceneryKind.Dimension when s.Points.Count == 2:
                         body.AddView(Columns(c,
-                            Ui.Field(c, "Abstand (mm)", Num(s.Width, Lang.T("Abstand"), -5000, 5000, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Abstand (mm)"), Num(s.Width, Lang.T("Abstand"), -5000, 5000, v => s.Width = v)),
                             Ui.Field(c, Lang.T("Schrifthöhe (mm)"), Num(s.Height, Lang.T("Schrifthöhe"), 2, 500, v => s.Height = v))));
                         body.AddView(Rows(c, (Lang.T("Länge"), $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null)));
                         break;
@@ -349,20 +349,20 @@ public static partial class Dialogs
                         body.AddView(Rows(c, (Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));
                         break;
                     case SceneryKind.Water:
-                        body.AddView(Ui.Field(c, "Tiefe (mm)", Num(s.Height, Lang.T("Tiefe"), 0, 200, v => s.Height = v)));
+                        body.AddView(Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Height, Lang.T("Tiefe"), 0, 200, v => s.Height = v)));
                         body.AddView(Rows(c, (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));
                         break;
                     case SceneryKind.Building:
                         body.AddView(Columns(c,
-                            Ui.Field(c, "Breite (mm)", Num(s.Width, Lang.T("Breite"), 5, 5000, v => s.Width = v)),
-                            Ui.Field(c, "Tiefe (mm)", Num(s.Depth, Lang.T("Tiefe"), 5, 5000, v => s.Depth = v))));
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), 5, 5000, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 5, 5000, v => s.Depth = v))));
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 5, 2000, v => s.Height = v)),
-                            Ui.Field(c, "Drehung (°)", Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                            Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
                         break;
                     case SceneryKind.Tree:
                         body.AddView(Columns(c,
-                            Ui.Field(c, "Durchmesser (mm)", Num(s.Width, Lang.T("Durchmesser"), 3, 1000, v => { s.Width = v; s.Depth = v; })),
+                            Ui.Field(c, Lang.T("Durchmesser (mm)"), Num(s.Width, Lang.T("Durchmesser"), 3, 1000, v => { s.Width = v; s.Depth = v; })),
                             Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 5, 2000, v => s.Height = v))));
                         break;
                 }
@@ -422,7 +422,7 @@ public static partial class Dialogs
                 body.AddView(picture);
                 var address = Ui.Number(c, g.Address ?? 0);
                 body.AddView(Ui.Field(c, Lang.T("Adresse (0 = keine)"), address));
-                body.AddView(Rows(c, (Lang.T("Belegt Adressen"), g.AddressCount.ToString(), null), (Lang.T("Gleis"), $"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}", null)));
+                body.AddView(Rows(c, (Lang.T("Belegt Adressen"), g.AddressCount.ToString(), null), (Lang.T("Gleis"), Lang.F($"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}"), null)));
                 DeleteButton();
                 dialog = Show(c, "Signal", body, Lang.T("Übernehmen"), () =>
                 {
@@ -457,7 +457,7 @@ public static partial class Dialogs
         var radius = Ui.Number(c, Math.Round(gauge.TrackWidth * 30));
         var angle = Ui.Number(c, 30);
         var lengthField = Ui.Field(c, Lang.T("Länge (mm)"), length);
-        var curveFields = Columns(c, Ui.Field(c, "Radius (mm)", radius), Ui.Field(c, "Winkel (°)", angle));
+        var curveFields = Columns(c, Ui.Field(c, "Radius (mm)", radius), Ui.Field(c, Lang.T("Winkel (°)"), angle));
         body.AddView(lengthField);
         body.AddView(curveFields);
         void Sync()
@@ -498,7 +498,7 @@ public static partial class Dialogs
         var start = Ui.Number(c, startHeight, 0, true);
         var percent = Ui.Number(c, 2.5, 1, true);
         body.AddView(Ui.Field(c, Lang.T("Höhe am Anfang (mm über Platte)"), start));
-        body.AddView(Ui.Field(c, "Steigung (%)", percent));
+        body.AddView(Ui.Field(c, Lang.T("Steigung (%)"), percent));
         var reverse = new CheckBox(c) { Text = Lang.T("Am anderen Ende beginnen") };
         body.AddView(reverse);
         var error = Error(c);
@@ -854,7 +854,7 @@ public static partial class Dialogs
             (Lang.T("Zwei Finger"), Lang.T("zoomen und verschieben")),
             (Lang.T("Zwei Finger drehen"), Lang.T("Ansicht drehen; Kompass antippen richtet sie wieder gerade aus")),
             (Lang.T("Gelände formen / Gewässer"), Lang.T("Punkte antippen, dann „Fertig“")),
-            ("3D-Ansicht", Lang.T("ein Finger dreht, zwei Finger zoomen und verschieben")),
+            (Lang.T("3D-Ansicht"), Lang.T("ein Finger dreht, zwei Finger zoomen und verschieben")),
         };
         var body = Ui.Column(c, 6);
         foreach (var (k, v) in rows)

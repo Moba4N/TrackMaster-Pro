@@ -9,7 +9,7 @@ namespace TrackMaster.Mobile;
 
 public static partial class Dialogs
 {
-    private static readonly string[] BoardTurns = [Lang.T("Grundstellung"), "90° gedreht", "180° gedreht", "270° gedreht"];
+    private static readonly string[] BoardTurns = [Lang.T("Grundstellung"), Lang.T("90° gedreht"), Lang.T("180° gedreht"), Lang.T("270° gedreht")];
 
     /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring), Maße und Ausrichtung.</summary>
     public static void AskNewPlan(Context c, string currentGauge, Action<BoardSetup> create)
@@ -17,7 +17,7 @@ public static partial class Dialogs
         var body = Ui.Column(c, 8);
         body.AddView(Hint(c, Lang.T("Der aktuelle Plan wird verworfen; Rückgängig holt ihn zurück. Form und Maße lassen sich später unter „Plan“ ändern.")));
         var gauges = Catalog.Gauges.ToList();
-        var gauge = Choice(c, gauges.Select(g => $"Spur {g.Id} ({g.Scale})").ToList(), gauges.FindIndex(g => g.Id == currentGauge));
+        var gauge = Choice(c, gauges.Select(g => Lang.F($"Spur {g.Id} ({g.Scale})")).ToList(), gauges.FindIndex(g => g.Id == currentGauge));
         body.AddView(Ui.Field(c, Lang.T("Spur"), gauge));
         var shapes = BoardGeometry.All;
         var shape = Choice(c, shapes.Select(BoardGeometry.Name).ToList(), 0);
@@ -30,7 +30,7 @@ public static partial class Dialogs
         var d = Ui.Number(c, start.Depth);
         var turn = Choice(c, BoardTurns, 0);
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Breite außen (mm)"), w), Ui.Field(c, Lang.T("Tiefe außen (mm)"), h)));
-        var legs = Columns(c, Ui.Field(c, "Schenkeltiefe (mm)", d), Ui.Field(c, Lang.T("Ausrichtung"), turn));
+        var legs = Columns(c, Ui.Field(c, Lang.T("Schenkeltiefe (mm)"), d), Ui.Field(c, Lang.T("Ausrichtung"), turn));
         body.AddView(legs);
         // Schenkellängen der U-Form: leer = volle Länge
         var legLeft = Ui.TextField(c, "", Lang.T("ganz"));

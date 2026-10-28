@@ -150,10 +150,10 @@ public sealed class PropertiesPanel : DockPanel
             var depth = NumberBox(BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn),
                 v => plan.BoardDepth = BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, v, plan.BoardTurn), 0);
             var turn = new ComboBox();
-            foreach (var (t, i) in new[] { Lang.T("Grundstellung"), "90° gedreht", "180° gedreht", "270° gedreht" }.Select((t, i) => (t, i)))
+            foreach (var (t, i) in new[] { Lang.T("Grundstellung"), Lang.T("90° gedreht"), Lang.T("180° gedreht"), Lang.T("270° gedreht") }.Select((t, i) => (t, i)))
                 turn.Items.Add(new ComboBoxItem { Content = t, Tag = i, IsSelected = i == plan.BoardTurn });
             turn.SelectionChanged += (_, _) => { if (turn.SelectedItem is ComboBoxItem { Tag: int t } && t != plan.BoardTurn) _session.Edit(() => plan.BoardTurn = t); };
-            _body.Children.Add(Columns(2, Theme.Field("Schenkeltiefe (mm)", depth), Theme.Field(Lang.T("Ausrichtung"), turn)));
+            _body.Children.Add(Columns(2, Theme.Field(Lang.T("Schenkeltiefe (mm)"), depth), Theme.Field(Lang.T("Ausrichtung"), turn)));
             if (plan.BoardShape == BoardShape.U)
             {
                 var full = plan.BoardTurn % 2 == 0 ? plan.BoardHeight : plan.BoardWidth;
@@ -241,12 +241,12 @@ public sealed class PropertiesPanel : DockPanel
         _body.Children.Add(Columns(3,
             Theme.Field("X (mm)", NumberBox(p.X, v => p.X = v)),
             Theme.Field("Y (mm)", NumberBox(p.Y, v => p.Y = v)),
-            Theme.Field("Drehung (°)", NumberBox(p.Rotation, v => p.Rotation = Angles.Normalize(v)))));
+            Theme.Field(Lang.T("Drehung (°)"), NumberBox(p.Rotation, v => p.Rotation = Angles.Normalize(v)))));
         Section(Lang.T("Höhe"));
         var heights = p.ConnectorHeights();
         _body.Children.Add(Columns(2,
             Theme.Field(Lang.T("Schienenoberkante Anfang (mm)"), NumberBox(p.Height, v => p.Height = v, 1)),
-            Theme.Field("Steigung (%)", NumberBox(p.EffectiveGrade * 100, v => p.Grade = v / 100, 2))));
+            Theme.Field(Lang.T("Steigung (%)"), NumberBox(p.EffectiveGrade * 100, v => p.Grade = v / 100, 2))));
         if (heights.Count > 1)
             Rows((Lang.T("Höhe am Ende"), $"{Fmt.Num(heights[1], 1)} mm", null));
         var tunnel = new CheckBox { Content = Lang.T("liegt im Tunnel"), IsChecked = p.Tunnel, Margin = new Thickness(0, 0, 0, 8) };
@@ -274,7 +274,7 @@ public sealed class PropertiesPanel : DockPanel
     {
         _headerRight.Text = Lang.F($"{sel.Count} Gleise gewählt");
         Rows((Lang.T("Gleisstücke"), sel.Count.ToString(), null), (Lang.T("Gleislänge"), $"{Fmt.Num(sel.Sum(p => p.Def.TrackLength) / 1000, 2)} m", null));
-        _body.Children.Add(Buttons(Cmd("15° links", "RotateLeft", "rotL"), Cmd("15° rechts", "RotateRight", "rotR"), Cmd(Lang.T("Duplizieren"), "Copy", "duplicate"), Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
+        _body.Children.Add(Buttons(Cmd(Lang.T("15° links"), "RotateLeft", "rotL"), Cmd(Lang.T("15° rechts"), "RotateRight", "rotR"), Cmd(Lang.T("Duplizieren"), "Copy", "duplicate"), Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
         _body.Children.Add(Buttons(Cmd(Lang.T("Steigung…"), "Slope", "gradient"), Cmd(sel.All(p => p.Tunnel) ? Lang.T("Tunnel aufheben") : Lang.T("Als Tunnel"), "Tunnel", "tunnel")));
         _body.Children.Add(new Border
         {
@@ -305,7 +305,7 @@ public sealed class PropertiesPanel : DockPanel
                     case SceneryKind.Label:
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Schrifthöhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 2, 500), 0)),
-                            Theme.Field("Drehung (°)", NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                            Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
                         break;
                     case SceneryKind.Dimension when s.Points.Count == 2:
                         _body.Children.Add(Columns(2,
@@ -318,19 +318,19 @@ public sealed class PropertiesPanel : DockPanel
                         Rows((Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
                         break;
                     case SceneryKind.Water:
-                        _body.Children.Add(Columns(2, Theme.Field("Tiefe (mm)", NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0, 200), 0))));
+                        _body.Children.Add(Columns(2, Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0, 200), 0))));
                         Rows((Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
                         break;
                     case SceneryKind.Building:
                         _body.Children.Add(Columns(3,
-                            Theme.Field("Breite (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, 5, 5000), 0)),
-                            Theme.Field("Tiefe (mm)", NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 5, 5000), 0)),
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 5, 5000), 0)),
+                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 5, 5000), 0)),
                             Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0))));
-                        _body.Children.Add(Columns(3, Theme.Field("Drehung (°)", NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        _body.Children.Add(Columns(3, Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
                         break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
-                            Theme.Field("Durchmesser (mm)", NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
+                            Theme.Field(Lang.T("Durchmesser (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
                             Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0))));
                         break;
                 }
@@ -394,7 +394,7 @@ public sealed class PropertiesPanel : DockPanel
                 _body.Children.Add(picture);
                 _body.Children.Add(new Border { Height = 8 });
                 _body.Children.Add(Columns(2, Theme.Field(Lang.T("Adresse (0 = keine)"), NumberBox(g.Address ?? 0, v => g.Address = v >= 1 ? (int)Math.Round(v) : null, 0))));
-                Rows((Lang.T("Belegt Adressen"), g.AddressCount.ToString(), null), (Lang.T("Gleis"), $"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}", null));
+                Rows((Lang.T("Belegt Adressen"), g.AddressCount.ToString(), null), (Lang.T("Gleis"), Lang.F($"{plan.Find(g.PieceId)?.Def.Number} (Nr. {g.PieceId}), Ende {g.Index}"), null));
                 _body.Children.Add(Buttons(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
                 break;
         }

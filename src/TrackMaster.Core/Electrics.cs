@@ -14,6 +14,17 @@ public sealed record ReverseLoop(IReadOnlyList<int> PieceIds);
 
 public enum IssueLevel { Hinweis, Warnung, Fehler }
 
+public static class IssueLevels
+{
+    /// <summary>Name der Stufe in der Sprache der Oberfläche.</summary>
+    public static string Text(this IssueLevel level) => level switch
+    {
+        IssueLevel.Fehler => Lang.T("Fehler"),
+        IssueLevel.Warnung => Lang.T("Warnung"),
+        _ => Lang.T("Hinweis"),
+    };
+}
+
 /// <summary>Ein Befund aus Plan- oder Elektrikprüfung, mit Ort zum Hinspringen.</summary>
 public sealed record PlanIssue(IssueLevel Level, string Category, string Text, IReadOnlyList<int> PieceIds, double X, double Y);
 
@@ -191,13 +202,13 @@ public static class Electrics
             {
                 var m = p.Middle();
                 var kind = d.Kind == PieceKind.Switch ? Lang.T("Weiche") : "DKW";
-                list.Add(new SwitchingItem(kind, $"{kind} {d.Number} (Nr. {p.Id})", p.Id, null, p.Address, d.Drives, m.X, m.Y));
+                list.Add(new SwitchingItem(kind, Lang.F($"{kind} {d.Number} (Nr. {p.Id})"), p.Id, null, p.Address, d.Drives, m.X, m.Y));
             }
         }
         foreach (var s in plan.Signals)
         {
             var (x, y, _) = SignalPose(plan, s);
-            list.Add(new SwitchingItem("Signal", string.IsNullOrWhiteSpace(s.Name) ? $"{Signal.TypeName(s.Type)} (Nr. {s.Id})" : $"{Signal.TypeName(s.Type)} {s.Name}", null, s.Id, s.Address, s.AddressCount, x, y));
+            list.Add(new SwitchingItem("Signal", string.IsNullOrWhiteSpace(s.Name) ? Lang.F($"{Signal.TypeName(s.Type)} (Nr. {s.Id})") : $"{Signal.TypeName(s.Type)} {s.Name}", null, s.Id, s.Address, s.AddressCount, x, y));
         }
         return list.OrderBy(i => i.Address ?? int.MaxValue).ThenBy(i => i.Y).ThenBy(i => i.X).ToList();
     }
@@ -269,9 +280,9 @@ public static class Electrics
                 sb.AppendLine(Lang.F($"    Einspeisung Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}"));
         }
         sb.AppendLine();
-        sb.AppendLine($"Trennstellen ({plan.Isolations.Count})");
+        sb.AppendLine(Lang.F($"Trennstellen ({plan.Isolations.Count})"));
         foreach (var i in plan.Isolations)
-            sb.AppendLine($"  Nr. {i.Id}: Gleis {plan.Find(i.PieceId)?.Def.Number} (Nr. {i.PieceId}), Ende {i.Index}");
+            sb.AppendLine(Lang.F($"  Nr. {i.Id}: Gleis {plan.Find(i.PieceId)?.Def.Number} (Nr. {i.PieceId}), Ende {i.Index}"));
         sb.AppendLine();
         sb.AppendLine(Lang.T("Kehrschleifen"));
         if (r.ThreeRail) sb.AppendLine(Lang.T("  Mittelleiter: Kehrschleifen brauchen keine Sonderschaltung."));
@@ -296,7 +307,7 @@ public static class Electrics
         {
             sb.AppendLine();
             sb.AppendLine(Lang.T("Befunde"));
-            foreach (var i in r.Issues) sb.AppendLine($"  [{i.Level}] {i.Text}");
+            foreach (var i in r.Issues) sb.AppendLine($"  [{i.Level.Text()}] {i.Text}");
         }
         return sb.ToString();
     }

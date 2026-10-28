@@ -176,13 +176,16 @@ public static partial class Catalog
         { Number = nr, Kind = PieceKind.Crossing, Length = len, Angle = a, Name = doubleSlip ? $"DKW {Fmt.Num(a)}°" : $"Kreuzung {Fmt.Num(a)}°", Spec = $"{Fmt.Num(len)} mm", Category = Lang.T("Kreuzungen") };
 
     /// <summary>Gleisstück mit Fahrwegen aus Herstellerdaten (erzeugter Katalog).</summary>
+    /// <summary>Die Maßangaben im Katalog sind deutsch geschrieben (188,3 mm); englisch mit Dezimalpunkt.</summary>
+    private static string EnglishDecimals(string spec) => System.Text.RegularExpressions.Regex.Replace(spec, @"(\d),(\d)", "$1.$2");
+
     private static TrackPieceDef G(string nr, PieceKind kind, string name, string spec, string category, bool right, int drives, Route[] routes, Route[]? decor = null)
     {
         var arc = routes.Skip(kind == PieceKind.Switch ? 1 : 0).SelectMany(r => r.Segments).FirstOrDefault(x => x.Turn != 0);
         var angle = kind == PieceKind.Crossing && routes.Length > 1 ? Math.Abs(Angles.Normalize(routes[1].Heading - routes[0].Heading)) : arc.Angle;
         return new()
         {
-            Number = nr, Kind = kind, Name = name, Spec = spec, Category = category, RightHand = right, Routes = routes, Decor = decor,
+            Number = nr, Kind = kind, Name = name, Spec = Lang.IsEnglish ? EnglishDecimals(spec) : spec, Category = category, RightHand = right, Routes = routes, Decor = decor,
             DriveCount = kind == PieceKind.Crossing ? drives : null,
             Length = routes[0].Length, Radius = arc.Radius, Angle = angle > 90 ? 180 - angle : angle,
         };

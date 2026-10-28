@@ -696,7 +696,7 @@ public static partial class Dialogs
                 var item = Ui.Column(c, 2);
                 item.Background = Ui.Rounded(Color.Rgb(0xFA, 0xFA, 0xFA), Ui.Border);
                 item.SetPadding(Ui.Dp(10), Ui.Dp(8), Ui.Dp(10), Ui.Dp(8));
-                item.AddView(Ui.Label(c, $"{issue.Level} · {issue.Category}", 12.5, true, color));
+                item.AddView(Ui.Label(c, $"{issue.Level.Text()} · {issue.Category}", 12.5, true, color));
                 item.AddView(Ui.Label(c, issue.Text, 13.5));
                 var target = issue;
                 item.Clickable = true;

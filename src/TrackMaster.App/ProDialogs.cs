@@ -67,7 +67,7 @@ public static partial class Dialogs
             {
                 var color = i.Level switch { IssueLevel.Fehler => Theme.DangerBrush, IssueLevel.Warnung => Theme.OpenEndBrush, _ => Theme.AccentBrush };
                 var row = new DockPanel { Margin = new Thickness(0, 0, 6, 0) };
-                var badge = new Border { Background = color, CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 1, 10, 0), VerticalAlignment = VerticalAlignment.Top, Child = Theme.Label(i.Level.ToString(), 10.5, true, Brushes.White) };
+                var badge = new Border { Background = color, CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 1, 10, 0), VerticalAlignment = VerticalAlignment.Top, Child = Theme.Label(i.Level.Text(), 10.5, true, Brushes.White) };
                 row.Children.Add(badge);
                 var texts = new StackPanel();
                 texts.Children.Add(Theme.Label(i.Category, 11, true, Theme.TextSecondaryBrush));

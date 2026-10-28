@@ -29,6 +29,11 @@ public sealed class View3DWindow : Window
     private readonly Slider _speed = new() { Minimum = 10, Maximum = 160, Value = 60, Width = 140, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _speedText = new() { Width = 70, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 16, 0) };
     private readonly ToggleButton _rideButton = new();
+    private readonly ToggleButton _trainButton = new();
+    private readonly Button _switchButton;
+    private readonly Model3DGroup _trainModel = new();
+    private readonly Train3D _train;
+    private readonly Dictionary<int, int> _routes = [];
     private readonly TextBlock _status = new() { Foreground = Theme.TextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
 
     // Rundumsicht
@@ -62,6 +67,8 @@ public sealed class View3DWindow : Window
         models.Children.Add(_sun);
         models.Children.Add(_fill);
         models.Children.Add(_scene.Model);
+        models.Children.Add(_trainModel);
+        _train = new Train3D(plan);
         _viewport.Children.Add(new ModelVisual3D { Content = models });
         _viewport.Camera = _camera;
 
@@ -71,7 +78,7 @@ public sealed class View3DWindow : Window
 
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 8, 12, 8) };
         var orbit = Theme.Button("Rundumsicht", "Cube");
-        orbit.Click += (_, _) => StopRide();
+        orbit.Click += (_, _) => { StopRide(); };
         toolbar.Children.Add(orbit);
         _rideButton.Content = "Mitfahren";
         _rideButton.Height = 30;
@@ -81,6 +88,20 @@ public sealed class View3DWindow : Window
         _rideButton.BorderThickness = new Thickness(1);
         _rideButton.Click += (_, _) => { if (_rideButton.IsChecked == true) StartRide(); else StopRide(); };
         toolbar.Children.Add(_rideButton);
+        _trainButton.Content = "Zug fahren";
+        _trainButton.Height = 30;
+        _trainButton.Padding = new Thickness(10, 0, 10, 0);
+        _trainButton.Margin = new Thickness(0, 0, 8, 6);
+        _trainButton.Template = Theme.RoundedTemplate();
+        _trainButton.BorderThickness = new Thickness(1);
+        _trainButton.ToolTip = "Ein Zug fährt über die Anlage, die Ansicht bleibt frei drehbar.";
+        _trainButton.Click += (_, _) => { if (_trainButton.IsChecked == true) StartTrain(); else StopTrain(); };
+        toolbar.Children.Add(_trainButton);
+        _switchButton = Theme.Button("Weiche umstellen", "Swap");
+        _switchButton.ToolTip = "Stellt die nächste Weiche vor dem Zug um (W).";
+        _switchButton.Click += (_, _) => ToggleNextSwitch();
+        _switchButton.IsEnabled = false;
+        toolbar.Children.Add(_switchButton);
         toolbar.Children.Add(Theme.Label("Tageszeit", 12, false, Theme.TextSecondaryBrush));
         toolbar.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         toolbar.Children.Add(new Border { Width = 8 });
@@ -126,7 +147,11 @@ public sealed class View3DWindow : Window
         UpdateCamera();
         Loaded += (_, _) => { if (mode == View3DMode.Ride) { _rideButton.IsChecked = true; StartRide(); } };
         Closed += (_, _) => CompositionTarget.Rendering -= OnFrame;
-        KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) Close();
+            if (e.Key == Key.W) ToggleNextSwitch();
+        };
     }
 
     // ---------- Licht ----------
@@ -195,29 +220,85 @@ public sealed class View3DWindow : Window
 
     // ---------- Mitfahren ----------
 
-    private void StartRide()
+    private bool Moving => _rideButton.IsChecked == true || _trainButton.IsChecked == true;
+
+    private bool EnsurePath()
     {
-        _path ??= RidePath.Build(_plan, _startPiece);
-        if (_path.IsEmpty)
-        {
-            _status.Text = "Keine Gleise zum Mitfahren.";
-            _rideButton.IsChecked = false;
-            return;
-        }
-        _status.Text = _path.Closed ? "Rundkurs – Esc schließt das Fenster" : "Die Fahrt wendet an Prellböcken und Gleisenden.";
+        _path ??= RidePath.Build(_plan, _startPiece, _routes);
+        if (!_path.IsEmpty) return true;
+        _status.Text = "Keine Gleise zum Mitfahren.";
+        return false;
+    }
+
+    private void StartMoving()
+    {
         _lastFrame = TimeSpan.Zero;
         CompositionTarget.Rendering -= OnFrame;
         CompositionTarget.Rendering += OnFrame;
+        _switchButton.IsEnabled = true;
+        UpdateStatus();
+    }
+
+    private void StopMovingIfIdle()
+    {
+        if (Moving) return;
+        CompositionTarget.Rendering -= OnFrame;
+        _switchButton.IsEnabled = false;
+        _status.Text = "";
+    }
+
+    private void StartRide()
+    {
+        if (!EnsurePath()) { _rideButton.IsChecked = false; return; }
+        _trainModel.Children.Clear();
+        StartMoving();
         PlaceRideCamera();
     }
 
     private void StopRide()
     {
-        CompositionTarget.Rendering -= OnFrame;
         _rideButton.IsChecked = false;
-        _status.Text = "";
         _camera.FieldOfView = 50;
         UpdateCamera();
+        StopMovingIfIdle();
+    }
+
+    private void StartTrain()
+    {
+        if (!EnsurePath()) { _trainButton.IsChecked = false; return; }
+        // Der Zug startet mit dem letzten Wagen am Anfang des Wegs
+        if (_position < _train.Length) _position = Math.Min(_train.Length, _path!.Length);
+        StartMoving();
+        PlaceTrain();
+    }
+
+    private void StopTrain()
+    {
+        _trainButton.IsChecked = false;
+        _trainModel.Children.Clear();
+        StopMovingIfIdle();
+    }
+
+    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug um; der Weg dahinter wird neu bestimmt.</summary>
+    private void ToggleNextSwitch()
+    {
+        if (!Moving || _path?.NextSwitch(_position) is not { } next || _plan.Find(next.PieceId) is not { } piece) return;
+        _routes[piece.Id] = ((_routes.TryGetValue(piece.Id, out var r) ? r : 0) + 1) % RidePath.RouteCount(piece);
+        _path = RidePath.Build(_plan, _startPiece, _routes);
+        UpdateStatus();
+    }
+
+    private void UpdateStatus()
+    {
+        if (_path is null) return;
+        var text = _path.Closed ? "Rundkurs" : "Wendet an Prellböcken und Gleisenden";
+        if (_path.NextSwitch(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
+        {
+            var route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
+            var setting = RidePath.RouteCount(piece) > 2 ? $"Stellung {route + 1}" : route == 0 ? "Grundstellung" : "abzweigend";
+            text += $" · Nächste Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting} (W stellt um)";
+        }
+        _status.Text = text;
     }
 
     private void OnFrame(object? sender, EventArgs e)
@@ -227,9 +308,18 @@ public sealed class View3DWindow : Window
         var dt = Math.Min((now - _lastFrame).TotalSeconds, 0.1);
         _lastFrame = now;
         // Vorbildgeschwindigkeit im Maßstab
+        var before = _path?.NextSwitch(_position);
         _position += RidePath.ModelSpeed(_speed.Value, _plan.Gauge.Scale) * dt;
-        if (_path is { } path && _position >= path.Length) _position = path.Closed ? _position % path.Length : 0;
-        PlaceRideCamera();
+        if (_path is { } path && _position >= path.Length) _position = path.Closed ? _position % path.Length : Math.Min(_train.Length, path.Length);
+        if (!Equals(before, _path?.NextSwitch(_position)) || (now.TotalMilliseconds % 500) < 20) UpdateStatus();
+        if (_rideButton.IsChecked == true) PlaceRideCamera();
+        else if (_trainButton.IsChecked == true) PlaceTrain();
+    }
+
+    private void PlaceTrain()
+    {
+        if (_path is null) return;
+        _scene.Fill(_trainModel, _train.Build(_path, _position));
     }
 
     private void PlaceRideCamera()

@@ -587,11 +587,16 @@ public sealed record DayLight(Rgb Sun, Vec3 SunDirection, Rgb Fill, Vec3 FillDir
     public static string TimeText(double hour) => $"{(int)hour:00}:{(int)((hour - (int)hour) * 60):00} Uhr";
 }
 
-/// <summary>Fahrweg zum Mitfahren: ab einem Gleis, an Weichen geradeaus, an Prellböcken und offenen Enden zurück.</summary>
+/// <summary>
+/// Fahrweg zum Mitfahren: ab einem Gleis, an Weichen nach der gewählten Stellung (Vorgabe geradeaus),
+/// an Prellböcken und offenen Enden zurück.
+/// </summary>
 public sealed class RidePath
 {
     public IReadOnlyList<(double X, double Y, double Z)> Points { get; }
     public double[] Distances { get; }
+    /// <summary>Spitz befahrene Weichen: Wegstrecke bis zur Weichenspitze und Gleis-Kennung.</summary>
+    public IReadOnlyList<(double Distance, int PieceId)> Switches { get; private set; } = [];
     /// <summary>Rundkurs: der Weg kehrt zum Anfang zurück.</summary>
     public bool Closed { get; }
     public double Length => Distances.Length == 0 ? 0 : Distances[^1];
@@ -643,9 +648,24 @@ public sealed class RidePath
         return (new Vec3(eye.X, eye.Z + rail + gauge * 1.9, eye.Y), new Vec3(ahead.X, ahead.Z + rail + gauge * 0.55, ahead.Y));
     }
 
-    public static RidePath Build(LayoutPlan plan, int? startPiece)
+    /// <summary>Nächste spitz befahrene Weiche vor <paramref name="s"/> (beim Rundkurs auch nach dem Anfang).</summary>
+    public (double Distance, int PieceId)? NextSwitch(double s)
+    {
+        if (Switches.Count == 0) return null;
+        if (Closed && Length > 0) s = ((s % Length) + Length) % Length;
+        foreach (var w in Switches)
+            if (w.Distance > s + 1e-6) return w;
+        return Closed ? (Switches[0].Distance + Length, Switches[0].PieceId) : null;
+    }
+
+    /// <summary>Anzahl der Stellungen einer Weiche (zwei, Dreiwegweiche drei).</summary>
+    public static int RouteCount(PlacedPiece piece) => Math.Max(1, TrackGeometry.LocalConnectors(piece.Def, piece.Flipped).Count - 1);
+
+    /// <summary>Fahrweg ab <paramref name="startPiece"/>. <paramref name="routes"/>: Stellung je Weiche (0 = Grundstellung, 1 = abzweigend …).</summary>
+    public static RidePath Build(LayoutPlan plan, int? startPiece, IReadOnlyDictionary<int, int>? routes = null)
     {
         if (plan.Pieces.Count == 0) return new RidePath([], false);
+        var facing = new List<(int PointIndex, int PieceId)>();
         var conn = Connectivity.Analyze(plan);
         var piece = (startPiece is { } id ? plan.Find(id) : null) ?? plan.Pieces.FirstOrDefault(p => p.Def.Kind == PieceKind.Straight) ?? plan.Pieces[0];
         var entry = 0;
@@ -682,8 +702,10 @@ public sealed class RidePath
                 if (conn.Find(piece.Id, exitPort)?.Link is { } after) { piece = plan.Find(after.PieceId)!; entry = after.Index; }
                 continue;
             }
+            if (d.Kind == PieceKind.Switch && entry == 0 && count > 2) facing.Add((points.Count, piece.Id));
             var exit = d.Kind switch
             {
+                PieceKind.Switch when entry == 0 && count > 2 => 1 + (routes is not null && routes.TryGetValue(piece.Id, out var r) ? ((r % (count - 1)) + count - 1) % (count - 1) : 0),
                 PieceKind.Crossing => entry switch { 0 => 1, 1 => 0, 2 => 3, _ => 2 },
                 PieceKind.Buffer => 0,
                 _ when count == 1 => 0,
@@ -732,10 +754,19 @@ public sealed class RidePath
                 entry = exit;
             }
         }
-        // Doppelte Punkte entfernen
+        // Doppelte Punkte entfernen; Weichen behalten ihre Stelle auf dem Weg
         var path = new List<(double X, double Y, double Z)>();
-        foreach (var p in points)
+        var index = new int[points.Count + 1];
+        for (var i = 0; i < points.Count; i++)
+        {
+            var p = points[i];
             if (path.Count == 0 || Math.Abs(path[^1].X - p.Item1) + Math.Abs(path[^1].Y - p.Item2) > 0.01) path.Add(p);
-        return new RidePath(path, closed);
+            index[i] = Math.Max(0, path.Count - 1);
+        }
+        index[points.Count] = Math.Max(0, path.Count - 1);
+        var result = new RidePath(path, closed);
+        if (path.Count > 0)
+            result.Switches = facing.Select(f => (result.Distances[index[f.PointIndex]], f.PieceId)).Distinct().ToList();
+        return result;
     }
 }

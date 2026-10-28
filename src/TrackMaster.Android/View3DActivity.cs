@@ -29,8 +29,11 @@ public sealed class View3DActivity : Activity
     private LayoutPlan _plan = null!;
     private GLSurfaceView _view = null!;
     private SceneRenderer _renderer = null!;
-    private Button _ride = null!;
-    private bool _riding;
+    private Button _ride = null!, _trainButton = null!, _switch = null!;
+    private bool _riding, _trainOn;
+    private Train3D _train = null!;
+    private readonly Dictionary<int, int> _routes = [];
+    private long _lastStatus;
     private SeekBar _time = null!, _speed = null!;
     private TextView _timeText = null!, _speedText = null!, _status = null!;
     private RidePath? _path;
@@ -64,6 +67,7 @@ public sealed class View3DActivity : Activity
         _view.SetEGLContextClientVersion(2);
         _view.SetEGLConfigChooser(8, 8, 8, 8, 24, 0);
         _renderer = new SceneRenderer(new Scene3DModel(_plan));
+        _train = new Train3D(_plan);
         _view.SetRenderer(_renderer);
         _view.RenderMode = Rendermode.WhenDirty;
         root.AddView(_view, new FrameLayout.LayoutParams(-1, -1));
@@ -76,6 +80,11 @@ public sealed class View3DActivity : Activity
         row1.AddView(Ui.Button(this, "Rundumsicht", StopRide));
         _ride = Ui.Button(this, "Mitfahren", () => { if (_riding) StopRide(); else StartRide(); });
         row1.AddView(_ride);
+        _trainButton = Ui.Button(this, "Zug", () => { if (_trainOn) StopTrain(); else StartTrain(); });
+        row1.AddView(_trainButton);
+        _switch = Ui.Button(this, "Weiche", ToggleNextSwitch);
+        _switch.Enabled = false;
+        row1.AddView(_switch);
         _status = Ui.Label(this, "", 12.5, color: Ui.TextSecondary);
         row1.AddView(_status, Ui.Weight(1, vertical: false));
         row1.AddView(Ui.Button(this, "Schließen", Finish));
@@ -229,29 +238,90 @@ public sealed class View3DActivity : Activity
         Ui.SetButtonState(_ride, false, on);
     }
 
-    private void StartRide()
+    private bool EnsurePath()
     {
-        _path ??= RidePath.Build(_plan, _startPiece);
-        if (_path.IsEmpty)
-        {
-            _status.Text = "Keine Gleise zum Mitfahren.";
-            SetRiding(false);
-            return;
-        }
-        _status.Text = _path.Closed ? "Rundkurs" : "Die Fahrt wendet an Prellböcken und Gleisenden.";
-        SetRiding(true);
+        _path ??= RidePath.Build(_plan, _startPiece, _routes);
+        if (!_path.IsEmpty) return true;
+        _status.Text = "Keine Gleise zum Mitfahren.";
+        return false;
+    }
+
+    private void StartMoving()
+    {
         _lastFrame = 0;
         _renderer.Frame = OnFrame;
         _view.RenderMode = Rendermode.Continuously;
+        _switch.Enabled = true;
+        UpdateStatus();
+    }
+
+    private void StopMovingIfIdle()
+    {
+        if (_riding || _trainOn) return;
+        _renderer.Frame = null;
+        _view.RenderMode = Rendermode.WhenDirty;
+        _switch.Enabled = false;
+        _status.Text = "";
+    }
+
+    private void StartRide()
+    {
+        if (!EnsurePath()) { SetRiding(false); return; }
+        SetRiding(true);
+        _renderer.Dynamic = null;
+        StartMoving();
     }
 
     private void StopRide()
     {
-        _renderer.Frame = null;
-        _view.RenderMode = Rendermode.WhenDirty;
         SetRiding(false);
-        _status.Text = "";
         UpdateCamera();
+        StopMovingIfIdle();
+        _view.RequestRender();
+    }
+
+    private void StartTrain()
+    {
+        if (!EnsurePath()) return;
+        if (_position < _train.Length) _position = Math.Min(_train.Length, _path!.Length);
+        _trainOn = true;
+        Ui.SetButtonState(_trainButton, false, true);
+        StartMoving();
+    }
+
+    private void StopTrain()
+    {
+        _trainOn = false;
+        Ui.SetButtonState(_trainButton, false, false);
+        _renderer.Dynamic = null;
+        StopMovingIfIdle();
+        _view.RequestRender();
+    }
+
+    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug um; der Weg dahinter wird neu bestimmt.</summary>
+    private void ToggleNextSwitch()
+    {
+        if (_path?.NextSwitch(_position) is not { } next || _plan.Find(next.PieceId) is not { } piece) return;
+        lock (_routes)
+        {
+            _routes[piece.Id] = ((_routes.TryGetValue(piece.Id, out var r) ? r : 0) + 1) % RidePath.RouteCount(piece);
+            _path = RidePath.Build(_plan, _startPiece, _routes);
+        }
+        UpdateStatus();
+    }
+
+    private void UpdateStatus()
+    {
+        if (_path is not { } path) return;
+        var text = path.Closed ? "Rundkurs" : "Wendet an Prellböcken";
+        if (path.NextSwitch(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
+        {
+            int route;
+            lock (_routes) route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
+            var setting = RidePath.RouteCount(piece) > 2 ? $"Stellung {route + 1}" : route == 0 ? "gerade" : "abzweigend";
+            text += $" · Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting}";
+        }
+        _status.Text = text;
     }
 
     /// <summary>Läuft im Zeichen-Thread vor jedem Bild.</summary>
@@ -262,10 +332,15 @@ public sealed class View3DActivity : Activity
         var dt = _lastFrame == 0 ? 0 : Math.Min((now - _lastFrame) / 1000.0, 0.1);
         _lastFrame = now;
         _position += RidePath.ModelSpeed(_speedKmh, _plan.Gauge.Scale) * dt;
-        if (_position >= path.Length) _position = path.Closed ? _position % path.Length : 0;
-        var g = _plan.Gauge.TrackWidth;
-        var (eye, target) = path.Camera(_position, g);
-        _renderer.SetCamera(eye, target, 65, g * 0.3);
+        if (_position >= path.Length) _position = path.Closed ? _position % path.Length : Math.Min(_train.Length, path.Length);
+        if (now - _lastStatus > 400) { _lastStatus = now; RunOnUiThread(UpdateStatus); }
+        if (_riding)
+        {
+            var g = _plan.Gauge.TrackWidth;
+            var (eye, target) = path.Camera(_position, g);
+            _renderer.SetCamera(eye, target, 65, g * 0.3);
+        }
+        else if (_trainOn) _renderer.Dynamic = SceneRenderer.ToData(_train.Build(path, _position));
     }
 }
 
@@ -352,9 +427,17 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     /// <summary>Wird vor jedem Bild im Zeichen-Thread aufgerufen (Mitfahren).</summary>
     public Action? Frame { get; set; }
 
-    public SceneRenderer(Scene3DModel model)
+    /// <summary>Bewegte Teile (der fahrende Zug); werden in jedem Bild neu hochgeladen.</summary>
+    public volatile IReadOnlyList<(float[] Data, Rgb Color, SurfaceKind Kind)>? Dynamic;
+    private int _dynamicBuffer;
+
+    public SceneRenderer(Scene3DModel model) => _pending.AddRange(ToData(model.Meshes));
+
+    /// <summary>Dreiecke als Folge von Position und Flächennormale (je 6 Zahlen).</summary>
+    public static List<(float[] Data, Rgb Color, SurfaceKind Kind)> ToData(IReadOnlyDictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> meshes)
     {
-        foreach (var ((color, kind), mesh) in model.Meshes)
+        var result = new List<(float[], Rgb, SurfaceKind)>();
+        foreach (var ((color, kind), mesh) in meshes)
         {
             if (mesh.IsEmpty) continue;
             var pts = mesh.Points;
@@ -370,8 +453,9 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
                     data[o + 3] = (float)n.X; data[o + 4] = (float)n.Y; data[o + 5] = (float)n.Z;
                 }
             }
-            _pending.Add((data, color, kind));
+            result.Add((data, color, kind));
         }
+        return result;
     }
 
     /// <summary>Kamera setzen. <paramref name="fieldOfView"/> ist wie unter Windows der waagrechte Blickwinkel.</summary>
@@ -430,6 +514,9 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         _uTop = GLES20.GlGetUniformLocation(_sky, "uTop");
         _uBottom = GLES20.GlGetUniformLocation(_sky, "uBottom");
         _skyBuffer = Upload([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]);
+        var dyn = new int[1];
+        GLES20.GlGenBuffers(1, dyn, 0);
+        _dynamicBuffer = dyn[0];
         // Nach Verlust des Kontexts (App im Hintergrund) alles neu hochladen
         _meshes.Clear();
         foreach (var (data, color, kind) in _pending)
@@ -487,7 +574,10 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         GLES20.GlUniform3f(_uEye, (float)cam.Eye.X, (float)cam.Eye.Y, (float)cam.Eye.Z);
         GLES20.GlEnableVertexAttribArray(_aPos);
         GLES20.GlEnableVertexAttribArray(_aNormal);
-        foreach (var m in _meshes)
+        var dynamic = Dynamic;
+        var parts = dynamic is null ? _meshes : _meshes.Concat(dynamic.Select(d => new MeshBuffer(-1, d.Data.Length / 6, d.Color, d.Kind)));
+        var dynamicIndex = 0;
+        foreach (var m in parts)
         {
             var black = new Rgb(0, 0, 0);
             Uniform(_uColor, m.Kind == SurfaceKind.Lamp ? black : m.Color);
@@ -498,7 +588,16 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
                 _ => black,
             });
             GLES20.GlUniform1f(_uSpec, m.Kind switch { SurfaceKind.Water => 40f, SurfaceKind.Rail => 20f, _ => 0f });
-            GLES20.GlBindBuffer(GLES20.GlArrayBuffer, m.Buffer);
+            if (m.Buffer >= 0) GLES20.GlBindBuffer(GLES20.GlArrayBuffer, m.Buffer);
+            else
+            {
+                var data = dynamic![dynamicIndex++].Data;
+                var buffer = ByteBuffer.AllocateDirect(data.Length * 4).Order(ByteOrder.NativeOrder()!)!.AsFloatBuffer()!;
+                buffer.Put(data);
+                buffer.Position(0);
+                GLES20.GlBindBuffer(GLES20.GlArrayBuffer, _dynamicBuffer);
+                GLES20.GlBufferData(GLES20.GlArrayBuffer, data.Length * 4, buffer, GLES20.GlDynamicDraw);
+            }
             GLES20.GlVertexAttribPointer(_aPos, 3, GLES20.GlFloat, false, 24, 0);
             GLES20.GlVertexAttribPointer(_aNormal, 3, GLES20.GlFloat, false, 24, 12);
             GLES20.GlDrawArrays(GLES20.GlTriangles, 0, m.Count);

@@ -70,3 +70,42 @@ public class VehicleCheckTests
         Assert.Equal(250, PlanSerializer.FromJson(PlanSerializer.ToJson(plan), out _).VehicleLength);
     }
 }
+
+public class RideTrainTests
+{
+    [Fact]
+    public void Weichenstellung_aendert_den_Fahrweg()
+    {
+        var plan = SamplePlan.Build();
+        RidePath? path = null;
+        int? start = null;
+        foreach (var p in plan.Pieces)
+        {
+            path = RidePath.Build(plan, p.Id);
+            if (path.Switches.Any(w => w.Distance > 10)) { start = p.Id; break; }
+        }
+        Assert.NotNull(start);
+        var first = path!.Switches.First(w => w.Distance > 10);
+        Assert.Equal(first, path.NextSwitch(first.Distance - 5));
+        var turned = RidePath.Build(plan, start, new Dictionary<int, int> { [first.PieceId] = 1 });
+        Assert.Contains(turned.Switches, w => w.PieceId == first.PieceId && Math.Abs(w.Distance - first.Distance) < 1e-3);
+        // Bis zur Weiche gleich, danach anders
+        var before = first.Distance - 1;
+        Assert.Equal(path.PointAt(before), turned.PointAt(before));
+        var after = first.Distance + 200;
+        var (a, b) = (path.PointAt(after), turned.PointAt(after));
+        Assert.True(Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) > 1);
+    }
+
+    [Fact]
+    public void Zug_hat_Lok_und_Wagen()
+    {
+        var plan = SamplePlan.Build();
+        var path = RidePath.Build(plan, null);
+        var train = new Train3D(plan);
+        var meshes = train.Build(path, train.Length);
+        Assert.Contains(meshes, m => m.Key.Color == Train3D.LocoColor && !m.Value.IsEmpty);
+        Assert.Contains(meshes, m => m.Key.Color == Train3D.CoachColor && m.Value.TriangleCount >= 3 * 12);
+        Assert.True(meshes.Values.SelectMany(m => m.Points).All(p => double.IsFinite(p.X) && double.IsFinite(p.Y) && double.IsFinite(p.Z)));
+    }
+}

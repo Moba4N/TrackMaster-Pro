@@ -15,9 +15,13 @@ public sealed class Scene3D
 
     public Model3DGroup Model { get; } = new();
 
-    public Scene3D(LayoutPlan plan)
+    public Scene3D(LayoutPlan plan) => Fill(Model, new Scene3DModel(plan).Meshes);
+
+    /// <summary>Ersetzt den Inhalt von <paramref name="target"/> durch die Netze (auch für den fahrenden Zug).</summary>
+    public void Fill(Model3DGroup target, IReadOnlyDictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> meshes)
     {
-        foreach (var ((rgb, kind), mesh) in new Scene3DModel(plan).Meshes)
+        target.Children.Clear();
+        foreach (var ((rgb, kind), mesh) in meshes)
         {
             if (mesh.IsEmpty) continue;
             var color = Color.FromRgb(rgb.R, rgb.G, rgb.B);
@@ -30,7 +34,7 @@ public sealed class Scene3D
                 case SurfaceKind.Window: material.Children.Add(new EmissiveMaterial(WindowGlow)); break;
                 case SurfaceKind.Lamp: material.Children.Add(new EmissiveMaterial(new SolidColorBrush(color))); break;
             }
-            Model.Children.Add(new GeometryModel3D(ToMesh(mesh), material) { BackMaterial = material });
+            target.Children.Add(new GeometryModel3D(ToMesh(mesh), material) { BackMaterial = material });
         }
     }
 

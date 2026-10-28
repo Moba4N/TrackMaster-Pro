@@ -8,5 +8,10 @@
     <Product>TrackMaster Pro</Product>
     <Version>1.4.0</Version>
     <NeutralLanguage>de-DE</NeutralLanguage>
+    <!-- Öffentliche Adresse der Datei version.json (wird bei jedem Release erzeugt). Leer = keine Update-Prüfung. -->
+    <UpdateUrl></UpdateUrl>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="UpdateUrl" Value="$(UpdateUrl)" />
+  </ItemGroup>
 </Project>

@@ -205,6 +205,32 @@ public sealed class MainWindow : Window
         });
         Add("appearance", ChangeAppearance);
         Add("about", () => Dialogs.ShowAbout(this, License));
+        Add("update", () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null);
+    }
+
+    /// <summary>
+    /// Fragt die version.json ab. Beim Start still (nur ein Hinweis in der Statuszeile), über das Menü mit Rückmeldung
+    /// und dem Angebot, die Download-Seite zu öffnen.
+    /// </summary>
+    public async Task CheckForUpdates(bool manual)
+    {
+        if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not { } url) return;
+        var info = await UpdateCheck.FetchAsync(url, TimeSpan.FromSeconds(manual ? 15 : 5));
+        var current = typeof(MainWindow).Assembly.GetName().Version;
+        if (info is null)
+        {
+            if (manual) MessageBox.Show(this, "Die Update-Prüfung hat keine Antwort bekommen. Bitte die Internetverbindung prüfen.", AppFolders.Name, MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (!UpdateCheck.IsNewer(info, current))
+        {
+            if (manual) MessageBox.Show(this, $"Version {current?.ToString(3)} ist aktuell.", AppFolders.Name, MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (!manual) { Session.Say(UpdateCheck.Describe(info) + " Menü › Nach Updates suchen."); return; }
+        if (info.Url is null) { MessageBox.Show(this, UpdateCheck.Describe(info), AppFolders.Name, MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        if (MessageBox.Show(this, UpdateCheck.Describe(info) + "\n\nDownload-Seite jetzt öffnen?", AppFolders.Name, MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(info.Url) { UseShellExecute = true });
     }
 
     /// <summary>Neue Darstellung wählen; das Fenster startet danach neu und übernimmt den offenen Plan (auch ungespeichert).</summary>
@@ -453,6 +479,7 @@ public sealed class MainWindow : Window
         _appMenu.Items.Add(Item("Beispielplan laden", "Template", "sample"));
         _appMenu.Items.Add(Item("Lizenz…", "Shield", "license"));
         _appMenu.Items.Add(Item("Darstellung…", "Palette", "appearance"));
+        if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null) _appMenu.Items.Add(Item("Nach Updates suchen…", "Update", "update"));
         _appMenu.Items.Add(Item("Über das Programm…", "Info", "about"));
         _appMenu.FooterPaneContent = new RibbonButton { Label = "Beenden", SmallImageSource = Icons.Get("Exit"), Command = _commands["exit"], HorizontalAlignment = HorizontalAlignment.Right };
         Ribbon.ApplicationMenu = _appMenu;

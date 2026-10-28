@@ -79,6 +79,7 @@ public static class Program
             {
                 // Erst eine Sicherung aus einer abgebrochenen Sitzung anbieten; wird sie übernommen, bleibt die Datei zu
                 if (!window.OfferRecovery() && file is not null) window.OpenPath(file);
+                _ = window.CheckForUpdates(manual: false);
             };
         else if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
         if (ArgumentAfter(args, "--restore") is { } restore)

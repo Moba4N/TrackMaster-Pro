@@ -11,6 +11,9 @@ using TrackMaster.Core;
 using TrackMaster.Licensing;
 using Signal = TrackMaster.Core.Signal;
 
+// Nur für die Update-Prüfung (version.json), wenn eine Adresse eingetragen ist
+[assembly: UsesPermission(Android.Manifest.Permission.Internet)]
+
 namespace TrackMaster.Mobile;
 
 /// <summary>
@@ -70,6 +73,7 @@ public sealed class MainActivity : Activity
         if (Intent?.Data is { } data && Intent.Action == Intent.ActionView) OpenUri(data);
         Refresh();
         RegisterBack();
+        _ = CheckForUpdates(manual: false);
 #if DEBUG
         // Für den Build-Test: adb shell am start … --es demo 3d|ride|tab:Gelände|check
         if (Intent?.GetStringExtra("demo") is { } demo) _canvas.PostDelayed(() => Demo(demo), 1500);
@@ -181,6 +185,7 @@ public sealed class MainActivity : Activity
         Add("viewAngle", "Ansicht drehen", AskViewAngle);
         Add("appearance", "Darstellung", ChangeAppearance);
         Add("about", "Über das Programm", ShowAbout);
+        Add("update", "Nach Updates suchen", () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainActivity).Assembly) is not null);
         Add("straight", "Gerade", () => _session.Quick(PieceKind.Straight, null, _canvas.CenterWorld()));
         Add("curve", "Bogen", () => _session.Quick(PieceKind.Curve, null, _canvas.CenterWorld()));
         Add("switchL", "Weiche links", () => _session.Quick(PieceKind.Switch, false, _canvas.CenterWorld()));
@@ -242,6 +247,27 @@ public sealed class MainActivity : Activity
         "Dreht die gewählten Gleise um ihren gemeinsamen Mittelpunkt, um einen beliebigen Winkel.",
         7.5, "Drehen", a => _session.Rotate(a));
 
+    private async Task CheckForUpdates(bool manual)
+    {
+        if (UpdateCheck.ConfiguredUrl(typeof(MainActivity).Assembly) is not { } url) return;
+        var info = await UpdateCheck.FetchAsync(url, TimeSpan.FromSeconds(manual ? 15 : 5));
+        var current = typeof(MainActivity).Assembly.GetName().Version;
+        RunOnUiThread(() =>
+        {
+            if (IsFinishing) return;
+            string? text = info is null ? (manual ? "Die Update-Prüfung hat keine Antwort bekommen. Bitte die Internetverbindung prüfen." : null)
+                : !UpdateCheck.IsNewer(info, current) ? (manual ? $"Version {current?.ToString(3)} ist aktuell." : null)
+                : UpdateCheck.Describe(info);
+            if (text is null) return;
+            if (!manual) { _session.Say(text + " Datei › Updates…"); return; }
+            var b = new AlertDialog.Builder(this).SetTitle("Updates")!.SetMessage(text)!;
+            if (info?.Url is { } link && UpdateCheck.IsNewer(info, current))
+                b.SetPositiveButton("Download-Seite öffnen", (_, _) => StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(link))))!.SetNegativeButton("Später", (_, _) => { });
+            else b.SetPositiveButton("OK", (_, _) => { });
+            b.Show();
+        });
+    }
+
     private void ShowAbout()
     {
         var v = typeof(MainActivity).Assembly.GetName().Version;
@@ -300,7 +326,7 @@ public sealed class MainActivity : Activity
                      ("Gerade ausrichten", "viewReset", false), ("Ansicht drehen…", "viewAngle", false), ("Design und Schrift…", "appearance", false)]),
         ("3D", [("3D-Ansicht", "view3d", false), ("Mitfahren", "ride", false), ("Abendstimmung", "daytime", false)]),
         ("Datei", [("Neu…", "new", false), ("Öffnen…", "open", false), ("Speichern…", "save", false), ("Beispielanlage", "sample", false),
-                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Drucken (PDF, auch 1:1)…", "pdf", false), ("Lizenz…", "license", false), ("Darstellung…", "appearance", false), ("Bedienung", "help", false), ("Über…", "about", false)]),
+                   ("Stückliste als CSV", "csv", false), ("Plan als SVG", "svg", false), ("Drucken (PDF, auch 1:1)…", "pdf", false), ("Lizenz…", "license", false), ("Darstellung…", "appearance", false), ("Bedienung", "help", false), ("Updates…", "update", false), ("Über…", "about", false)]),
     ];
 
     private void BuildUi()

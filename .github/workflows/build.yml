@@ -48,6 +48,23 @@ jobs:
             -o "artifacts/setup/TrackMasterPro-$v.msi"
           if ($LASTEXITCODE -ne 0) { throw "wix build fehlgeschlagen" }
           Remove-Item artifacts/setup/*.wixpdb -ErrorAction SilentlyContinue
+
+      - name: Installer signieren (nur mit Zertifikat)
+        # Secrets WINDOWS_CERT_PFX (Base64 der .pfx-Datei) und WINDOWS_CERT_PASSWORD; ohne sie bleibt das MSI unsigniert
+        env:
+          CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        shell: pwsh
+        run: |
+          if (-not $env:CERT_PFX) { Write-Host "Kein Zertifikat hinterlegt – MSI bleibt unsigniert."; exit 0 }
+          $pfx = Join-Path $env:RUNNER_TEMP "signing.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          foreach ($msi in Get-ChildItem artifacts/setup/*.msi) {
+            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "TrackMaster Pro" $msi.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen" }
+          }
+          Remove-Item $pfx
           Get-ChildItem artifacts/setup | Format-Table Name, Length
 
       - name: Installer prüfen (still installieren, starten, deinstallieren)
@@ -318,6 +335,9 @@ jobs:
           tag="v$v"
           if [ -f docs/TrackMaster-Pro-Handbuch.pdf ]; then cp docs/TrackMaster-Pro-Handbuch.pdf out/; fi
           mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
+          # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
+          # "url" auf die öffentliche Download-Seite setzen, sobald es eine gibt
+          printf '{\n  "version": "%s",\n  "url": "",\n  "notes": ""\n}\n' "$v" > out/version.json
           ls -la out
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "TrackMaster Pro $v" \

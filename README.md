@@ -12,7 +12,7 @@ Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, 
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.3.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.4.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
@@ -106,11 +106,11 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Form und Maße lassen sich später in den Planeigenschaften ändern. Zeichnung, Raster, 3D-Ansicht, SVG-Export und die
   Planprüfung (Gleise über dem Plattenrand bzw. in der offenen Mitte) folgen der Form.
 - Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Arnold, Tomix Fine Track,
-  Peco Streamline Code 55 und Code 80, Peco Setrack · TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Kühn, Piko ·
-  H0: Märklin C, Trix C, Märklin K, Märklin M, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Fleischmann Modellgleis,
+  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Arnold,
+  Peco Streamline Code 55 und Code 80, Peco Setrack · TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko ·
+  H0: Märklin C, Trix C, Märklin K, Märklin Drehscheibe und Schiebebühne, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Fleischmann Modellgleis,
   Tillig Elite, Peco Code 75 und Code 100, Peco Setrack, Kato Unitrack, Weinert mein Gleis · H0m: Tillig · H0e: Tillig, Peco, Kato ·
-  0: Standard, Lenz, Peco Bullhead · Spur 1: Märklin · G: LGB, Piko.
+  0: Standard, Peco Bullhead · Spur 1: Märklin · G: LGB, Piko.
   Zusammen rund 1300 Gleisstücke: Geraden, Bögen, Gegenbögen, Schalt-, Entkupplungs- und Übergangsgleise, einfache, schlanke,
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Gleisdaten stehen im eigenen Katalog `src/TrackMaster.Core/Gleiskatalog.json`, erfasst nach Herstellerangaben
@@ -123,7 +123,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Wo ein Hersteller keinen Prellbock im Datensatz hat, gibt es einen allgemeinen Prellbock „PB“ (ungeprüft).
   Frühere Katalogeinträge bleiben im Hintergrund erhalten, damit ältere Pläne weiter öffnen.
   Jedes Gleissystem hat in der Bibliothek einen Eintrag „Flexgleis…“: Systeme mit eigenem Flexgleis (z. B. Märklin K 2205,
-  Roco Line 42400, Tillig 85125, Lenz 45013) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
+  Roco Line 42400, Tillig 85125) rechnen in der Stückliste mit dessen Länge, die anderen mit dem allgemeinen Flexgleis der Spur.
 - Gleise per Klick am aktiven (orangefarbenen) Gleisende ansetzen oder frei ziehen; Gleise rasten an freien Enden ein.
 - **Flexgleis** mit freier Länge oder freiem Radius und Winkel; in der Stückliste als ganze Stangen mit 5 % Verschnitt.
   Frei formbar: Werkzeug **Flexgleis ziehen** (Register Gleise) am offenen Gleisende ansetzen und ziehen –

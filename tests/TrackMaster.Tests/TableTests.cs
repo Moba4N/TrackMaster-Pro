@@ -6,7 +6,6 @@ public class TableTests
 {
     [Theory]
     [InlineData("H0|rocoline|42615", 40, 126.5)]
-    [InlineData("H0|mm|7186", 48, 193)]
     [InlineData("N|kato|20-283", 36, 80)]
     [InlineData("Z|mini|8599", 24, 85)]
     [InlineData("G|lgb|14000", 16, 370)]
@@ -24,6 +23,7 @@ public class TableTests
 
     [Theory]
     [InlineData("Z", "mini", "8599")]
+    [InlineData("Z", "mini", "8994")]
     [InlineData("G", "lgb", "14000")]
     [InlineData("N", "kato", "20-283")]
     public void Drehscheiben_bleiben_in_der_Bibliothek(string gauge, string system, string number)
@@ -32,12 +32,12 @@ public class TableTests
     [Fact]
     public void Schiebebuehne_hat_Anschluesse_links_und_rechts()
     {
-        var d = Catalog.Get("H0|mm|7294");
+        var d = Catalog.Get("Z|mini|8994");
         Assert.Equal(PieceKind.TransferTable, d.Kind);
         var ports = TrackGeometry.LocalConnectors(d, false);
         Assert.Equal(10, ports.Count);
         Assert.Equal(5, ports.Count(p => p.Heading == 180 && Math.Abs(p.X) < 0.01));
-        Assert.Equal(5, ports.Count(p => p.Heading == 0 && Math.Abs(p.X - 360) < 0.01));
+        Assert.Equal(5, ports.Count(p => p.Heading == 0 && Math.Abs(p.X - 220.17) < 0.01));
     }
 
     [Fact]

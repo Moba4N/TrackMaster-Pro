@@ -115,7 +115,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Gleisdaten stehen im eigenen Katalog `src/TrackMaster.Core/Gleiskatalog.json`, erfasst nach Herstellerangaben
   (Produktseiten, Kataloge, Anleitungen; Quellen je System, Erzeuger in `tools/katalog`). Bisher so erfasst: Märklin C, K und
-  mini-club, Trix C, Minitrix, Kato Unitrack N, H0 und H0e, Roco/Fleischmann N (ohne Bettung und piccolo), Weinert mein Gleis, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
+  mini-club, Trix C, Minitrix, Kato Unitrack N, H0 und H0e, Roco/Fleischmann N (ohne Bettung und piccolo), Weinert mein Gleis, Peco Setrack H0, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
   Märklin Spur 1. Die übrigen Systeme kommen noch aus der Datei `gleisdaten/gleisdaten.json` unter der GNU GPL Version 2
   (Lizenztext und Herkunft im selben Ordner; Maße aus der Gleisbibliothek von XTrackCAD); das Programm liest sie nur ein.
   Drehscheiben und Schiebebühnen der Hersteller stehen in einer eigenen Gruppe der Bibliothek. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.

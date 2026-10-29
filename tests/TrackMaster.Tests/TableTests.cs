@@ -7,6 +7,7 @@ public class TableTests
     [Theory]
     [InlineData("H0|rocoline|42615", 40, 126.5)]
     [InlineData("N|kato|20-283", 36, 80)]
+    [InlineData("Z|mini|89983", 24, 66)]
     public void Drehscheibe_hat_Anschluesse_rundum_auf_dem_Radius(string key, int count, double radius)
     {
         var d = Catalog.Get(key);
@@ -24,6 +25,10 @@ public class TableTests
     [InlineData("N", "kato", "20-283")]
     public void Drehscheiben_bleiben_in_der_Bibliothek(string gauge, string system, string number)
         => Assert.Contains(Catalog.GetSystem(gauge, system)!.Pieces, p => p.Number == number);
+
+    [Fact]
+    public void Alte_Nummer_der_Drehscheibe_fuehrt_zur_neuen()
+        => Assert.Equal("89983", Catalog.Get("Z|mini|8599").Number);
 
     [Fact]
     public void Schiebebuehne_hat_Anschluesse_links_und_rechts()

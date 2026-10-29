@@ -6,10 +6,12 @@ FLEX_NUMBER, FLEX_LENGTH = "8594", 660
 QUELLEN = [
     "https://www.maerklinshop.de/en/ Spur Z, Gleise (Produktseiten der Artikel 85xx, Stand 10/2026)",
     "Märklin „Spur Z komplett“: Symbole und Maße der Märklin-Z-Komponenten (S. 4–7), Gleisradien und Weichen (S. 10–12)",
+    "Märklin Drehscheibe 89983: Außendurchmesser 170 mm, Drehbühne 132 mm, Einbauöffnung Ø 145 mm (Herstellerangaben); "
+    "Anleitung 287166 (Gleisabgänge im Raster von 15°)",
 ]
 
-# frühere Einträge: Bogen 8591 mit Schnitt links/rechts
-ALIASE = {"8591-1": 8591, "8591-2": 8591}
+# frühere Einträge: Bogen 8591 mit Schnitt links/rechts; Drehscheibe 8599 (Vorgänger der 89983)
+ALIASE = {"8591-1": 8591, "8591-2": 8591, "8599": 89983}
 
 TEILE = [
     S(8504, 25), S(8503, 55), S(8506, 108.6), S(8500, 110), S(8507, 112.8), S(8505, 220),
@@ -36,4 +38,5 @@ TEILE = [
     C(8977, 145, 45, name="Rampenstück", name_en_basis="Ramp"),
     # Prellböcke zum Aufstecken, Einbaulänge etwa 20 mm
     P(8991, 20), P(8931, 20, "Prellbock mit Sperrsignal", "Buffer stop with signal"),
+    DS(89983, 170, 132, 24, 15),
 ]

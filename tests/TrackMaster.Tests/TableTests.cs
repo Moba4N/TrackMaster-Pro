@@ -7,7 +7,6 @@ public class TableTests
     [Theory]
     [InlineData("H0|rocoline|42615", 40, 126.5)]
     [InlineData("N|kato|20-283", 36, 80)]
-    [InlineData("Z|mini|8599", 24, 85)]
     [InlineData("G|lgb|14000", 16, 370)]
     public void Drehscheibe_hat_Anschluesse_rundum_auf_dem_Radius(string key, int count, double radius)
     {
@@ -22,7 +21,6 @@ public class TableTests
     }
 
     [Theory]
-    [InlineData("Z", "mini", "8599")]
     [InlineData("Z", "mini", "8994")]
     [InlineData("G", "lgb", "14000")]
     [InlineData("N", "kato", "20-283")]

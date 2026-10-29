@@ -1,13 +1,13 @@
-<!-- Windows-Installer für TrackPlan (WiX Toolset 5).
+<!-- Windows-Installer für TrackMaster Pro (WiX Toolset 5).
      Gebaut in .github/workflows/build.yml:
      wix build installer/TrackMasterPro.wxs -arch x64 -culture de-DE -ext WixToolset.UI.wixext
-       -d Version=1.0.0 -d PublishDir=artifacts/msi-input -d HasManual=1 -o TrackPlan-1.0.0.msi -->
+       -d Version=1.0.0 -d PublishDir=artifacts/msi-input -d HasManual=1 -o TrackMasterPro-1.0.0.msi -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="TrackPlan" Manufacturer="Moba4N" Version="$(var.Version)"
+  <Package Name="TrackMaster Pro" Manufacturer="Moba4N" Version="$(var.Version)"
            UpgradeCode="687f3c00-5a57-404d-981d-cc6bffef3ddb" Language="1031" Codepage="1252" Scope="perMachine">
-    <SummaryInformation Description="TrackPlan – Gleisplanung für Modellbahnanlagen" Manufacturer="Moba4N" />
+    <SummaryInformation Description="TrackMaster Pro – Gleisplanung für Modellbahnanlagen" Manufacturer="Moba4N" />
 
-    <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von TrackPlan ist bereits installiert." />
+    <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von TrackMaster Pro ist bereits installiert." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="AppIcon" SourceFile="$(sys.SOURCEFILEDIR)..\src\TrackMaster.App\TrackMaster.ico" />
@@ -15,10 +15,10 @@
     <Property Id="ARPHELPLINK" Value="https://github.com/Moba4N/TrackMaster-Pro" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="TrackPlan" />
+      <Directory Id="INSTALLFOLDER" Name="TrackMaster Pro" />
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
-      <Directory Id="AppMenuFolder" Name="TrackPlan" />
+      <Directory Id="AppMenuFolder" Name="TrackMaster Pro" />
     </StandardDirectory>
     <StandardDirectory Id="DesktopFolder" />
 
@@ -28,23 +28,23 @@
     </ComponentGroup>
 
     <Component Id="StartMenuShortcuts" Directory="AppMenuFolder" Guid="7d0c5a52-3f3e-4f55-9a5e-4f8c7a1d2b61">
-      <Shortcut Id="AppStartMenu" Name="TrackPlan" Description="Gleisplanung für Modellbahnanlagen"
-                Target="[INSTALLFOLDER]TrackPlan.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+      <Shortcut Id="AppStartMenu" Name="TrackMaster Pro" Description="Gleisplanung für Modellbahnanlagen"
+                Target="[INSTALLFOLDER]TrackMasterPro.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
 <?if $(var.HasManual) = 1 ?>
-      <Shortcut Id="ManualStartMenu" Name="TrackPlan Handbuch" Description="Handbuch als PDF"
+      <Shortcut Id="ManualStartMenu" Name="TrackMaster Pro Handbuch" Description="Handbuch als PDF"
                 Target="[INSTALLFOLDER]Handbuch.pdf" WorkingDirectory="INSTALLFOLDER" />
 <?endif?>
       <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
-      <RegistryValue Root="HKCU" Key="Software\TrackPlan\Installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      <RegistryValue Root="HKCU" Key="Software\TrackMaster Pro\Installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 
     <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="b8e2f0c4-6a1d-4c39-8e57-2d9f3b6a7c10">
-      <Shortcut Id="AppDesktop" Name="TrackPlan" Description="Gleisplanung für Modellbahnanlagen"
-                Target="[INSTALLFOLDER]TrackPlan.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
-      <RegistryValue Root="HKCU" Key="Software\TrackPlan\Installer" Name="Desktop" Type="integer" Value="1" KeyPath="yes" />
+      <Shortcut Id="AppDesktop" Name="TrackMaster Pro" Description="Gleisplanung für Modellbahnanlagen"
+                Target="[INSTALLFOLDER]TrackMasterPro.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+      <RegistryValue Root="HKCU" Key="Software\TrackMaster Pro\Installer" Name="Desktop" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 
-    <Feature Id="Main" Title="TrackPlan" Description="Das Programm mit allen Gleiskatalogen." Level="1" AllowAbsent="no">
+    <Feature Id="Main" Title="TrackMaster Pro" Description="Das Programm mit allen Gleiskatalogen." Level="1" AllowAbsent="no">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="StartMenuShortcuts" />
     </Feature>

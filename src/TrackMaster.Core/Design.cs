@@ -15,7 +15,7 @@ public sealed record Design(
     /// <summary>Anthrazit aus dem Logo.</summary>
     public static readonly Rgb LogoDark = new(0x1F, 0x24, 0x28);
 
-    public static readonly Design TrackPlan = new("trackplan", Lang.T("Logo-Grün"), Lang.T("Standard: Grün und Anthrazit aus dem Logo, heller Arbeitsbereich."),
+    public static readonly Design Logo = new("trackplan", Lang.T("Logo-Grün"), Lang.T("Standard: Grün und Anthrazit aus dem Logo, heller Arbeitsbereich."),
         new(0x43, 0x7E, 0x1E), new(0x36, 0x66, 0x18), new(0xDC, 0xEB, 0xC9), new(0xB3, 0xD2, 0x92), new(0xEE, 0xF5, 0xE4),
         new(0xF4, 0xF5, 0xF2), new(0x55, 0x5A, 0x55), new(0xE3, 0xEB, 0xD7), new(0x8F, 0xA6, 0x7A), new(0x5A, 0x6E, 0x46),
         new(0xCF, 0xC3, 0xAF), new(0x8C, 0x7B, 0x66), new(0x4E, 0x52, 0x57));
@@ -40,9 +40,9 @@ public sealed record Design(
         new(0xEF, 0xE9, 0xDF), new(0x5E, 0x50, 0x42), new(0xE6, 0xCC, 0xA1), new(0xA9, 0x83, 0x4F), new(0x7A, 0x5A, 0x34),
         new(0xCD, 0xBF, 0xA6), new(0x6E, 0x52, 0x38), new(0x3A, 0x3A, 0x3A));
 
-    public static IReadOnlyList<Design> All { get; } = [TrackPlan, Classic, Blueprint, Contrast, Workshop];
+    public static IReadOnlyList<Design> All { get; } = [Logo, Classic, Blueprint, Contrast, Workshop];
 
-    public static Design Find(string? id) => All.FirstOrDefault(d => d.Id == id) ?? TrackPlan;
+    public static Design Find(string? id) => All.FirstOrDefault(d => d.Id == id) ?? Logo;
 }
 
 /// <summary>Schriftart und -größe der Oberfläche (Name der Schrift je Plattform).</summary>

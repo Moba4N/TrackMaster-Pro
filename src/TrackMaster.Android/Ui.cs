@@ -12,7 +12,7 @@ namespace TrackMaster.Mobile;
 public static class Ui
 {
     /// <summary>Gewähltes Design (Farben von Akzent und Zeichenfläche); MainActivity setzt es vor dem Aufbau der Oberfläche.</summary>
-    public static Design D { get; set; } = Design.TrackPlan;
+    public static Design D { get; set; } = Design.Logo;
     /// <summary>Schrift der Oberfläche (Android-Familienname) und Faktor für die Schriftgrößen.</summary>
     public static string FontFamily { get; set; } = "sans-serif";
     public static double FontScale { get; set; } = 1;

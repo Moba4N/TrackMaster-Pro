@@ -36,8 +36,8 @@ jobs:
           $v = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
           dotnet publish src/TrackMaster.App -c Release -r win-x64 --self-contained true -o artifacts/msi-input
           $manual = 0
-          if (Test-Path docs/TrackPlan-Handbuch.pdf) {
-            Copy-Item docs/TrackPlan-Handbuch.pdf artifacts/msi-input/Handbuch.pdf
+          if (Test-Path docs/TrackMaster-Pro-Handbuch.pdf) {
+            Copy-Item docs/TrackMaster-Pro-Handbuch.pdf artifacts/msi-input/Handbuch.pdf
             $manual = 1
           }
           dotnet tool install --global wix --version 5.0.2
@@ -45,7 +45,7 @@ jobs:
           New-Item -ItemType Directory -Force artifacts/setup | Out-Null
           wix build installer/TrackMasterPro.wxs -arch x64 -culture de-DE -ext WixToolset.UI.wixext `
             -d Version=$v -d "PublishDir=$PWD\artifacts\msi-input" -d HasManual=$manual `
-            -o "artifacts/setup/TrackPlan-$v.msi"
+            -o "artifacts/setup/TrackMasterPro-$v.msi"
           if ($LASTEXITCODE -ne 0) { throw "wix build fehlgeschlagen" }
           Remove-Item artifacts/setup/*.wixpdb -ErrorAction SilentlyContinue
 
@@ -61,7 +61,7 @@ jobs:
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX))
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
           foreach ($msi in Get-ChildItem artifacts/setup/*.msi) {
-            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "TrackPlan" $msi.FullName
+            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "TrackMaster Pro" $msi.FullName
             if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen" }
           }
           Remove-Item $pfx
@@ -73,13 +73,13 @@ jobs:
           $msi = (Get-ChildItem artifacts/setup/*.msi | Select-Object -First 1).FullName
           $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v `"$PWD\artifacts\setup-install.log`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content artifacts/setup-install.log -Tail 60; throw "Installation fehlgeschlagen ($($p.ExitCode))" }
-          $exe = "$env:ProgramFiles\TrackPlan\TrackPlan.exe"
+          $exe = "$env:ProgramFiles\TrackMaster Pro\TrackMasterPro.exe"
           if (-not (Test-Path $exe)) { throw "Programm nicht installiert" }
           $shot = "$PWD/artifacts/screenshot-installiert.png"
           $app = Start-Process -FilePath $exe -ArgumentList @("--screenshot", $shot) -PassThru
           if (-not $app.WaitForExit(120000)) { $app.Kill(); throw "Installiertes Programm reagiert nicht" }
           if (-not (Test-Path $shot)) { throw "Installiertes Programm startet nicht" }
-          Get-ChildItem "$env:ProgramFiles\TrackPlan" -Filter *.pdf
+          Get-ChildItem "$env:ProgramFiles\TrackMaster Pro" -Filter *.pdf
           $p = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Deinstallation fehlgeschlagen ($($p.ExitCode))" }
           if (Test-Path $exe) { throw "Programm nach Deinstallation noch vorhanden" }
@@ -94,7 +94,7 @@ jobs:
             if (Test-Path "$file.error.txt") { Get-Content "$file.error.txt"; throw "Fehler beim Bildschirmfoto $name" }
             if (-not (Test-Path $file)) { throw "Kein Bildschirmfoto $name (Exitcode $($p.ExitCode))" }
           }
-          $app = "artifacts/TrackMasterPro/TrackPlan.exe"
+          $app = "artifacts/TrackMasterPro/TrackMasterPro.exe"
           Shot $app "screenshot-basis" @()
           Shot $app "screenshot" @("--pro")
           Shot $app "screenshot-auswahl" @("--pro", "--tab", "Gleise", "--select")
@@ -358,15 +358,15 @@ jobs:
         run: |
           v=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
           tag="v$v"
-          if [ -f docs/TrackPlan-Handbuch.pdf ]; then cp docs/TrackPlan-Handbuch.pdf out/; fi
-          if [ -f docs/TrackPlan-Manual.pdf ]; then cp docs/TrackPlan-Manual.pdf out/; fi
-          mv out/TrackMasterPro.apk "out/TrackPlan-$v.apk"
+          if [ -f docs/TrackMaster-Pro-Handbuch.pdf ]; then cp docs/TrackMaster-Pro-Handbuch.pdf out/; fi
+          if [ -f docs/TrackMaster-Pro-Manual.pdf ]; then cp docs/TrackMaster-Pro-Manual.pdf out/; fi
+          mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
           # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
           # "url" ist die Release-Seite dieser Version mit MSI, APK und Handbuch
           printf '{\n  "version": "%s",\n  "url": "https://github.com/%s/releases/tag/%s",\n  "notes": ""\n}\n' "$v" "$GITHUB_REPOSITORY" "$tag" > out/version.json
           ls -la out
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --title "TrackPlan $v" \
+            gh release create "$tag" --target "$GITHUB_SHA" --title "TrackMaster Pro $v" \
               --notes "Windows-Installer (MSI), Android-App (APK) und Handbuch. Ohne Lizenz läuft die Basisversion, mit Lizenzdatei Pro."
           fi
           gh release upload "$tag" out/* --clobber

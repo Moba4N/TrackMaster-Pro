@@ -58,7 +58,7 @@ public static class PlanPdf
         new PlanPainter(plan, new HashSet<int>(), false).Draw(c, scale, true, new HashSet<int>(), null);
         c.Restore();
         var tiles = Tiles(plan);
-        c.DrawText(Lang.F($"Maßstab etwa 1:{Fmt.Num(Pt / scale, 0)} · Ab Seite 2: Bauvorlage 1:1 auf {tiles.Count} Seiten A4 (beim Drucken „Tatsächliche Größe“ wählen) · TrackPlan {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"),
+        c.DrawText(Lang.F($"Maßstab etwa 1:{Fmt.Num(Pt / scale, 0)} · Ab Seite 2: Bauvorlage 1:1 auf {tiles.Count} Seiten A4 (beim Drucken „Tatsächliche Größe“ wählen) · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"),
                    30, h - 24, Text(8));
         var bom = string.Join(" · ", BillOfMaterials.Build(plan).Take(14).Select(r => $"{r.Count}× {r.Def.Number}"));
         if (bom.Length > 0) c.DrawText((Lang.T("Stückliste: ") + bom)[..Math.Min(bom.Length + 12, 190)], 30, h - 38, Text(8));
@@ -105,7 +105,7 @@ public static class PlanPdf
         var y0 = top + th + 14;
         c.DrawLine(left, y0, left + 100 * Pt, y0, line);
         for (var i = 0; i <= 10; i++) c.DrawLine(left + i * 10 * Pt, y0 - (i % 5 == 0 ? 4 : 2), left + i * 10 * Pt, y0, line);
-        c.DrawText(Lang.F($"Prüfmaß 100 mm – bitte nachmessen · TrackPlan {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), left + 100 * Pt + 8, y0 + 3, Text(7));
+        c.DrawText(Lang.F($"Prüfmaß 100 mm – bitte nachmessen · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), left + 100 * Pt + 8, y0 + 3, Text(7));
         doc.FinishPage(page);
     }
 }

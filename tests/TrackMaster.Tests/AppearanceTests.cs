@@ -9,8 +9,8 @@ public class AppearanceTests
     public void Designs_haben_eindeutige_Kennungen_und_Logo_Gruen_ist_Standard()
     {
         Assert.Equal(Design.All.Count, Design.All.Select(d => d.Id).Distinct().Count());
-        Assert.Same(Design.TrackPlan, new AppearanceSettings().Palette);
-        Assert.Same(Design.TrackPlan, Design.Find("gibt-es-nicht"));
+        Assert.Same(Design.Logo, new AppearanceSettings().Palette);
+        Assert.Same(Design.Logo, Design.Find("gibt-es-nicht"));
         Assert.Same(Design.Blueprint, Design.Find("blaupause"));
     }
 

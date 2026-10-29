@@ -1,7 +1,7 @@
 # Eigener Gleiskatalog
 
 `katalog.py` erzeugt `src/TrackMaster.Core/Gleiskatalog.json` aus den Tabellen in `systeme/`. Der Katalog ist im
-Programm eingebettet und gehört zu TrackPlan (keine fremde Gleisbibliothek).
+Programm eingebettet und gehört zu TrackMaster Pro (keine fremde Gleisbibliothek).
 
 - Jede Datei in `systeme/` beschreibt ein Gleissystem nach den Angaben des Herstellers: Artikelnummer, Länge, Radius,
   Winkel, bei Bogenweichen der Parallel- bzw. Kreisabstand. Die Quellen stehen in `QUELLEN` und als Kommentar am Teil.

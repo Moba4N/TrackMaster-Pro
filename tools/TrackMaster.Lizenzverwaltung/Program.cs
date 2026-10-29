@@ -92,7 +92,7 @@ public sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Title = "TrackPlan – Lizenzverwaltung";
+        Title = "TrackMaster Pro – Lizenzverwaltung";
         Width = 980; Height = 720; MinWidth = 820; MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
@@ -112,7 +112,7 @@ public sealed class MainWindow : Window
         var root = new DockPanel { Margin = new Thickness(20) };
         var head = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
         head.Children.Add(new TextBlock { Text = "Lizenzverwaltung", FontSize = 24, FontWeight = FontWeights.SemiBold });
-        head.Children.Add(new TextBlock { Text = "Erstellt signierte Pro-Lizenzen für TrackPlan. Ohne Lizenz läuft das Programm als Basisversion.", Foreground = Secondary });
+        head.Children.Add(new TextBlock { Text = "Erstellt signierte Pro-Lizenzen für TrackMaster Pro. Ohne Lizenz läuft das Programm als Basisversion.", Foreground = Secondary });
         DockPanel.SetDock(head, Dock.Top);
         root.Children.Add(head);
 
@@ -143,7 +143,7 @@ public sealed class MainWindow : Window
         form.Children.Add(Field("Lizenznehmer (Kunde)", _name));
         form.Children.Add(Field("E-Mail (optional)", _email));
         form.Children.Add(Field("Gültig bis (leer = unbefristet)", _expires));
-        form.Children.Add(Field("Rechnerkennung (optional, aus TrackPlan › Datei › Lizenz)", _machine));
+        form.Children.Add(Field("Rechnerkennung (optional, aus TrackMaster Pro › Datei › Lizenz)", _machine));
         var save = Button("Pro-Lizenz speichern…", SaveLicense, accent: true);
         save.HorizontalAlignment = HorizontalAlignment.Left;
         form.Children.Add(save);
@@ -229,7 +229,7 @@ public sealed class MainWindow : Window
             _settings.Save();
             _keyText.Text = $"{path}\nFingerabdruck {_key.Fingerprint} – " + (_key.MatchesEmbedded
                 ? "passt zum Programm."
-                : "passt NICHT zum öffentlichen Schlüssel im Programm. Lizenzen dieses Schlüssels erkennt TrackPlan erst nach einem neuen Build an.");
+                : "passt NICHT zum öffentlichen Schlüssel im Programm. Lizenzen dieses Schlüssels erkennt TrackMaster Pro erst nach einem neuen Build an.");
             _keyText.Foreground = _key.MatchesEmbedded ? Brushes.DarkGreen : Brushes.DarkOrange;
         }
         catch (InvalidDataException e)

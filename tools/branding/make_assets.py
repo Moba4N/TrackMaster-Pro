@@ -1,4 +1,4 @@
-"""Erzeugt Programmsymbol, Installer-Bilder und App-Symbole aus docs/branding/TrackPlan-Logo.png.
+"""Erzeugt Programmsymbol, Installer-Bilder und App-Symbole aus docs/branding/TrackMaster-Pro-Logo.png.
 
 Aufruf im Repository-Ordner: python3 tools/branding/make_assets.py  (braucht Pillow)
 """
@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DARK = (0x1F, 0x24, 0x28)
 GREEN = (0x76, 0xAD, 0x33)
 
-logo = Image.open(ROOT / "docs/branding/TrackPlan-Logo.png").convert("RGBA")
+logo = Image.open(ROOT / "docs/branding/TrackMaster-Pro-Logo.png").convert("RGBA")
 logo = logo.crop(logo.split()[3].getbbox())  # durchsichtigen Rand abschneiden
 
 

@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>TrackPlan – User Manual</title>
-<meta name="pdf-footer" content="TrackPlan 1.4.6 · User Manual">
+<title>TrackMaster Pro – User Manual</title>
+<meta name="pdf-footer" content="TrackMaster Pro 1.4.7 · User Manual">
 <meta name="pdf-start" content="is a planning program for model railway layouts">
 <style>
   @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
@@ -80,12 +80,12 @@
   <div class="rails"></div><div class="rails2"></div>
   <div class="inner">
     <div class="logocard"><img src="img/logo.png" alt=""></div>
-    <h1>TrackPlan</h1>
-    <div class="sub">User Manual · Version 1.4.6</div>
+    <h1>TrackMaster Pro</h1>
+    <div class="sub">User Manual · Version 1.4.7</div>
     <div class="what">Track planning for model railway layouts in all common gauges – with height planning, helix and
       timber list, scenery, wiring and signals, plan check and 3D view. For Windows and Android.</div>
   </div>
-  <div class="foot"><span>TrackPlan 1.4.6 · Basic and Pro</span><span>As of October 2026</span></div>
+  <div class="foot"><span>TrackMaster Pro 1.4.7 · Basic and Pro</span><span>As of October 2026</span></div>
 </section>
 
 <section class="toc">
@@ -96,11 +96,11 @@
 <!-- ======================================================= -->
 <section>
 <h1 id="k1"><span class="no">1</span>Welcome</h1>
-<p class="lead">TrackPlan is a planning program for model railway layouts. You set up the baseboard, lay track
+<p class="lead">TrackMaster Pro is a planning program for model railway layouts. You set up the baseboard, lay track
 from the catalogues of the common track systems, plan gradients and helixes, design the scenery, wire the
 layout and look at the result in 3D – before you buy the first piece of rail.</p>
 
-<h2 id="k1-1">What TrackPlan can do</h2>
+<h2 id="k1-1">What TrackMaster Pro can do</h2>
 <ul>
   <li><b>Track plans in all common gauges:</b> Z, N, TT, H0, H0m, H0e, 0, gauge 1 and G, with many track systems
     and about 900 track pieces – straights, curves, turnouts, crossings, double slips, buffer stops and flexible track.</li>
@@ -118,7 +118,7 @@ layout and look at the result in 3D – before you buy the first piece of rail.<
 </ul>
 
 <h2 id="k1-2">Basic and Pro</h2>
-<p>TrackPlan comes in two editions. Without a licence, the <b>Basic edition</b> runs. It contains <b>all planning features</b>
+<p>TrackMaster Pro comes in two editions. Without a licence, the <b>Basic edition</b> runs. It contains <b>all planning features</b>
 – so you can design, check and view any layout in 3D in full. A licence file turns it into the
 <b>Pro edition</b>, which unlocks the results of your planning.</p>
 <table>
@@ -154,31 +154,31 @@ The manual shows the English interface; how to switch the language is described 
   <li>screen of at least 1280 × 720 pixels, 1920 × 1080 recommended</li>
   <li>for the 3D view, a graphics card with DirectX support (present in every current PC)</li>
 </ul>
-<p>No additional runtime is needed – everything TrackPlan requires is included in the installation package.</p>
+<p>No additional runtime is needed – everything TrackMaster Pro requires is included in the installation package.</p>
 
 <h3>Installing</h3>
 <ol class="steps">
-  <li>Double-click the file <b>TrackPlan-1.4.6.msi</b>.</li>
+  <li>Double-click the file <b>TrackMasterPro-1.4.7.msi</b>.</li>
   <li>If Windows SmartScreen reports “Windows protected your PC”: click <span class="ui">More info</span>
       and then <span class="ui">Run anyway</span>.</li>
-  <li>Follow the setup wizard: accept the licence terms and choose the destination folder (default <i>C:\Program Files\TrackPlan</i>).</li>
+  <li>Follow the setup wizard: accept the licence terms and choose the destination folder (default <i>C:\Program Files\TrackMaster Pro</i>).</li>
   <li>Start the installation. Windows asks for permission to make changes – confirm with <span class="ui">Yes</span>.</li>
   <li>After a few seconds the installation is complete. Close the wizard.</li>
 </ol>
-<p>You will then find TrackPlan in the <b>Start menu</b> and as a shortcut on the <b>desktop</b>. The manual is also in the Start menu.</p>
+<p>You will then find TrackMaster Pro in the <b>Start menu</b> and as a shortcut on the <b>desktop</b>. The manual is also in the Start menu.</p>
 
 <h3>Updating and uninstalling</h3>
 <p>Simply install a new version over the existing one: the installer detects the older version and replaces it.
 Your plans and your licence are kept. To remove the program, open <span class="ui">Settings › Apps › Installed apps</span>,
-select <b>TrackPlan</b> and click <span class="ui">Uninstall</span>. Your plan files and the licence file are not deleted.</p>
+select <b>TrackMaster Pro</b> and click <span class="ui">Uninstall</span>. Your plan files and the licence file are not deleted.</p>
 
 <h3>Silent installation for administrators</h3>
 <p>The package can be deployed to several computers without prompts:</p>
 <table>
   <tr><th style="width:52%">Command</th><th>Effect</th></tr>
-  <tr><td><code>msiexec /i TrackPlan-1.4.6.msi /qn</code></td><td>installation without user interface</td></tr>
-  <tr><td><code>msiexec /i TrackPlan-1.4.6.msi INSTALLFOLDER="D:\Programs\TrackPlan" /qn</code></td><td>installation into another folder</td></tr>
-  <tr><td><code>msiexec /x TrackPlan-1.4.6.msi /qn</code></td><td>uninstallation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.4.7.msi /qn</code></td><td>installation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.4.7.msi INSTALLFOLDER="D:\Programs\TrackMaster Pro" /qn</code></td><td>installation into another folder</td></tr>
+  <tr><td><code>msiexec /x TrackMasterPro-1.4.7.msi /qn</code></td><td>uninstallation without user interface</td></tr>
 </table>
 
 <h2 id="k2-2">Android</h2>
@@ -189,11 +189,11 @@ select <b>TrackPlan</b> and click <span class="ui">Uninstall</span>. Your plan f
 </ul>
 <h3>Installing</h3>
 <ol class="steps">
-  <li>Copy the file <b>TrackPlan-1.4.1.apk</b> to the device – via USB cable, cloud storage or as an e-mail attachment.</li>
+  <li>Copy the file <b>TrackMasterPro-1.4.1.apk</b> to the device – via USB cable, cloud storage or as an e-mail attachment.</li>
   <li>Tap the file on the device, for example in the <span class="ui">Files</span> app in the <span class="ui">Downloads</span> folder.</li>
   <li>The first time, Android asks whether this app may <b>install unknown apps</b>. Tap <span class="ui">Settings</span>,
       allow it and go back.</li>
-  <li>Confirm with <span class="ui">Install</span>. TrackPlan then appears in the app overview.</li>
+  <li>Confirm with <span class="ui">Install</span>. TrackMaster Pro then appears in the app overview.</li>
 </ol>
 <p>Install an update the same way over the existing app; your current plan is kept.</p>
 
@@ -230,7 +230,7 @@ you put it on the clipboard and can paste it into an e-mail.</p>
 <p>In the Basic edition, a note appears when you save plans with more than 50 tracks, and for the parts list, timber list, printing and the exports. With
 <span class="ui">Licence…</span> you open the licence dialog directly. Your plan stays open unchanged.</p>
 <div class="warn"><b>Caution</b>In the Basic edition, plans with more than 50 tracks cannot be saved. When you close the program, start a
-new plan or open another one, TrackPlan asks whether the changes should be discarded.</div>
+new plan or open another one, TrackMaster Pro asks whether the changes should be discarded.</div>
 </section>
 
 <!-- ======================================================= -->
@@ -335,7 +335,7 @@ The library then shows all track pieces of this system with article number and d
   <li>Click a curved track in the library. It appears in the middle of the baseboard; its free end is
       marked <b>orange</b> – this is the <b>active track end</b>.</li>
   <li>Keep clicking curves. Each new track is attached to the active end until the semicircle is complete.</li>
-  <li>Add straights and the second semicircle. When the oval closes, TrackPlan connects the ends automatically.</li>
+  <li>Add straights and the second semicircle. When the oval closes, TrackMaster Pro connects the ends automatically.</li>
   <li>Click the orange end of another track to continue building there, or press <kbd>E</kbd> for the next open end.</li>
   <li>Insert a turnout, run a parallel track and connect it again with a second turnout.</li>
 </ol>
@@ -412,7 +412,7 @@ labels and dimensions also appear in the printout.</p>
 <p><b>Reshaping:</b> with the tool switched on, grab a laid flexible track at one end and drag – the other end stays in place.</p>
 <h3>Close gap</h3>
 <p>Click a track end (active end), select the counterpart and click <span class="ui">Tracks › Close gap</span>.
-TrackPlan connects both ends with a suitably bent flexible track.</p>
+TrackMaster Pro connects both ends with a suitably bent flexible track.</p>
 <h3>Flexible track with dimensions</h3>
 <p>Via <span class="ui">Tracks › Flexible track…</span> or the entry “Flexible track…” in the library you create a straight piece of
 any length or a curve with any radius and angle.</p>
@@ -428,7 +428,7 @@ curve radius your vehicles can negotiate.</div>
 
 <h2 id="k7-1">Height of a track</h2>
 <p>Every track has a <b>top-of-rail height</b> at its start and a <b>gradient</b> in percent. You enter both in the properties;
-TrackPlan calculates the height at the other end. With <span class="ui">View › Heights</span> the heights at the track ends appear in the plan;
+TrackMaster Pro calculates the height at the other end. With <span class="ui">View › Heights</span> the heights at the track ends appear in the plan;
 higher sections are always drawn above lower ones.</p>
 
 <h2 id="k7-2">Gradient over a track sequence</h2>
@@ -448,7 +448,7 @@ double-track ramp or helix – the inner, shorter track gets exactly the gradien
 </table>
 
 <h2 id="k7-3">Helix</h2>
-<p>A helix overcomes large differences in height on a small area. TrackPlan builds it from curved tracks of the catalogue –
+<p>A helix overcomes large differences in height on a small area. TrackMaster Pro builds it from curved tracks of the catalogue –
 <b>round</b> or <b>oval</b>, <b>single-track</b> or <b>double-track</b>.</p>
 <figure class="half"><img src="img-en/wendel.png" alt=""><figcaption>Helix dialog with gradient, total height and space required.</figcaption></figure>
 <ol class="steps">
@@ -464,7 +464,7 @@ double-track ramp or helix – the inner, shorter track gets exactly the gradien
 points this out. Turns lying on top of each other are not connected to each other.</p>
 
 <h2 id="k7-4">Helix timber list <span class="badge">PRO</span></h2>
-<p>After building, TrackPlan shows the <b>timber list</b> – everything you need for the helix substructure, with finished cutting dimensions.
+<p>After building, TrackMaster Pro shows the <b>timber list</b> – everything you need for the helix substructure, with finished cutting dimensions.
 It can be copied or saved as a CSV file for a spreadsheet.</p>
 <figure class="half"><img src="img-en/holzliste.png" alt=""><figcaption>Timber list of a double-track helix.</figcaption></figure>
 <table>
@@ -533,7 +533,7 @@ hides the scenery when you only want to see the tracks. The plan check reports t
 
 <h2 id="k9-2">Checking the wiring</h2>
 <p><span class="ui">Wiring › Check wiring</span> shows sections without a feeder, reverse loops and addresses used twice.
-TrackPlan detects <b>reverse loops</b> automatically in two-rail systems – there a reverse loop circuit with isolating joints is required.
+TrackMaster Pro detects <b>reverse loops</b> automatically in two-rail systems – there a reverse loop circuit with isolating joints is required.
 For centre-rail track systems this check is omitted, because reverse loops need no special circuit there.</p>
 
 <h2 id="k9-3">Signals</h2>
@@ -619,7 +619,7 @@ buildings, trees and signals. During the cab ride the view at cab height points 
 <p><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span> store the plan as a file with the extension
 <b>.trackmaster.json</b>. Opening (<kbd>Ctrl</kbd>+<kbd>O</kbd>) is also possible in the Basic edition. Plan files are interchangeable between Windows and Android
 and do not depend on the interface language. A plan file can also be opened with “Open with” or as a start parameter:
-<code>TrackPlan.exe MyLayout.trackmaster.json</code>.</p>
+<code>TrackMasterPro.exe MyLayout.trackmaster.json</code>.</p>
 <p><b>Automatic backup:</b> while you work, the program regularly backs up the plan in the background. If it was not closed properly –
 for example after a power cut – it offers to restore the backed-up state at the next start. The backup does not replace saving.</p>
 
@@ -739,7 +739,7 @@ older version with a different signature was already installed, uninstall it fir
 <h3>The interface appears in the wrong language.</h3>
 <p>Choose <span class="ui">File › Sprache / Language…</span> and select the language. The menu item is labelled in both languages so it can always be found.</p>
 <h3>Where is my data?</h3>
-<p>Plans are where you saved them. Licence, settings and the automatic backup are in <i>%APPDATA%\TrackMaster Pro</i> (the folder still carries the program’s former name).
+<p>Plans are where you saved them. Licence, settings and the automatic backup are in <i>%APPDATA%\TrackMaster Pro</i>.
 The program sends no data to third parties; at start-up it only fetches the current version number from the download page.</p>
 </section>
 
@@ -763,7 +763,7 @@ The program sends no data to third parties; at start-up it only fetches the curr
   <tr><td>Route</td><td>Path from one signal to the next with the turnout positions required.</td></tr>
   <tr><td>Top of rail</td><td>Reference height of all height values in the plan.</td></tr>
 </table>
-<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackPlan 1.4 · User manual, as of October 2026. Subject to change.
+<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.4 · User manual, as of October 2026. Subject to change.
 All dimensions without guarantee; check the dimensions against the real product before cutting and buying.</p>
 </section>
 

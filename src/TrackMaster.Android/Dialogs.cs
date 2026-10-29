@@ -833,7 +833,7 @@ public static partial class Dialogs
     public static void ShowProRequired(Context c, string feature, Action openLicense)
     {
         var body = Ui.Column(c, 8);
-        body.AddView(Ui.Label(c, Lang.F($"„{feature}“ gehört zu TrackPlan Pro."), 15, true));
+        body.AddView(Ui.Label(c, Lang.F($"„{feature}“ gehört zu TrackMaster Pro."), 15, true));
         body.AddView(Ui.Label(c, Lang.T("Pro enthält zusätzlich:\n") + string.Join("\n", EditionInfo.Pro.Skip(1).Select(x => "• " + x)), 13.5));
         Show(c, Lang.T("Pro-Funktion"), body, Lang.T("Lizenz…"), () => { openLicense(); return true; }, Lang.T("Schließen"));
     }

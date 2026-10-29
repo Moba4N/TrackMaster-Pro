@@ -4,9 +4,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Company>Moba4N</Company>
-    <Product>TrackPlan</Product>
-    <Version>1.4.6</Version>
+    <Company>TrackMaster Pro</Company>
+    <Product>TrackMaster Pro</Product>
+    <Version>1.4.7</Version>
     <NeutralLanguage>de-DE</NeutralLanguage>
     <!-- Öffentliche Adresse der Datei version.json (wird bei jedem Release erzeugt). Leer = keine Update-Prüfung. -->
     <UpdateUrl>https://github.com/Moba4N/TrackMaster-Pro/releases/latest/download/version.json</UpdateUrl>

@@ -147,7 +147,7 @@ public sealed class PlanSession
 
     private static string OpenedMessage(LayoutPlan plan, int skipped, bool newer)
         => Lang.F($"„{plan.Name}“ geöffnet{(skipped > 0 ? Lang.F($" – {skipped} unbekannte Teile übersprungen") : "")}.") +
-           (newer ? Lang.T(" Die Datei stammt aus einer neueren Version von TrackPlan; Neues daraus kann fehlen – bitte das Programm aktualisieren.") : "");
+           (newer ? Lang.T(" Die Datei stammt aus einer neueren Version von TrackMaster Pro; Neues daraus kann fehlen – bitte das Programm aktualisieren.") : "");
 
     /// <summary>Plan nach einem Neustart des Fensters (z. B. neue Darstellung) wiederherstellen, mit Dateiname und Änderungsstand.</summary>
     public void Restore(string json, string? path, bool dirty)

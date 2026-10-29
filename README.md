@@ -1,6 +1,4 @@
-# TrackPlan
-
-TrackPlan hieß bis Version 1.4.5 „TrackMaster Pro“. Lizenzen, Pläne und Einstellungen gelten unverändert weiter.
+# TrackMaster Pro
 
 Windows-Programm zum Planen von Modelleisenbahn-Anlagen in allen gängigen Spuren (Z, N, TT, H0, 0, G).
 Oberfläche im Stil von Windows 11 mit Ribbon-Leiste, Gleisbibliothek, Zeichenfläche, Eigenschaften und Statusleiste.
@@ -9,20 +7,20 @@ Technik: C# / .NET 8 / WPF (`System.Windows.Controls.Ribbon`), aufgebaut wie Gle
 
 ## Installieren
 
-Unter **Releases** liegen der Windows-Installer `TrackPlan-<Version>.msi`, die Android-App
-`TrackPlan-<Version>.apk` und das Handbuch `TrackPlan-Handbuch.pdf`.
+Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, die Android-App
+`TrackMasterPro-<Version>.apk` und das Handbuch `TrackMaster-Pro-Handbuch.pdf`.
 
-Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackPlan` ab und richtet
+Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
-deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackPlan-1.4.6.msi /qn`.
+deinstalliert wird über die Windows-Einstellungen. Ohne Oberfläche: `msiexec /i TrackMasterPro-1.4.7.msi /qn`.
 
 Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-win-x64** herunterladen, entpacken und
-`TrackPlan.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
+`TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
 
 Das Handbuch entsteht aus den Bildschirmfotos des Builds (Zweig `handbuch-bilder`, neutrale Gleissystem-Namen)
-und liegt unter `docs/TrackPlan-Handbuch.pdf`; der Installer nimmt es mit.
+und liegt unter `docs/TrackMaster-Pro-Handbuch.pdf`; der Installer nimmt es mit.
 
-Eine Plandatei lässt sich direkt öffnen: `TrackPlan.exe MeineAnlage.trackmaster.json`.
+Eine Plandatei lässt sich direkt öffnen: `TrackMasterPro.exe MeineAnlage.trackmaster.json`.
 
 ## Android (APK)
 
@@ -121,7 +119,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Märklin Spur 1. Teile, die es in keinem System mehr gibt, überspringt das Programm beim Öffnen älterer Pläne und meldet
   ihre Anzahl.
   Drehscheiben und Schiebebühnen der Hersteller stehen in einer eigenen Gruppe der Bibliothek. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer.
-  Piko TT und Spur 0 Standard sind von Hand gepflegt (TrackPlan selbst), haben vorläufige Maße und sind in der Bibliothek markiert.
+  Piko TT und Spur 0 Standard sind von Hand gepflegt (TrackMaster Pro selbst), haben vorläufige Maße und sind in der Bibliothek markiert.
   Wo ein Hersteller keinen Prellbock im Datensatz hat, gibt es einen allgemeinen Prellbock „PB“ (ungeprüft).
   Frühere Katalogeinträge bleiben im Hintergrund erhalten, damit ältere Pläne weiter öffnen.
   Jedes Gleissystem hat in der Bibliothek einen Eintrag „Flexgleis…“: Systeme mit eigenem Flexgleis (z. B. Märklin K 2205,
@@ -184,7 +182,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   gerade ausrichten); ein Kompass zeigt die Drehung, ein Klick darauf richtet die Ansicht gerade aus. Android: mit zwei Fingern drehen.
 - Auswahl frei um einen beliebigen Winkel drehen (Start › Frei drehen…).
 - Fünf Designs (Logo-Grün, Klassisch Blau, Blaupause, Hoher Kontrast, Werkstatt), sieben Schriftarten, vier Schriftgrößen
-  (Ansicht › Design und Schrift). Logo und Programmbilder erzeugt `tools/branding/make_assets.py` aus `docs/branding/TrackPlan-Logo.png`.
+  (Ansicht › Design und Schrift). Logo und Programmbilder erzeugt `tools/branding/make_assets.py` aus `docs/branding/TrackMaster-Pro-Logo.png`.
 
 **Sicherheit und Pflege**
 - Automatische Sicherung im Hintergrund; nach einem Absturz bietet das Programm beim Start die Wiederherstellung an.
@@ -226,7 +224,7 @@ src/
   TrackMaster.Core          Gleiskatalog mit Flexgleis, Geometrie, Plan mit Höhen, Gelände und Elektrik,
                             Verbindungen, Planprüfung, Stromabschnitte und Kehrschleifen, Dateiformat, Stückliste, SVG
   TrackMaster.Licensing     Lizenzdatei, Signaturprüfung, Basis/Pro, Werkzeuge zum Ausstellen
-  TrackMaster.App           Hauptfenster (TrackPlan.exe): Ribbon, Zeichenfläche, Eigenschaften, Dialoge,
+  TrackMaster.App           Hauptfenster (TrackMasterPro.exe): Ribbon, Zeichenfläche, Eigenschaften, Dialoge,
                             Drucken, 3D-Ansicht
   TrackMaster.Android       Android-App (APK): Zeichenfläche, Menüband, Gesten, Dialoge, 3D mit OpenGL ES
 tools/
@@ -248,7 +246,7 @@ dotnet publish src/TrackMaster.App -c Release -r win-x64 --self-contained false 
 
 GitHub Actions baut bei jedem Push auf `windows-latest`, führt die Tests aus, veröffentlicht Programm und Lizenzwerkzeuge
 als Artefakte und erzeugt zur Kontrolle Bildschirmfotos:
-`TrackPlan.exe --screenshot datei.png [--pro] [--tab Gleise] [--select] [--3d orbit|ride|evening]`.
+`TrackMasterPro.exe --screenshot datei.png [--pro] [--tab Gleise] [--select] [--3d orbit|ride|evening]`.
 `--pro` schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.
 
 Die Android-App braucht das .NET 10 SDK mit `dotnet workload install android` und ist deshalb nicht in der

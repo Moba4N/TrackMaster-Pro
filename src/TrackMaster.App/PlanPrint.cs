@@ -39,7 +39,7 @@ public static class PlanPrint
         dc.Pop();
         dc.Pop();
 
-        var footer = T(Lang.F($"Maßstab etwa 1:{Fmt.Num(ratio, 0)} · Raster der Platte nicht gedruckt · TrackPlan {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), 9, regular, Brushes.DimGray);
+        var footer = T(Lang.F($"Maßstab etwa 1:{Fmt.Num(ratio, 0)} · Raster der Platte nicht gedruckt · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), 9, regular, Brushes.DimGray);
         dc.DrawText(footer, new Point(margin, pageHeight - margin - footer.Height));
         var bom = string.Join(" · ", BillOfMaterials.Build(plan).Take(12).Select(r => $"{r.Count}× {r.Def.Number}"));
         if (bom.Length > 0)
@@ -104,7 +104,7 @@ public static class PlanPrint
         dc.DrawLine(pen, new Point(left, y0), new Point(left + 100 * mm, y0));
         for (var i = 0; i <= 10; i++)
             dc.DrawLine(pen, new Point(left + i * 10 * mm, y0 - (i % 5 == 0 ? 4 : 2)), new Point(left + i * 10 * mm, y0));
-        var check = T(Lang.F($"Prüfmaß 100 mm – bitte nachmessen · TrackPlan {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), 8, regular);
+        var check = T(Lang.F($"Prüfmaß 100 mm – bitte nachmessen · TrackMaster Pro {(pro ? Lang.T("Pro") : Lang.T("Basis"))}"), 8, regular);
         dc.DrawText(check, new Point(left + 100 * mm + 8, y0 - check.Height / 2));
         return visual;
     }

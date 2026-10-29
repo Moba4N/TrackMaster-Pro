@@ -1,7 +1,7 @@
 using TrackMaster.Licensing;
 using TrackMaster.Licensing.Management;
 
-// Lizenz-Werkzeug für den Hersteller von TrackPlan.
+// Lizenz-Werkzeug für den Hersteller von TrackMaster Pro.
 //   keygen  <ordner>                                   erzeugt trackmaster.private.pem und trackmaster.public.pem
 //   issue   <private.pem> <ausgabe.lic> --name "Max Muster" [--email a@b.de] [--expires 2027-12-31] [--machine <id>]
 //   verify  <datei.lic> [public.pem]
@@ -19,7 +19,7 @@ return args.FirstOrDefault()?.ToLowerInvariant() switch
 static int Usage()
 {
     Console.WriteLine("""
-        TrackPlan Lizenz-Werkzeug
+        TrackMaster Pro Lizenz-Werkzeug
 
           keygen  <ordner>
           issue   <private.pem> <ausgabe.lic> --name <Name> [--email <mail>] [--expires <JJJJ-MM-TT>] [--machine <id>]
@@ -68,7 +68,7 @@ static int Issue(string[] args)
     {
         var key = LoadedKey.FromFile(args[1]);
         if (!key.MatchesEmbedded)
-            Console.Error.WriteLine("Achtung: Dieser Schlüssel passt nicht zum öffentlichen Schlüssel im Programm – TrackPlan erkennt die Lizenz so nicht an.");
+            Console.Error.WriteLine("Achtung: Dieser Schlüssel passt nicht zum öffentlichen Schlüssel im Programm – TrackMaster Pro erkennt die Lizenz so nicht an.");
         var (data, text) = LicenseIssuer.Issue(request, key.PrivateKeyPem, DateTimeOffset.Now);
         File.WriteAllText(args[2], text);
         Console.WriteLine($"Pro-Lizenz {data.LicenseId} für {data.Licensee} erstellt: {args[2]}");

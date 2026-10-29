@@ -6,9 +6,9 @@
     <RootNamespace>TrackMaster.Mobile</RootNamespace>
     <AssemblyName>TrackMasterPro.Android</AssemblyName>
     <ApplicationId>de.moba4n.trackmaster</ApplicationId>
-    <ApplicationTitle>TrackPlan</ApplicationTitle>
-    <ApplicationVersion>13</ApplicationVersion>
-    <ApplicationDisplayVersion>1.4.6</ApplicationDisplayVersion>
+    <ApplicationTitle>TrackMaster Pro</ApplicationTitle>
+    <ApplicationVersion>14</ApplicationVersion>
+    <ApplicationDisplayVersion>1.4.7</ApplicationDisplayVersion>
     <!-- Eine einzelne APK zum direkten Installieren, kein App-Bundle für den Store -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>

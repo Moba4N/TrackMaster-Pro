@@ -72,10 +72,12 @@ public static partial class Catalog
     {
         var known = s.Pieces.Concat(s.Legacy).Select(p => p.Number).ToHashSet();
         var legacy = old.Pieces.Concat(old.Legacy).Where(p => known.Add(p.Number)).ToList();
+        // Drehscheiben und Schiebebühnen ohne eigenen Eintrag bleiben in der Bibliothek sichtbar.
+        var tables = old.Pieces.Where(p => p.IsTable && legacy.Contains(p)).ToList();
         return new TrackSystem
         {
             Id = s.Id, Name = s.Name, Verified = s.Verified, ThreeRail = s.ThreeRail, FlexNumber = s.FlexNumber, FlexLength = s.FlexLength,
-            MoreFlex = s.MoreFlex, Source = s.Source, Pieces = s.Pieces, Legacy = [.. s.Legacy, .. legacy], Aliases = s.Aliases,
+            MoreFlex = s.MoreFlex, Source = s.Source, Pieces = [.. s.Pieces, .. tables], Legacy = [.. s.Legacy, .. legacy.Except(tables)], Aliases = s.Aliases,
         };
     }
 

@@ -208,6 +208,21 @@ def GW(nr, laenge, abstand, rechts=None, doppelt=False):
                 decor=decor)
 
 
+def DS(nr, aussen, buehne, anzahl, a, name="Drehscheibe", name_en="Turntable"):
+    """
+    Drehscheibe: Außendurchmesser `aussen`, Bühnenlänge `buehne`; `anzahl` Gleisabgänge im Abstand a (Grad) am Ende der
+    Bühne, Anschluss 0 bei (0, 0).
+    """
+    r, rim = buehne / 2, aussen / 2
+    ports = []
+    for i in range(anzahl):
+        h = 180 + i * a
+        ports.append([0, 0, 180] if i == 0 else [r + r * math.cos(math.radians(h)), r * math.sin(math.radians(h)), h])
+    return teil(nr, "Turntable", name, f"Ø {zahl(aussen)} mm · Bühne {zahl(buehne)} mm · {anzahl} × {zahl(a)}°",
+                "Drehscheiben und Schiebebühnen", name_en, len=round((rim - r) / 2, 1), r=r, a=a, ports=ports, center=[r, 0],
+                pit=r, rim=rim, specEn=f"Ø {en(aussen)} mm · bridge {en(buehne)} mm · {anzahl} × {en(a)}°")
+
+
 def P(nr, laenge, name="Prellbock", name_en=None):
     return teil(nr, "Buffer", name, f"{zahl(laenge)} mm", "Sonstige", name_en, len=laenge)
 
@@ -239,7 +254,8 @@ def system(m):
 
 def main():
     module = []
-    for f in sorted((HIER / "systeme").glob("*.py")):
+    sys.path.insert(0, str(HIER / "systeme"))  # gemeinsame Teile in systeme/_*.py
+    for f in sorted((HIER / "systeme").glob("[!_]*.py")):
         spec = importlib.util.spec_from_file_location(f.stem, f)
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)

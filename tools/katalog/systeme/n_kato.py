@@ -83,4 +83,6 @@ TEILE = [
     S("20-605-1", 124, "Signalgleis", "Signal track"),
     # Prellböcke: Länge des Gleisstücks (S62B, S50B, S66B, S35B)
     P("20-046", 62), P("20-047", 62), P("20-048", 50), P("20-060", 35), P("20-063", 66), P("20-064", 66),
+    # Elektrische Drehscheibe: Außendurchmesser 217 mm, Brücke 160 mm, Abgänge im Winkel von 10°
+    DS("20-283", 217, 160, 36, 10, "Elektrische Drehscheibe", "Electric turntable"),
 ]

@@ -9,6 +9,7 @@ QUELLEN = [
     "https://shop.tillig.com/de/tt-modellbahnen/modellgleissystem/ (Artikel mit Länge, Radius und Abzweigwinkel, Stand 10/2026)",
     "TILLIG Bedienungsanleitungen 368321 (EW 1: Einbaulänge 129,5 mm, Abzweigradius 353 mm, 15°), 368361 (Kreuzung 15°: 166 mm)",
     "TILLIG „TT-Modellgleis – Gleisentwicklung“: Gleisabstand 43 mm",
+    "ROCO Zubehör-Katalog 2022, S. 60: TT-Drehscheibe 35900 (Außendurchmesser 257 mm, Bühne 183 mm, Abgänge im Winkel von 15°, bis 24)",
 ]
 
 # EW 1: Abzweig R 353 mm / 15°, danach gerade bis zum halben Gleisabstand (43 mm / 2), wie bei der Gleisverbindung aus
@@ -48,4 +49,5 @@ TEILE = [
     S(83001, 166, "Schwellenband", "Tie strip", cat="Sonstige"),
     *[C(nr, r, a, name="Schwellenband", name_en_basis="Tie strip", cat="Sonstige") for nr, r, a in
       [(83016, 267, 30), (83003, 285, 15), (83008, 310, 30), (83009, 310, 15), (83006, 353, 30), (83007, 353, 15), (83011, 396, 30), (83012, 396, 15)]],
+    DS(35900, 257, 183, 24, 15, "Drehscheibe (Roco)", "Turntable (Roco)"),
 ]

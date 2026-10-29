@@ -22,6 +22,13 @@ public class TableTests
         Assert.All(ports, p => Assert.True(Math.Cos(p.HeadingRad) * (p.X - d.Center.X) + Math.Sin(p.HeadingRad) * (p.Y - d.Center.Y) > radius * 0.99));
     }
 
+    [Theory]
+    [InlineData("Z", "mini", "8599")]
+    [InlineData("G", "lgb", "14000")]
+    [InlineData("N", "kato", "20-283")]
+    public void Drehscheiben_bleiben_in_der_Bibliothek(string gauge, string system, string number)
+        => Assert.Contains(Catalog.GetSystem(gauge, system)!.Pieces, p => p.Number == number);
+
     [Fact]
     public void Schiebebuehne_hat_Anschluesse_links_und_rechts()
     {

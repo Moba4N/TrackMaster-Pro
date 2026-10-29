@@ -1,7 +1,7 @@
 """FLEISCHMANN piccolo N-Gleis mit Schotterbett. Maße nach dem FLEISCHMANN-Zubehörkatalog (deutsche Ausgabe)."""
 from katalog import *
 
-SPUR, ID, NAME, REIHENFOLGE = "N", "picc", "Fleischmann piccolo mit Bettung", 2
+SPUR, ID, NAME, REIHENFOLGE = "N", "picc", "Roco/Fleischmann piccolo mit Bettung", 2
 QUELLEN = [
     "FLEISCHMANN Zubehör-Katalog (deutsche Ausgabe): N-Gleissystem mit Schotterbett, Artikelangaben und Gleisgeometrie (S. 26–34)",
 ]

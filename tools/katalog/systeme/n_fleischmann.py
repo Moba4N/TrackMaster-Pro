@@ -2,7 +2,7 @@
 import math
 from katalog import *
 
-SPUR, ID, NAME, REIHENFOLGE = "N", "rf-n", "Fleischmann N ohne Bettung", 1
+SPUR, ID, NAME, REIHENFOLGE = "N", "rf-n", "Roco/Fleischmann ohne Bettung", 1
 QUELLEN = [
     "FLEISCHMANN Zubehör-Katalog (deutsche Ausgabe): N-Gleissystem ohne Schotterbett, Artikelangaben und Gleisgeometrie (S. 36–41)",
 ]

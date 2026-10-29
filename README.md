@@ -106,12 +106,12 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Form und Maße lassen sich später in den Planeigenschaften ändern. Zeichnung, Raster, 3D-Ansicht, SVG-Export und die
   Planprüfung (Gleise über dem Plattenrand bzw. in der offenen Mitte) folgen der Form.
 - Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Arnold,
-  Peco Streamline Code 55 und Code 80, Peco Setrack · TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko ·
-  H0: Märklin C, Trix C, Märklin K, Märklin Drehscheibe und Schiebebühne, Roco geoLine, Roco Line ohne und mit Bettung, Piko A, Fleischmann Profi, Fleischmann Modellgleis,
-  Tillig Elite, Peco Code 75 und Code 100, Peco Setrack, Kato Unitrack, Weinert mein Gleis · H0m: Tillig · H0e: Tillig, Peco, Kato, Roco ·
-  0: Standard, Peco Bullhead · Spur 1: Märklin · G: LGB, Piko.
-  Zusammen rund 1300 Gleisstücke: Geraden, Bögen, Gegenbögen, Schalt-, Entkupplungs- und Übergangsgleise, einfache, schlanke,
+  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix ·
+  TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko ·
+  H0: Märklin C, Trix C, Märklin K, Märklin Drehscheibe und Schiebebühne, Roco geoLine, Roco Line ohne und mit Bettung, Piko A, Fleischmann Modellgleis,
+  Tillig Elite, Peco Setrack, Kato Unitrack, Weinert mein Gleis · H0m: Tillig · H0e: Tillig, Kato, Roco ·
+  0: Standard · Spur 1: Märklin · G: LGB, Piko.
+  Zusammen rund 950 Gleisstücke: Geraden, Bögen, Gegenbögen, Schalt-, Entkupplungs- und Übergangsgleise, einfache, schlanke,
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Gleisdaten stehen im eigenen Katalog `src/TrackMaster.Core/Gleiskatalog.json`, erfasst nach Herstellerangaben
   (Produktseiten, Kataloge, Anleitungen; Quellen je System, Erzeuger in `tools/katalog`). Bisher so erfasst: Märklin C, K und

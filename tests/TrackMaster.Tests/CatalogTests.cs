@@ -30,7 +30,7 @@ public class CatalogTests
     [Fact]
     public void Katalog_ist_aus_Herstellerdaten_vollstaendig()
     {
-        Assert.True(Catalog.Gauges.SelectMany(g => g.Systems).Sum(s => s.Pieces.Count) > 1000);
+        Assert.True(Catalog.Gauges.SelectMany(g => g.Systems).Sum(s => s.Pieces.Count) > 900);
         foreach (var nr in new[] { "H0|mc|24071", "H0|mc|24206", "H0|mc|24649", "H0|geo|61140", "H0|piko|55226", "N|picc|9100", "N|rf-n|22202", "TT|tillig|83101", "G|lgb|10000", "H0m|tillig-h0m|85632" })
             Assert.True(Catalog.Find(nr)?.Verified, nr);
     }
@@ -113,7 +113,7 @@ public class CatalogTests
     public void Abzweig_mit_Gerade_rechnet_Hoehe_entlang_des_ganzen_Strangs()
     {
         var plan = LayoutPlan.Empty("N");
-        var p = plan.Add("N|peco-n|Y");
+        var p = plan.Add("N|kato|20-222");
         p.Grade = 0.02;
         var d = p.Def;
         var len = TrackGeometry.PathLength(d, 1);

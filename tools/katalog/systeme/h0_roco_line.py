@@ -9,6 +9,7 @@ MORE_FLEX = [dict(nr="42401", len=920, label="Flexgleis Betonschwellen")]
 TEILE = [
     S(42406, 920), S(42410, 230), S(42412, 115), S(42413, 57.5), S(42411, 119, "Diagonalgerade DG1", "Diagonal straight DG1", cat="Gerade"),
     S(42419, 115, "Entkupplungsgleis"), S(42421, 115, "Anschlussgleis"),
+    S(42414, 57.5, "Übergangsgleis G1/4", "Transition track G1/4", cat="Sonstige"),
     # Distanzstücke D2, D4, D5, D8, D12
     *[S(nr, l, f"Distanzstück D{l}", f"Spacer D{l}", cat="Gerade") for nr, l in ((98000, 2), (98001, 4), (98002, 5), (98003, 8), (98008, 12))],
     bogen(42408, "R2", 7.5, True), bogen(42409, "R3", 7.5, True),

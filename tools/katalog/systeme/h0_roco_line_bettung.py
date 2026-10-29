@@ -1,4 +1,5 @@
-"""ROCO LINE mit Bettung. Maße nach dem ROCO-Zubehörkatalog 2022."""
+"""ROCO LINE mit Bettung. Maße nach dem ROCO-Zubehörkatalog 2022 und der Broschüre „ROCO LINE – H0-Gleissystem“
+(42538/42539 und 42558/42559: preiswerte Ausführung mit Handantrieb, gleiche Geometrie)."""
 from katalog import *
 from _roco_line import *
 
@@ -14,8 +15,8 @@ TEILE = [
     bogen(42508, "R2", 7.5, True), bogen(42509, "R3", 7.5, True),
     bogen(42522, "R2", 30), bogen(42523, "R3", 30), bogen(42524, "R4", 30), bogen(42525, "R5", 30), bogen(42526, "R6", 30),
     bogen(42527, "R9", 15), bogen(42528, "R10", 15), bogen(42530, "R20", 5),
-    *weichen15(42532, 42533), dreiweg(42543), *weichen10(42580, 42581),
-    *bogenweichen(42556, 42557, "R2"), *bogenweichen(42572, 42573, "R3"), *bogenweichen(42570, 42571, "R5"), *bogenweichen(42568, 42569, "R9"),
+    *weichen15(42532, 42533), *weichen15(42538, 42539), dreiweg(42543), *weichen10(42580, 42581),
+    *bogenweichen(42556, 42557, "R2"), *bogenweichen(42558, 42559, "R2"), *bogenweichen(42572, 42573, "R3"), *bogenweichen(42570, 42571, "R5"), *bogenweichen(42568, 42569, "R9"),
     X(42597, 230, 15), dgv15(42598), X(42546, 230, 15, "EKW"), X(42594, 230, 15, "DKW"),
     X(42591, 345, 10, "EKW"), X(42549, 345, 10, "DKW"),
     DS(42615, 307, 253, 40, 9),

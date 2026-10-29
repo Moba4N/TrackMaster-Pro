@@ -112,15 +112,17 @@ def Y(nr, r, a, nachlauf=0):
                 r=r, a=a, paths=[[[0, r, a, -1], *tail], [[0, r, a, 1], *tail]])
 
 
-def BW(nr, rechts, r, a, abstand):
+def BW(nr, rechts, r, a, abstand, innen_stamm=False):
     """
     Bogenweiche nach Herstellerangabe: Innenbogen r/a (Strang 1); der Außenstrang (Strang 0, Stammstrang) ist derselbe
     Bogen, um den angegebenen Kreisabstand versetzt, also eine Gerade dieser Länge vor dem Bogen.
+    innen_stamm: der Innenbogen ist Strang 0 (Reihenfolge der Anschlüsse wie in älteren Plänen).
     """
     t = 1 if rechts else -1
     de, e = BOGENWEICHE[rechts]
+    aussen, innen = [[abstand, 0, 0, 0], [0, r, a, t]], [[0, r, a, t]]
     return teil(nr, "Switch", de, f"R {zahl(r)} · {zahl(a)}° · {zahl(abstand)} mm", "Weichen",
-                r=r, a=a, right=rechts, paths=[[[abstand, 0, 0, 0], [0, r, a, t]], [[0, r, a, t]]])
+                r=r, a=a, right=rechts, paths=[innen, aussen] if innen_stamm else [aussen, innen])
 
 
 def BK(nr, rechts, r_aussen, r_innen, a, a_innen=None):

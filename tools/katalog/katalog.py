@@ -70,14 +70,24 @@ WEICHE = {False: ("Weiche links", "Left turnout"), True: ("Weiche rechts", "Righ
 BOGENWEICHE = {False: ("Bogenweiche links", "Left curved turnout"), True: ("Bogenweiche rechts", "Right curved turnout")}
 
 
-def W(nr, rechts, laenge, r, a, zusatz=None, zusatz_en=None, nachlauf=0):
-    """Einfache Weiche: gerader Strang `laenge`, Abzweig als Bogen r/a ab Weichenanfang, optional mit gerader Verlängerung."""
+def W(nr, rechts, laenge, r, a, zusatz=None, zusatz_en=None, nachlauf=0, vorlauf=0, ungeprueft=None):
+    """
+    Einfache Weiche: gerader Strang `laenge`, Abzweig als Bogen r/a ab Weichenanfang, optional mit gerader Verlängerung
+    (nachlauf) oder geradem Stück vor dem Bogen (vorlauf).
+    """
     de, e = WEICHE[rechts]
     if zusatz:
         de, e = f"{de} {zusatz}", f"{e}, {zusatz_en or zusatz}"
-    paths = [[[laenge, 0, 0, 0]], [[0, r, a, 1 if rechts else -1], [nachlauf, 0, 0, 0]]] if nachlauf else None
+    paths = None
+    if nachlauf or vorlauf:
+        abzweig = [[0, r, a, 1 if rechts else -1]]
+        if vorlauf:
+            abzweig.insert(0, [vorlauf, 0, 0, 0])
+        if nachlauf:
+            abzweig.append([nachlauf, 0, 0, 0])
+        paths = [[[laenge, 0, 0, 0]], abzweig]
     return teil(nr, "Switch", de, f"{zahl(laenge)} mm · R {zahl(r)} · {zahl(a)}°", "Weichen", e if zusatz else None,
-                len=laenge, r=r, a=a, right=rechts, paths=paths)
+                len=laenge, r=r, a=a, right=rechts, paths=paths, unchecked=ungeprueft)
 
 
 def WW(links, rechts, laenge, r, a, **k):

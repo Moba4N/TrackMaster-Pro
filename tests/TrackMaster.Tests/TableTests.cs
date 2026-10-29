@@ -21,7 +21,7 @@ public class TableTests
     }
 
     [Theory]
-    [InlineData("Z", "mini", "8994")]
+    [InlineData("Z", "mini", "89983")]
     [InlineData("N", "kato", "20-283")]
     public void Drehscheiben_bleiben_in_der_Bibliothek(string gauge, string system, string number)
         => Assert.Contains(Catalog.GetSystem(gauge, system)!.Pieces, p => p.Number == number);
@@ -33,8 +33,14 @@ public class TableTests
     [Fact]
     public void Schiebebuehne_hat_Anschluesse_links_und_rechts()
     {
-        var d = Catalog.Get("Z|mini|8994");
-        Assert.Equal(PieceKind.TransferTable, d.Kind);
+        // Kein Hersteller-System führt derzeit eine Schiebebühne; die Form steht hier als Beispiel (5 + 5 Anschlüsse).
+        var ys = new[] { 0, 35.03, 85.07, 110.09, 160.12 };
+        var d = new TrackPieceDef
+        {
+            Number = "Test", Kind = PieceKind.TransferTable, Name = "Schiebebühne", Spec = "", Category = "", Length = 20,
+            Ports = [.. ys.Select(y => new Pose(0, y, 180)), .. ys.Select(y => new Pose(220.17, y, 0))],
+            PitBox = (0, -25.02, 220.17, 195.15),
+        };
         var ports = TrackGeometry.LocalConnectors(d, false);
         Assert.Equal(10, ports.Count);
         Assert.Equal(5, ports.Count(p => p.Heading == 180 && Math.Abs(p.X) < 0.01));

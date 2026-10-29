@@ -122,11 +122,11 @@ public class ProFeatureTests
     public void Kehrschleife_wird_im_Zweileiter_System_erkannt()
     {
         var plan = new LayoutPlan { GaugeId = "H0", BoardWidth = 3000, BoardHeight = 3000 };
-        var sw = plan.Add("H0|geo|WL10");
+        var sw = plan.Add("H0|geo|61140");
         PlanEditing.PlaceAt(sw, 0, 1000, 2000, 0);
         var at = sw.WorldConnectors()[1];
         // Ballonschleife vom geraden Strang zurück in den Abzweig
-        foreach (var (r, angle, clockwise) in new[] { (500.0, 40.79, true), (400, 150.155, false), (400, 150.155, false), (300, 69.52, true) })
+        foreach (var (r, angle, clockwise) in new[] { (500.0, 39.109, true), (400, 149.74, false), (400, 149.74, false), (300, 57.873, true) })
         {
             var p = plan.Add(Catalog.FlexCurveKey("H0", r, angle));
             p.Flipped = clockwise;

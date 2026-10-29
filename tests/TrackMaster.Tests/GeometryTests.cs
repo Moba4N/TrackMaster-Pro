@@ -43,7 +43,7 @@ public class GeometryTests
     public void Weiche_hat_drei_Anschluesse_und_Kreuzung_vier()
     {
         Assert.Equal(3, TrackGeometry.LocalConnectors(Catalog.Get("H0|mc|24611"), false).Count);
-        Assert.Equal(4, TrackGeometry.LocalConnectors(Catalog.Get("H0|mc|24640"), false).Count);
+        Assert.Equal(4, TrackGeometry.LocalConnectors(Catalog.Get("H0|mc|24649"), false).Count);
         Assert.Single(TrackGeometry.LocalConnectors(Catalog.Get("H0|mc|24977"), false));
     }
 

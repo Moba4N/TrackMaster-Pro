@@ -58,11 +58,14 @@ public class CatalogTests
     }
 
     [Fact]
-    public void Fruehere_Katalogeintraege_bleiben_ladbar_aber_verborgen()
+    public void Unbekannte_Teile_werden_beim_Laden_uebersprungen()
     {
-        var alt = Catalog.Get("H0|geo|WL10");
-        Assert.False(alt.Verified);
-        Assert.DoesNotContain(alt, Catalog.GetSystem("H0", "geo")!.Pieces);
+        var plan = LayoutPlan.Empty("H0");
+        plan.Add("H0|geo|61110");
+        var json = PlanSerializer.ToJson(plan).Replace("H0|geo|61110", "H0|geo|WL10");
+        var back = PlanSerializer.FromJson(json, out var skipped);
+        Assert.Equal(1, skipped);
+        Assert.Empty(back.Pieces);
     }
 
     [Fact]

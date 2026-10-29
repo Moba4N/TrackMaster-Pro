@@ -10,8 +10,7 @@ Programm eingebettet und gehört zu TrackMaster Pro (keine fremde Gleisbibliothe
 - Teile, zu denen der Hersteller keine Maße veröffentlicht, fehlen. Annahmen sind als ungeprüft markiert (`ungeprueft`).
 - `ALIASE` leitet frühere Artikelnummern gleicher Form auf das heutige Teil um, damit ältere Pläne weiter öffnen.
 
-Systeme, die hier noch fehlen, liest das Programm vorerst aus der GPL-Datei `gleisdaten/gleisdaten.json`
-(eigene Datei, nur gelesen). Teile der GPL-Datei, die in einem neu erfassten System fehlen, bleiben dort im Hintergrund,
-damit ältere Pläne weiter öffnen.
+Das Programm liest nur diesen Katalog. Teile, die es in keinem System mehr gibt, überspringt es beim Öffnen älterer Pläne
+und meldet ihre Anzahl.
 
 Aufruf: `python3 tools/katalog/katalog.py`

@@ -100,7 +100,7 @@ public sealed class TrackSystem
     public double? FlexLength { get; init; }
     /// <summary>Weitere Flexgleise des Herstellers (z. B. halbstarre Ausführung): Artikelnummer, Länge eines Stücks, Zusatz zum Namen.</summary>
     public IReadOnlyList<(string Number, double Length, string Label)> MoreFlex { get; init; } = [];
-    /// <summary>Herkunft der Maße (Datei der XTrackCAD-Bibliothek), leer bei von Hand gepflegten Systemen.</summary>
+    /// <summary>Herkunft der Maße (Kataloge, Produktblätter des Herstellers), leer bei von Hand gepflegten Systemen.</summary>
     public string? Source { get; init; }
     public required IReadOnlyList<TrackPieceDef> Pieces { get; init; }
     /// <summary>Frühere Katalogeinträge, die nur noch zum Öffnen älterer Pläne dienen und in der Bibliothek nicht erscheinen.</summary>
@@ -129,7 +129,7 @@ public sealed class Gauge
 
 /// <summary>
 /// Gleiskatalog aller Spuren, gelesen aus der Datendatei (siehe CatalogFile.cs). Die Systeme mit <see cref="TrackSystem.Source"/>
-/// stammen aus der XTrackCAD-Gleisbibliothek (Maße und Artikelnummern der Hersteller); von Hand gepflegte Systeme sind vorläufig (Verified = false).
+/// sind nach Herstellerangaben erfasst; von Hand gepflegte Systeme sind vorläufig (Verified = false).
 /// </summary>
 public static partial class Catalog
 {

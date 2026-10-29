@@ -20,8 +20,4 @@
     <ProjectReference Include="..\TrackMaster.Core\TrackMaster.Core.csproj" />
     <ProjectReference Include="..\TrackMaster.Licensing\TrackMaster.Licensing.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- Gleisdaten (GPL) als eigene Datei in der App, gelesen über MainApplication -->
-    <AndroidAsset Include="..\..\gleisdaten\*.*" Link="Assets\gleisdaten\%(Filename)%(Extension)" LogicalName="gleisdaten/%(Filename)%(Extension)" />
-  </ItemGroup>
 </Project>

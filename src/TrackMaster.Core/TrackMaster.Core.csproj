@@ -7,8 +7,4 @@
     <EmbeddedResource Include="Lang.en.json" LogicalName="TrackMaster.Core.Lang.en.json" WithCulture="false" />
     <EmbeddedResource Include="Gleiskatalog.json" LogicalName="TrackMaster.Core.Gleiskatalog.json" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- Gleisdaten: eigene Datei unter GPL, wird nur gelesen (siehe gleisdaten/LIESMICH.txt) -->
-    <Content Include="..\..\gleisdaten\*.*" Link="Gleisdaten\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
 </Project>

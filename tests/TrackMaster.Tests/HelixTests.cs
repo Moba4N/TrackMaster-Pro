@@ -105,3 +105,43 @@ public class HelixGradientTests
         Assert.Equal(inner[0].ConnectorHeights()[0], outer[0].ConnectorHeights()[0], 1);
     }
 }
+
+public class HelixRibTests
+{
+    [Fact]
+    public void Randaufmass_laesst_sich_waehlen_und_bestimmt_die_Trassenbreite()
+    {
+        var gauge = Catalog.GetGauge("H0");
+        var spec = new HelixSpec("H0|mc|24230", 2, 100, false, Edge: 15);
+        var m = Helix.Material(spec, gauge);
+        Assert.Equal(45 + 2 * 15, m.TrackWidth, 1);
+        Assert.Equal(m.TrackWidth, Helix.TrackBoardWidth(spec, gauge), 1);
+        // 15 mm Rand lässt neben der Gewindestange (12 mm vom Rand) nur 3 mm frei
+        Assert.Contains(m.Notes, n => n.StartsWith("Achtung: Zwischen Gleisbett"));
+    }
+
+    [Theory]
+    [InlineData(HelixShape.Rund)]
+    [InlineData(HelixShape.Oval)]
+    public void Spantenbau_liefert_Spanten_mit_Schlitzen_je_Ebene(HelixShape shape)
+    {
+        var gauge = Catalog.GetGauge("H0");
+        var spec = new HelixSpec("H0|mc|24230", 2, 100, false, shape, shape == HelixShape.Oval ? "H0|mc|24188" : null, shape == HelixShape.Oval ? 2 : 0,
+            Construction: HelixConstruction.Spanten);
+        var m = Helix.Material(spec, gauge);
+        Assert.DoesNotContain(m.Parts, p => p.Name.StartsWith("Gewindestange"));
+        Assert.Contains(m.Parts, p => p.Name.StartsWith("Spant"));
+        var ribs = m.Ribs!;
+        Assert.NotEmpty(ribs);
+        // Erster Spant am Wendelanfang: Schlitze bei 0, 100 und 200 mm (drei Ebenen bei zwei Windungen)
+        Assert.Equal([0, 100, 200], ribs[0].SlotBottoms);
+        // Abstand der Spanten entlang des inneren Gleises höchstens 250 mm
+        var turn = Helix.TurnLength(spec, spec.Curve.Radius);
+        Assert.True(turn / ribs.Count <= Helix.RibSpacing(gauge) + 0.5);
+        // Schlitze steigen gleichmäßig: zwischen zwei Ebenen genau die Höhe je Windung
+        Assert.All(ribs, r => Assert.All(r.SlotBottoms.Zip(r.SlotBottoms.Skip(1)), p => Assert.Equal(100, p.Second - p.First, 1)));
+        Assert.All(ribs, r => Assert.True(r.Height > r.SlotBottoms[^1] + r.SlotHeight));
+        Assert.Contains("Spant;Lage", m.ToCsv());
+        Assert.Contains("Aufmaße der Spanten", m.ToText());
+    }
+}

@@ -1,0 +1,176 @@
+@using TrackMaster.Core
+@using TrackMaster.Web.Graphics
+@using TrackMaster.Web.Plan
+
+@* Gleisbibliothek wie unter Windows: Spur, Hersteller, Suche, Kategorien und die Gleisstücke. Klick setzt an, Ziehen platziert frei. *@
+<div class="pane-head">
+    <span class="pane-title">@Lang.T("Gleisbibliothek")</span>
+    <span class="pane-meta" title="@System.Name">@System.Name</span>
+    @if (OnClose is not null)
+    {
+        <button class="icon-btn pane-close" title="@Lang.T("Schließen")" @onclick="OnClose">@((MarkupString)Icons.Svg("Close", 18))</button>
+    }
+</div>
+<div class="pane-body library">
+    <div class="field-label">@Lang.T("Spurweite")</div>
+    <div class="gauges">
+        @foreach (var g in Catalog.Gauges)
+        {
+            var id = g.Id;
+            <button class="chip gauge @(id == Session.Plan.GaugeId ? "on" : "")" title="@Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm")"
+                    @onclick="() => SetGauge(id)">@g.Id</button>
+        }
+    </div>
+    <div class="secondary">@Lang.F($"Spur {Gauge.Id} · Maßstab {Gauge.Scale} · Spurweite {Fmt.Num(Gauge.TrackWidth)} mm")</div>
+
+    <label class="field-label" for="lib-system">@Lang.T("Hersteller / Gleissystem")</label>
+    <select id="lib-system" class="input" value="@System.Id" @onchange="SetSystem">
+        @foreach (var s in Gauge.Systems)
+        {
+            <option value="@s.Id">@(s.Name + (s.Verified ? "" : Lang.T(" (vorläufig)")))</option>
+        }
+    </select>
+    @if (!System.Verified)
+    {
+        <div class="warn-box">@Lang.T("Geometriedaten vorläufig. Vor dem Bau bitte mit dem Herstellerkatalog abgleichen.")</div>
+    }
+    <input id="lib-search" class="input" type="search" placeholder="@Lang.T("Artikel-Nr. oder Name suchen")" aria-label="@Lang.T("Gleise suchen")"
+           value="@_search" @oninput="e => { _search = e.Value?.ToString() ?? string.Empty; }" />
+    <div class="categories">
+        @foreach (var c in Categories)
+        {
+            var cat = c;
+            <button class="chip small @(cat == _category ? "on" : "")" @onclick="() => _category = cat">@cat</button>
+        }
+    </div>
+    <div class="count-row">
+        <span class="secondary">@(Total == 0 ? Lang.T("Keine passenden Gleise") : Lang.F($"{Total} Artikel"))</span>
+        <span class="secondary">@Lang.T("Klicken oder ziehen")</span>
+    </div>
+</div>
+<div class="items" role="list">
+    @foreach (var stock in Flexes)
+    {
+        var s = stock;
+        var sample = Catalog.Get(Catalog.FlexCurveKey(Gauge.Id, Math.Round(Gauge.TrackWidth * 30), 30, s.SystemId));
+        <button class="item" role="listitem" @onclick="() => OnFlex.InvokeAsync(s)"
+                title="@Lang.F($"Flexgleis {s.Name} · Stücke zu {Fmt.Num(s.Length, 0)} mm\nKlicken: Länge oder Bogen wählen und am aktiven Gleisende ansetzen\nFrei biegen: Werkzeug „Flexgleis ziehen“ (Register Gleise)")">
+            <span class="thumb">@((MarkupString)Thumb(sample))</span>
+            <span class="texts">
+                <span class="name">@(Flexes.Count > 1 ? Lang.F($"Flexgleis {s.Number}…") : Lang.T("Flexgleis…"))</span>
+                <span class="secondary">@Lang.F($"{(s.Number == Lang.T("Flexgleis") ? Lang.T("allgemein") : s.Number)} · Stück {Fmt.Num(s.Length, 0)} mm")</span>
+            </span>
+        </button>
+    }
+    @foreach (var p in Pieces)
+    {
+        var key = p.Key;
+        <button class="item" role="listitem" draggable="true" data-drag-key="@key" @onclick="() => Attach(key)"
+                title="@Lang.F($"{p.Name} · {p.Spec} · {System.Name}\nKlicken: am aktiven Gleisende ansetzen\nZiehen: frei auf der Platte platzieren")">
+            <span class="thumb">@((MarkupString)Thumb(p))</span>
+            <span class="texts">
+                <span class="name">@p.Name</span>
+                <span class="secondary">@p.Number · @p.Spec</span>
+            </span>
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlanSession Session { get; set; } = null!;
+    [Parameter, EditorRequired] public Func<(double X, double Y)> Center { get; set; } = null!;
+    [Parameter] public EventCallback<FlexStock> OnFlex { get; set; }
+    [Parameter] public Action? OnClose { get; set; }
+    /// <summary>Zählt hoch, wenn sich die Darstellung ändert (neue Vorschaubilder).</summary>
+    [Parameter] public int AppearanceVersion { get; set; }
+
+    private string _category = Lang.T("Alle");
+    private string _search = "";
+    private static readonly Dictionary<string, string> ThumbCache = [];
+    private int _thumbVersion = -1;
+    private string _shown = "";
+
+    private Gauge Gauge => Session.Plan.Gauge;
+    private TrackSystem System => Session.CurrentSystem;
+
+    private IReadOnlyList<string> Categories
+        => new[] { Lang.T("Alle") }.Concat(System.Pieces.Select(p => p.Category).Distinct()).Append(Lang.T("Flexgleis")).Distinct().ToList();
+
+    private string Query => _search.Trim();
+
+    private List<TrackPieceDef> Pieces
+    {
+        get
+        {
+            var cat = Categories.Contains(_category) ? _category : Lang.T("Alle");
+            var q = Query;
+            return System.Pieces.Where(p => (cat == Lang.T("Alle") || p.Category == cat)
+                                            && (q.Length == 0 || $"{p.Number} {p.Name} {p.Spec}".Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
+        }
+    }
+
+    private List<FlexStock> Flexes
+    {
+        get
+        {
+            var q = Query;
+            return _category == Lang.T("Alle") || _category == Lang.T("Flexgleis")
+                ? Catalog.Flexes(Gauge, System).Where(f => q.Length == 0 || Lang.F($"Flexgleis {f.Number} {f.Name}").Contains(q, StringComparison.OrdinalIgnoreCase)).ToList()
+                : [];
+        }
+    }
+
+    private int Total => Pieces.Count + Flexes.Count;
+
+    /// <summary>
+    /// Beim Neuaufbau der Hauptseite (z. B. bei jedem Verschieben) nur neu zeichnen, wenn sich Spur, System oder Darstellung
+    /// geändert haben; eigene Klicks und die Suche zeichnen immer neu.
+    /// </summary>
+    private string Signature => $"{Session.Plan.GaugeId}|{System.Id}|{AppearanceVersion}";
+    private bool _skip;
+
+    protected override void OnParametersSet()
+    {
+        var sig = Signature;
+        _skip = sig == _shown;
+        _shown = sig;
+    }
+
+    protected override bool ShouldRender()
+    {
+        var render = !_skip;
+        _skip = false;
+        return render;
+    }
+
+    private string Thumb(TrackPieceDef def)
+    {
+        if (_thumbVersion != AppearanceVersion) { ThumbCache.Clear(); _thumbVersion = AppearanceVersion; }
+        if (ThumbCache.TryGetValue(def.Key, out var svg)) return svg;
+        var c = new Canvas(52, 38);
+        PlanPainter.Thumbnail(c, def, 52, 38);
+        return ThumbCache[def.Key] = SvgWriter.Image(c);
+    }
+
+    private void SetGauge(string id) => Session.SetGauge(id);
+
+    private void SetSystem(ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() is { } id)
+        {
+            Session.SystemByGauge[Session.Plan.GaugeId] = id;
+            if (!Categories.Contains(_category)) _category = Lang.T("Alle");
+        }
+    }
+
+    /// <summary>Ein Gleis wurde angesetzt (auf schmalen Bildschirmen schließt die Seite dann die Bibliothek).</summary>
+    [Parameter] public Action? OnPicked { get; set; }
+
+    private void Attach(string key)
+    {
+        Session.Attach(key, Center());
+        OnPicked?.Invoke();
+    }
+
+    public void FocusSearch() => Interop.Js.Focus("lib-search");
+}

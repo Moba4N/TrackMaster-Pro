@@ -142,6 +142,9 @@ public static partial class Dialogs
         var turns = NumberBox(2);
         var rise = NumberBox(gauge.ClearanceHeight + 10, 0);
         var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("links herum (gegen den Uhrzeigersinn)") }, new ComboBoxItem { Content = Lang.T("rechts herum (im Uhrzeigersinn)") } }, SelectedIndex = 0 };
+        var construction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("Gewindestangen") }, new ComboBoxItem { Content = Lang.T("Spantenbau (geschlitzte Spanten)") } }, SelectedIndex = 0 };
+        var edgeBox = NumberBox(Helix.DefaultEdge(gauge, HelixConstruction.Gewindestangen), 0);
+        var widthInfo = Theme.Secondary("");
         var info = Theme.Secondary("");
         var error = ErrorText();
         var ovalPanel = new StackPanel();
@@ -157,6 +160,7 @@ public static partial class Dialogs
         outerPanel.Children.Add(spacingField);
 
         HelixShape Shape() => shape.SelectedIndex == 1 ? HelixShape.Oval : HelixShape.Rund;
+        HelixConstruction Construction() => construction.SelectedIndex == 1 ? HelixConstruction.Spanten : HelixConstruction.Gewindestangen;
         TrackPieceDef? Inner() => curveBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef d } ? d : null;
         bool updating = false;
         void FillCurves()
@@ -204,9 +208,10 @@ public static partial class Dialogs
             }
             var outer = two && outerBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef oc } ? oc : null;
             if (two && outer is null) Read(spacing, Lang.T("Gleisabstand"), gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
+            Read(edgeBox, Lang.T("Randaufmaß"), Helix.MinEdge(gauge, Construction()), gauge.TrackWidth * 10, errors, out var edge);
             if (errors.Count > 0) return null;
             return new HelixSpec(inner.Key, t, r, direction.SelectedIndex == 1, Shape(), straight?.Key, (int)Math.Round(n), two ? 2 : 1,
-                outer is not null ? outer.Radius - inner.Radius : sp, outer?.Key);
+                outer is not null ? outer.Radius - inner.Radius : sp, outer?.Key, Construction(), edge);
         }
         void Update()
         {
@@ -214,8 +219,10 @@ public static partial class Dialogs
             ovalPanel.Visibility = Shape() == HelixShape.Oval ? Visibility.Visible : Visibility.Collapsed;
             outerPanel.Visibility = tracks.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
             spacingField.Visibility = outerBox.SelectedItem is ComboBoxItem { Tag: null } ? Visibility.Visible : Visibility.Collapsed;
-            if (Spec(null) is not { } spec) { info.Text = ""; return; }
+            if (Spec(null) is not { } spec) { info.Text = widthInfo.Text = ""; return; }
             var m = Helix.Material(spec, gauge);
+            var free = spec.Construction == HelixConstruction.Spanten ? m.Edge - Helix.SlotDepth(gauge) : m.Edge - Helix.RodInset;
+            widthInfo.Text = Lang.F($"Trassenbreite {Fmt.Num(m.TrackWidth, 0)} mm = {(spec.Tracks == 2 ? Lang.F($"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + ") : "")}Gleisbett {Fmt.Num(m.TrackBedWidth, 0)} mm + 2 × {Fmt.Num(m.Edge, 0)} mm Rand. Freiraum neben dem Gleisbett {Fmt.Num(free, 0)} mm (empfohlen ab {Fmt.Num(Helix.Clearance(gauge), 0)} mm).");
             info.Text = Lang.F($"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm");
         }
         shape.SelectionChanged += (_, _) => FillCurves();
@@ -225,6 +232,14 @@ public static partial class Dialogs
         straightBox.SelectionChanged += (_, _) => Update();
         foreach (var box in new[] { turns, rise, straightCount }) box.TextChanged += (_, _) => Update();
         spacing.TextChanged += (_, _) => Update();
+        edgeBox.TextChanged += (_, _) => Update();
+        construction.SelectionChanged += (_, _) =>
+        {
+            updating = true;
+            edgeBox.Text = Fmt.Num(Helix.DefaultEdge(gauge, Construction()), 0);
+            updating = false;
+            Update();
+        };
 
         var body = new StackPanel();
         body.Children.Add(Hint(fromEnd
@@ -243,6 +258,9 @@ public static partial class Dialogs
         body.Children.Add(Theme.Label(Lang.T("Richtung"), 11, false, Theme.TextSecondaryBrush));
         body.Children.Add(direction);
         body.Children.Add(new Border { Height = 8 });
+        body.Children.Add(Columns(Theme.Field(Lang.T("Bauweise"), construction), Theme.Field(Lang.T("Randaufmaß je Seite (mm)"), edgeBox)));
+        body.Children.Add(widthInfo);
+        body.Children.Add(new Border { Height = 4 });
         body.Children.Add(info);
         body.Children.Add(error);
         FillCurves();
@@ -311,6 +329,37 @@ public static partial class Dialogs
         var notes = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         foreach (var n in m.Notes) notes.Children.Add(new TextBlock { Text = "• " + n, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2), Foreground = n.StartsWith(Lang.T("Achtung")) ? Theme.DangerBrush : Theme.TextSecondaryBrush });
         body.Children.Add(notes);
+        if (m.Ribs is { Count: > 0 } ribs)
+        {
+            body.Children.Add(Theme.Label(Lang.T("Aufmaße der Spanten"), 13, true));
+            body.Children.Add(new TextBlock
+            {
+                Text = Lang.F($"Je Stelle ein Spant innen und einer außen, {Fmt.Num(ribs[0].Width, 0)} mm breit, {Fmt.Num(ribs[0].Thickness, 0)} mm stark. Schlitze {Fmt.Num(ribs[0].SlotHeight, 0)} mm hoch und {Fmt.Num(ribs[0].SlotDepth, 0)} mm tief; Maße ab Spantfuß (Unterkante Trasse am Wendelanfang)."),
+                TextWrapping = TextWrapping.Wrap, Foreground = Theme.TextSecondaryBrush, Margin = new Thickness(0, 2, 0, 4),
+            });
+            var table = new Grid();
+            foreach (var width in new[] { 40.0, 150, 60, double.NaN })
+                table.ColumnDefinitions.Add(new ColumnDefinition { Width = double.IsNaN(width) ? new GridLength(1, GridUnitType.Star) : new GridLength(width) });
+            void TableCell(string text, int row, int col, bool head = false)
+            {
+                var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 8, 3), FontWeight = head ? FontWeights.SemiBold : FontWeights.Normal };
+                if (head) t.Foreground = Theme.TextSecondaryBrush;
+                Grid.SetRow(t, row); Grid.SetColumn(t, col);
+                table.Children.Add(t);
+            }
+            table.RowDefinitions.Add(new RowDefinition());
+            string[] ribHeads = [Lang.T("Nr."), Lang.T("Lage"), Lang.T("Höhe"), Lang.T("Schlitz-Unterkanten (mm)")];
+            for (var c = 0; c < ribHeads.Length; c++) TableCell(ribHeads[c], 0, c, true);
+            for (var i = 0; i < ribs.Count; i++)
+            {
+                table.RowDefinitions.Add(new RowDefinition());
+                TableCell(ribs[i].Number.ToString(), i + 1, 0);
+                TableCell(ribs[i].Place, i + 1, 1);
+                TableCell(Fmt.Num(ribs[i].Height, 0), i + 1, 2);
+                TableCell(ribs[i].SlotText, i + 1, 3);
+            }
+            body.Children.Add(table);
+        }
         var copy = Theme.Button(Lang.T("Kopieren"));
         copy.Click += (_, _) => { try { Clipboard.SetText(m.ToText()); } catch (System.Runtime.InteropServices.COMException) { } };
         var csv = Theme.Button(Lang.T("Als CSV speichern…"));

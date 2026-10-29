@@ -109,13 +109,13 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Z: Märklin mini-club, Rokuhan · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Arnold, Tomix Fine Track,
   Peco Streamline Code 55 und Code 80, Peco Setrack · TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Kühn, Piko ·
   H0: Märklin C, Trix C, Märklin K, Märklin M, Roco geoLine, Roco Line, Piko A, Fleischmann Profi, Fleischmann Modellgleis,
-  Tillig Elite, Peco Code 75 und Code 100, Peco Setrack, Kato Unitrack · H0m: Tillig · H0e: Tillig, Peco ·
+  Tillig Elite, Peco Code 75 und Code 100, Peco Setrack, Kato Unitrack · H0m: Tillig · H0e: Tillig, Peco, Kato ·
   0: Standard, Lenz, Peco Bullhead · Spur 1: Märklin · G: LGB, Piko.
   Zusammen rund 1300 Gleisstücke: Geraden, Bögen, Gegenbögen, Schalt-, Entkupplungs- und Übergangsgleise, einfache, schlanke,
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Gleisdaten stehen im eigenen Katalog `src/TrackMaster.Core/Gleiskatalog.json`, erfasst nach Herstellerangaben
   (Produktseiten, Kataloge, Anleitungen; Quellen je System, Erzeuger in `tools/katalog`). Bisher so erfasst: Märklin C, K und
-  mini-club, Trix C, Minitrix, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
+  mini-club, Trix C, Minitrix, Kato Unitrack N und H0e, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
   Märklin Spur 1. Die übrigen Systeme kommen noch aus der Datei `gleisdaten/gleisdaten.json` unter der GNU GPL Version 2
   (Lizenztext und Herkunft im selben Ordner; Maße aus der Gleisbibliothek von XTrackCAD); das Programm liest sie nur ein.
   Drehscheiben und Schiebebühnen der Hersteller stehen in einer eigenen Gruppe der Bibliothek. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer. Die Peco-Streamline-Systeme enthalten nur Weichen, Kreuzungen und kurze Geraden; verlegt wird dort mit Flexgleis.

@@ -151,6 +151,53 @@ def X(nr, laenge, a, art="Kreuzung", gespiegelt=False, laenge2=None):
                 len=laenge, a=a, drives=1 if art == "EKW" else None, routes=routes)
 
 
+def DG(nr, laenge, abstand, name="Doppelgleis", name_en=None):
+    """Gerades Doppelgleis: zwei parallele Gleise im Abstand `abstand` (das zweite links)."""
+    return teil(nr, "Crossing", name, f"{zahl(laenge)} mm", "Sonstige", name_en, len=laenge,
+                routes=[dict(x=0, y=0, h=0, s=[[laenge, 0, 0, 0]]), dict(x=0, y=abstand, h=0, s=[[laenge, 0, 0, 0]])])
+
+
+def DB(nr, r_aussen, r_innen, a, name="Doppelgleis gebogen", name_en=None, form="gleich"):
+    """
+    Gebogenes Doppelgleis: zwei Bögen um denselben Mittelpunkt, nach links gekrümmt (der innere links). Die Reihenfolge der
+    Anschlüsse folgt früheren Katalogdaten: form "gleich" (beide Bögen vom Anfang aus), "gegen" (innerer Bogen vom anderen
+    Ende her) oder "innen" (innerer Bogen zuerst, der äußere rechts daneben).
+    """
+    d = r_aussen - r_innen
+    if form == "innen":
+        routes = [dict(x=0, y=0, h=0, s=[[0, r_innen, a, 1]]), dict(x=0, y=-d, h=0, s=[[0, r_aussen, a, 1]])]
+    elif form == "gegen":
+        w = math.radians(a)
+        routes = [dict(x=0, y=0, h=0, s=[[0, r_aussen, a, 1]]),
+                  dict(x=round(r_innen * math.sin(w), 2), y=round(r_aussen - r_innen * math.cos(w), 2), h=a - 180, s=[[0, r_innen, a, -1]])]
+    else:
+        routes = [dict(x=0, y=0, h=0, s=[[0, r_aussen, a, 1]]), dict(x=0, y=d, h=0, s=[[0, r_innen, a, 1]])]
+    return teil(nr, "Crossing", f"{name} {zahl(a)}°", f"R {zahl(r_aussen)} / {zahl(r_innen)} mm", "Sonstige",
+                f"{name_en or 'Curved double track'} {en(a)}°", r=r_aussen, a=a, routes=routes)
+
+
+def GW(nr, laenge, abstand, rechts=None, doppelt=False):
+    """
+    Gleisverbindung zwischen zwei parallelen Gleisen (einfach: nach links oder rechts, doppelt: beide). Fahrwege sind die
+    beiden geraden Gleise (das zweite rechts, bei doppelter Verbindung links); der Verbindungsbogen wird nur gezeichnet (S-Bogen über die mittlere Hälfte der Länge).
+    """
+    y2 = abstand if doppelt else -abstand
+    l = laenge / 2
+    a = math.degrees(2 * math.atan2(abstand, l))
+    r = l / 2 / math.sin(math.radians(a))
+    def s(t): return [[laenge / 4, 0, 0, 0], [0, round(r, 2), round(a, 3), t], [0, round(r, 2), round(a, 3), -t], [laenge / 4, 0, 0, 0]]
+    if doppelt:
+        decor = [dict(x=0, y=0, h=0, s=s(1)), dict(x=0, y=y2, h=0, s=s(-1))]
+    else:
+        # rechts: vom Gleis 0 nach rechts auf das zweite Gleis, links: vom zweiten Gleis nach links auf Gleis 0
+        decor = [dict(x=0, y=0, h=0, s=s(-1))] if rechts else [dict(x=0, y=y2, h=0, s=s(1))]
+    name = "Doppelte Gleisverbindung" if doppelt else "Gleisverbindung " + ("rechts" if rechts else "links")
+    name_en = "Double crossover" if doppelt else "Crossover, " + ("right" if rechts else "left")
+    return teil(nr, "Crossing", name, f"{zahl(laenge)} mm · {zahl(abstand)} mm", "Kreuzungen", name_en, len=laenge,
+                drives=2 if doppelt else 1, routes=[dict(x=0, y=0, h=0, s=[[laenge, 0, 0, 0]]), dict(x=0, y=y2, h=0, s=[[laenge, 0, 0, 0]])],
+                decor=decor)
+
+
 def P(nr, laenge, name="Prellbock", name_en=None):
     return teil(nr, "Buffer", name, f"{zahl(laenge)} mm", "Sonstige", name_en, len=laenge)
 

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>TrackMaster Pro</title>
+    <meta name="description" content="TrackMaster Pro – Gleisplanung für Modellbahnanlagen im Browser" />
+    <meta name="theme-color" content="#437E1E" />
+    <!-- Relativ, damit die Seite auch in einem Unterordner des Servers läuft -->
+    <base href="./" />
+    <link rel="icon" type="image/png" href="img/favicon.png" />
+    <link rel="apple-touch-icon" href="img/icon-192.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+    <div id="app">
+        <div class="boot">
+            <img src="img/logo.png" alt="TrackMaster Pro" width="160" height="160" />
+            <div class="boot-bar"><div class="boot-fill"></div></div>
+            <div class="boot-text">TrackMaster Pro wird geladen …</div>
+            <noscript>Bitte JavaScript einschalten.</noscript>
+        </div>
+    </div>
+    <div id="blazor-error-ui">
+        Es ist ein Fehler aufgetreten. <a href="" class="reload">Neu laden</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>

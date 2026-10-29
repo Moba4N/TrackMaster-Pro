@@ -2,6 +2,9 @@ namespace TrackMaster.Core;
 
 public enum HelixShape { Rund, Oval }
 
+/// <summary>Bauweise der Wendel: Trassenringe auf Gewindestangen oder in geschlitzte Spanten gesteckt (Spantenbau).</summary>
+public enum HelixConstruction { Gewindestangen, Spanten }
+
 /// <summary>
 /// Angaben für eine Gleiswendel: rund oder oval (zwei Halbkreise mit geraden Stücken dazwischen), ein- oder zweigleisig.
 /// Beim zweigleisigen Bau liegt das zweite Gleis außen, im Abstand <see cref="Spacing"/>; ohne passendes Katalog-Bogengleis
@@ -10,7 +13,8 @@ public enum HelixShape { Rund, Oval }
 public sealed record HelixSpec(
     string CurveKey, double Turns, double Rise, bool RightHand,
     HelixShape Shape = HelixShape.Rund, string? StraightKey = null, int StraightCount = 0,
-    int Tracks = 1, double Spacing = 0, string? OuterCurveKey = null)
+    int Tracks = 1, double Spacing = 0, string? OuterCurveKey = null,
+    HelixConstruction Construction = HelixConstruction.Gewindestangen, double? Edge = null)
 {
     public TrackPieceDef Curve => Catalog.Get(CurveKey);
     public TrackPieceDef? Straight => Shape == HelixShape.Oval && StraightKey is not null && StraightCount > 0 ? Catalog.Get(StraightKey) : null;
@@ -23,16 +27,35 @@ public sealed record HelixSpec(
 /// <summary>Ein Zuschnitt- oder Kaufteil für den Wendelbau.</summary>
 public sealed record HelixPart(string Name, int Count, string Size, string Note, double AreaM2 = 0);
 
+/// <summary>
+/// Ein Spant im Spantenbau: senkrechtes Brett am Innen- bzw. Außenrand der Trasse mit waagrechten Schlitzen, in denen die Trassenbretter liegen.
+/// Höhen in mm ab Spantfuß (= Unterkante der Trasse am Wendelanfang); <see cref="SlotBottoms"/> sind die Unterkanten der Schlitze von unten nach oben.
+/// </summary>
+public sealed record HelixRib(int Number, string Place, int Count, double Height, double Width, double Thickness, double SlotHeight, double SlotDepth, IReadOnlyList<double> SlotBottoms)
+{
+    public string SlotText => string.Join(" · ", SlotBottoms.Select(b => Fmt.Num(b, 1)));
+}
+
 /// <summary>Holz und Kleinteile für eine Gleiswendel, mit allen Aufmaßen.</summary>
 public sealed record HelixMaterial(IReadOnlyList<HelixPart> Parts, IReadOnlyList<string> Notes,
-    double BoardThickness, double TrackBedWidth, double Edge, double SawAllowance, double InnerBoardRadius, double OuterBoardRadius, int Sheets)
+    double BoardThickness, double TrackBedWidth, double Edge, double SawAllowance, double InnerBoardRadius, double OuterBoardRadius, int Sheets,
+    IReadOnlyList<HelixRib>? Ribs = null)
 {
+    public double TrackWidth => OuterBoardRadius - InnerBoardRadius;
+
     public string ToText()
     {
         var lines = new List<string> { Lang.T("Materialliste Gleiswendel"), "" };
         foreach (var p in Parts) lines.Add($"{p.Count} × {p.Name}{(p.Size.Length > 0 ? ": " + p.Size : "")}{(p.Note.Length > 0 ? $" ({p.Note})" : "")}");
         lines.Add("");
         lines.AddRange(Notes);
+        if (Ribs is { Count: > 0 })
+        {
+            lines.Add("");
+            lines.Add(Lang.T("Aufmaße der Spanten (mm ab Spantfuß = Unterkante Trasse am Wendelanfang)"));
+            foreach (var r in Ribs)
+                lines.Add(Lang.F($"Spant {r.Number} ({r.Place}), {r.Count} Stück: Höhe {Fmt.Num(r.Height, 0)}, Schlitz-Unterkanten {r.SlotText}"));
+        }
         return string.Join(Environment.NewLine, lines);
     }
 
@@ -43,6 +66,14 @@ public sealed record HelixMaterial(IReadOnlyList<HelixPart> Parts, IReadOnlyList
         lines.AddRange(Parts.Select(p => $"{p.Count};{Q(p.Name)};{Q(p.Size)};{Q(p.Note)}"));
         lines.Add("");
         lines.AddRange(Notes.Select(Q));
+        if (Ribs is { Count: > 0 })
+        {
+            lines.Add("");
+            var levels = Ribs.Max(r => r.SlotBottoms.Count);
+            lines.Add(Lang.T("Spant;Lage;Anzahl;Höhe;Breite;Stärke;Schlitzhöhe;Schlitztiefe") + string.Concat(Enumerable.Range(1, levels).Select(i => Lang.F($";Schlitz {i} Unterkante"))));
+            lines.AddRange(Ribs.Select(r => $"{r.Number};{Q(r.Place)};{r.Count};{Fmt.Num(r.Height, 0)};{Fmt.Num(r.Width, 0)};{Fmt.Num(r.Thickness, 0)};{Fmt.Num(r.SlotHeight, 0)};{Fmt.Num(r.SlotDepth, 0)}"
+                                            + string.Concat(r.SlotBottoms.Select(b => ";" + Fmt.Num(b, 1)))));
+        }
         return string.Join("\r\n", lines);
     }
 }
@@ -54,6 +85,28 @@ public static class Helix
 
     /// <summary>Breite des Gleises mit Schwellen bzw. Bettung, geschätzt aus der Spurweite (H0: 45 mm).</summary>
     public static double TrackBedWidth(Gauge g) => Math.Round(g.TrackWidth * 2.7);
+
+    /// <summary>Freiraum zwischen Gleisbett und Gewindestange bzw. Spant, damit überstehende Wagen im Bogen nicht anstoßen (H0: 13 mm).</summary>
+    public static double Clearance(Gauge g) => Math.Max(8, Math.Round(g.TrackWidth * 0.8));
+
+    /// <summary>Wie tief die Trasse im Spantenbau in die Schlitze greift (H0: 10 mm).</summary>
+    public static double SlotDepth(Gauge g) => Math.Max(8, Math.Round(g.TrackWidth * 0.6));
+
+    /// <summary>Abstand der Gewindestangen von der Trassenkante (Mitte der Bohrung).</summary>
+    public const double RodInset = 12;
+
+    /// <summary>Vorgeschlagenes Randaufmaß je Seite: Platz für Bohrung bzw. Schlitz und den Freiraum für die Fahrzeuge.</summary>
+    public static double DefaultEdge(Gauge g, HelixConstruction c)
+        => c == HelixConstruction.Spanten ? SlotDepth(g) + Clearance(g) : Math.Max(25, Math.Round(g.TrackWidth * 1.5));
+
+    /// <summary>Kleinstes sinnvolles Randaufmaß (Bohrung mit Fleisch zum Rand bzw. Schlitztiefe plus 3 mm).</summary>
+    public static double MinEdge(Gauge g, HelixConstruction c) => c == HelixConstruction.Spanten ? SlotDepth(g) + 3 : RodInset + 4;
+
+    /// <summary>Randaufmaß der Angaben (eingegeben oder vorgeschlagen).</summary>
+    public static double EdgeOf(HelixSpec spec, Gauge g) => spec.Edge ?? DefaultEdge(g, spec.Construction);
+
+    /// <summary>Breite der Trasse: Gleisabstand (zweigleisig) + Gleisbett + Randaufmaß auf beiden Seiten.</summary>
+    public static double TrackBoardWidth(HelixSpec spec, Gauge g) => spec.OuterRadius - spec.Curve.Radius + TrackBedWidth(g) + 2 * EdgeOf(spec, g);
 
     /// <summary>Üblicher Gleisabstand für zweigleisige Wendeln (H0: 62 mm).</summary>
     public static double DefaultSpacing(Gauge g) => Math.Round(g.TrackWidth * 3.75);
@@ -171,8 +224,9 @@ public static class Helix
     {
         var g = gauge.TrackWidth;
         var bed = TrackBedWidth(gauge);
-        // Randaufmaß je Seite: Platz für die Bohrung der Gewindestange (12 mm vom Rand) und eine Leitplanke
-        var edge = Math.Max(25, Math.Round(g * 1.5));
+        // Randaufmaß je Seite: Platz für die Bohrung der Gewindestange (12 mm vom Rand) bzw. den Schlitz im Spant und den Freiraum für die Fahrzeuge
+        var edge = EdgeOf(spec, gauge);
+        var ribs = spec.Construction == HelixConstruction.Spanten;
         var saw = 5.0;
         var thickness = g < 10 ? 8.0 : g < 25 ? 10.0 : 15.0;
         var ri = spec.Curve.Radius - bed / 2 - edge;
@@ -210,19 +264,33 @@ public static class Helix
         double baseW = Math.Ceiling(2 * ro + straight + 100), baseD = Math.Ceiling(2 * ro + 100);
         parts.Add(new(Lang.T("Grundplatte"), 1, $"{Fmt.Num(baseW, 0)} × {Fmt.Num(baseD, 0)} × {Fmt.Num(Math.Max(thickness, 12), 0)} mm", Lang.T("oder Wendel auf die Anlagenplatte stellen"), baseW * baseD / 1e6));
 
-        // Stützen: an jedem Segmentstoß innen und außen, beim Oval zusätzlich an den Enden und alle 400 mm der Geraden
-        var straightPosts = straight > 0 ? 2 * (1 + (int)Math.Floor(straight / 400)) : 0;
-        var posts = perCircle + straightPosts;
-        var rods = posts * 2;
-        var rodLength = Math.Ceiling((spec.TotalHeight + Math.Max(thickness, 12) + thickness + 60) / 10) * 10;
-        var levels = (int)Math.Ceiling(spec.Turns) + 1;
-        var rodSize = gauge.TrackWidth >= 30 ? "M10" : "M8";
-        parts.Add(new(Lang.F($"Gewindestange {rodSize}"), rods, Lang.F($"{Fmt.Num(rodLength, 0)} mm lang (aus {Math.Max(1, (int)Math.Ceiling(rodLength / 1000))} m-Stangen)"),
-            Lang.F($"{posts} Stützpunkte, je einer innen und außen, 12 mm vom Rand")));
-        parts.Add(new(Lang.F($"Mutter {rodSize}"), rods * levels * 2, "", Lang.T("je Stütze und Ebene oben und unten, zum Einstellen der Höhe")));
-        parts.Add(new(Lang.F($"Unterlegscheibe {rodSize} (groß)"), rods * levels * 2, "", Lang.T("unter jede Mutter")));
+        List<HelixRib> ribList = [];
+        if (ribs)
+        {
+            ribList = Ribs(spec, gauge, perCircle, thickness, edge);
+            var ribThickness = Math.Max(thickness, 12);
+            var ribWidth = ribList.Count > 0 ? ribList[0].Width : 0;
+            parts.Add(new(Lang.T("Spant (geschlitzt)"), ribList.Sum(r => r.Count),
+                Lang.F($"{Fmt.Num(ribWidth, 0)} × {Fmt.Num(ribThickness, 0)} mm, Höhen {Fmt.Num(ribList.Min(r => r.Height), 0)} bis {Fmt.Num(ribList.Max(r => r.Height), 0)} mm"),
+                Lang.F($"{ribList.Count} Stellen, je ein Spant innen und außen; Schlitze siehe Aufmaße"), ribList.Sum(r => r.Count * r.Height * ribWidth) / 1e6));
+            parts.Add(new(Lang.T("Spantfuß (Winkel oder Klötzchen)"), ribList.Sum(r => r.Count), "", Lang.T("Spant auf der Grundplatte verleimen und verschrauben")));
+        }
+        else
+        {
+            // Stützen: an jedem Segmentstoß innen und außen, beim Oval zusätzlich an den Enden und alle 400 mm der Geraden
+            var straightPosts = straight > 0 ? 2 * (1 + (int)Math.Floor(straight / 400)) : 0;
+            var posts = perCircle + straightPosts;
+            var rods = posts * 2;
+            var rodLength = Math.Ceiling((spec.TotalHeight + Math.Max(thickness, 12) + thickness + 60) / 10) * 10;
+            var levels = (int)Math.Ceiling(spec.Turns) + 1;
+            var rodSize = gauge.TrackWidth >= 30 ? "M10" : "M8";
+            parts.Add(new(Lang.F($"Gewindestange {rodSize}"), rods, Lang.F($"{Fmt.Num(rodLength, 0)} mm lang (aus {Math.Max(1, (int)Math.Ceiling(rodLength / 1000))} m-Stangen)"),
+                Lang.F($"{posts} Stützpunkte, je einer innen und außen, 12 mm vom Rand")));
+            parts.Add(new(Lang.F($"Mutter {rodSize}"), rods * levels * 2, "", Lang.T("je Stütze und Ebene oben und unten, zum Einstellen der Höhe")));
+            parts.Add(new(Lang.F($"Unterlegscheibe {rodSize} (groß)"), rods * levels * 2, "", Lang.T("unter jede Mutter")));
+        }
 
-        var area = parts.Where(p => p.Name.StartsWith(Lang.T("Trassen")) || p.Name.StartsWith(Lang.T("Gerades")) || p.Name.StartsWith(Lang.T("Stoß"))).Sum(p => p.AreaM2);
+        var area = parts.Where(p => p.Name.StartsWith(Lang.T("Trassen")) || p.Name.StartsWith(Lang.T("Gerades")) || p.Name.StartsWith(Lang.T("Stoß")) || p.Name.StartsWith(Lang.T("Spant ("))).Sum(p => p.AreaM2);
         var sheets = Math.Max(1, (int)Math.Ceiling(area * 1.25 / (SheetLength * SheetWidth / 1e6)));
         var clear = spec.Rise - thickness - Math.Round(g * 0.4);
         var notes = new List<string>
@@ -238,7 +306,65 @@ public static class Helix
             notes.Add(Lang.F($"Außengleis aus Flexgleis mit Radius {Fmt.Num(spec.OuterRadius, 0)} mm (kein passendes Bogengleis im Katalog)."));
         if (clear < gauge.ClearanceHeight - thickness)
             notes.Add(Lang.T("Achtung: Die lichte Höhe ist knapp – Höhe je Windung vergrößern oder dünneres Holz nehmen."));
-        return new HelixMaterial(parts, notes, thickness, bed, edge, saw, ri, ro, sheets);
+        var free = ribs ? edge - SlotDepth(gauge) : edge - RodInset;
+        if (free < Clearance(gauge))
+            notes.Add(Lang.F($"Achtung: Zwischen Gleisbett und {(ribs ? Lang.T("Spant") : Lang.T("Gewindestange"))} bleiben nur {Fmt.Num(free, 0)} mm, empfohlen sind mindestens {Fmt.Num(Clearance(gauge), 0)} mm – lange Wagen können im Bogen anstoßen."));
+        if (ribs)
+        {
+            notes.Add(Lang.F($"Spantenbau: Die Trassenbretter liegen in waagrechten Schlitzen ({Fmt.Num(ribList[0].SlotHeight, 0)} mm hoch, {Fmt.Num(ribList[0].SlotDepth, 0)} mm tief) von Spanten am Innen- und Außenrand. Spanten an jedem Segmentstoß und dazwischen höchstens {Fmt.Num(RibSpacing(gauge), 0)} mm auseinander."));
+            notes.Add(Lang.T("Aufmaße der Spanten ab Spantfuß = Unterkante der Trasse am Wendelanfang. Innen- und Außenspant einer Stelle haben dieselben Maße; Lage in Fahrtrichtung ab Wendelanfang."));
+        }
+        return new HelixMaterial(parts, notes, thickness, bed, edge, saw, ri, ro, sheets, ribList);
+    }
+
+    /// <summary>Größter Abstand der Spanten entlang des inneren Gleises (H0: 250 mm).</summary>
+    public static double RibSpacing(Gauge g) => Math.Max(150, Math.Round(g.TrackWidth * 15 / 10) * 10);
+
+    /// <summary>
+    /// Spanten für den Spantenbau: Stellen entlang einer Windung (an jedem Segmentstoß, dazwischen höchstens <see cref="RibSpacing"/>),
+    /// je ein Spant innen und außen, mit den Unterkanten der Schlitze für jede Ebene.
+    /// </summary>
+    public static List<HelixRib> Ribs(HelixSpec spec, Gauge gauge, int perCircle, double thickness, double edge)
+    {
+        var r = spec.Curve.Radius;
+        var straight = spec.StraightLength;
+        var turn = TurnLength(spec, r);
+        var grade = spec.Rise / turn;
+        var total = turn * spec.Turns;
+        var gap = RibSpacing(gauge);
+        var stations = new List<(double S, string Place)>();
+        if (spec.Shape == HelixShape.Oval && straight > 0)
+        {
+            var halfSegs = Math.Max(1, perCircle / 2);
+            var m = halfSegs * (int)Math.Ceiling(Math.Ceiling(Math.PI * r / gap) / halfSegs);
+            var q = (int)Math.Ceiling(straight / gap);
+            for (var side = 0; side < 2; side++)
+            {
+                var start = side * (Math.PI * r + straight);
+                for (var j = 0; j < m; j++)
+                    stations.Add((start + j * Math.PI * r / m, Lang.F($"Bogen {side + 1}, {Fmt.Num(j * 180.0 / m, 1)}°")));
+                for (var t = 0; t < q; t++)
+                    stations.Add((start + Math.PI * r + t * straight / q, Lang.F($"Gerade {side + 1}, {Fmt.Num(t * straight / q, 0)} mm")));
+            }
+        }
+        else
+        {
+            var n = Math.Max(6, perCircle * (int)Math.Ceiling(Math.Ceiling(2 * Math.PI * r / gap) / perCircle));
+            for (var i = 0; i < n; i++) stations.Add((i * turn / n, Lang.F($"{Fmt.Num(i * 360.0 / n, 1)}°")));
+        }
+        var slotHeight = thickness + 1;
+        var slotDepth = SlotDepth(gauge);
+        var width = slotDepth + Math.Max(30, Math.Round(gauge.TrackWidth * 2));
+        var top = Math.Max(20, thickness * 2);
+        var result = new List<HelixRib>();
+        foreach (var (s, place) in stations)
+        {
+            var slots = new List<double>();
+            for (var k = 0; s + k * turn <= total + 0.5; k++) slots.Add(Math.Round((s + k * turn) * grade * 2, MidpointRounding.AwayFromZero) / 2);
+            var height = Math.Ceiling(slots[^1] + slotHeight + top);
+            result.Add(new HelixRib(result.Count + 1, place, 2, height, width, Math.Max(thickness, 12), slotHeight, slotDepth, slots));
+        }
+        return result;
     }
 
     private static double Chord(double r, double angleDeg) => angleDeg >= 180 ? 2 * r : 2 * r * Math.Sin(angleDeg / 2 * Math.PI / 180);

@@ -546,12 +546,18 @@ public static partial class Dialogs
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Windungen"), turns), Ui.Field(c, Lang.T("Höhe je Windung (mm)"), rise)));
         var direction = Choice(c, [Lang.T("links herum (gegen den Uhrzeigersinn)"), Lang.T("rechts herum (im Uhrzeigersinn)")], 0);
         body.AddView(Ui.Field(c, Lang.T("Richtung"), direction));
+        var construction = Choice(c, [Lang.T("Gewindestangen"), Lang.T("Spantenbau (geschlitzte Spanten)")], 0);
+        var edgeBox = Ui.Number(c, Helix.DefaultEdge(gauge, HelixConstruction.Gewindestangen));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Bauweise"), construction), Ui.Field(c, Lang.T("Randaufmaß je Seite (mm)"), edgeBox)));
+        var widthInfo = Ui.Label(c, "", 12.5, color: Ui.TextSecondary);
+        body.AddView(widthInfo);
         var info = Ui.Label(c, "", 12.5, color: Ui.TextSecondary);
         body.AddView(info);
         var error = Error(c);
         body.AddView(error);
 
         HelixShape Shape() => shape.SelectedItemPosition == 1 ? HelixShape.Oval : HelixShape.Rund;
+        HelixConstruction Construction() => construction.SelectedItemPosition == 1 ? HelixConstruction.Spanten : HelixConstruction.Gewindestangen;
         var inners = new List<TrackPieceDef>();
         var outers = new List<TrackPieceDef?>();
         void SetItems(Spinner sp, IReadOnlyList<string> items, int selected)
@@ -594,23 +600,34 @@ public static partial class Dialogs
             var two = tracks.SelectedItemPosition == 1;
             var oc = two && outers.Count > 0 ? outers[Math.Clamp(outer.SelectedItemPosition, 0, outers.Count - 1)] : null;
             if (two && oc is null) Read(spacing, Lang.T("Gleisabstand"), gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
+            Read(edgeBox, Lang.T("Randaufmaß"), Helix.MinEdge(gauge, Construction()), gauge.TrackWidth * 10, errors, out var edge);
             if (errors.Count > 0) return null;
             return new HelixSpec(inner.Key, t, r, direction.SelectedItemPosition == 1, Shape(), st?.Key, (int)Math.Round(n), two ? 2 : 1,
-                oc is not null ? oc.Radius - inner.Radius : sp, oc?.Key);
+                oc is not null ? oc.Radius - inner.Radius : sp, oc?.Key, Construction(), edge);
         }
         void Update()
         {
             oval.Visibility = Shape() == HelixShape.Oval ? ViewStates.Visible : ViewStates.Gone;
             outerPanel.Visibility = tracks.SelectedItemPosition == 1 ? ViewStates.Visible : ViewStates.Gone;
             spacingField.Visibility = outer.SelectedItemPosition <= 0 ? ViewStates.Visible : ViewStates.Gone;
-            if (Spec([]) is not { } spec) { info.Text = ""; return; }
+            if (Spec([]) is not { } spec) { info.Text = widthInfo.Text = ""; return; }
             var m = Helix.Material(spec, gauge);
+            var free = spec.Construction == HelixConstruction.Spanten ? m.Edge - Helix.SlotDepth(gauge) : m.Edge - Helix.RodInset;
+            widthInfo.Text = Lang.F($"Trassenbreite {Fmt.Num(m.TrackWidth, 0)} mm = {(spec.Tracks == 2 ? Lang.F($"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + ") : "")}Gleisbett {Fmt.Num(m.TrackBedWidth, 0)} mm + 2 × {Fmt.Num(m.Edge, 0)} mm Rand. Freiraum neben dem Gleisbett {Fmt.Num(free, 0)} mm (empfohlen ab {Fmt.Num(Helix.Clearance(gauge), 0)} mm).");
             info.Text = Lang.F($"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm");
         }
         shape.ItemSelected += (_, _) => FillCurves();
         curve.ItemSelected += (_, _) => FillOuter();
         foreach (var sp in new[] { tracks, outer, straight, direction }) sp.ItemSelected += (_, _) => Update();
-        foreach (var box in new[] { turns, rise, straightCount, spacing }) box.TextChanged += (_, _) => Update();
+        foreach (var box in new[] { turns, rise, straightCount, spacing, edgeBox }) box.TextChanged += (_, _) => Update();
+        var firstConstruction = true;
+        construction.ItemSelected += (_, _) =>
+        {
+            // Spinner melden die erste Auswahl beim Anzeigen; dann den Rand nicht überschreiben
+            if (firstConstruction) { firstConstruction = false; return; }
+            edgeBox.Text = Fmt.Num(Helix.DefaultEdge(gauge, Construction()), 0);
+            Update();
+        };
         FillCurves();
         Show(c, Lang.T("Gleiswendel"), body, Lang.T("Bauen"), () =>
         {
@@ -640,6 +657,19 @@ public static partial class Dialogs
         }
         foreach (var n in m.Notes)
             body.AddView(Ui.Label(c, "• " + n, 12.5, color: n.StartsWith(Lang.T("Achtung")) ? Color.Rgb(0xC4, 0x2B, 0x1C) : Ui.TextSecondary));
+        if (m.Ribs is { Count: > 0 } ribs)
+        {
+            body.AddView(Section(c, Lang.T("Aufmaße der Spanten")));
+            body.AddView(Ui.Label(c, Lang.F($"Je Stelle ein Spant innen und einer außen, {Fmt.Num(ribs[0].Width, 0)} mm breit, {Fmt.Num(ribs[0].Thickness, 0)} mm stark. Schlitze {Fmt.Num(ribs[0].SlotHeight, 0)} mm hoch und {Fmt.Num(ribs[0].SlotDepth, 0)} mm tief; Maße ab Spantfuß (Unterkante Trasse am Wendelanfang)."), 12, color: Ui.TextSecondary));
+            foreach (var r in ribs)
+            {
+                var row = Ui.Column(c, 0);
+                row.SetPadding(0, Ui.Dp(3), 0, Ui.Dp(3));
+                row.AddView(Ui.Label(c, Lang.F($"Spant {r.Number} · {r.Place} · Höhe {Fmt.Num(r.Height, 0)} mm"), 13.5, true));
+                row.AddView(Ui.Label(c, Lang.F($"Schlitz-Unterkanten: {r.SlotText} mm"), 12.5));
+                body.AddView(row);
+            }
+        }
         Show(c, Lang.T("Holzliste Gleiswendel"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("Als CSV speichern"), saveCsv));
     }
 

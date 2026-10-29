@@ -84,15 +84,15 @@ def WW(links, rechts, laenge, r, a, **k):
     return [W(links, False, laenge, r, a, **k), W(rechts, True, laenge, r, a, **k)]
 
 
-def W3(nr, laenge, r, a, vorlauf=0, ungeprueft=False):
+def W3(nr, laenge, r, a, vorlauf=0, ungeprueft=False, nachlauf=0):
     """
     Dreiwegweiche: gerade und je ein Abzweig r/a nach links und rechts, optional nach einem geraden Vorlauf
-    (eine Zahl für beide Seiten oder (links, rechts) bei versetzten Abzweigen).
+    (eine Zahl für beide Seiten oder (links, rechts) bei versetzten Abzweigen), optional mit gerader Verlängerung.
     """
     vl, vr = vorlauf if isinstance(vorlauf, tuple) else (vorlauf, vorlauf)
     def v(x): return [[x, 0, 0, 0]] if x else []
     return teil(nr, "Switch", "Dreiwegweiche", f"{zahl(laenge)} mm · R {zahl(r)} · 2 × {zahl(a)}°", "Weichen",
-                len=laenge, r=r, a=a, unchecked=ungeprueft, paths=[[[laenge, 0, 0, 0]], [*v(vl), [0, r, a, -1]], [*v(vr), [0, r, a, 1]]])
+                len=laenge, r=r, a=a, unchecked=ungeprueft, paths=[[[laenge, 0, 0, 0]], [*v(vl), [0, r, a, -1], *v(nachlauf)], [*v(vr), [0, r, a, 1], *v(nachlauf)]])
 
 
 def Y(nr, r, a, nachlauf=0):

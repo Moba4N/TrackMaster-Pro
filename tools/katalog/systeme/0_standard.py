@@ -1,12 +1,12 @@
 """
-Spur 0 Standard: allgemeines Gleissystem aus TrackMaster Pro selbst (keine Herstellerartikel, Kurzzeichen statt Artikelnummern),
+Spur 0 Standard: allgemeines Gleissystem aus TrackPlan selbst (keine Herstellerartikel, Kurzzeichen statt Artikelnummern),
 unverändert übernommen.
 """
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "0", "std0", "Spur 0 Standard", 0
 VERIFIED = False
-QUELLEN = ["TrackMaster Pro (eigene Maße)"]
+QUELLEN = ["TrackPlan (eigene Maße)"]
 
 TEILE = [
     {"nr": "G500", "kind": "Straight", "name": "Gerade", "spec": "500 mm", "cat": "Gerade", "len": 500},

@@ -20,7 +20,7 @@ namespace TrackMaster.Mobile;
 /// Hauptfenster der Android-Version: Kopfzeile mit Rückgängig, Register wie das Ribbon unter Windows, Zeichenfläche,
 /// Gleisbibliothek und Statuszeile. Der Plan wird beim Verlassen automatisch gesichert und beim Start wiederhergestellt.
 /// </summary>
-[Activity(Name = "de.moba4n.trackmaster.MainActivity", Label = "TrackMaster Pro", MainLauncher = true, Theme = "@android:style/Theme.Material.Light.NoActionBar",
+[Activity(Name = "de.moba4n.trackmaster.MainActivity", Label = "TrackPlan", MainLauncher = true, Theme = "@android:style/Theme.Material.Light.NoActionBar",
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.KeyboardHidden | ConfigChanges.UiMode,
     WindowSoftInputMode = SoftInput.AdjustResize)]
 [IntentFilter([Intent.ActionView], Categories = [Intent.CategoryDefault], DataMimeType = "application/json")]
@@ -367,7 +367,7 @@ public sealed class MainActivity : Activity
         logo.Click += (_, _) => Run("about");
         header.AddView(logo, new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(40)));
         var titles = Ui.Column(this, 0);
-        titles.AddView(Ui.Label(this, "TrackMaster Pro", 12, color: Ui.TextSecondary));
+        titles.AddView(Ui.Label(this, "TrackPlan", 12, color: Ui.TextSecondary));
         _title = Ui.Label(this, "", 16, true);
         _title.SetSingleLine(true);
         _title.Ellipsize = Android.Text.TextUtils.TruncateAt.End;
@@ -783,7 +783,7 @@ public sealed class MainActivity : Activity
         }
         catch (Exception e) when (e is IOException or InvalidDataException or System.Text.Json.JsonException or Java.Lang.Exception)
         {
-            Dialogs.Message(this, Lang.T("Öffnen"), Lang.F($"Die Datei ist kein TrackMaster-Plan: {e.Message}"));
+            Dialogs.Message(this, Lang.T("Öffnen"), Lang.F($"Die Datei ist kein TrackPlan-Gleisplan: {e.Message}"));
         }
     }
 

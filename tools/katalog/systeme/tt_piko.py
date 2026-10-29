@@ -1,12 +1,12 @@
 """
-Piko TT: allgemeines Gleissystem aus TrackMaster Pro selbst (keine Herstellerartikel, Kurzzeichen statt Artikelnummern),
+Piko TT: allgemeines Gleissystem aus TrackPlan selbst (keine Herstellerartikel, Kurzzeichen statt Artikelnummern),
 unverändert übernommen.
 """
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "TT", "piko-tt", "Piko TT", 4
 VERIFIED = False
-QUELLEN = ["TrackMaster Pro (eigene Maße)"]
+QUELLEN = ["TrackPlan (eigene Maße)"]
 
 TEILE = [
     {"nr": "G166", "kind": "Straight", "name": "Gerade", "spec": "166 mm", "cat": "Gerade", "len": 166},

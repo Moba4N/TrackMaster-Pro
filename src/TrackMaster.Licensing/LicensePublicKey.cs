@@ -1,7 +1,7 @@
 namespace TrackMaster.Licensing;
 
 /// <summary>
-/// Öffentlicher Schlüssel, mit dem TrackMaster Pro Lizenzen prüft. Der private Schlüssel (trackmaster.private.pem)
+/// Öffentlicher Schlüssel, mit dem TrackPlan Lizenzen prüft. Der private Schlüssel (trackmaster.private.pem)
 /// bleibt beim Hersteller und gehört nie ins Repository. Neues Schlüsselpaar: Lizenzverwaltung › Neues Schlüsselpaar
 /// oder <c>TrackMaster.LicenseTool keygen</c>, dann den öffentlichen Teil hier eintragen.
 /// </summary>

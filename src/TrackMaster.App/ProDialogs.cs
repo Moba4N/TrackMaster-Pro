@@ -505,7 +505,7 @@ public static partial class Dialogs
         var detail = Theme.Secondary("");
         void Sync()
         {
-            status.Text = Lang.F($"TrackMaster Pro {license.EditionName}");
+            status.Text = Lang.F($"TrackPlan {license.EditionName}");
             status.Foreground = license.IsPro ? Theme.SuccessBrush : Theme.TextBrush;
             detail.Text = license.Summary;
         }
@@ -564,7 +564,7 @@ public static partial class Dialogs
     public static bool ShowProRequired(Window owner, string feature)
     {
         var body = new StackPanel();
-        body.Children.Add(Theme.Label(Lang.F($"„{feature}“ gehört zu TrackMaster Pro."), 13, true));
+        body.Children.Add(Theme.Label(Lang.F($"„{feature}“ gehört zu TrackPlan Pro."), 13, true));
         body.Children.Add(new Border { Height = 8 });
         body.Children.Add(Theme.Label(Lang.T("Die Basisversion enthält alle Planungsfunktionen – Gleise, Höhen, Gleiswendel, Gelände, Elektrik und 3D. ") +
                                       Lang.T("Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu.")));

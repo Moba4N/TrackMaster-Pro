@@ -59,7 +59,7 @@ public sealed class MainWindow : Window
     {
         License = license;
         Session.IsPro = () => License.IsPro;
-        Title = "TrackMaster Pro";
+        Title = "TrackPlan";
         Width = 1600; Height = 940; MinWidth = 1024; MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = Theme.WindowBrush;
@@ -269,7 +269,7 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
-            MessageBox.Show(this, Lang.F($"Die neue Darstellung gilt ab dem nächsten Start.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, Lang.F($"Die neue Darstellung gilt ab dem nächsten Start.\n\n{ex.Message}"), "TrackPlan", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
@@ -745,7 +745,7 @@ public sealed class MainWindow : Window
     {
         var plan = Session.Plan;
         var file = Session.FilePath is { } path ? Path.GetFileName(path) : plan.Name;
-        _title.Text = Lang.F($"{file}{(Session.Dirty ? " *" : "")} – TrackMaster Pro{(License.IsPro ? "" : Lang.T(" Basis"))}");
+        _title.Text = Lang.F($"{file}{(Session.Dirty ? " *" : "")} – TrackPlan {(License.IsPro ? Lang.T("Pro") : Lang.T("Basis"))}");
         Title = _title.Text;
         _docTab.Text = Lang.F($"{plan.Name} · Spur {plan.GaugeId}");
         _hint.Text = Session.Tool is not (CanvasTool.Select or CanvasTool.Pan)
@@ -840,7 +840,7 @@ public sealed class MainWindow : Window
 
     // ---------- Dateien ----------
 
-    private static string FileFilter => Lang.T("TrackMaster-Plan (*.trackmaster.json)|*.trackmaster.json|JSON-Dateien (*.json)|*.json|Alle Dateien (*.*)|*.*");
+    private static string FileFilter => Lang.T("TrackPlan-Gleisplan (*.trackmaster.json)|*.trackmaster.json|JSON-Dateien (*.json)|*.json|Alle Dateien (*.*)|*.*");
 
     private string SafeName => string.Join("", Session.Plan.Name.Split(Path.GetInvalidFileNameChars())).Trim() is { Length: > 0 } n ? n : Lang.T("Gleisplan");
 
@@ -849,8 +849,8 @@ public sealed class MainWindow : Window
         if (!Session.Dirty) return true;
         if (!Session.IsPro())
             return MessageBox.Show(this, Lang.F($"„{Session.Plan.Name}“ wurde geändert. Speichern ist in der Basis-Version nicht enthalten (Datei › Lizenz).\n\nÄnderungen verwerfen?"),
-                "TrackMaster Pro", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK;
-        var answer = MessageBox.Show(this, Lang.F($"Änderungen an „{Session.Plan.Name}“ speichern?"), "TrackMaster Pro", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                "TrackPlan", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK;
+        var answer = MessageBox.Show(this, Lang.F($"Änderungen an „{Session.Plan.Name}“ speichern?"), "TrackPlan", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (answer == MessageBoxResult.Cancel) return false;
         if (answer == MessageBoxResult.Yes) return SaveFile(false);
         return true;
@@ -875,7 +875,7 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            MessageBox.Show(this, Lang.F($"„{Path.GetFileName(path)}“ lässt sich nicht öffnen.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, Lang.F($"„{Path.GetFileName(path)}“ lässt sich nicht öffnen.\n\n{ex.Message}"), "TrackPlan", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -901,7 +901,7 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackPlan", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
     }
@@ -917,7 +917,7 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackPlan", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -998,7 +998,7 @@ public sealed class MainWindow : Window
         if (curves.Count == 0) curves = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).ToList();
         if (curves.Count == 0)
         {
-            MessageBox.Show(this, Lang.T("Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen."), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, Lang.T("Für diese Spur gibt es keine Bogengleise im Katalog. Die Gleiswendel lässt sich hier mit Flexgleis bauen."), "TrackPlan", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         var straights = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
@@ -1044,9 +1044,9 @@ public sealed class MainWindow : Window
         var paper = Lang.F($"Seiten {Fmt.Num(pageW / mm, 0)} × {Fmt.Num(pageH / mm, 0)} mm");
         if (Dialogs.AskPrintMode(this, tiles.Count, paper) is not { } full) return;
         if (full)
-            dlg.PrintDocument(new TilePaginator(Session.Plan, tiles, new Size(pageW, pageH), License.IsPro, overlap), Lang.F($"TrackMaster Pro – {Session.Plan.Name} (Bauvorlage 1:1)"));
+            dlg.PrintDocument(new TilePaginator(Session.Plan, tiles, new Size(pageW, pageH), License.IsPro, overlap), Lang.F($"TrackPlan – {Session.Plan.Name} (Bauvorlage 1:1)"));
         else
-            dlg.PrintVisual(PlanPrint.Render(Session.Plan, pageW, pageH, License.IsPro), Lang.F($"TrackMaster Pro – {Session.Plan.Name}"));
+            dlg.PrintVisual(PlanPrint.Render(Session.Plan, pageW, pageH, License.IsPro), Lang.F($"TrackPlan – {Session.Plan.Name}"));
         ShowMessage(full ? Lang.F($"Bauvorlage mit {tiles.Count} Seiten an den Drucker gesendet.") : Lang.T("An den Drucker gesendet."));
     }
 
@@ -1054,7 +1054,7 @@ public sealed class MainWindow : Window
     {
         Dialogs.ShowLicense(this, License, () =>
         {
-            var dlg = new OpenFileDialog { Title = Lang.T("Lizenzdatei wählen"), Filter = Lang.T("TrackMaster-Lizenz (*.lic)|*.lic|Alle Dateien (*.*)|*.*") };
+            var dlg = new OpenFileDialog { Title = Lang.T("Lizenzdatei wählen"), Filter = Lang.T("TrackPlan-Lizenz (*.lic)|*.lic|Alle Dateien (*.*)|*.*") };
             if (dlg.ShowDialog(this) != true) return null;
             try
             {
@@ -1101,7 +1101,7 @@ public sealed class MainWindow : Window
     {
         if (Backup.TryLoad() is not { } snap) return false;
         var answer = MessageBox.Show(this,
-            Lang.F($"TrackMaster Pro wurde zuletzt nicht regulär beendet.\n\nVom Plan „{snap.Name}“ gibt es eine automatische Sicherung vom {snap.Saved:dd.MM.yyyy} um {snap.Saved:HH:mm} Uhr ") +
+            Lang.F($"TrackPlan wurde zuletzt nicht regulär beendet.\n\nVom Plan „{snap.Name}“ gibt es eine automatische Sicherung vom {snap.Saved:dd.MM.yyyy} um {snap.Saved:HH:mm} Uhr ") +
             Lang.T("mit Änderungen, die nicht gespeichert wurden.\n\nSoll die Sicherung wiederhergestellt werden?"),
             Lang.T("Plan wiederherstellen"), MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer == MessageBoxResult.Yes)

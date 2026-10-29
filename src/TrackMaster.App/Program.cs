@@ -11,7 +11,7 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>
-/// Startpunkt. Aufruf: TrackMasterPro.exe [Plan.trackmaster.json]
+/// Startpunkt. Aufruf: TrackPlan.exe [Plan.trackmaster.json]
 /// Für den Build: --screenshot Datei.png [--tab Gleise] [--select] [--pro] [--3d orbit|ride|evening] [--english]
 /// erzeugt ein Bildschirmfoto und beendet sich. --pro schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.
 /// </summary>
@@ -47,7 +47,7 @@ public static class Program
                 (app.MainWindow as MainWindow)?.BackupNow();
                 MessageBox.Show(app.MainWindow!, Lang.T("Im Programm ist ein Fehler aufgetreten. Ihr Plan wurde automatisch gesichert.\n\n") +
                                 Lang.T("Speichern Sie den Plan jetzt am besten unter einem neuen Namen. Falls das Programm sich beendet, wird die Sicherung beim nächsten Start angeboten.\n\n") +
-                                e.Exception.Message, "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Error);
+                                e.Exception.Message, "TrackPlan", MessageBoxButton.OK, MessageBoxImage.Error);
                 e.Handled = true;
             };
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>

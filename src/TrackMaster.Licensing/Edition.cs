@@ -44,6 +44,10 @@ public static class EditionInfo
 /// <summary>Ordner für Lizenz und Lizenzverwaltung.</summary>
 public static class AppFolders
 {
+    /// <summary>
+    /// Früherer Programmname. Er bleibt als Ordnername und als Produkt in den Lizenzdateien, damit Einstellungen und
+    /// vorhandene Lizenzen nach der Umbenennung in TrackPlan weiter gelten.
+    /// </summary>
     public const string Name = "TrackMaster Pro";
     public const string LicenseFileName = "trackmaster.lic";
 

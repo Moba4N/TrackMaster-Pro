@@ -20,7 +20,7 @@ public sealed class LoadedKey
     public string PrivateKeyPem { get; }
     public string PublicKeyPem { get; }
 
-    /// <summary>Wahr, wenn TrackMaster Pro Lizenzen dieses Schlüssels mit dem eingebauten öffentlichen Schlüssel anerkennt.</summary>
+    /// <summary>Wahr, wenn TrackPlan Lizenzen dieses Schlüssels mit dem eingebauten öffentlichen Schlüssel anerkennt.</summary>
     public bool MatchesEmbedded { get; }
     public string Fingerprint { get; }
 
@@ -108,7 +108,7 @@ public sealed record LicenseRequest
     public string? Email { get; init; }
     /// <summary>Letzter gültiger Tag; <c>null</c> = unbefristet.</summary>
     public DateTime? ExpiresOn { get; init; }
-    /// <summary>Rechnerkennung aus TrackMaster Pro › Datei › Lizenz; leer = an keinen Rechner gebunden.</summary>
+    /// <summary>Rechnerkennung aus TrackPlan › Datei › Lizenz; leer = an keinen Rechner gebunden.</summary>
     public string? MachineId { get; init; }
 }
 

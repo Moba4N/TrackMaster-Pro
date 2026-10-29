@@ -154,9 +154,9 @@ public static class PlanSerializer
     {
         FileDto? dto;
         try { dto = JsonSerializer.Deserialize<FileDto>(json); }
-        catch (JsonException e) { throw new InvalidDataException(Lang.T("Die Datei ist kein TrackMaster-Plan."), e); }
+        catch (JsonException e) { throw new InvalidDataException(Lang.T("Die Datei ist kein TrackPlan-Gleisplan."), e); }
         if (dto is null || dto.App != "TrackMaster Pro" || dto.Pieces is null)
-            throw new InvalidDataException(Lang.T("Die Datei ist kein TrackMaster-Plan."));
+            throw new InvalidDataException(Lang.T("Die Datei ist kein TrackPlan-Gleisplan."));
 
         newer = dto.Format > CurrentFormat;
         var gauge = Catalog.GetGauge(dto.Gauge ?? "H0");

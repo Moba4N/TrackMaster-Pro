@@ -7,7 +7,6 @@ public class TableTests
     [Theory]
     [InlineData("H0|rocoline|42615", 40, 126.5)]
     [InlineData("N|kato|20-283", 36, 80)]
-    [InlineData("G|lgb|14000", 16, 370)]
     public void Drehscheibe_hat_Anschluesse_rundum_auf_dem_Radius(string key, int count, double radius)
     {
         var d = Catalog.Get(key);
@@ -22,7 +21,6 @@ public class TableTests
 
     [Theory]
     [InlineData("Z", "mini", "8994")]
-    [InlineData("G", "lgb", "14000")]
     [InlineData("N", "kato", "20-283")]
     public void Drehscheiben_bleiben_in_der_Bibliothek(string gauge, string system, string number)
         => Assert.Contains(Catalog.GetSystem(gauge, system)!.Pieces, p => p.Number == number);

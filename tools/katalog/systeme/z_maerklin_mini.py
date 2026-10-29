@@ -1,10 +1,11 @@
-"""Märklin mini-club (Spur Z). Maße nach den Produktseiten des Herstellers."""
+"""Märklin mini-club (Spur Z). Maße nach den Produktseiten und dem Gleisbuch „Märklin Spur Z komplett“ des Herstellers."""
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "Z", "mini", "Märklin mini-club", 0
 FLEX_NUMBER, FLEX_LENGTH = "8594", 660
 QUELLEN = [
     "https://www.maerklinshop.de/en/ Spur Z, Gleise (Produktseiten der Artikel 85xx, Stand 10/2026)",
+    "Märklin „Spur Z komplett“: Symbole und Maße der Märklin-Z-Komponenten (S. 4–7), Gleisradien und Weichen (S. 10–12)",
 ]
 
 # frühere Einträge: Bogen 8591 mit Schnitt links/rechts
@@ -29,5 +30,10 @@ TEILE = [
     S(8590, 110, "Anschlussgleis", cat="Sonstige"),
     C(8529, 195, 30, name="Schaltgleis gebogen", name_en_basis="Curved contact track"),
     C(8539, 220, 30, name="Schaltgleis gebogen", name_en_basis="Curved contact track"),
-    PB(27),
+    # Brücke und Rampen
+    S(8975, 220, "Bogenbrücke", "Arched bridge", cat="Sonstige"),
+    S(8976, 110, "Rampenstück", "Ramp", cat="Sonstige"),
+    C(8977, 145, 45, name="Rampenstück", name_en_basis="Ramp"),
+    # Prellböcke zum Aufstecken, Einbaulänge etwa 20 mm
+    P(8991, 20), P(8931, 20, "Prellbock mit Sperrsignal", "Buffer stop with signal"),
 ]

@@ -257,6 +257,7 @@ public partial class App : ComponentBase, IAppHost
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", Lang.T("Gelände formen"), () => SetTool(CanvasTool.Terrain));
         Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
@@ -557,6 +558,27 @@ public partial class App : ComponentBase, IAppHost
         if (string.IsNullOrEmpty(result)) return;
         var cut = result.IndexOf('\0');
         var text = cut >= 0 ? result[(cut + 1)..] : result;
+        InstallLicense(text);
+        StateHasChanged();
+    }
+
+    /// <summary>Lizenztext aus dem Eingabefeld übernehmen; das Fenster bleibt offen, wenn er nicht passt.</summary>
+    private bool PasteLicense()
+    {
+        // Aus E-Mails oder Textprogrammen kommen Anführungszeichen manchmal typografisch zurück
+        var text = D("lic").Trim().Replace('“', '"').Replace('”', '"').Replace('„', '"').Replace('\u00A0', ' ');
+        if (text.Length == 0)
+            return Fail([Lang.T("Bitte zuerst den Inhalt der Lizenzdatei in das Feld einfügen.")]);
+        var check = _license.Verify(text);
+        if (!check.IsValid)
+            return Fail([LicenseProblem(check)]);
+        CloseAllDialogs();
+        InstallLicense(text);
+        return false;
+    }
+
+    private void InstallLicense(string text)
+    {
         var check = _license.Install(text);
         if (check.IsValid)
         {
@@ -564,9 +586,16 @@ public partial class App : ComponentBase, IAppHost
             _view.Rebuild();
         }
         else
-            Message(Lang.T("Lizenz"), Lang.F($"Die Lizenzdatei wurde nicht übernommen: {check.StatusText}."));
-        StateHasChanged();
+            Message(Lang.T("Lizenz"), LicenseProblem(check));
     }
+
+    /// <summary>Was an der Lizenz nicht stimmt, mit dem wahrscheinlichsten Grund.</summary>
+    private static string LicenseProblem(LicenseCheckResult check) => check.Status switch
+    {
+        LicenseStatus.InvalidSignature => Lang.T("Die Lizenz wurde nicht übernommen: Die Signatur passt nicht zu TrackMaster Pro. Meist ist es eine Lizenz für ein anderes Programm, oder sie wurde mit einem anderen Schlüssel erstellt oder beim Kopieren verändert."),
+        LicenseStatus.Malformed => Lang.T("Die Lizenz wurde nicht übernommen: Das ist kein vollständiger Lizenztext. Bitte den ganzen Inhalt der Datei „trackmaster.lic“ einfügen, von { bis }."),
+        _ => Lang.F($"Die Lizenz wurde nicht übernommen: {check.StatusText}."),
+    };
 
     private void RemoveLicense()
     {

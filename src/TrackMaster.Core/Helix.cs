@@ -39,7 +39,7 @@ public sealed record HelixRib(int Number, string Place, int Count, double Height
 /// <summary>Holz und Kleinteile für eine Gleiswendel, mit allen Aufmaßen.</summary>
 public sealed record HelixMaterial(IReadOnlyList<HelixPart> Parts, IReadOnlyList<string> Notes,
     double BoardThickness, double TrackBedWidth, double Edge, double SawAllowance, double InnerBoardRadius, double OuterBoardRadius, int Sheets,
-    IReadOnlyList<HelixRib>? Ribs = null)
+    IReadOnlyList<HelixRib>? Ribs = null, HelixCut? Cut = null)
 {
     public double TrackWidth => OuterBoardRadius - InnerBoardRadius;
 
@@ -314,7 +314,10 @@ public static class Helix
             notes.Add(Lang.F($"Spantenbau: Die Trassenbretter liegen in waagrechten Schlitzen ({Fmt.Num(ribList[0].SlotHeight, 0)} mm hoch, {Fmt.Num(ribList[0].SlotDepth, 0)} mm tief) von Spanten am Innen- und Außenrand. Spanten an jedem Segmentstoß und dazwischen höchstens {Fmt.Num(RibSpacing(gauge), 0)} mm auseinander."));
             notes.Add(Lang.T("Aufmaße der Spanten ab Spantfuß = Unterkante der Trasse am Wendelanfang. Innen- und Außenspant einer Stelle haben dieselben Maße; Lage in Fahrtrichtung ab Wendelanfang."));
         }
-        return new HelixMaterial(parts, notes, thickness, bed, edge, saw, ri, ro, sheets, ribList);
+        var trackRadii = spec.Tracks == 2 ? new[] { spec.Curve.Radius, spec.OuterRadius } : [spec.Curve.Radius];
+        var cut = new HelixCut(Math.Round(ri, 1), Math.Round(ro, 1), perCircle, segments, boards, Math.Round(straight, 1), Math.Round(width, 1),
+            joints, lascheLength, lascheWidth, thickness, trackRadii);
+        return new HelixMaterial(parts, notes, thickness, bed, edge, saw, ri, ro, sheets, ribList, cut);
     }
 
     /// <summary>Größter Abstand der Spanten entlang des inneren Gleises (H0: 250 mm).</summary>

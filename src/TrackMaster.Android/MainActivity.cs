@@ -208,6 +208,7 @@ public sealed class MainActivity : Activity
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", Lang.T("Gelände formen"), () => SetTool(CanvasTool.Terrain));
         Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
@@ -334,7 +335,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false),
-                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), ("Tunnel", "tunnel", false)]),
+                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), ("Tunnel", "tunnel", false)]),
         (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
@@ -661,9 +662,18 @@ public sealed class MainActivity : Activity
             _canvas.Fit();
             // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
-                Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
+                Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
+                    cut => Export(cut.ToSvg(Lang.F($"{SafeName} – Zuschnitt Gleiswendel")), "image/svg+xml", Lang.F($"{SafeName} – Zuschnitt Gleiswendel.svg")));
         });
     }
+
+    private void AskFrame() => Dialogs.AskFrame(this, _session.Plan.Gauge, spec =>
+    {
+        var f = FrameBuild.Build(_session.Plan, spec);
+        Dialogs.ShowFrame(this, f,
+            () => Export(f.ToSvg(_session.Plan, Lang.F($"{SafeName} – Spanten")), "image/svg+xml", Lang.F($"{SafeName} – Spanten.svg")),
+            () => Export(f.ToCsv(), "text/csv", Lang.F($"{SafeName} – Spanten.csv")));
+    });
 
     private void ShowWiring()
     {

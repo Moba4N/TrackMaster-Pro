@@ -35,7 +35,8 @@ public static class EditionInfo
         Lang.T("Alles aus Basis"),
         Lang.T("Speichern von Plänen jeder Größe"),
         Lang.T("Stückliste der Gleise, auch als CSV"),
-        Lang.T("Holzliste der Gleiswendel mit allen Zuschnitten"),
+        Lang.T("Holzliste der Gleiswendel mit allen Zuschnitten, Zuschnitt als SVG 1:1"),
+        Lang.T("Spantenbau der Anlage mit Aufmaßen, auch für mehrere Ebenen, Schablonen als SVG"),
         Lang.T("Drucken des Gleisplans"),
         Lang.T("Export: Gleisplan als SVG im Maßstab 1:1, Kabelplan als Text"),
     ];

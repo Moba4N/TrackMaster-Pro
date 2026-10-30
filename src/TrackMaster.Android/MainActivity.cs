@@ -26,7 +26,7 @@ namespace TrackMaster.Mobile;
 [IntentFilter([Intent.ActionView], Categories = [Intent.CategoryDefault], DataMimeType = "application/json")]
 public sealed class MainActivity : Activity
 {
-    private const int RequestOpen = 1, RequestSave = 2, RequestLicense = 3, RequestExport = 4;
+    private const int RequestOpen = 1, RequestSave = 2, RequestLicense = 3, RequestExport = 4, RequestModule = 5;
 
     private readonly PlanSession _session = new();
     private LicenseManager _license = null!;
@@ -197,6 +197,7 @@ public sealed class MainActivity : Activity
         Add("toolFlex", Lang.T("Flexgleis ziehen"), () => SetTool(CanvasTool.Flex));
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); Dialogs.ShowProperties(this, _session, Run); });
+        Add("modules", Lang.T("Module"), () => Dialogs.AskModules(this, _session.Plan, edits => { _session.ApplyModules(edits); _canvas.Fit(); }, () => Pick(RequestModule)));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
         Add("labels", Lang.T("Beschriftung"), () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));
@@ -337,7 +338,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
@@ -773,6 +774,9 @@ public sealed class MainActivity : Activity
                 case RequestOpen:
                     OpenUri(uri);
                     break;
+                case RequestModule:
+                    AppendModuleUri(uri);
+                    break;
                 case RequestSave:
                     WriteText(uri, PlanSerializer.ToJson(_session.Plan));
                     _session.MarkSaved(DisplayName(uri) ?? $"{SafeName}.trackmaster.json");
@@ -790,6 +794,22 @@ public sealed class MainActivity : Activity
         catch (Exception e) when (e is IOException or InvalidDataException or System.Text.Json.JsonException or Java.Lang.Exception)
         {
             Dialogs.Message(this, Lang.T("Datei"), Lang.F($"Die Datei konnte nicht verarbeitet werden: {e.Message}"));
+        }
+    }
+
+    /// <summary>Gespeicherten Plan als Modul rechts ansetzen.</summary>
+    private void AppendModuleUri(Android.Net.Uri uri)
+    {
+        try
+        {
+            var other = PlanSerializer.FromJson(ReadText(uri), out _);
+            var file = (DisplayName(uri) ?? Lang.T("Modul")).Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : file;
+            if (_session.AppendModule(other, title)) _canvas.Fit();
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or System.Text.Json.JsonException or Java.Lang.Exception)
+        {
+            Dialogs.Message(this, Lang.T("Plan als Modul ansetzen"), Lang.F($"Die Datei ist kein TrackMaster-Plan: {e.Message}"));
         }
     }
 

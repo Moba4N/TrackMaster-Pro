@@ -77,6 +77,16 @@ public static class PlanSerializer
         [JsonPropertyName("turn"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Turn { get; set; }
         [JsonPropertyName("legL"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LegLeft { get; set; }
         [JsonPropertyName("legR"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LegRight { get; set; }
+        [JsonPropertyName("modules"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModuleDto>? Modules { get; set; }
+    }
+
+    private sealed class ModuleDto
+    {
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+        [JsonPropertyName("w")] public double W { get; set; }
+        [JsonPropertyName("d")] public double D { get; set; }
     }
 
     private sealed class PieceDto
@@ -115,6 +125,9 @@ public static class PlanSerializer
                 Turn = plan.BoardShape == BoardShape.Rechteck || plan.BoardTurn == 0 ? null : plan.BoardTurn,
                 LegLeft = plan.BoardShape == BoardShape.U && plan.BoardLegLeft > 0 ? plan.BoardLegLeft : null,
                 LegRight = plan.BoardShape == BoardShape.U && plan.BoardLegRight > 0 ? plan.BoardLegRight : null,
+                Modules = plan.BoardShape == BoardShape.Module && plan.Modules.Count > 0
+                    ? plan.Modules.Select(m => new ModuleDto { Name = m.Name, X = Math.Round(m.X, 3), Y = Math.Round(m.Y, 3), W = Math.Round(m.Width, 3), D = Math.Round(m.Depth, 3) }).ToList()
+                    : null,
             },
             Vehicle = plan.VehicleLength > 0 ? plan.VehicleLength : null,
             Pieces = plan.Pieces.Select(p => new PieceDto
@@ -173,6 +186,16 @@ public static class PlanSerializer
             BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
             VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
         };
+        foreach (var m in dto.Board?.Modules ?? [])
+            if (m.W > 0 && m.D > 0 && double.IsFinite(m.X) && double.IsFinite(m.Y))
+                plan.Modules.Add(new BoardModule { Name = m.Name ?? "", X = m.X, Y = m.Y, Width = m.W, Depth = m.D });
+        if (plan.BoardShape == BoardShape.Module)
+        {
+            // Modulanlage ohne Module (z. B. von Hand bearbeitet): die Plattenmaße als ein Modul
+            if (plan.Modules.Count == 0) plan.Modules.Add(new BoardModule { Name = Lang.T("Modul 1"), Width = plan.BoardWidth, Depth = plan.BoardHeight });
+            plan.BoardWidth = Math.Max(ModuleLayout.MinSize, plan.Modules.Max(m => m.X + m.Width));
+            plan.BoardHeight = Math.Max(ModuleLayout.MinSize, plan.Modules.Max(m => m.Y + m.Depth));
+        }
         skipped = 0;
         // Gleise ohne Kennung bekommen neue Kennungen oberhalb aller in der Datei vorhandenen
         foreach (var p in dto.Pieces)

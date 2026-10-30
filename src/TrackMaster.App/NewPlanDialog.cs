@@ -9,7 +9,7 @@ public static partial class Dialogs
 {
     private static readonly string[] Turns = [Lang.T("Grundstellung"), Lang.T("90° gedreht"), Lang.T("180° gedreht"), Lang.T("270° gedreht")];
 
-    /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring), Maße und Ausrichtung.</summary>
+    /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring, G, E, Module), Maße und Ausrichtung.</summary>
     public static BoardSetup? AskNewPlan(Window owner, string currentGauge)
     {
         var gauges = Catalog.Gauges.ToList();
@@ -38,6 +38,7 @@ public static partial class Dialogs
             Height = 170, Margin = new Thickness(0, 4, 0, 10), Padding = new Thickness(12), Background = Theme.WindowBrush,
             BorderBrush = Theme.BorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Child = preview,
         };
+        var moduleHint = Hint(Lang.T("Modulanlage: Breite und Tiefe gelten für das erste Modul. Weitere Module hängst du unter Gelände › Module… an, dort lassen sich auch gespeicherte Pläne als Modul ansetzen."));
         var info = Theme.Secondary("");
         var error = ErrorText();
         var updating = false;
@@ -48,6 +49,7 @@ public static partial class Dialogs
             var shape = Shape();
             depthField.Visibility = turnField.Visibility = BoardGeometry.HasLegs(shape) ? Visibility.Visible : Visibility.Collapsed;
             legsRow.Visibility = shape == BoardShape.U ? Visibility.Visible : Visibility.Collapsed;
+            moduleHint.Visibility = shape == BoardShape.Module ? Visibility.Visible : Visibility.Collapsed;
             double w = Fmt.Parse(width.Text) ?? 0, h = Fmt.Parse(height.Text) ?? 0, d = Fmt.Parse(depth.Text) ?? 0;
             double l1 = Fmt.Parse(legLeft.Text) ?? 0, l2 = Fmt.Parse(legRight.Text) ?? 0;
             if (w < 100 || h < 100) return;
@@ -86,6 +88,7 @@ public static partial class Dialogs
         body.Children.Add(Theme.Field(Lang.T("Spur"), gaugeBox));
         body.Children.Add(Theme.Field(Lang.T("Form der Anlagenplatte"), shapeBox));
         body.Children.Add(previewBox);
+        body.Children.Add(moduleHint);
         body.Children.Add(Columns2(Theme.Field(Lang.T("Breite außen (mm)"), width), Theme.Field(Lang.T("Tiefe außen (mm)"), height)));
         body.Children.Add(Columns2(depthField, turnField));
         body.Children.Add(legsRow);

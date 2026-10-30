@@ -11,7 +11,7 @@ public static partial class Dialogs
 {
     private static readonly string[] BoardTurns = [Lang.T("Grundstellung"), Lang.T("90° gedreht"), Lang.T("180° gedreht"), Lang.T("270° gedreht")];
 
-    /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring), Maße und Ausrichtung.</summary>
+    /// <summary>Neuer Plan: Spur, Form der Anlagenplatte (Rechteck, L, U, T, Z, Ring, G, E, Module), Maße und Ausrichtung.</summary>
     public static void AskNewPlan(Context c, string currentGauge, Action<BoardSetup> create)
     {
         var body = Ui.Column(c, 8);
@@ -24,6 +24,8 @@ public static partial class Dialogs
         body.AddView(Ui.Field(c, Lang.T("Form der Anlagenplatte"), shape));
         var preview = new BoardPreview(c);
         body.AddView(preview, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, Ui.Dp(150)));
+        var moduleHint = Hint(c, Lang.T("Modulanlage: Breite und Tiefe gelten für das erste Modul. Weitere Module hängst du unter Gelände › Module… an, dort lassen sich auch gespeicherte Pläne als Modul ansetzen."));
+        body.AddView(moduleHint);
         var start = BoardSetup.Default(gauges[Math.Max(0, gauge.SelectedItemPosition)].Id);
         var w = Ui.Number(c, start.Width);
         var h = Ui.Number(c, start.Height);
@@ -54,6 +56,7 @@ public static partial class Dialogs
             var s = Shape();
             legs.Visibility = BoardGeometry.HasLegs(s) ? ViewStates.Visible : ViewStates.Gone;
             uLegs.Visibility = s == BoardShape.U ? ViewStates.Visible : ViewStates.Gone;
+            moduleHint.Visibility = s == BoardShape.Module ? ViewStates.Visible : ViewStates.Gone;
             double bw = Ui.Parse(w, 0), bh = Ui.Parse(h, 0), bd = Ui.Parse(d, 0), l1 = Ui.Parse(legLeft, 0), l2 = Ui.Parse(legRight, 0);
             if (bw < 100 || bh < 100) return;
             var t = turn.SelectedItemPosition;

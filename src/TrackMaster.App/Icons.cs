@@ -46,6 +46,7 @@ public static class Icons
         ["Ramp"] = "M3 19L21 9v3L3 22zM3 19v3M7 17v3M12 14.5v3.5M17 11.5v3",
         ["Helix"] = "M4 7c0 2 16 2 16 0s-16-2-16 0M4 12c0 2 16 2 16 0M4 17c0 2 16 2 16 0M4 7v10M20 7v10",
         ["Board"] = "M3 7h18v10H3zM5 17v3M19 17v3",
+        ["Modules"] = "M2 8h6v8H2zM9 8h6v8H9zM16 8h6v8h-6z",
         ["Terrain"] = "M2 20l6-9 4 5 3-4 7 8z",
         ["Tunnel"] = "M4 20v-8a8 8 0 0 1 16 0v8M8 20v-8a4 4 0 0 1 8 0v8",
         ["Water"] = "M2 10c3 0 3-2 6-2s3 2 6 2 3-2 6-2M2 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2",

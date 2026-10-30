@@ -139,12 +139,22 @@ public sealed class PropertiesPanel : DockPanel
             if (shape.SelectedItem is not ComboBoxItem { Tag: BoardShape f } || f == plan.BoardShape) return;
             _session.Edit(() =>
             {
+                // Modulanlage: die bisherige Platte wird zu Modulen; zurück zu einer festen Form ohne Module
+                if (f == BoardShape.Module) { ModuleLayout.ConvertToModules(plan); return; }
+                plan.Modules.Clear();
                 plan.BoardShape = f;
                 plan.BoardDepth = BoardGeometry.Depth(f, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn);
             });
         };
         _body.Children.Add(Theme.Field(Lang.T("Form"), shape));
-        _body.Children.Add(Columns(2, Theme.Field(Lang.T("Breite außen (mm)"), _boardWidth), Theme.Field(Lang.T("Tiefe außen (mm)"), height)));
+        if (plan.BoardShape == BoardShape.Module)
+        {
+            _body.Children.Add(Theme.Label(BoardGeometry.Describe(plan), 12, false, Theme.TextSecondaryBrush));
+            _body.Children.Add(Buttons(Cmd(Lang.T("Module…"), "Modules", "modules")));
+            _boardWidth = null;
+        }
+        else
+            _body.Children.Add(Columns(2, Theme.Field(Lang.T("Breite außen (mm)"), _boardWidth), Theme.Field(Lang.T("Tiefe außen (mm)"), height)));
         if (BoardGeometry.HasLegs(plan.BoardShape))
         {
             var depth = NumberBox(BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn),

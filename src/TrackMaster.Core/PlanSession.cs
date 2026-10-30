@@ -113,11 +113,34 @@ public sealed class PlanSession
         Plan.BoardTurn = ((turn % 4) + 4) % 4;
         Plan.BoardLegLeft = shape == BoardShape.U ? Math.Max(0, legLeft) : 0;
         Plan.BoardLegRight = shape == BoardShape.U ? Math.Max(0, legRight) : 0;
+        // Modulanlage: Breite und Tiefe sind die Maße des ersten Moduls
+        if (shape == BoardShape.Module) ModuleLayout.Single(Plan, Plan.BoardWidth, Plan.BoardHeight);
         FilePath = null;
         Selection.Clear();
         Active = null;
         Commit();
         Say(Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}. Rückgängig holt den vorherigen zurück."));
+    }
+
+    /// <summary>Übernimmt Lage und Größe der Module (verschobene Module nehmen ihre Gleise mit).</summary>
+    public void ApplyModules(IReadOnlyList<ModuleEdit> edits)
+    {
+        if (edits.Count == 0) { Say(Lang.T("Eine Modulanlage braucht mindestens ein Modul.")); return; }
+        Record();
+        ModuleLayout.Apply(Plan, edits);
+        Commit();
+        Say(Lang.F($"Module übernommen: {BoardGeometry.Describe(Plan)}."));
+    }
+
+    /// <summary>Setzt einen gespeicherten Plan als weiteres Modul rechts an die Anlage an.</summary>
+    public bool AppendModule(LayoutPlan other, string name)
+    {
+        if (other.GaugeId != Plan.GaugeId) { Say(Lang.F($"Der Plan ist für Spur {other.GaugeId}, diese Anlage für Spur {Plan.GaugeId}.")); return false; }
+        Record();
+        ModuleLayout.Append(Plan, other, name);
+        Commit();
+        Say(Lang.F($"„{name}“ als Modul angesetzt ({other.Pieces.Count} Gleise): {BoardGeometry.Describe(Plan)}."));
+        return true;
     }
 
     public void LoadSample()

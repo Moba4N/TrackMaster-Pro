@@ -206,6 +206,8 @@ public sealed class LayoutPlan
     /// <summary>U-Form: Länge des linken bzw. rechten Schenkels in Grundstellung in mm (0 = volle Tiefe).</summary>
     public double BoardLegLeft { get; set; }
     public double BoardLegRight { get; set; }
+    /// <summary>Module der Platte bei <see cref="BoardShape.Module"/> (Rechtecke ab 0, 0; Breite und Tiefe der Platte umfassen alle).</summary>
+    public List<BoardModule> Modules { get; } = [];
     public List<PlacedPiece> Pieces { get; } = [];
     public List<SceneryItem> Scenery { get; } = [];
     public List<Feeder> Feeders { get; } = [];

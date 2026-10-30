@@ -202,7 +202,8 @@
         ]),
         new(Lang.T("Gelände"),
         [
-            new(Lang.T("Grundplatte"), [new(Lang.T("Anlagen­platte"), "Board", "board", true, Lang.T("Form und Maße der Anlagenplatte einstellen."))]),
+            new(Lang.T("Grundplatte"), [new(Lang.T("Anlagen­platte"), "Board", "board", true, Lang.T("Form und Maße der Anlagenplatte einstellen.")),
+                new(Lang.T("Module…"), "Modules", "modules", true, Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen."))]),
             new(Lang.T("Landschaft"), [new(Lang.T("Gelände formen"), "Terrain", "toolTerrain", true, Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Gelände zeigen"), "Terrain", "scenery", false)]),
@@ -356,9 +357,13 @@
                 @((MarkupString)Pictures.Board(BoardGeometry.Outlines(shape, bw, bh, bd, t, l1, l2), 320, 150))
             }
         </div>
+        @if (shape == BoardShape.Module)
+        {
+            @Hint(Lang.T("Modulanlage: Breite und Tiefe gelten für das erste Modul. Weitere Module hängst du unter Gelände › Module… an, dort lassen sich auch gespeicherte Pläne als Modul ansetzen."))
+        }
         <div class="cols">
-            <div><label class="field-label">@Lang.T("Breite außen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["w"]' @bind:event="oninput" /></div>
-            <div><label class="field-label">@Lang.T("Tiefe außen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["h"]' @bind:event="oninput" /></div>
+            <div><label class="field-label">@(shape == BoardShape.Module ? Lang.T("Modulbreite (mm)") : Lang.T("Breite außen (mm)"))</label><input class="input" inputmode="decimal" @bind='_d["w"]' @bind:event="oninput" /></div>
+            <div><label class="field-label">@(shape == BoardShape.Module ? Lang.T("Modultiefe (mm)") : Lang.T("Tiefe außen (mm)"))</label><input class="input" inputmode="decimal" @bind='_d["h"]' @bind:event="oninput" /></div>
         </div>
         @if (BoardGeometry.HasLegs(shape))
         {
@@ -413,6 +418,83 @@
         _session.NewPlan(new BoardSetup(D("gauge"), shape, bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2));
         _view.Fit();
         return true;
+    }
+
+    // ---------- Module ----------
+
+    private sealed class ModuleRow
+    {
+        public int Index { get; init; } = -1;
+        public string Name { get; set; } = "";
+        public string X { get; set; } = "";
+        public string Y { get; set; } = "";
+        public string W { get; set; } = "";
+        public string D { get; set; } = "";
+    }
+
+    private List<ModuleRow> _modules = [];
+
+    private static ModuleRow Row(ModuleEdit m) => new() { Index = m.Index, Name = m.Name, X = N(m.X), Y = N(m.Y), W = N(m.Width), D = N(m.Depth) };
+
+    private void AskModules()
+    {
+        var plan = _session.Plan;
+        _modules = ModuleLayout.Current(plan).Select(Row).ToList();
+        var d = Show(Lang.T("Module"), @<div class="form">
+            @Hint(plan.BoardShape == BoardShape.Module
+                ? Lang.T("Lage (X, Y = linke obere Ecke) und Größe jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Gleise über Modulgrenzen meldet die Planprüfung.")
+                : Lang.F($"Die Platte ({BoardGeometry.Name(plan.BoardShape)}) wird beim Übernehmen in Module zerlegt, je Rechteck eines. Danach lassen sich Module anhängen und verschieben."))
+            <table class="table modules">
+                <tr><th>@Lang.T("Name")</th><th>X</th><th>Y</th><th>@Lang.T("Breite")</th><th>@Lang.T("Tiefe")</th><th></th></tr>
+                @foreach (var m in _modules)
+                {
+                    var row = m;
+                    <tr>
+                        <td><input class="input" @bind="row.Name" /></td>
+                        <td><input class="input" inputmode="decimal" @bind="row.X" /></td>
+                        <td><input class="input" inputmode="decimal" @bind="row.Y" /></td>
+                        <td><input class="input" inputmode="decimal" @bind="row.W" /></td>
+                        <td><input class="input" inputmode="decimal" @bind="row.D" /></td>
+                        <td><button class="btn" title="@Lang.T("Modul entfernen")" disabled="@(_modules.Count < 2)" @onclick="@(() => _modules.Remove(row))">✕</button></td>
+                    </tr>
+                }
+            </table>
+            <div class="button-row">
+                <button class="btn" @onclick="AddModuleRow">@Lang.T("Modul anhängen")</button>
+                <button class="btn" @onclick="@(async () => { CloseDialog(); await AppendModuleFile(); })">@Lang.T("Plan als Modul ansetzen…")</button>
+            </div>
+        </div>, wide: true, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+        {
+            var errors = new List<string>();
+            var edits = new List<ModuleEdit>();
+            foreach (var (m, i) in _modules.Select((m, i) => (m, i)))
+            {
+                double? x = Fmt.Parse(m.X), y = Fmt.Parse(m.Y), w = Fmt.Parse(m.W), dd = Fmt.Parse(m.D);
+                if (x is null || y is null || w is null || dd is null) { errors.Add(Lang.F($"Modul {i + 1}: bitte Zahlen eingeben.")); continue; }
+                if (w < ModuleLayout.MinSize || dd < ModuleLayout.MinSize || w > ModuleLayout.MaxSize || dd > ModuleLayout.MaxSize)
+                {
+                    errors.Add(Lang.F($"Modul {i + 1}: Breite und Tiefe zwischen {Fmt.Num(ModuleLayout.MinSize, 0)} und {Fmt.Num(ModuleLayout.MaxSize, 0)} mm."));
+                    continue;
+                }
+                edits.Add(new ModuleEdit(m.Index, m.Name, x.Value, y.Value, w.Value, dd.Value));
+            }
+            if (!Fail(errors)) return false;
+            _session.ApplyModules(edits);
+            _view.Fit();
+            return true;
+        }, true));
+    }
+
+    private void AddModuleRow()
+    {
+        var temp = new LayoutPlan();
+        foreach (var m in _modules)
+            if (Fmt.Parse(m.X) is { } x && Fmt.Parse(m.Y) is { } y && Fmt.Parse(m.W) is { } w && Fmt.Parse(m.D) is { } dd)
+                temp.Modules.Add(new BoardModule { X = x, Y = y, Width = w, Depth = dd });
+        var next = ModuleLayout.NextModule(temp);
+        _modules.Add(new ModuleRow { Name = Lang.F($"Modul {_modules.Count + 1}"), X = N(next.X), Y = N(next.Y), W = N(next.Width), D = N(next.Depth) });
     }
 
     // ---------- Flexgleis, Steigung, Gleiswendel ----------

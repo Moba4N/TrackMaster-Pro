@@ -1,7 +1,7 @@
 namespace TrackMaster.Core;
 
-/// <summary>Grundform der Anlagenplatte. Breite und Tiefe sind immer die äußeren Maße.</summary>
-public enum BoardShape { Rechteck, L, U, T, Z, Ring }
+/// <summary>Grundform der Anlagenplatte. Breite und Tiefe sind immer die äußeren Maße; bei <see cref="Module"/> ergeben sie sich aus den Modulen.</summary>
+public enum BoardShape { Rechteck, L, U, T, Z, Ring, G, E, Module }
 
 /// <summary>Angaben für einen neuen Plan: Spur und Anlagenplatte.</summary>
 /// <param name="LegLeft">U-Form: Länge des linken Schenkels in Grundstellung (0 = volle Tiefe).</param>
@@ -14,8 +14,12 @@ public sealed record BoardSetup(string GaugeId, BoardShape Shape, double Width, 
         var g = Catalog.GetGauge(gaugeId);
         static double R(double v) => Math.Round(v / 50) * 50;
         var depth = R(g.DefaultBoardHeight * 0.48);
-        return shape == BoardShape.Rechteck
-            ? new(g.Id, shape, g.DefaultBoardWidth, g.DefaultBoardHeight, depth, 0)
+        // Modulanlage: Vorschlag für das erste Modul
+        if (shape == BoardShape.Module) return new(g.Id, shape, R(g.DefaultBoardWidth * 0.5), R(g.DefaultBoardHeight * 0.4), depth, 0);
+        if (shape == BoardShape.Rechteck) return new(g.Id, shape, g.DefaultBoardWidth, g.DefaultBoardHeight, depth, 0);
+        // E und G haben drei Arme übereinander: höher und mit schmaleren Schenkeln, damit Lücken zwischen den Armen bleiben
+        return shape is BoardShape.E or BoardShape.G
+            ? new(g.Id, shape, R(g.DefaultBoardWidth * 1.5), R(g.DefaultBoardHeight * 2.4), R(g.DefaultBoardHeight * 0.4), 0)
             : new(g.Id, shape, R(g.DefaultBoardWidth * 1.5), R(g.DefaultBoardHeight * 1.6), depth, 0);
     }
 }
@@ -42,13 +46,16 @@ public static class BoardGeometry
         BoardShape.T => "T-Form",
         BoardShape.Z => "Z-Form",
         BoardShape.Ring => Lang.T("Ring (rundum, Mitte offen)"),
+        BoardShape.G => "G-Form",
+        BoardShape.E => "E-Form",
+        BoardShape.Module => Lang.T("Module (zusammengesetzt)"),
         _ => s.ToString(),
     };
 
     public static IReadOnlyList<BoardShape> All { get; } = Enum.GetValues<BoardShape>();
 
     /// <summary>Hat die Form Schenkel (dann sind Schenkeltiefe und Ausrichtung einstellbar)?</summary>
-    public static bool HasLegs(BoardShape s) => s != BoardShape.Rechteck;
+    public static bool HasLegs(BoardShape s) => s is not (BoardShape.Rechteck or BoardShape.Module);
 
     /// <summary>Schenkeltiefe, auf sinnvolle Werte für Form und Maße begrenzt.</summary>
     public static double Depth(BoardShape shape, double width, double height, double depth, int turn)
@@ -59,6 +66,8 @@ public static class BoardGeometry
             BoardShape.U => Math.Min(w / 2, h),
             BoardShape.Ring => Math.Min(w, h) / 2,
             BoardShape.Z => Math.Min(w, h / 2),
+            BoardShape.E => Math.Min(w, h / 4),
+            BoardShape.G => Math.Min(w / 2, h / 5),
             _ => Math.Min(w, h),
         };
         // Obergrenze knapp unter dem Maximum, Untergrenze nie darüber (auch bei sehr kleinen oder unfertig eingegebenen Maßen)
@@ -72,7 +81,7 @@ public static class BoardGeometry
         => leg <= 0 || !double.IsFinite(leg) ? fullLength : Math.Clamp(leg, Math.Min(depth, fullLength), fullLength);
 
     public static IReadOnlyList<BoardRect> Rects(LayoutPlan p)
-        => Rects(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn, p.BoardLegLeft, p.BoardLegRight);
+        => p.BoardShape == BoardShape.Module && p.Modules.Count > 0 ? p.Modules.Select(m => m.Rect).ToList() : Rects(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn, p.BoardLegLeft, p.BoardLegRight);
 
     public static IReadOnlyList<BoardRect> Rects(BoardShape shape, double width, double height, double depth, int turn, double legLeft = 0, double legRight = 0)
     {
@@ -87,6 +96,10 @@ public static class BoardGeometry
             BoardShape.T => [new(0, 0, w, d), new((w - d) / 2, d, (w + d) / 2, h)],
             BoardShape.Z => [new(0, 0, (w + d) / 2, d), new((w - d) / 2, d, (w + d) / 2, h - d), new((w - d) / 2, h - d, w, h)],
             BoardShape.Ring => [new(0, 0, w, d), new(0, h - d, w, h), new(0, d, d, h - d), new(w - d, d, w, h - d)],
+            // E: Rücken links, drei Arme nach rechts
+            BoardShape.E => [new(0, 0, d, h), new(d, 0, w, d), new(d, (h - d) / 2, w, (h + d) / 2), new(d, h - d, w, h)],
+            // G: oben, links und unten wie ein C, rechts unten ein Stück hoch und ein Haken nach innen
+            BoardShape.G => [new(0, 0, w, d), new(0, d, d, h - d), new(0, h - d, w, h), new(w - d, h / 2, w, h - d), new(w / 2, h / 2, w - d, h / 2 + d)],
             _ => [new(0, 0, w, h)],
         };
         return local.Select(r =>
@@ -99,7 +112,9 @@ public static class BoardGeometry
 
     /// <summary>Umrisse der Platte (beim Ring zwei: außen und die offene Mitte).</summary>
     public static IReadOnlyList<IReadOnlyList<(double X, double Y)>> Outlines(LayoutPlan p)
-        => Outlines(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn, p.BoardLegLeft, p.BoardLegRight);
+        => p.BoardShape == BoardShape.Module && p.Modules.Count > 0
+            ? p.Modules.Select(m => (IReadOnlyList<(double X, double Y)>)[(m.X, m.Y), (m.X + m.Width, m.Y), (m.X + m.Width, m.Y + m.Depth), (m.X, m.Y + m.Depth)]).ToList()
+            : Outlines(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn, p.BoardLegLeft, p.BoardLegRight);
 
     public static IReadOnlyList<IReadOnlyList<(double X, double Y)>> Outlines(BoardShape shape, double width, double height, double depth, int turn, double legLeft = 0, double legRight = 0)
     {
@@ -114,6 +129,8 @@ public static class BoardGeometry
             BoardShape.T => [[(0, 0), (w, 0), (w, d), ((w + d) / 2, d), ((w + d) / 2, h), ((w - d) / 2, h), ((w - d) / 2, d), (0, d)]],
             BoardShape.Z => [[(0, 0), ((w + d) / 2, 0), ((w + d) / 2, h - d), (w, h - d), (w, h), ((w - d) / 2, h), ((w - d) / 2, d), (0, d)]],
             BoardShape.Ring => [[(0, 0), (w, 0), (w, h), (0, h)], [(d, d), (w - d, d), (w - d, h - d), (d, h - d)]],
+            BoardShape.E => [[(0, 0), (w, 0), (w, d), (d, d), (d, (h - d) / 2), (w, (h - d) / 2), (w, (h + d) / 2), (d, (h + d) / 2), (d, h - d), (w, h - d), (w, h), (0, h)]],
+            BoardShape.G => [[(0, 0), (w, 0), (w, d), (d, d), (d, h - d), (w - d, h - d), (w - d, h / 2 + d), (w / 2, h / 2 + d), (w / 2, h / 2), (w, h / 2), (w, h), (0, h)]],
             _ => [[(0, 0), (w, 0), (w, h), (0, h)]],
         };
         return local.Select(poly => (IReadOnlyList<(double X, double Y)>)poly.Select(q => Turn(q.Item1, q.Item2, w, h, turn)).ToList()).ToList();
@@ -127,6 +144,7 @@ public static class BoardGeometry
     public static string Describe(LayoutPlan p)
     {
         var size = $"{Fmt.Num(p.BoardWidth, 0)} × {Fmt.Num(p.BoardHeight, 0)} mm";
+        if (p.BoardShape == BoardShape.Module) return Lang.F($"{p.Modules.Count} Module, zusammen {size}");
         if (!HasLegs(p.BoardShape)) return size;
         var d = Depth(p.BoardShape, p.BoardWidth, p.BoardHeight, p.BoardDepth, p.BoardTurn);
         var text = Lang.F($"{Name(p.BoardShape).Split(' ')[0]} {size}, Schenkel {Fmt.Num(d, 0)} mm");

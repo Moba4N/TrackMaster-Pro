@@ -96,6 +96,14 @@ public static class PlanCheck
             issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Plattenrand"), Lang.F($"{outside.Count} Gleis(e) ragen über die Anlagenplatte hinaus."), outside.Select(g => g.Key).ToList(), first.X, first.Y));
         }
 
+        // Modulgrenzen: dort sollten Gleise enden, sonst muss das Gleis beim Zerlegen getrennt werden
+        if (ModuleLayout.PiecesAcrossJoints(plan) is { Count: > 0 } across)
+        {
+            var m0 = across[0].Middle();
+            issues.Add(new PlanIssue(IssueLevel.Hinweis, Lang.T("Modulgrenze"),
+                Lang.F($"{across.Count} Gleis(e) liegen über einer Modulgrenze – dort beim Zerlegen trennen oder so verlegen, dass ein Gleisende auf der Modulkante liegt."), across.Select(p => p.Id).ToList(), m0.X, m0.Y));
+        }
+
         // Steigungen
         foreach (var p in plan.Pieces)
         {

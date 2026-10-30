@@ -177,6 +177,14 @@
         l1 = l1 >= full ? 0 : l1;
         l2 = l2 >= full ? 0 : l2;
         vl = Math.Abs(vl - VehicleDefaults.Length(plan.Gauge)) < 0.5 ? 0 : vl;
+        // Modulanlage: Maße kommen aus den Modulen; beim Umstellen wird die bisherige Platte zu Modulen
+        if (newShape == BoardShape.Module)
+        {
+            if (plan.BoardShape != BoardShape.Module) Session.Edit(() => ModuleLayout.ConvertToModules(plan));
+            if (vl != plan.VehicleLength || (n.Length > 0 && n != plan.Name))
+                Session.Edit(() => { if (n.Length > 0) plan.Name = n; plan.VehicleLength = vl; });
+            return;
+        }
         if (vl != plan.VehicleLength || (n.Length > 0 && n != plan.Name) || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn
             || l1 != plan.BoardLegLeft || l2 != plan.BoardLegRight)
             Session.Edit(() =>
@@ -189,6 +197,7 @@
                 plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);
                 plan.BoardLegLeft = l1;
                 plan.BoardLegRight = l2;
+                plan.Modules.Clear();
                 plan.VehicleLength = vl;
             });
     }
@@ -209,10 +218,17 @@
                 <option value="@s">@BoardGeometry.Name(s)</option>
             }
         </select>
-        <div class="cols">
-            <div><label class="field-label">@Lang.T("Breite außen (mm)")</label><input class="input" inputmode="decimal" value="@F("w")" @onchange="@(e => Set("w", e, ApplyPlan))" /></div>
-            <div><label class="field-label">@Lang.T("Tiefe außen (mm)")</label><input class="input" inputmode="decimal" value="@F("h")" @onchange="@(e => Set("h", e, ApplyPlan))" /></div>
-        </div>
+        @if (shape == BoardShape.Module)
+        {
+            <div class="tip-box">@BoardGeometry.Describe(plan). @Lang.T("Module anhängen, verschieben oder einen gespeicherten Plan ansetzen: Gelände › Module…")</div>
+        }
+        else
+        {
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Breite außen (mm)")</label><input class="input" inputmode="decimal" value="@F("w")" @onchange="@(e => Set("w", e, ApplyPlan))" /></div>
+                <div><label class="field-label">@Lang.T("Tiefe außen (mm)")</label><input class="input" inputmode="decimal" value="@F("h")" @onchange="@(e => Set("h", e, ApplyPlan))" /></div>
+            </div>
+        }
         @if (BoardGeometry.HasLegs(shape))
         {
             <div class="cols">

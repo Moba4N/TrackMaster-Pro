@@ -133,7 +133,12 @@ public static partial class Dialogs
         body.AddView(Ui.Field(c, Lang.T("Form"), shape));
         var w = Ui.Number(c, plan.BoardWidth);
         var h = Ui.Number(c, plan.BoardHeight);
-        body.AddView(Columns(c, Ui.Field(c, Lang.T("Breite außen (mm)"), w), Ui.Field(c, Lang.T("Tiefe außen (mm)"), h)));
+        var size = Columns(c, Ui.Field(c, Lang.T("Breite außen (mm)"), w), Ui.Field(c, Lang.T("Tiefe außen (mm)"), h));
+        body.AddView(size);
+        var modules = Ui.Column(c, 4);
+        modules.AddView(Ui.Label(c, plan.BoardShape == BoardShape.Module ? BoardGeometry.Describe(plan) : Lang.T("Die Platte wird beim Übernehmen in Module zerlegt."), 12.5, color: Ui.TextSecondary));
+        modules.AddView(Ui.Button(c, Lang.T("Module…"), () => run("modules")));
+        body.AddView(modules);
         var depth = Ui.Number(c, BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn));
         var turn = Choice(c, BoardTurns, plan.BoardTurn);
         var legs = Columns(c, Ui.Field(c, Lang.T("Schenkeltiefe (mm)"), depth), Ui.Field(c, Lang.T("Ausrichtung"), turn));
@@ -149,6 +154,8 @@ public static partial class Dialogs
             var sh = shapes[Math.Max(0, shape.SelectedItemPosition)];
             legs.Visibility = BoardGeometry.HasLegs(sh) ? ViewStates.Visible : ViewStates.Gone;
             uLegs.Visibility = sh == BoardShape.U ? ViewStates.Visible : ViewStates.Gone;
+            size.Visibility = sh == BoardShape.Module ? ViewStates.Gone : ViewStates.Visible;
+            modules.Visibility = sh == BoardShape.Module ? ViewStates.Visible : ViewStates.Gone;
         }
         shape.ItemSelected += (_, _) => SyncLegs();
         SyncLegs();
@@ -191,6 +198,18 @@ public static partial class Dialogs
             l1 = l1 >= full ? 0 : l1;
             l2 = l2 >= full ? 0 : l2;
             vl = Math.Abs(vl - VehicleDefaults.Length(gauge)) < 0.5 ? 0 : vl;
+            // Modulanlage: Maße kommen aus den Modulen; beim Umstellen wird die bisherige Platte zu Modulen
+            if (newShape == BoardShape.Module)
+            {
+                if (plan.BoardShape != BoardShape.Module || vl != plan.VehicleLength || (n.Length > 0 && n != plan.Name))
+                    session.Edit(() =>
+                    {
+                        ModuleLayout.ConvertToModules(plan);
+                        if (n.Length > 0) plan.Name = n;
+                        plan.VehicleLength = vl;
+                    });
+                return true;
+            }
             if (vl != plan.VehicleLength || n != plan.Name || bw != plan.BoardWidth || bh != plan.BoardHeight || newShape != plan.BoardShape || bd != plan.BoardDepth || t != plan.BoardTurn
                 || l1 != plan.BoardLegLeft || l2 != plan.BoardLegRight)
                 session.Edit(() =>
@@ -203,6 +222,7 @@ public static partial class Dialogs
                     plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);
                     plan.BoardLegLeft = l1;
                     plan.BoardLegRight = l2;
+                    plan.Modules.Clear();
                     plan.VehicleLength = vl;
                 });
             return true;

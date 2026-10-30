@@ -194,6 +194,7 @@ public sealed class MainWindow : Window
         Add("qCrossing", () => Session.Quick(PieceKind.Crossing, null, Canvas.CenterWorld()));
         Add("search", _library.FocusSearch);
         Add("board", _properties.FocusBoard);
+        Add("modules", AskModules);
         Add("fit", Canvas.Fit);
         Add("zoomIn", () => Canvas.ZoomBy(1.25));
         Add("zoomOut", () => Canvas.ZoomBy(0.8));
@@ -539,7 +540,8 @@ public sealed class MainWindow : Window
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
 
         Ribbon.Items.Add(Tab(Lang.T("Gelände"),
-            Group(Lang.T("Grundplatte"), Large(Lang.T("Anlagen­platte"), "Board", "board", Lang.T("Breite und Tiefe der Anlagenplatte einstellen."))),
+            Group(Lang.T("Grundplatte"), Large(Lang.T("Anlagen­platte"), "Board", "board", Lang.T("Breite und Tiefe der Anlagenplatte einstellen.")),
+                Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),
@@ -866,6 +868,33 @@ public sealed class MainWindow : Window
         var dlg = new OpenFileDialog { Filter = FileFilter, Title = Lang.T("Gleisplan öffnen") };
         if (dlg.ShowDialog(this) != true) return;
         OpenPath(dlg.FileName);
+    }
+
+    private void AskModules()
+    {
+        if (Dialogs.AskModules(this, Session.Plan, AppendModuleFile) is { } edits)
+        {
+            Session.ApplyModules(edits);
+            Canvas.Fit();
+        }
+    }
+
+    /// <summary>Gespeicherten Plan wählen und als Modul rechts ansetzen.</summary>
+    private void AppendModuleFile()
+    {
+        var dlg = new OpenFileDialog { Filter = FileFilter, Title = Lang.T("Plan als Modul ansetzen") };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            var other = PlanSerializer.FromJson(File.ReadAllText(dlg.FileName), out _);
+            var file = Path.GetFileName(dlg.FileName).Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : file;
+            if (Session.AppendModule(other, title)) Canvas.Fit();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, Lang.F($"„{Path.GetFileName(dlg.FileName)}“ lässt sich nicht öffnen.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     public void OpenPath(string path)

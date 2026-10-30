@@ -646,3 +646,9 @@ kbd {
 @media print {
     .shell { display: none; }
 }
+
+/* Moduldialog */
+.table.modules td { padding: 3px 3px; border-bottom: none; }
+.table.modules td:first-child { width: 34%; }
+.table.modules .input { min-width: 0; width: 100%; }
+.table.modules .btn { padding: 4px 8px; }

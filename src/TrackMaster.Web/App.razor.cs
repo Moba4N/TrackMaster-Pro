@@ -246,6 +246,7 @@ public partial class App : ComponentBase, IAppHost
         Add("toolFlex", Lang.T("Flexgleis ziehen"), () => SetTool(CanvasTool.Flex));
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); _propsOpen = true; });
+        Add("modules", Lang.T("Module"), AskModules);
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
         Add("labels", Lang.T("Beschriftung"), () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));
@@ -465,6 +466,27 @@ public partial class App : ComponentBase, IAppHost
         var name = $"{SafeName}{PlanSerializer.FileExtension}";
         Js.Download(name, "application/json", PlanSerializer.ToJson(_session.Plan));
         _session.MarkSaved(name);
+    }
+
+    /// <summary>Gespeicherten Plan wählen und als Modul rechts ansetzen.</summary>
+    private async Task AppendModuleFile()
+    {
+        var result = await Js.PickFile(".json,.trackmaster.json,application/json");
+        if (string.IsNullOrEmpty(result)) return;
+        var cut = result.IndexOf('\0');
+        var name = cut > 0 ? result[..cut] : Lang.T("Modul");
+        var text = cut >= 0 ? result[(cut + 1)..] : result;
+        try
+        {
+            var other = PlanSerializer.FromJson(text, out _);
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            if (_session.AppendModule(other, title)) _view.Fit();
+        }
+        catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException or FormatException or NotSupportedException or ArgumentException or KeyNotFoundException)
+        {
+            Message(Lang.T("Plan als Modul ansetzen"), Lang.F($"Die Datei ist kein TrackMaster-Plan: {e.Message}"));
+        }
+        Refresh();
     }
 
     private void Export(string content, string mime, string fileName)

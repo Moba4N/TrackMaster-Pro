@@ -197,7 +197,8 @@
                 new(Lang.T("Lücke schließen"), "Connector", "flexConnect", true, Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))]),
             new(Lang.T("Höhe"), [new(Lang.T("Steigung…"), "Slope", "gradient", true, Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
-                new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")), new("Tunnel", "Tunnel", "tunnel", false)]),
+                new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
+                new(Lang.T("Trasse…"), "Ramp", "rampCut", true, Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")), new("Tunnel", "Tunnel", "tunnel", false)]),
         ]),
         new(Lang.T("Gelände"),
         [
@@ -717,7 +718,7 @@
         _d["boards"] = N(cut.Boards); _d["bl"] = N(cut.BoardLength, 1); _d["bw"] = N(cut.BoardWidth, 1);
         _d["laschen"] = N(cut.Laschen); _d["ll"] = N(cut.LascheLength, 1); _d["lw"] = N(cut.LascheWidth, 1);
         var d = Show(Lang.T("Zuschnitt als SVG"), @<div class="form">
-            @Hint(Lang.T("Die Teile werden in Originalgröße (1:1) auf Platten 2500 × 1250 mm verteilt. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe."))
+            @Hint(Lang.T("Jedes Teil wird als eigene SVG-Datei in Originalgröße (1:1) gespeichert, zusammen in einer ZIP-Datei. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe."))
             <div class="section">@Lang.T("Trassensegmente")</div>
             <div class="cols">
                 <div><label class="field-label">@Lang.T("Innenradius")</label><input class="input" inputmode="decimal" @bind='_d["ri"]' @bind:event="oninput" /></div>
@@ -759,8 +760,7 @@
                 BoardLength = bl, BoardWidth = bw, Boards = (int)Math.Round(boards), LascheLength = ll, LascheWidth = lw, Laschen = (int)Math.Round(laschen),
             };
             if (!Fail(edited.Problems())) return false;
-            var name = Lang.F($"{SafeName} – Zuschnitt Gleiswendel");
-            Export(edited.ToSvg(name), "image/svg+xml", name + ".svg");
+            ExportSvgFiles(edited.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel"));
             return true;
         }, true));
     }
@@ -833,14 +833,56 @@
         </div>, wide: true);
         if (f.Ribs.Count > 0)
         {
-            d.Buttons.Add(new(Lang.T("Als SVG speichern"), () =>
-            {
-                var name = Lang.F($"{SafeName} – Spanten");
-                Export(f.ToSvg(_session.Plan, name), "image/svg+xml", name + ".svg");
-                return false;
-            }));
+            d.Buttons.Add(new(Lang.T("Als SVG speichern"), () => { ExportSvgFiles(f.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Spanten")); return false; }));
             d.Buttons.Add(new(Lang.T("Als CSV speichern"), () => { Export(f.ToCsv(), "text/csv", Lang.F($"{SafeName} – Spanten.csv")); return false; }));
         }
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    // ---------- Trasse aus Auswahl ----------
+
+    private void AskRampCut()
+    {
+        var plan = _session.Plan;
+        var ids = _session.Selection.ToHashSet();
+        var def = RampTrasse.Defaults(plan.Gauge);
+        _d.Clear();
+        _d["width"] = N(def.Width); _d["thick"] = N(def.Thickness); _d["max"] = N(def.MaxPartLength); _d["lasche"] = N(def.LascheLength);
+        var d = Show(Lang.T("Trasse aus Auswahl"), @<div class="form">
+            @Hint(Lang.F($"Die Trasse folgt der Gleismitte der {ids.Count} markierten Gleise und wird in gleich lange Teile geteilt. Jedes Teil und jede Stoßlasche wird als eigene SVG-Datei in Originalgröße gespeichert; die Gleisstöße sind mit ihrer Höhe eingezeichnet."))
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Trassenbreite (mm)")</label><input class="input" inputmode="decimal" @bind='_d["width"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Trassenstärke (mm)")</label><input class="input" inputmode="decimal" @bind='_d["thick"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Größte Teillänge (mm)")</label><input class="input" inputmode="decimal" @bind='_d["max"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Laschenlänge (mm, 0 = keine)")</label><input class="input" inputmode="decimal" @bind='_d["lasche"]' @bind:event="oninput" /></div>
+            </div>
+        </div>, wide: true, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Berechnen"), () =>
+        {
+            var errors = new List<string>();
+            Read("width", Lang.T("Trassenbreite"), 10, 1000, errors, out var width);
+            Read("thick", Lang.T("Trassenstärke"), 1, 50, errors, out var thick);
+            Read("max", Lang.T("Größte Teillänge"), 100, Helix.SheetLength, errors, out var max);
+            Read("lasche", Lang.T("Laschenlänge"), 0, 1000, errors, out var lasche);
+            if (!Fail(errors)) return false;
+            var (cut, error) = RampTrasse.Build(plan, ids, new RampSpec(width, thick, max, lasche));
+            if (cut is null) return Fail([error ?? ""]);
+            CloseDialog();
+            ShowRampCut(cut);
+            return false;
+        }, true));
+    }
+
+    private void ShowRampCut(RampCut cut)
+    {
+        var d = Show(Lang.T("Trasse aus Auswahl"), @<div class="list">
+            @foreach (var line in cut.ToText().Split(Environment.NewLine))
+            {
+                <div class="@(line.StartsWith(Lang.T("Achtung")) ? "danger" : "")">@line</div>
+            }
+        </div>, wide: true);
+        d.Buttons.Add(new(Lang.T("SVG-Dateien speichern"), () => { ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Trasse")); return false; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 

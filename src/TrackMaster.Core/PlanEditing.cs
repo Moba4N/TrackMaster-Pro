@@ -83,22 +83,28 @@ public static class PlanEditing
 
     /// <summary>
     /// Rastet eine Gruppe an das nächste freie Gleisende ein (innerhalb <paramref name="tolerance"/> mm, Richtung höchstens 50° daneben).
-    /// Die ganze Gruppe wird dazu gedreht und verschoben.
+    /// Die ganze Gruppe wird dazu gedreht und verschoben. Ein einzelnes Gleis rastet in jeder Richtung ein: Es wird so gedreht,
+    /// dass das Ende, das über dem freien Gleisende liegt, passend anschließt.
     /// </summary>
     public static bool Snap(LayoutPlan plan, IReadOnlySet<int> ids, double tolerance)
     {
         var conn = Connectivity.Analyze(plan);
         var mine = conn.All.Where(c => ids.Contains(c.PieceId) && !(c.Link is { } l && ids.Contains(l.PieceId))).ToList();
         var targets = conn.All.Where(c => !ids.Contains(c.PieceId) && c.IsOpen).ToList();
+        var single = ids.Count == 1;
         (ConnectorRef M, ConnectorRef T)? best = null;
-        var bestDistance = double.MaxValue;
+        var bestScore = double.MaxValue;
         foreach (var m in mine)
             foreach (var t in targets)
             {
                 var d = Math.Sqrt(Math.Pow(m.Pose.X - t.Pose.X, 2) + Math.Pow(m.Pose.Y - t.Pose.Y, 2));
-                if (d < tolerance && d < bestDistance && Math.Abs(Angles.Normalize(m.Pose.Heading - t.Pose.Heading - 180)) < 50)
+                var turn = Math.Abs(Angles.Normalize(m.Pose.Heading - t.Pose.Heading - 180));
+                if (d >= tolerance || (!single && turn >= 50)) continue;
+                // Bei gleichem Abstand gewinnt das Ende, das am wenigsten gedreht werden muss
+                var score = d + turn * tolerance / 1800;
+                if (score < bestScore)
                 {
-                    bestDistance = d;
+                    bestScore = score;
                     best = (m, t);
                 }
             }

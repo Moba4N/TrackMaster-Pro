@@ -109,15 +109,15 @@ public class FrameBuildTests
         Line(plan, 0, 520, 10, 120);
         var result = FrameBuild.Build(plan, FrameBuild.Defaults(plan.Gauge));
         var csv = result.ToCsv();
-        var svg = result.ToSvg(plan, "Test");
-        foreach (var r in result.Ribs)
+        var files = result.ToSvgFiles("Test");
+        Assert.Equal(result.Ribs.Count, files.Count);
+        foreach (var (r, f) in result.Ribs.Zip(files))
         {
             Assert.Contains($"\r\n{r.Number};", csv);
-            Assert.Contains($">Spant {r.Number} ·", svg);
+            Assert.Contains($"Spant {r.Number} ·", f.Content);
+            SvgTests.AssertSinglePart(f);
         }
-        Assert.StartsWith("<svg", svg.TrimStart());
         Assert.Contains("Ausschnitt", csv);
-        System.Xml.Linq.XDocument.Parse(svg);
     }
 }
 
@@ -134,9 +134,9 @@ public class HelixCutTests
         Assert.Equal(m.InnerBoardRadius, cut.InnerRadius, 0);
         Assert.Equal(m.OuterBoardRadius, cut.OuterRadius, 0);
         Assert.Empty(cut.Problems());
-        var svg = cut.ToSvg("Test");
-        System.Xml.Linq.XDocument.Parse(svg);
-        Assert.Equal(cut.Segments + cut.Boards + cut.Laschen, System.Text.RegularExpressions.Regex.Matches(svg, "class=\"cut\"").Count);
+        var files = cut.ToSvgFiles("Test");
+        Assert.Equal(cut.Segments + cut.Boards + cut.Laschen, files.Count);
+        Assert.All(files, SvgTests.AssertSinglePart);
         Assert.Equal(tracks == 2 ? 2 : 1, cut.TrackRadii.Count);
         if (shape == HelixShape.Oval) Assert.True(cut.Boards > 0);
     }
@@ -146,9 +146,9 @@ public class HelixCutTests
     {
         var spec = new HelixSpec("H0|mc|24230", 2, 100, false);
         var cut = Helix.Material(spec, Catalog.Gauges.First(g => g.Id == "H0")).Cut! with { InnerRadius = 300, OuterRadius = 420, SegmentsPerCircle = 8, Segments = 16 };
-        var svg = cut.ToSvg("Test");
-        Assert.Contains("R 300–420 · 45°", svg);
-        Assert.Equal(16 + cut.Laschen, System.Text.RegularExpressions.Regex.Matches(svg, "class=\"cut\"").Count);
+        var files = cut.ToSvgFiles("Test");
+        Assert.Contains("R 300–420 · 45°", files[0].Content);
+        Assert.Equal(16 + cut.Laschen, files.Count);
     }
 
     [Fact]

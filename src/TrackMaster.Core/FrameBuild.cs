@@ -76,65 +76,29 @@ public sealed record FramePlan(FrameSpec Spec, string GaugeId, IReadOnlyList<Fra
     /// Zeichnung im Maßstab 1:1 (mm): oben die Übersicht mit Plattenumriss, Gleisen und Lage der Spanten,
     /// darunter jeder Spant als Schablone mit Auflagen, Ausschnitten und Maßen.
     /// </summary>
-    public string ToSvg(LayoutPlan plan, string title)
+    /// <summary>Jeder Spant als eigene SVG-Datei in Originalgröße (Schablone mit Auflagen und Ausschnitten).</summary>
+    public IReadOnlyList<SvgFile> ToSvgFiles(string title)
     {
-        var inv = CultureInfo.InvariantCulture;
-        string N(double v) => Math.Round(v, 2).ToString(inv);
-        string Esc(string s) => System.Security.SecurityElement.Escape(s) ?? "";
-        const double m = 40, gap = 40;
-        var body = new StringBuilder();
-        var (x0, y0, x1, y1) = plan.Bounds();
-        var overviewW = x1 - x0;
-        var overviewH = y1 - y0;
-        var width = overviewW;
-
-        // Übersicht
-        body.Append($"<g transform=\"translate({N(-x0)} {N(-y0)})\">");
-        body.Append($"<path d=\"{string.Concat(BoardGeometry.Outlines(plan).Select(o => "M" + string.Join("L", o.Select(q => $"{N(q.X)} {N(q.Y)}")) + "Z"))}\" fill=\"#F3F1EA\" fill-rule=\"evenodd\" stroke=\"#8FA67A\" stroke-width=\"1\"/>");
-        var tracks = new StringBuilder();
-        foreach (var p in plan.Pieces)
-            foreach (var l in p.WorldLegs())
-            {
-                var (ax, ay, bx, by, r) = l.Offset(0);
-                tracks.Append(l.IsArc ? $"M{N(ax)} {N(ay)}A{N(r)} {N(r)} 0 0 {(l.Turn > 0 ? 1 : 0)} {N(bx)} {N(by)}" : $"M{N(ax)} {N(ay)}L{N(bx)} {N(by)}");
-            }
-        body.Append($"<path d=\"{tracks}\" fill=\"none\" stroke=\"#C8B79E\" stroke-width=\"{N(Spec.TrasseWidth)}\" stroke-opacity=\"0.55\"/>");
-        body.Append($"<path d=\"{tracks}\" fill=\"none\" stroke=\"#4E5257\" stroke-width=\"1\"/>");
+        string N(double v) => SvgFiles.N(v);
+        var files = new List<SvgFile>();
         foreach (var r in Ribs)
         {
-            var (ax, ay, bx, by) = Spec.Direction == FrameDirection.Quer ? (r.Position, r.Start, r.Position, r.End) : (r.Start, r.Position, r.End, r.Position);
-            body.Append($"<path d=\"M{N(ax)} {N(ay)}L{N(bx)} {N(by)}\" stroke=\"#1F4E79\" stroke-width=\"3\"/>");
-            body.Append($"<text x=\"{N(ax)}\" y=\"{N(ay - 6)}\" font-size=\"18\" text-anchor=\"middle\" fill=\"#1F4E79\" font-family=\"Segoe UI, sans-serif\">{r.Number}</text>");
-        }
-        body.Append("</g>");
-
-        // Schablonen der Spanten untereinander
-        var y = overviewH + 2 * gap;
-        foreach (var r in Ribs)
-        {
-            width = Math.Max(width, r.Length);
-            var top = y + r.Height;
-            string P(double u, double h) => $"{N(u)} {N(top - h)}";
-            body.Append($"<text x=\"0\" y=\"{N(y - 8)}\" font-size=\"16\" font-family=\"Segoe UI, sans-serif\" fill=\"#222\">{Esc(Lang.F($"Spant {r.Number} · {Axis} = {Fmt.Num(r.Position, 0)} mm · Länge {Fmt.Num(r.Length, 0)} mm · Höhe {Fmt.Num(r.Height, 0)} mm"))}</text>");
-            body.Append($"<path d=\"M{string.Join("L", r.Outline.Select(o => P(o.U, o.H)))}Z\" fill=\"#F7E9D0\" stroke=\"#000\" stroke-width=\"0.5\"/>");
+            var body = new StringBuilder();
+            string P(double u, double h) => $"{N(u)} {N(r.Height - h)}";
+            body.Append($"<path d=\"M{string.Join("L", r.Outline.Select(o => P(o.U, o.H)))}Z\" class=\"cut\"/>");
             foreach (var c in r.Cutouts)
-                body.Append($"<path d=\"M{P(c.From - r.Start, c.BottomFrom)}L{P(c.To - r.Start, c.BottomTo)}L{P(c.To - r.Start, c.Top)}L{P(c.From - r.Start, c.Top)}Z\" fill=\"#fff\" stroke=\"#000\" stroke-width=\"0.5\"/>");
+                body.Append($"<path d=\"M{P(c.From - r.Start, c.BottomFrom)}L{P(c.To - r.Start, c.BottomTo)}L{P(c.To - r.Start, c.Top)}L{P(c.From - r.Start, c.Top)}Z\" class=\"hole\"/>");
             foreach (var s in r.Supports)
             {
                 var u = (s.From + s.To) / 2 - r.Start;
-                body.Append($"<text x=\"{N(u)}\" y=\"{N(top - s.HeightAt(u + r.Start) + 14)}\" font-size=\"10\" text-anchor=\"middle\" fill=\"#1F4E79\" font-family=\"Segoe UI, sans-serif\">{Esc(FrameBuild.HeightText(s))}</text>");
-                body.Append($"<text x=\"{N(u)}\" y=\"{N(top + 12)}\" font-size=\"9\" text-anchor=\"middle\" fill=\"#666\" font-family=\"Segoe UI, sans-serif\">{N(Math.Round(s.From - r.Start))}–{N(Math.Round(s.To - r.Start))}</text>");
+                body.Append($"<text x=\"{N(u)}\" y=\"{N(r.Height - s.HeightAt(u + r.Start) + 14)}\" font-size=\"10\" class=\"label\">{SvgFiles.Esc(FrameBuild.HeightText(s))}</text>");
+                body.Append($"<text x=\"{N(u)}\" y=\"{N(r.Height + 9)}\" font-size=\"7\" class=\"label\">{N(Math.Round(s.From - r.Start))}–{N(Math.Round(s.To - r.Start))}</text>");
             }
-            y = top + gap + 20;
+            var caption = Lang.F($"{title} · Spant {r.Number} · {Axis} = {Fmt.Num(r.Position, 0)} mm · Länge {Fmt.Num(r.Length, 0)} mm · Höhe {Fmt.Num(r.Height, 0)} mm · {Fmt.Num(Spec.Thickness, 0)} mm · Maßstab 1:1");
+            files.Add(new($"{Lang.T("Spant")} {SvgFiles.Number(r.Number, Ribs.Count)}.svg",
+                SvgFiles.Document($"{title} – {Lang.F($"Spant {r.Number}")}", caption, r.Length, r.Height + 10, body.ToString())));
         }
-        var height = y;
-        return $"""
-<svg xmlns="http://www.w3.org/2000/svg" width="{N(width + 2 * m)}mm" height="{N(height + 2 * m)}mm" viewBox="{N(-m)} {N(-m)} {N(width + 2 * m)} {N(height + 2 * m)}">
-<title>{Esc(title)}</title>
-<text x="0" y="-12" font-family="Segoe UI, sans-serif" font-size="16" fill="#333">{Esc(title)} · {Esc(Lang.F($"Spantenbau Spur {GaugeId} · Spanten alle {Fmt.Num(Spec.Spacing, 0)} mm · Trasse {Fmt.Num(Spec.TrasseWidth, 0)} × {Fmt.Num(Spec.Thickness, 0)} mm · Maßstab 1:1"))}</text>
-{body}
-</svg>
-""";
+        return files;
     }
 }
 

@@ -39,6 +39,9 @@ public static partial class Js
     [JSImport("download", Module)]
     public static partial void Download(string fileName, string mime, string text);
 
+    [JSImport("downloadBytes", Module)]
+    public static partial void DownloadBytes(string fileName, string mime, [JSMarshalAs<JSType.MemoryView>] Span<byte> data);
+
     [JSImport("storageGet", Module)]
     public static partial string? StorageGet(string key);
 

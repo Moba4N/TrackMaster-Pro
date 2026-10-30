@@ -147,6 +147,7 @@ public sealed class MainWindow : Window
         Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
         Add("gradient", AskGradient, HasSelection);
         Add("helix", AskHelix);
+        Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", () => SetTool(CanvasTool.Terrain));
         Add("toolWater", () => SetTool(CanvasTool.Water));
@@ -532,6 +533,7 @@ public sealed class MainWindow : Window
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
+                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
 
         Ribbon.Items.Add(Tab(Lang.T("Gelände"),
@@ -1009,8 +1011,18 @@ public sealed class MainWindow : Window
             Canvas.Fit();
             // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
             if (Session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
-                Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv));
+                Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv),
+                    cut => ExportTo(Lang.T("Zuschnitt speichern"), Lang.T("SVG-Grafik (*.svg)|*.svg"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel.svg"), cut.ToSvg(Lang.F($"{SafeName} – Zuschnitt Gleiswendel"))));
         }
+    }
+
+    private void AskFrame()
+    {
+        if (Dialogs.AskFrame(this, Session.Plan.Gauge) is not { } spec) return;
+        var f = FrameBuild.Build(Session.Plan, spec);
+        Dialogs.ShowFrame(this, f,
+            () => ExportTo(Lang.T("Spanten als SVG speichern"), Lang.T("SVG-Grafik (*.svg)|*.svg"), Lang.F($"{SafeName} – Spanten.svg"), f.ToSvg(Session.Plan, Lang.F($"{SafeName} – Spanten"))),
+            () => ExportTo(Lang.T("Spanten als CSV speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Spanten.csv"), f.ToCsv()));
     }
 
     private void ShowWiring()

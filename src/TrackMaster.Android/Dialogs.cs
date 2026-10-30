@@ -643,7 +643,7 @@ public static partial class Dialogs
     }
 
     /// <summary>Holzliste der Gleiswendel; teilen bzw. als CSV speichern.</summary>
-    public static void ShowHelixMaterial(Context c, HelixMaterial m, Action saveCsv)
+    public static void ShowHelixMaterial(Context c, HelixMaterial m, Action saveCsv, Action<HelixCut>? saveCut = null)
     {
         var body = Ui.Column(c, 6);
         foreach (var p in m.Parts)
@@ -670,7 +670,113 @@ public static partial class Dialogs
                 body.AddView(row);
             }
         }
+        if (m.Cut is { } cut && saveCut is not null)
+            body.AddView(Ui.Button(c, Lang.T("Zuschnitt als SVG…"), () => AskHelixCut(c, cut, saveCut)));
         Show(c, Lang.T("Holzliste Gleiswendel"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("Als CSV speichern"), saveCsv));
+    }
+
+    /// <summary>Maße der Trassenteile vor dem Export als SVG anpassen.</summary>
+    public static void AskHelixCut(Context c, HelixCut cut, Action<HelixCut> save)
+    {
+        var body = Ui.Column(c, 6);
+        body.AddView(Hint(c, Lang.T("Die Teile werden in Originalgröße (1:1) auf Platten 2500 × 1250 mm verteilt. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe.")));
+        var ri = Ui.Number(c, cut.InnerRadius, 1);
+        var ro = Ui.Number(c, cut.OuterRadius, 1);
+        var per = Ui.Number(c, cut.SegmentsPerCircle);
+        var segs = Ui.Number(c, cut.Segments);
+        var bl = Ui.Number(c, cut.BoardLength, 1);
+        var bw = Ui.Number(c, cut.BoardWidth, 1);
+        var boards = Ui.Number(c, cut.Boards);
+        var ll = Ui.Number(c, cut.LascheLength, 1);
+        var lw = Ui.Number(c, cut.LascheWidth, 1);
+        var laschen = Ui.Number(c, cut.Laschen);
+        body.AddView(Section(c, Lang.T("Trassensegmente")));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Innenradius"), ri), Ui.Field(c, Lang.T("Außenradius"), ro)));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Segmente je Kreis"), per), Ui.Field(c, Lang.T("Anzahl"), segs)));
+        body.AddView(Section(c, Lang.T("Gerade Bretter (Oval)")));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Länge"), bl), Ui.Field(c, Lang.T("Breite"), bw), Ui.Field(c, Lang.T("Anzahl"), boards)));
+        body.AddView(Section(c, Lang.T("Stoßlaschen")));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Länge"), ll), Ui.Field(c, Lang.T("Breite"), lw), Ui.Field(c, Lang.T("Anzahl"), laschen)));
+        var error = Error(c);
+        body.AddView(error);
+        Show(c, Lang.T("Zuschnitt als SVG"), body, Lang.T("SVG speichern"), () =>
+        {
+            var errors = new List<string>();
+            Read(ri, Lang.T("Innenradius"), 0, 5000, errors, out var vri);
+            Read(ro, Lang.T("Außenradius"), 10, 6000, errors, out var vro);
+            Read(per, Lang.T("Segmente je Kreis"), 2, 36, errors, out var vper);
+            Read(segs, Lang.T("Anzahl Segmente"), 0, 500, errors, out var vsegs);
+            Read(bl, Lang.T("Länge der Bretter"), 0, 5000, errors, out var vbl);
+            Read(bw, Lang.T("Breite der Bretter"), 0, 2000, errors, out var vbw);
+            Read(boards, Lang.T("Anzahl Bretter"), 0, 200, errors, out var vboards);
+            Read(ll, Lang.T("Länge der Laschen"), 0, 2000, errors, out var vll);
+            Read(lw, Lang.T("Breite der Laschen"), 0, 2000, errors, out var vlw);
+            Read(laschen, Lang.T("Anzahl Laschen"), 0, 500, errors, out var vlaschen);
+            if (errors.Count > 0) { SetError(error, errors); return false; }
+            var edited = cut with
+            {
+                InnerRadius = vri, OuterRadius = vro, SegmentsPerCircle = (int)Math.Round(vper), Segments = (int)Math.Round(vsegs),
+                BoardLength = vbl, BoardWidth = vbw, Boards = (int)Math.Round(vboards), LascheLength = vll, LascheWidth = vlw, Laschen = (int)Math.Round(vlaschen),
+            };
+            var problems = edited.Problems();
+            SetError(error, problems);
+            if (problems.Count > 0) return false;
+            save(edited);
+            return true;
+        });
+    }
+
+    /// <summary>Angaben für den Spantenbau der Anlage.</summary>
+    public static void AskFrame(Context c, Gauge gauge, Action<FrameSpec> build)
+    {
+        var def = FrameBuild.Defaults(gauge);
+        var body = Ui.Column(c, 6);
+        body.AddView(Hint(c, Lang.T("Offene Rahmenbauweise: Spanten stehen in festem Abstand auf dem Rahmen, die Trassen liegen oben drauf. Höhe und Neigung jeder Auflage kommen aus den Gleishöhen. Liegt eine Trasse unter einer anderen, bekommt der Spant einen Ausschnitt mit Durchfahrtshöhe – so tragen dieselben Spanten mehrere Ebenen.")));
+        var direction = Choice(c, [Lang.T("quer (parallel zur Tiefe)"), Lang.T("längs (parallel zur Breite)")], 0);
+        var spacing = Ui.Number(c, def.Spacing);
+        var width = Ui.Number(c, def.TrasseWidth);
+        var thick = Ui.Number(c, def.Thickness);
+        var bas = Ui.Number(c, def.BaseHeight);
+        body.AddView(Ui.Field(c, Lang.T("Lage der Spanten"), direction));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Abstand höchstens (mm)"), spacing), Ui.Field(c, Lang.T("Trassenbreite (mm)"), width)));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Trassenstärke (mm)"), thick), Ui.Field(c, Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)"), bas)));
+        var error = Error(c);
+        body.AddView(error);
+        Show(c, Lang.T("Spantenbau"), body, Lang.T("Berechnen"), () =>
+        {
+            var errors = new List<string>();
+            Read(spacing, Lang.T("Abstand"), 50, 2000, errors, out var vs);
+            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), 3, 50, errors, out var vt);
+            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var vb);
+            SetError(error, errors);
+            if (errors.Count > 0) return false;
+            build(new FrameSpec(direction.SelectedItemPosition == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb));
+            return true;
+        });
+    }
+
+    /// <summary>Spanten mit Auflagen und Ausschnitten; als SVG (Schablonen 1:1) oder CSV speichern.</summary>
+    public static void ShowFrame(Context c, FramePlan f, Action saveSvg, Action saveCsv)
+    {
+        var axis = f.Spec.Direction == FrameDirection.Quer ? "x" : "y";
+        var body = Ui.Column(c, 6);
+        foreach (var n in f.Notes)
+            body.AddView(Ui.Label(c, "• " + n, 12.5, color: n.StartsWith(Lang.T("Achtung")) ? Color.Rgb(0xC4, 0x2B, 0x1C) : Ui.TextSecondary));
+        foreach (var r in f.Ribs)
+        {
+            var row = Ui.Column(c, 0);
+            row.SetPadding(0, Ui.Dp(4), 0, Ui.Dp(4));
+            row.AddView(Ui.Label(c, Lang.F($"Spant {r.Number} · {axis} = {Fmt.Num(r.Position, 0)} mm · Länge {Fmt.Num(r.Length, 0)} mm · Höhe {Fmt.Num(r.Height, 0)} mm"), 13.5, true));
+            foreach (var s in r.Supports)
+                row.AddView(Ui.Label(c, Lang.F($"{Fmt.Num(s.From - r.Start, 0)}–{Fmt.Num(s.To - r.Start, 0)}: Höhe {(Math.Abs(s.HeightFrom - s.HeightTo) < 0.5 ? Fmt.Num(s.Mid, 0) : $"{Fmt.Num(s.HeightFrom, 0)} → {Fmt.Num(s.HeightTo, 0)}")}"), 12.5));
+            foreach (var cut in r.Cutouts)
+                row.AddView(Ui.Label(c, Lang.F($"Ausschnitt {Fmt.Num(cut.From - r.Start, 0)}–{Fmt.Num(cut.To - r.Start, 0)}: {Fmt.Num(Math.Min(cut.BottomFrom, cut.BottomTo), 0)} bis {Fmt.Num(cut.Top, 0)}"), 12.5, color: Ui.TextSecondary));
+            body.AddView(row);
+        }
+        if (f.Ribs.Count > 0)
+            body.AddView(Ui.Button(c, Lang.T("Als SVG speichern"), saveSvg));
+        Show(c, Lang.T("Spantenbau"), body, Lang.T("Schließen"), cancelText: null, neutral: f.Ribs.Count > 0 ? (Lang.T("Als CSV speichern"), saveCsv) : null);
     }
 
     public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)

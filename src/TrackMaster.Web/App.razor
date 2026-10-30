@@ -196,7 +196,8 @@
             new(Lang.T("Flexgleis"), [new(Lang.T("Flexgleis ziehen"), "Flex", "toolFlex", true, Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit.")),
                 new(Lang.T("Lücke schließen"), "Connector", "flexConnect", true, Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))]),
             new(Lang.T("Höhe"), [new(Lang.T("Steigung…"), "Slope", "gradient", true, Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
-                new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")), new("Tunnel", "Tunnel", "tunnel", false)]),
+                new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
+                new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")), new("Tunnel", "Tunnel", "tunnel", false)]),
         ]),
         new(Lang.T("Gelände"),
         [
@@ -703,7 +704,143 @@
                 </table>
             }
         </div>, wide: true);
+        if (m.Cut is { } cut) d.Buttons.Add(new(Lang.T("Zuschnitt als SVG…"), () => { AskHelixCut(cut); return false; }));
         d.Buttons.Add(new(Lang.T("Als CSV speichern"), () => { saveCsv(); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    /// <summary>Maße der Trassenteile vor dem Export als SVG anpassen.</summary>
+    private void AskHelixCut(HelixCut cut)
+    {
+        _d["ri"] = N(cut.InnerRadius, 1); _d["ro"] = N(cut.OuterRadius, 1);
+        _d["per"] = N(cut.SegmentsPerCircle); _d["segs"] = N(cut.Segments);
+        _d["boards"] = N(cut.Boards); _d["bl"] = N(cut.BoardLength, 1); _d["bw"] = N(cut.BoardWidth, 1);
+        _d["laschen"] = N(cut.Laschen); _d["ll"] = N(cut.LascheLength, 1); _d["lw"] = N(cut.LascheWidth, 1);
+        var d = Show(Lang.T("Zuschnitt als SVG"), @<div class="form">
+            @Hint(Lang.T("Die Teile werden in Originalgröße (1:1) auf Platten 2500 × 1250 mm verteilt. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe."))
+            <div class="section">@Lang.T("Trassensegmente")</div>
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Innenradius")</label><input class="input" inputmode="decimal" @bind='_d["ri"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Außenradius")</label><input class="input" inputmode="decimal" @bind='_d["ro"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Segmente je Kreis")</label><input class="input" inputmode="numeric" @bind='_d["per"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Anzahl")</label><input class="input" inputmode="numeric" @bind='_d["segs"]' @bind:event="oninput" /></div>
+            </div>
+            <div class="section">@Lang.T("Gerade Bretter (Oval)")</div>
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Länge")</label><input class="input" inputmode="decimal" @bind='_d["bl"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Breite")</label><input class="input" inputmode="decimal" @bind='_d["bw"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Anzahl")</label><input class="input" inputmode="numeric" @bind='_d["boards"]' @bind:event="oninput" /></div>
+            </div>
+            <div class="section">@Lang.T("Stoßlaschen")</div>
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Länge")</label><input class="input" inputmode="decimal" @bind='_d["ll"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Breite")</label><input class="input" inputmode="decimal" @bind='_d["lw"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Anzahl")</label><input class="input" inputmode="numeric" @bind='_d["laschen"]' @bind:event="oninput" /></div>
+            </div>
+        </div>, wide: true, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("SVG speichern"), () =>
+        {
+            var errors = new List<string>();
+            Read("ri", Lang.T("Innenradius"), 0, 5000, errors, out var ri);
+            Read("ro", Lang.T("Außenradius"), 10, 6000, errors, out var ro);
+            Read("per", Lang.T("Segmente je Kreis"), 2, 36, errors, out var per);
+            Read("segs", Lang.T("Anzahl Segmente"), 0, 500, errors, out var segs);
+            Read("bl", Lang.T("Länge der Bretter"), 0, 5000, errors, out var bl);
+            Read("bw", Lang.T("Breite der Bretter"), 0, 2000, errors, out var bw);
+            Read("boards", Lang.T("Anzahl Bretter"), 0, 200, errors, out var boards);
+            Read("ll", Lang.T("Länge der Laschen"), 0, 2000, errors, out var ll);
+            Read("lw", Lang.T("Breite der Laschen"), 0, 2000, errors, out var lw);
+            Read("laschen", Lang.T("Anzahl Laschen"), 0, 500, errors, out var laschen);
+            if (errors.Count > 0) return Fail(errors);
+            var edited = cut with
+            {
+                InnerRadius = ri, OuterRadius = ro, SegmentsPerCircle = (int)Math.Round(per), Segments = (int)Math.Round(segs),
+                BoardLength = bl, BoardWidth = bw, Boards = (int)Math.Round(boards), LascheLength = ll, LascheWidth = lw, Laschen = (int)Math.Round(laschen),
+            };
+            if (!Fail(edited.Problems())) return false;
+            var name = Lang.F($"{SafeName} – Zuschnitt Gleiswendel");
+            Export(edited.ToSvg(name), "image/svg+xml", name + ".svg");
+            return true;
+        }, true));
+    }
+
+    // ---------- Spantenbau ----------
+
+    private void AskFrame()
+    {
+        var plan = _session.Plan;
+        var def = FrameBuild.Defaults(plan.Gauge);
+        _d.Clear();
+        _d["dir"] = "0"; _d["spacing"] = N(def.Spacing); _d["width"] = N(def.TrasseWidth); _d["thick"] = N(def.Thickness); _d["base"] = N(def.BaseHeight);
+        var d = Show(Lang.T("Spantenbau"), @<div class="form">
+            @Hint(Lang.T("Offene Rahmenbauweise: Spanten stehen in festem Abstand auf dem Rahmen, die Trassen liegen oben drauf. Höhe und Neigung jeder Auflage kommen aus den Gleishöhen. Liegt eine Trasse unter einer anderen, bekommt der Spant einen Ausschnitt mit Durchfahrtshöhe – so tragen dieselben Spanten mehrere Ebenen."))
+            <div class="cols">
+                <div>
+                    <label class="field-label">@Lang.T("Lage der Spanten")</label>
+                    <select class="input" @bind='_d["dir"]'>
+                        <option value="0">@Lang.T("quer (parallel zur Tiefe)")</option>
+                        <option value="1">@Lang.T("längs (parallel zur Breite)")</option>
+                    </select>
+                </div>
+                <div><label class="field-label">@Lang.T("Abstand höchstens (mm)")</label><input class="input" inputmode="decimal" @bind='_d["spacing"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Trassenbreite (mm)")</label><input class="input" inputmode="decimal" @bind='_d["width"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Trassenstärke (mm)")</label><input class="input" inputmode="decimal" @bind='_d["thick"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["base"]' @bind:event="oninput" /></div>
+            </div>
+        </div>, wide: true, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Berechnen"), () =>
+        {
+            var errors = new List<string>();
+            Read("spacing", Lang.T("Abstand"), 50, 2000, errors, out var spacing);
+            Read("width", Lang.T("Trassenbreite"), 10, 1000, errors, out var width);
+            Read("thick", Lang.T("Trassenstärke"), 3, 50, errors, out var thick);
+            Read("base", Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var bas);
+            if (!Fail(errors)) return false;
+            var spec = new FrameSpec(D("dir") == "1" ? FrameDirection.Laengs : FrameDirection.Quer, spacing, width, thick, bas);
+            var result = FrameBuild.Build(plan, spec);
+            CloseDialog();
+            ShowFrame(result);
+            return false;
+        }, true));
+    }
+
+    private void ShowFrame(FramePlan f)
+    {
+        var axis = f.Spec.Direction == FrameDirection.Quer ? "x" : "y";
+        var d = Show(Lang.T("Spantenbau"), @<div class="list">
+            @foreach (var n in f.Notes)
+            {
+                <div class="@(n.StartsWith(Lang.T("Achtung")) ? "danger" : "secondary")">• @n</div>
+            }
+            @if (f.Ribs.Count > 0)
+            {
+                <table class="table ribs">
+                    <tr><th>@Lang.T("Nr.")</th><th>@Lang.T("Lage")</th><th>@Lang.T("Länge")</th><th>@Lang.T("Höhe")</th><th>@Lang.T("Auflagen und Ausschnitte (mm ab Spantanfang)")</th></tr>
+                    @foreach (var r in f.Ribs)
+                    {
+                        <tr>
+                            <td>@r.Number</td><td>@($"{axis} = {Fmt.Num(r.Position, 0)}")</td><td>@Fmt.Num(r.Length, 0)</td><td>@Fmt.Num(r.Height, 0)</td>
+                            <td>
+                                @foreach (var s in r.Supports) { <div>@Lang.F($"{Fmt.Num(s.From - r.Start, 0)}–{Fmt.Num(s.To - r.Start, 0)}: Höhe {(Math.Abs(s.HeightFrom - s.HeightTo) < 0.5 ? Fmt.Num(s.Mid, 0) : $"{Fmt.Num(s.HeightFrom, 0)} → {Fmt.Num(s.HeightTo, 0)}")}")</div> }
+                                @foreach (var c in r.Cutouts) { <div class="secondary">@Lang.F($"Ausschnitt {Fmt.Num(c.From - r.Start, 0)}–{Fmt.Num(c.To - r.Start, 0)}: {Fmt.Num(Math.Min(c.BottomFrom, c.BottomTo), 0)} bis {Fmt.Num(c.Top, 0)}")</div> }
+                            </td>
+                        </tr>
+                    }
+                </table>
+            }
+        </div>, wide: true);
+        if (f.Ribs.Count > 0)
+        {
+            d.Buttons.Add(new(Lang.T("Als SVG speichern"), () =>
+            {
+                var name = Lang.F($"{SafeName} – Spanten");
+                Export(f.ToSvg(_session.Plan, name), "image/svg+xml", name + ".svg");
+                return false;
+            }));
+            d.Buttons.Add(new(Lang.T("Als CSV speichern"), () => { Export(f.ToCsv(), "text/csv", Lang.F($"{SafeName} – Spanten.csv")); return false; }));
+        }
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 

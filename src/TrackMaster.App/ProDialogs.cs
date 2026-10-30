@@ -296,7 +296,7 @@ public static partial class Dialogs
     }
 
     /// <summary>Holzliste der Gleiswendel mit allen Zuschnittmaßen; kopieren oder als CSV speichern.</summary>
-    public static void ShowHelixMaterial(Window owner, HelixMaterial m, Action<string> saveCsv)
+    public static void ShowHelixMaterial(Window owner, HelixMaterial m, Action<string> saveCsv, Action<HelixCut>? saveCut = null)
     {
         var body = new StackPanel();
         var grid = new Grid { Margin = new Thickness(0, 4, 0, 0) };
@@ -366,9 +366,163 @@ public static partial class Dialogs
         csv.Click += (_, _) => saveCsv(m.ToCsv());
         var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var w = Frame(owner, Lang.T("Holzliste Gleiswendel"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, copy, csv, close);
+        var svg = m.Cut is not null && saveCut is not null ? Theme.Button(Lang.T("Zuschnitt als SVG…")) : null;
+        Button[] footer = svg is null ? [copy, csv, close] : [copy, svg, csv, close];
+        var w = Frame(owner, Lang.T("Holzliste Gleiswendel"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, footer);
+        if (svg is not null && m.Cut is { } cut && saveCut is not null)
+            svg.Click += (_, _) => { if (AskHelixCut(w, cut) is { } edited) saveCut(edited); };
         w.Width = 760;
         w.Height = 620;
+        close.Click += (_, _) => w.Close();
+        w.Show();
+    }
+
+    /// <summary>Maße der Trassenteile vor dem Export als SVG anpassen; liefert die geänderten Maße oder null.</summary>
+    public static HelixCut? AskHelixCut(Window owner, HelixCut cut)
+    {
+        var ri = NumberBox(cut.InnerRadius);
+        var ro = NumberBox(cut.OuterRadius);
+        var per = NumberBox(cut.SegmentsPerCircle, 0);
+        var segs = NumberBox(cut.Segments, 0);
+        var bl = NumberBox(cut.BoardLength);
+        var bw = NumberBox(cut.BoardWidth);
+        var boards = NumberBox(cut.Boards, 0);
+        var ll = NumberBox(cut.LascheLength);
+        var lw = NumberBox(cut.LascheWidth);
+        var laschen = NumberBox(cut.Laschen, 0);
+        var error = ErrorText();
+        var body = new StackPanel();
+        body.Children.Add(Hint(Lang.T("Die Teile werden in Originalgröße (1:1) auf Platten 2500 × 1250 mm verteilt. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe.")));
+        body.Children.Add(Theme.Label(Lang.T("Trassensegmente"), 13, true));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Innenradius"), ri), Theme.Field(Lang.T("Außenradius"), ro)));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Segmente je Kreis"), per), Theme.Field(Lang.T("Anzahl"), segs)));
+        body.Children.Add(Theme.Label(Lang.T("Gerade Bretter (Oval)"), 13, true));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Länge"), bl), Theme.Field(Lang.T("Breite"), bw)));
+        body.Children.Add(Theme.Field(Lang.T("Anzahl"), boards));
+        body.Children.Add(Theme.Label(Lang.T("Stoßlaschen"), 13, true));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Länge"), ll), Theme.Field(Lang.T("Breite"), lw)));
+        body.Children.Add(Theme.Field(Lang.T("Anzahl"), laschen));
+        body.Children.Add(error);
+        var ok = Theme.Button(Lang.T("SVG speichern…"), accent: true);
+        ok.IsDefault = true;
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
+        cancel.IsCancel = true;
+        var w = Small(owner, Lang.T("Zuschnitt als SVG"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, 520, 660, cancel, ok);
+        HelixCut? result = null;
+        ok.Click += (_, _) =>
+        {
+            var errors = new List<string>();
+            Read(ri, Lang.T("Innenradius"), 0, 5000, errors, out var vri);
+            Read(ro, Lang.T("Außenradius"), 10, 6000, errors, out var vro);
+            Read(per, Lang.T("Segmente je Kreis"), 2, 36, errors, out var vper);
+            Read(segs, Lang.T("Anzahl Segmente"), 0, 500, errors, out var vsegs);
+            Read(bl, Lang.T("Länge der Bretter"), 0, 5000, errors, out var vbl);
+            Read(bw, Lang.T("Breite der Bretter"), 0, 2000, errors, out var vbw);
+            Read(boards, Lang.T("Anzahl Bretter"), 0, 200, errors, out var vboards);
+            Read(ll, Lang.T("Länge der Laschen"), 0, 2000, errors, out var vll);
+            Read(lw, Lang.T("Breite der Laschen"), 0, 2000, errors, out var vlw);
+            Read(laschen, Lang.T("Anzahl Laschen"), 0, 500, errors, out var vlaschen);
+            if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
+            var edited = cut with
+            {
+                InnerRadius = vri, OuterRadius = vro, SegmentsPerCircle = (int)Math.Round(vper), Segments = (int)Math.Round(vsegs),
+                BoardLength = vbl, BoardWidth = vbw, Boards = (int)Math.Round(vboards), LascheLength = vll, LascheWidth = vlw, Laschen = (int)Math.Round(vlaschen),
+            };
+            if (edited.Problems() is { Count: > 0 } problems) { error.Text = string.Join("\n", problems); return; }
+            result = edited;
+            w.Close();
+        };
+        w.ShowDialog();
+        return result;
+    }
+
+    /// <summary>Angaben für den Spantenbau der Anlage; liefert sie oder null.</summary>
+    public static FrameSpec? AskFrame(Window owner, Gauge gauge)
+    {
+        var def = FrameBuild.Defaults(gauge);
+        var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("quer (parallel zur Tiefe)") }, new ComboBoxItem { Content = Lang.T("längs (parallel zur Breite)") } }, SelectedIndex = 0 };
+        var spacing = NumberBox(def.Spacing, 0);
+        var width = NumberBox(def.TrasseWidth, 0);
+        var thick = NumberBox(def.Thickness, 0);
+        var bas = NumberBox(def.BaseHeight, 0);
+        var error = ErrorText();
+        var body = new StackPanel();
+        body.Children.Add(Hint(Lang.T("Offene Rahmenbauweise: Spanten stehen in festem Abstand auf dem Rahmen, die Trassen liegen oben drauf. Höhe und Neigung jeder Auflage kommen aus den Gleishöhen. Liegt eine Trasse unter einer anderen, bekommt der Spant einen Ausschnitt mit Durchfahrtshöhe – so tragen dieselben Spanten mehrere Ebenen.")));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Lage der Spanten"), direction), Theme.Field(Lang.T("Abstand höchstens (mm)"), spacing)));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Trassenbreite (mm)"), width), Theme.Field(Lang.T("Trassenstärke (mm)"), thick)));
+        body.Children.Add(Theme.Field(Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)"), bas));
+        body.Children.Add(error);
+        var ok = Theme.Button(Lang.T("Berechnen"), "Frame", accent: true);
+        ok.IsDefault = true;
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
+        cancel.IsCancel = true;
+        var w = Small(owner, Lang.T("Spantenbau"), body, 540, 430, cancel, ok);
+        FrameSpec? result = null;
+        ok.Click += (_, _) =>
+        {
+            var errors = new List<string>();
+            Read(spacing, Lang.T("Abstand"), 50, 2000, errors, out var vs);
+            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), 3, 50, errors, out var vt);
+            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var vb);
+            if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
+            result = new FrameSpec(direction.SelectedIndex == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb);
+            w.Close();
+        };
+        w.ShowDialog();
+        return result;
+    }
+
+    /// <summary>Spanten mit Auflagen und Ausschnitten; als SVG (Schablonen 1:1) oder CSV speichern.</summary>
+    public static void ShowFrame(Window owner, FramePlan f, Action saveSvg, Action saveCsv)
+    {
+        var axis = f.Spec.Direction == FrameDirection.Quer ? "x" : "y";
+        var body = new StackPanel();
+        foreach (var n in f.Notes) body.Children.Add(new TextBlock { Text = "• " + n, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2), Foreground = n.StartsWith(Lang.T("Achtung")) ? Theme.DangerBrush : Theme.TextSecondaryBrush });
+        if (f.Ribs.Count > 0)
+        {
+            var table = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+            foreach (var width in new[] { 40.0, 90, 70, 60, double.NaN })
+                table.ColumnDefinitions.Add(new ColumnDefinition { Width = double.IsNaN(width) ? new GridLength(1, GridUnitType.Star) : new GridLength(width) });
+            void Cell(string text, int row, int col, bool head = false, bool secondary = false)
+            {
+                var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 8, 3), FontWeight = head ? FontWeights.SemiBold : FontWeights.Normal };
+                if (head || secondary) t.Foreground = Theme.TextSecondaryBrush;
+                Grid.SetRow(t, row); Grid.SetColumn(t, col);
+                table.Children.Add(t);
+            }
+            table.RowDefinitions.Add(new RowDefinition());
+            string[] heads = [Lang.T("Nr."), Lang.T("Lage"), Lang.T("Länge"), Lang.T("Höhe"), Lang.T("Auflagen und Ausschnitte (mm ab Spantanfang)")];
+            for (var c = 0; c < heads.Length; c++) Cell(heads[c], 0, c, true);
+            for (var i = 0; i < f.Ribs.Count; i++)
+            {
+                var r = f.Ribs[i];
+                table.RowDefinitions.Add(new RowDefinition());
+                var line = new Border { BorderBrush = Theme.BorderBrush, BorderThickness = new Thickness(0, 1, 0, 0) };
+                Grid.SetRow(line, i + 1); Grid.SetColumnSpan(line, 5);
+                table.Children.Add(line);
+                Cell(r.Number.ToString(), i + 1, 0);
+                Cell($"{axis} = {Fmt.Num(r.Position, 0)}", i + 1, 1);
+                Cell(Fmt.Num(r.Length, 0), i + 1, 2);
+                Cell(Fmt.Num(r.Height, 0), i + 1, 3);
+                var lines = r.Supports.Select(s => Lang.F($"{Fmt.Num(s.From - r.Start, 0)}–{Fmt.Num(s.To - r.Start, 0)}: Höhe {(Math.Abs(s.HeightFrom - s.HeightTo) < 0.5 ? Fmt.Num(s.Mid, 0) : $"{Fmt.Num(s.HeightFrom, 0)} → {Fmt.Num(s.HeightTo, 0)}")}"))
+                    .Concat(r.Cutouts.Select(c => Lang.F($"Ausschnitt {Fmt.Num(c.From - r.Start, 0)}–{Fmt.Num(c.To - r.Start, 0)}: {Fmt.Num(Math.Min(c.BottomFrom, c.BottomTo), 0)} bis {Fmt.Num(c.Top, 0)}")));
+                Cell(string.Join("\n", lines), i + 1, 4);
+            }
+            body.Children.Add(table);
+        }
+        var copy = Theme.Button(Lang.T("Kopieren"));
+        copy.Click += (_, _) => { try { Clipboard.SetText(f.ToText()); } catch (System.Runtime.InteropServices.COMException) { } };
+        var svg = Theme.Button(Lang.T("Als SVG speichern…"));
+        svg.Click += (_, _) => saveSvg();
+        var csv = Theme.Button(Lang.T("Als CSV speichern…"));
+        csv.Click += (_, _) => saveCsv();
+        svg.IsEnabled = csv.IsEnabled = f.Ribs.Count > 0;
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
+        close.IsCancel = true;
+        var w = Frame(owner, Lang.T("Spantenbau"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, copy, svg, csv, close);
+        w.Width = 820;
+        w.Height = 640;
         close.Click += (_, _) => w.Close();
         w.Show();
     }

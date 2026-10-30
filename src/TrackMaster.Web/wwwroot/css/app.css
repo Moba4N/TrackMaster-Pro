@@ -421,6 +421,7 @@ select.input { padding-right: 4px; }
 .accent { color: var(--accent-dark); }
 .mono { font-family: Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', monospace; font-size: .86em; }
 pre.mono { white-space: pre-wrap; margin: 0; padding: 10px; background: #FAFAFA; border: 1px solid var(--border); border-radius: var(--radius); user-select: text; }
+textarea.license-text { width: 100%; box-sizing: border-box; resize: vertical; min-height: 6em; word-break: break-all; user-select: text; }
 .selectable { user-select: all; }
 .section { font-weight: 600; color: var(--text-secondary); font-size: .86em; margin-top: 12px; }
 .title { font-weight: 600; font-size: 1.08em; }

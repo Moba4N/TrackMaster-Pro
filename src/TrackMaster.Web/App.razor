@@ -892,10 +892,16 @@
             <ul class="bullets">@foreach (var x in EditionInfo.Pro) { <li>@x</li> }</ul>
             <div class="section">@Lang.T("Gerätekennung (für gerätegebundene Lizenzen)")</div>
             <div class="mono strong selectable">@_license.MachineId</div>
-            @Hint(Lang.T("Eine Pro-Lizenz ist eine Datei „trackmaster.lic“. Sie gilt für Windows, Android und die Webversion und wird hier über „Lizenzdatei wählen“ eingespielt. ") +
+            <div class="section">@Lang.T("Lizenz einfügen")</div>
+            <textarea id="dlg-license" class="input mono license-text" rows="5" spellcheck="false" autocomplete="off"
+                      placeholder="@Lang.T("Inhalt der Lizenzdatei hier einfügen (Strg+V oder lange tippen > Einfügen)")"
+                      @bind='_d["lic"]' @bind:event="oninput"></textarea>
+            @Hint(Lang.T("Eine Pro-Lizenz ist eine Datei „trackmaster.lic“. Sie gilt für Windows, Android und die Webversion. Entweder über „Lizenzdatei wählen“ einspielen oder den Text der Datei oben einfügen und „Eingefügte Lizenz übernehmen“ tippen. ") +
                   Lang.T("Die Lizenz wird nur in diesem Browser gespeichert. Die Gerätekennung gehört zu diesem Browser; nach dem Löschen der Website-Daten entsteht eine neue."))
         </div>, wide: true);
+        _d["lic"] = "";
         if (_license.IsPro) d.Buttons.Add(new(Lang.T("Lizenz entfernen"), () => { RemoveLicense(); return false; }));
+        d.Buttons.Add(new(Lang.T("Eingefügte Lizenz übernehmen"), PasteLicense));
         d.Buttons.Add(new(Lang.T("Lizenzdatei wählen"), () => { _ = ChooseLicenseFile(); return true; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }

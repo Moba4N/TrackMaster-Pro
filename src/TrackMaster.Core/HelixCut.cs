@@ -5,7 +5,7 @@ namespace TrackMaster.Core;
 
 /// <summary>
 /// Zuschnitt der Wendeltrasse als Zeichnung: Ringsegmente, gerade Bretter (Oval) und Stoßlaschen in Originalgröße,
-/// auf Platten verteilt. Alle Maße in mm und vor dem Export änderbar; vorgeschlagen werden die Werte der Holzliste.
+/// jedes Teil als eigene SVG-Datei. Alle Maße in mm und vor dem Export änderbar; vorgeschlagen werden die Werte der Holzliste.
 /// </summary>
 public sealed record HelixCut(
     double InnerRadius, double OuterRadius, int SegmentsPerCircle, int Segments,
@@ -30,15 +30,11 @@ public sealed record HelixCut(
         return errors;
     }
 
-    private const double Gap = 10, Margin = 10;
+    private sealed record Piece(string Label, string Size, double W, double H, Func<Func<double, string>, string> Draw);
 
-    private sealed record Piece(string Label, string Size, double W, double H, Func<double, double, Func<double, string>, string> Draw);
-
-    public string ToSvg(string title)
+    /// <summary>Jedes Teil (Segment, gerades Brett, Stoßlasche) als eigene SVG-Datei in Originalgröße.</summary>
+    public IReadOnlyList<SvgFile> ToSvgFiles(string title)
     {
-        var inv = CultureInfo.InvariantCulture;
-        string N(double v) => Math.Round(v, 2).ToString(inv);
-        string Esc(string s) => System.Security.SecurityElement.Escape(s) ?? "";
         var pieces = new List<Piece>();
 
         // Ringsegment: Symmetrieachse senkrecht, Außenbogen oben; Mittelpunkt des Kreises unterhalb
@@ -46,9 +42,9 @@ public sealed record HelixCut(
         var half = a / 2;
         var segW = half >= Math.PI / 2 ? 2 * OuterRadius : 2 * OuterRadius * Math.Sin(half);
         var segH = OuterRadius - InnerRadius * Math.Cos(half);
-        string Sector(double x, double y, Func<double, string> n)
+        string Sector(Func<double, string> n)
         {
-            double cx = x + segW / 2, cy = y + OuterRadius;
+            double cx = segW / 2, cy = OuterRadius;
             (double X, double Y) P(double r, double ang) => (cx + r * Math.Sin(ang), cy - r * Math.Cos(ang));
             var large = a > Math.PI ? 1 : 0;
             var o1 = P(OuterRadius, -half); var o2 = P(OuterRadius, half);
@@ -64,84 +60,37 @@ public sealed record HelixCut(
             }
             return sb.ToString();
         }
-        string Rect(double x, double y, double w, double h, Func<double, string> n, IEnumerable<double>? marks = null)
+        string Rect(double w, double h, Func<double, string> n, IEnumerable<double>? marks = null)
         {
-            var sb = new StringBuilder($"<rect x=\"{n(x)}\" y=\"{n(y)}\" width=\"{n(w)}\" height=\"{n(h)}\" class=\"cut\"/>");
+            var sb = new StringBuilder($"<rect x=\"0\" y=\"0\" width=\"{n(w)}\" height=\"{n(h)}\" class=\"cut\"/>");
             foreach (var m in marks ?? [])
-                sb.Append($"<path d=\"M{n(x)} {n(y + m)}L{n(x + w)} {n(y + m)}\" class=\"mark\"/>");
+                sb.Append($"<path d=\"M0 {n(m)}L{n(w)} {n(m)}\" class=\"mark\"/>");
             return sb.ToString();
         }
 
+        var segSize = Lang.F($"R {Fmt.Num(InnerRadius, 0)}–{Fmt.Num(OuterRadius, 0)} · {Fmt.Num(SegmentAngle, 1)}°");
         for (var i = 0; i < Segments; i++)
-            pieces.Add(new(Lang.F($"S{i + 1}"), Lang.F($"R {Fmt.Num(InnerRadius, 0)}–{Fmt.Num(OuterRadius, 0)} · {Fmt.Num(SegmentAngle, 1)}°"), segW, segH, Sector));
+            pieces.Add(new($"S{i + 1}", segSize, segW, segH, Sector));
         var boardMarks = TrackRadii.Select(r => r - InnerRadius).Where(m => m > 0 && m < BoardWidth).ToList();
         for (var i = 0; i < Boards; i++)
-            pieces.Add(new(Lang.F($"G{i + 1}"), $"{Fmt.Num(BoardLength, 0)} × {Fmt.Num(BoardWidth, 0)}", BoardLength, BoardWidth, (x, y, n) => Rect(x, y, BoardLength, BoardWidth, n, boardMarks)));
+            pieces.Add(new($"G{i + 1}", $"{Fmt.Num(BoardLength, 0)} × {Fmt.Num(BoardWidth, 0)}", BoardLength, BoardWidth, n => Rect(BoardLength, BoardWidth, n, boardMarks)));
         for (var i = 0; i < Laschen; i++)
-            pieces.Add(new(Lang.F($"L{i + 1}"), $"{Fmt.Num(LascheLength, 0)} × {Fmt.Num(LascheWidth, 0)}", LascheLength, LascheWidth, (x, y, n) => Rect(x, y, LascheLength, LascheWidth, n)));
+            pieces.Add(new($"L{i + 1}", $"{Fmt.Num(LascheLength, 0)} × {Fmt.Num(LascheWidth, 0)}", LascheLength, LascheWidth, n => Rect(LascheLength, LascheWidth, n)));
 
-        // Auf Platten verteilen: Reihen (Regalverfahren), höchste Teile zuerst
-        var sheets = new List<List<(Piece P, double X, double Y)>>();
-        var oversize = 0;
-        double sw = Helix.SheetLength, sh = Helix.SheetWidth;
-        List<(Piece P, double X, double Y)>? sheet = null;
-        double rowX = 0, rowY = 0, rowH = 0;
-        foreach (var p in pieces.OrderByDescending(p => p.H).ThenByDescending(p => p.W))
+        var files = new List<SvgFile>();
+        foreach (var p in pieces)
         {
-            if (p.W > sw - 2 * Margin || p.H > sh - 2 * Margin)
-            {
-                oversize++;
-                sheets.Add([(p, Margin, Margin)]);
-                sheet = null;
-                continue;
-            }
-            if (sheet is null) { sheet = []; sheets.Add(sheet); rowX = Margin; rowY = Margin; rowH = 0; }
-            if (rowX + p.W > sw - Margin) { rowX = Margin; rowY += rowH + Gap; rowH = 0; }
-            if (rowY + p.H > sh - Margin) { sheet = []; sheets.Add(sheet); rowX = Margin; rowY = Margin; rowH = 0; }
-            sheet.Add((p, rowX, rowY));
-            rowX += p.W + Gap;
-            rowH = Math.Max(rowH, p.H);
+            var body = new StringBuilder(p.Draw(SvgFiles.N));
+            var size = Math.Clamp(Math.Min(p.W, p.H) / 5, 8, 40);
+            var tx = p.W / 2;
+            var ty = p.H * (p.Label.StartsWith('S') ? 0.42 : 0.5);
+            body.Append($"<text x=\"{SvgFiles.N(tx)}\" y=\"{SvgFiles.N(ty)}\" font-size=\"{SvgFiles.N(size)}\" class=\"label\">{SvgFiles.Esc(p.Label)}</text>");
+            body.Append($"<text x=\"{SvgFiles.N(tx)}\" y=\"{SvgFiles.N(ty + size * 0.9)}\" font-size=\"{SvgFiles.N(size * 0.45)}\" class=\"label\">{SvgFiles.Esc(p.Size)}</text>");
+            var kind = p.Label[0] switch { 'S' => Lang.T("Segment"), 'G' => Lang.T("Gerades Brett"), _ => Lang.T("Stoßlasche") };
+            var caption = Lang.F($"{title} · {kind} {p.Label} · {p.Size} · {Fmt.Num(Thickness, 0)} mm · Maßstab 1:1") + (p.Label[0] == 'S' && TrackRadii.Count > 0 ? Lang.T(" · gestrichelt: Gleismitte") : "");
+            var number = SvgFiles.Number(int.Parse(p.Label[1..], CultureInfo.InvariantCulture), Math.Max(Segments, Math.Max(Boards, Laschen)));
+            files.Add(new($"{Lang.T("Gleiswendel")} {p.Label[0]}{number}.svg", SvgFiles.Document($"{title} – {p.Label}", caption, p.W, p.H, body.ToString())));
         }
-
-        var body = new StringBuilder();
-        const double sheetGap = 120;
-        double y0 = 0, width = sw;
-        for (var s = 0; s < sheets.Count; s++)
-        {
-            var items = sheets[s];
-            double w = Math.Max(sw, items.Max(i => i.X + i.P.W) + Margin), h = Math.Max(sh, items.Max(i => i.Y + i.P.H) + Margin);
-            width = Math.Max(width, w);
-            body.Append($"<text x=\"0\" y=\"{N(y0 - 10)}\" class=\"head\">{Esc(Lang.F($"Platte {s + 1} von {sheets.Count} · {Fmt.Num(w, 0)} × {Fmt.Num(h, 0)} × {Fmt.Num(Thickness, 0)} mm"))}</text>");
-            body.Append($"<rect x=\"0\" y=\"{N(y0)}\" width=\"{N(w)}\" height=\"{N(h)}\" class=\"sheet\"/>");
-            foreach (var (p, x, y) in items)
-            {
-                body.Append(p.Draw(x, y0 + y, N));
-                var tx = x + p.W / 2;
-                var ty = y0 + y + p.H * (p.Label.StartsWith('S') ? 0.42 : 0.5);
-                var size = Math.Clamp(Math.Min(p.W, p.H) / 5, 8, 40);
-                body.Append($"<text x=\"{N(tx)}\" y=\"{N(ty)}\" font-size=\"{N(size)}\" class=\"label\">{Esc(p.Label)}</text>");
-                body.Append($"<text x=\"{N(tx)}\" y=\"{N(ty + size * 0.9)}\" font-size=\"{N(size * 0.45)}\" class=\"label\">{Esc(p.Size)}</text>");
-            }
-            y0 += h + sheetGap;
-        }
-        const double m = 40;
-        var height = Math.Max(y0 - sheetGap, 10);
-        var info = Lang.F($"Gleiswendel · Zuschnitt 1:1 · {Segments} Segmente {Fmt.Num(SegmentAngle, 1)}° (R {Fmt.Num(InnerRadius, 0)}–{Fmt.Num(OuterRadius, 0)} mm)")
-                   + (Boards > 0 ? Lang.F($" · {Boards} gerade Bretter") : "") + (Laschen > 0 ? Lang.F($" · {Laschen} Stoßlaschen") : "")
-                   + Lang.T(" · gestrichelt: Gleismitte") + (oversize > 0 ? Lang.F($" · {oversize} Teil(e) größer als die Platte") : "");
-        return $"""
-<svg xmlns="http://www.w3.org/2000/svg" width="{N(width + 2 * m)}mm" height="{N(height + 2 * m + 30)}mm" viewBox="{N(-m)} {N(-m - 30)} {N(width + 2 * m)} {N(height + 2 * m + 30)}">
-<title>{Esc(title)}</title>
-<style>
-.cut {"{"} fill: #F7E9D0; stroke: #000; stroke-width: 0.5; {"}"}
-.mark {"{"} fill: none; stroke: #C42B1C; stroke-width: 0.4; stroke-dasharray: 6 4; {"}"}
-.sheet {"{"} fill: none; stroke: #8FA67A; stroke-width: 1; stroke-dasharray: 12 6; {"}"}
-.head {"{"} font-family: 'Segoe UI', sans-serif; font-size: 18px; fill: #333; {"}"}
-.label {"{"} font-family: 'Segoe UI', sans-serif; fill: #1F4E79; text-anchor: middle; {"}"}
-</style>
-<text x="0" y="-36" class="head">{Esc(title)} · {Esc(info)}</text>
-{body}
-</svg>
-""";
+        return files;
     }
 }

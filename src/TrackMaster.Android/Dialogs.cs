@@ -679,7 +679,7 @@ public static partial class Dialogs
     public static void AskHelixCut(Context c, HelixCut cut, Action<HelixCut> save)
     {
         var body = Ui.Column(c, 6);
-        body.AddView(Hint(c, Lang.T("Die Teile werden in Originalgröße (1:1) auf Platten 2500 × 1250 mm verteilt. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe.")));
+        body.AddView(Hint(c, Lang.T("Jedes Teil wird als eigene SVG-Datei in Originalgröße (1:1) gespeichert, zusammen in einer ZIP-Datei. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe.")));
         var ri = Ui.Number(c, cut.InnerRadius, 1);
         var ro = Ui.Number(c, cut.OuterRadius, 1);
         var per = Ui.Number(c, cut.SegmentsPerCircle);
@@ -777,6 +777,44 @@ public static partial class Dialogs
         if (f.Ribs.Count > 0)
             body.AddView(Ui.Button(c, Lang.T("Als SVG speichern"), saveSvg));
         Show(c, Lang.T("Spantenbau"), body, Lang.T("Schließen"), cancelText: null, neutral: f.Ribs.Count > 0 ? (Lang.T("Als CSV speichern"), saveCsv) : null);
+    }
+
+    /// <summary>Maße der Trasse unter den markierten Gleisen; rechnet mit <paramref name="build"/> und zeigt das Ergebnis mit <paramref name="show"/>.</summary>
+    public static void AskRampCut(Context c, RampSpec def, int pieces, Func<RampSpec, (RampCut? Cut, string? Error)> build, Action<RampCut> show)
+    {
+        var body = Ui.Column(c, 6);
+        body.AddView(Hint(c, Lang.F($"Die Trasse folgt der Gleismitte der {pieces} markierten Gleise und wird in gleich lange Teile geteilt. Jedes Teil und jede Stoßlasche wird als eigene SVG-Datei in Originalgröße gespeichert; die Gleisstöße sind mit ihrer Höhe eingezeichnet.")));
+        var width = Ui.Number(c, def.Width);
+        var thick = Ui.Number(c, def.Thickness);
+        var max = Ui.Number(c, def.MaxPartLength);
+        var lasche = Ui.Number(c, def.LascheLength);
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Trassenbreite (mm)"), width), Ui.Field(c, Lang.T("Trassenstärke (mm)"), thick)));
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Größte Teillänge (mm)"), max), Ui.Field(c, Lang.T("Laschenlänge (mm, 0 = keine)"), lasche)));
+        var error = Error(c);
+        body.AddView(error);
+        Show(c, Lang.T("Trasse aus Auswahl"), body, Lang.T("Berechnen"), () =>
+        {
+            var errors = new List<string>();
+            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), 1, 50, errors, out var vt);
+            Read(max, Lang.T("Größte Teillänge"), 100, Helix.SheetLength, errors, out var vm);
+            Read(lasche, Lang.T("Laschenlänge"), 0, 1000, errors, out var vl);
+            SetError(error, errors);
+            if (errors.Count > 0) return false;
+            var (cut, problem) = build(new RampSpec(vw, vt, vm, vl));
+            if (cut is null) { SetError(error, [problem ?? ""]); return false; }
+            show(cut);
+            return true;
+        });
+    }
+
+    /// <summary>Teile der Trasse; als SVG-Dateien (ZIP) speichern.</summary>
+    public static void ShowRampCut(Context c, RampCut cut, Action saveSvg)
+    {
+        var body = Ui.Column(c, 6);
+        foreach (var line in cut.ToText().Split(Environment.NewLine))
+            body.AddView(Ui.Label(c, line, 12.5, color: line.StartsWith(Lang.T("Achtung")) ? Color.Rgb(0xC4, 0x2B, 0x1C) : null));
+        Show(c, Lang.T("Trasse aus Auswahl"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("SVG-Dateien speichern"), saveSvg));
     }
 
     public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)

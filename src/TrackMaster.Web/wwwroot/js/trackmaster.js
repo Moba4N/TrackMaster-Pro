@@ -361,6 +361,19 @@ export function storageRemove(key) {
     try { localStorage.removeItem(key); } catch { }
 }
 
+export function downloadBytes(fileName, mime, view) {
+    // MemoryView gilt nur während des Aufrufs: Inhalt kopieren
+    const blob = new Blob([view.slice()], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 export function download(fileName, mime, text) {
     // CSV mit BOM, damit Excel Umlaute richtig liest
     const content = mime === "text/csv" ? "﻿" + text : text;

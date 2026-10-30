@@ -43,6 +43,7 @@ public static class Icons
         ["Flex"] = "M3 17c4 0 4-10 9-10s5 10 9 10",
         ["Slope"] = "M3 19h18M3 19l18-10M17 19v-7",
         ["Frame"] = "M3 20h18M4 20v-4h4l2-3v-4h3v4l2 3h4v4M10 9h3",
+        ["Ramp"] = "M3 19L21 9v3L3 22zM3 19v3M7 17v3M12 14.5v3.5M17 11.5v3",
         ["Helix"] = "M4 7c0 2 16 2 16 0s-16-2-16 0M4 12c0 2 16 2 16 0M4 17c0 2 16 2 16 0M4 7v10M20 7v10",
         ["Board"] = "M3 7h18v10H3zM5 17v3M19 17v3",
         ["Terrain"] = "M2 20l6-9 4 5 3-4 7 8z",

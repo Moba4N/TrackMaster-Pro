@@ -209,6 +209,7 @@ public sealed class MainActivity : Activity
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
+        Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", Lang.T("Gelände formen"), () => SetTool(CanvasTool.Terrain));
         Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
@@ -335,7 +336,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false),
-                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), ("Tunnel", "tunnel", false)]),
+                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
         (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
@@ -663,7 +664,7 @@ public sealed class MainActivity : Activity
             // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
-                    cut => Export(cut.ToSvg(Lang.F($"{SafeName} – Zuschnitt Gleiswendel")), "image/svg+xml", Lang.F($"{SafeName} – Zuschnitt Gleiswendel.svg")));
+                    cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
         });
     }
 
@@ -671,9 +672,19 @@ public sealed class MainActivity : Activity
     {
         var f = FrameBuild.Build(_session.Plan, spec);
         Dialogs.ShowFrame(this, f,
-            () => Export(f.ToSvg(_session.Plan, Lang.F($"{SafeName} – Spanten")), "image/svg+xml", Lang.F($"{SafeName} – Spanten.svg")),
+            () => ExportSvgFiles(f.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Spanten")),
             () => Export(f.ToCsv(), "text/csv", Lang.F($"{SafeName} – Spanten.csv")));
     });
+
+    private void AskRampCut()
+    {
+        var ids = _session.Selection.ToHashSet();
+        Dialogs.AskRampCut(this, RampTrasse.Defaults(_session.Plan.Gauge), ids.Count, spec => RampTrasse.Build(_session.Plan, ids, spec),
+            cut => Dialogs.ShowRampCut(this, cut, () => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Trasse"))));
+    }
+
+    /// <summary>Speichert Zuschnitte als ZIP mit je einer SVG-Datei pro Teil.</summary>
+    private void ExportSvgFiles(IReadOnlyList<SvgFile> files, string name) => Export(SvgFiles.Zip(files), "application/zip", SvgFiles.FileName(name) + ".zip");
 
     private void ShowWiring()
     {

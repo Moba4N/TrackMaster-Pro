@@ -392,7 +392,7 @@ public static partial class Dialogs
         var laschen = NumberBox(cut.Laschen, 0);
         var error = ErrorText();
         var body = new StackPanel();
-        body.Children.Add(Hint(Lang.T("Die Teile werden in Originalgröße (1:1) auf Platten 2500 × 1250 mm verteilt. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe.")));
+        body.Children.Add(Hint(Lang.T("Jedes Teil wird als eigene SVG-Datei in Originalgröße (1:1) gespeichert, zusammen in einer ZIP-Datei. Gestrichelt ist die Gleismitte eingezeichnet. Maße in mm, ohne Sägezugabe.")));
         body.Children.Add(Theme.Label(Lang.T("Trassensegmente"), 13, true));
         body.Children.Add(Columns(Theme.Field(Lang.T("Innenradius"), ri), Theme.Field(Lang.T("Außenradius"), ro)));
         body.Children.Add(Columns(Theme.Field(Lang.T("Segmente je Kreis"), per), Theme.Field(Lang.T("Anzahl"), segs)));
@@ -523,6 +523,60 @@ public static partial class Dialogs
         var w = Frame(owner, Lang.T("Spantenbau"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, copy, svg, csv, close);
         w.Width = 820;
         w.Height = 640;
+        close.Click += (_, _) => w.Close();
+        w.Show();
+    }
+
+    /// <summary>Maße der Trasse unter den markierten Gleisen; rechnet mit <paramref name="build"/> und liefert das Ergebnis oder null.</summary>
+    public static RampCut? AskRampCut(Window owner, RampSpec def, int pieces, Func<RampSpec, (RampCut? Cut, string? Error)> build)
+    {
+        var width = NumberBox(def.Width, 0);
+        var thick = NumberBox(def.Thickness, 0);
+        var max = NumberBox(def.MaxPartLength, 0);
+        var lasche = NumberBox(def.LascheLength, 0);
+        var error = ErrorText();
+        var body = new StackPanel();
+        body.Children.Add(Hint(Lang.F($"Die Trasse folgt der Gleismitte der {pieces} markierten Gleise und wird in gleich lange Teile geteilt. Jedes Teil und jede Stoßlasche wird als eigene SVG-Datei in Originalgröße gespeichert; die Gleisstöße sind mit ihrer Höhe eingezeichnet.")));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Trassenbreite (mm)"), width), Theme.Field(Lang.T("Trassenstärke (mm)"), thick)));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Größte Teillänge (mm)"), max), Theme.Field(Lang.T("Laschenlänge (mm, 0 = keine)"), lasche)));
+        body.Children.Add(error);
+        var ok = Theme.Button(Lang.T("Berechnen"), "Ramp", accent: true);
+        ok.IsDefault = true;
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
+        cancel.IsCancel = true;
+        var w = Small(owner, Lang.T("Trasse aus Auswahl"), body, 540, 400, cancel, ok);
+        RampCut? result = null;
+        ok.Click += (_, _) =>
+        {
+            var errors = new List<string>();
+            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), 1, 50, errors, out var vt);
+            Read(max, Lang.T("Größte Teillänge"), 100, Helix.SheetLength, errors, out var vm);
+            Read(lasche, Lang.T("Laschenlänge"), 0, 1000, errors, out var vl);
+            if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
+            var (cut, problem) = build(new RampSpec(vw, vt, vm, vl));
+            if (cut is null) { error.Text = problem ?? ""; return; }
+            result = cut;
+            w.Close();
+        };
+        w.ShowDialog();
+        return result;
+    }
+
+    /// <summary>Teile der Trasse; als SVG-Dateien (ZIP) speichern oder kopieren.</summary>
+    public static void ShowRampCut(Window owner, RampCut cut, Action saveSvg)
+    {
+        var text = cut.ToText();
+        var body = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, BorderThickness = new Thickness(0), FontFamily = new FontFamily("Consolas") };
+        var copy = Theme.Button(Lang.T("Kopieren"));
+        copy.Click += (_, _) => { try { Clipboard.SetText(text); } catch (System.Runtime.InteropServices.COMException) { } };
+        var svg = Theme.Button(Lang.T("SVG-Dateien speichern…"));
+        svg.Click += (_, _) => saveSvg();
+        var close = Theme.Button(Lang.T("Schließen"), accent: true);
+        close.IsCancel = true;
+        var w = Frame(owner, Lang.T("Trasse aus Auswahl"), body, copy, svg, close);
+        w.Width = 760;
+        w.Height = 560;
         close.Click += (_, _) => w.Close();
         w.Show();
     }

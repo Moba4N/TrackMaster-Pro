@@ -148,6 +148,7 @@ public sealed class MainWindow : Window
         Add("gradient", AskGradient, HasSelection);
         Add("helix", AskHelix);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
+        Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", () => SetTool(CanvasTool.Terrain));
         Add("toolWater", () => SetTool(CanvasTool.Water));
@@ -534,6 +535,7 @@ public sealed class MainWindow : Window
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
                 Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
+                Large(Lang.T("Trasse…"), "Ramp", "rampCut", Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")),
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
 
         Ribbon.Items.Add(Tab(Lang.T("Gelände"),
@@ -1012,7 +1014,7 @@ public sealed class MainWindow : Window
             // Die Holzliste gehört wie die Gleis-Stückliste zur Pro-Version
             if (Session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv),
-                    cut => ExportTo(Lang.T("Zuschnitt speichern"), Lang.T("SVG-Grafik (*.svg)|*.svg"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel.svg"), cut.ToSvg(Lang.F($"{SafeName} – Zuschnitt Gleiswendel"))));
+                    cut => ExportSvgFiles(Lang.T("Zuschnitt speichern"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel"), cut.ToSvgFiles(SafeName)));
         }
     }
 
@@ -1021,8 +1023,31 @@ public sealed class MainWindow : Window
         if (Dialogs.AskFrame(this, Session.Plan.Gauge) is not { } spec) return;
         var f = FrameBuild.Build(Session.Plan, spec);
         Dialogs.ShowFrame(this, f,
-            () => ExportTo(Lang.T("Spanten als SVG speichern"), Lang.T("SVG-Grafik (*.svg)|*.svg"), Lang.F($"{SafeName} – Spanten.svg"), f.ToSvg(Session.Plan, Lang.F($"{SafeName} – Spanten"))),
+            () => ExportSvgFiles(Lang.T("Spanten als SVG speichern"), Lang.F($"{SafeName} – Spanten"), f.ToSvgFiles(SafeName)),
             () => ExportTo(Lang.T("Spanten als CSV speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Spanten.csv"), f.ToCsv()));
+    }
+
+    private void AskRampCut()
+    {
+        var ids = Session.Selection.ToHashSet();
+        if (Dialogs.AskRampCut(this, RampTrasse.Defaults(Session.Plan.Gauge), ids.Count, spec => RampTrasse.Build(Session.Plan, ids, spec)) is not { } cut) return;
+        Dialogs.ShowRampCut(this, cut, () => ExportSvgFiles(Lang.T("Trasse als SVG speichern"), Lang.F($"{SafeName} – Trasse"), cut.ToSvgFiles(SafeName)));
+    }
+
+    /// <summary>Speichert Zuschnitte als ZIP mit je einer SVG-Datei pro Teil.</summary>
+    private void ExportSvgFiles(string title, string name, IReadOnlyList<SvgFile> files)
+    {
+        var dlg = new SaveFileDialog { Filter = Lang.T("ZIP-Archiv mit SVG-Dateien (*.zip)|*.zip"), Title = title, FileName = SvgFiles.FileName(name) + ".zip" };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            File.WriteAllBytes(dlg.FileName, SvgFiles.Zip(files));
+            ShowMessage(Lang.F($"Gespeichert: {Path.GetFileName(dlg.FileName)} ({files.Count} SVG-Dateien)"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void ShowWiring()

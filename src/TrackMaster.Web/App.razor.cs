@@ -258,6 +258,7 @@ public partial class App : ComponentBase, IAppHost
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
+        Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", Lang.T("Gelände formen"), () => SetTool(CanvasTool.Terrain));
         Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
@@ -470,6 +471,14 @@ public partial class App : ComponentBase, IAppHost
     {
         Js.Download(fileName, mime, content);
         ShowToast(Lang.F($"Gespeichert: {fileName}"));
+    }
+
+    /// <summary>Speichert Zuschnitte als ZIP mit je einer SVG-Datei pro Teil.</summary>
+    private void ExportSvgFiles(IReadOnlyList<SvgFile> files, string name)
+    {
+        var fileName = SvgFiles.FileName(name) + ".zip";
+        Js.DownloadBytes(fileName, "application/zip", SvgFiles.Zip(files));
+        ShowToast(Lang.F($"Gespeichert: {fileName} ({files.Count} SVG-Dateien)"));
     }
 
     // ---------- Prüfen ----------

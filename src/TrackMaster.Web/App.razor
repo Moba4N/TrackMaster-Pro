@@ -103,6 +103,7 @@
             <span class="st-item">@Lang.F($"{selected} gewählt")</span>
         }
         <span class="st-spacer"></span>
+        <button class="st-toggle on" title="@Lang.T("Ebenen ein- und ausblenden")" @onclick="@(() => Run("levels"))">@((MarkupString)Icons.Svg("Layers", 14)) @plan.Level(plan.ActiveLevel).Name@(plan.Levels.Count > 1 ? $" ({plan.Levels.Count(l => l.Visible)}/{plan.Levels.Count})" : "")</button>
         <span class="st-item hide-narrow" id="status-xy"></span>
         <span class="st-item hide-narrow">@_zoomText</span>
         <button class="st-toggle @(_session.SnapEnabled ? "on" : "")" title="@Lang.T("Gleise rasten an freien Enden ein")" @onclick="@(() => Run("snap"))">@Lang.T("Einrasten")</button>
@@ -205,6 +206,7 @@
                 new(Lang.T("Prellbock"), "Buffer", "buffer", false), new(Lang.T("Kreuzung"), "Crossing", "crossing", false), new(Lang.T("Flexgleis…"), "Flex", "flex", false)]),
             new(Lang.T("Flexgleis"), [new(Lang.T("Flexgleis ziehen"), "Flex", "toolFlex", true, Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit.")),
                 new(Lang.T("Lücke schließen"), "Connector", "flexConnect", true, Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))]),
+            new(Lang.T("Ebenen"), [new(Lang.T("Ebenen…"), "Layers", "levels", true, Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))]),
             new(Lang.T("Höhe"), [new(Lang.T("Steigung…"), "Slope", "gradient", true, Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
                 new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
@@ -231,7 +233,8 @@
         [
             new(Lang.T("Zoom"), [new(Lang.T("Ganze Anlage"), "Fit", "fit", true, Lang.T("Taste 0")), new(Lang.T("Vergrößern"), "ZoomIn", "zoomIn", false, "+"), new(Lang.T("Verkleinern"), "ZoomOut", "zoomOut", false, "-")]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Raster"), "Grid", "grid", false), new(Lang.T("Gleisenden"), "Connector", "ends", false), new(Lang.T("Artikelnummern"), "Hash", "labels", false),
-                new(Lang.T("Höhen"), "Slope", "heights", false), new(Lang.T("Gelände"), "Terrain", "scenery", false), new(Lang.T("Einrasten"), "Magnet", "snap", false)]),
+                new(Lang.T("Höhen"), "Slope", "heights", false), new(Lang.T("Gelände"), "Terrain", "scenery", false), new(Lang.T("Einrasten"), "Magnet", "snap", false),
+                new(Lang.T("Ebenen…"), "Layers", "levels", false)]),
             new(Lang.T("Drehen"), [new(Lang.T("Ansicht drehen…"), "ViewRotate", "viewAngle", true, Lang.T("Die Ansicht frei drehen – der Plan bleibt unverändert. Auch mit Strg + Mausrad.")),
                 new(Lang.T("15° links"), "RotateLeft", "viewRotL", false), new(Lang.T("15° rechts"), "RotateRight", "viewRotR", false), new(Lang.T("Gerade ausrichten"), "North", "viewReset", false)]),
             new(Lang.T("Darstellung"), [new(Lang.T("Design und Schrift"), "Palette", "appearance", true, Lang.T("Farbschema, Schriftart und Schriftgröße wählen."))]),
@@ -488,6 +491,89 @@
             _view.Fit();
             return true;
         }, true));
+    }
+
+    // ---------- Ebenen ----------
+
+    private sealed class LevelRow
+    {
+        public int Index { get; init; } = -1;
+        public string Name { get; set; } = "";
+        public string H { get; set; } = "";
+        public bool Visible { get; set; } = true;
+    }
+
+    private List<LevelRow> _levels = [];
+    private int _activeLevel;
+
+    private void AskLevels()
+    {
+        var plan = _session.Plan;
+        _levels = plan.Levels.Select((l, i) => new LevelRow { Index = i, Name = l.Name, H = N(l.Height), Visible = l.Visible }).ToList();
+        _activeLevel = plan.ActiveLevel;
+        var selected = _session.Selection.Count + (_session.SelectedObject is null ? 0 : 1);
+        var d = Show(Lang.T("Ebenen"), @<div class="form">
+            @Hint(Lang.T("Neue Gleise kommen auf die aktive Ebene und beginnen in ihrer Grundhöhe. Ausgeblendete Ebenen fehlen in Plan und 3D-Ansicht, bleiben aber in Stückliste und Planprüfung. Ändert sich die Grundhöhe, wandern die Gleise der Ebene mit."))
+            <table class="table modules">
+                <tr><th title="@Lang.T("Aktive Ebene")">@Lang.T("Aktiv")</th><th title="@Lang.T("Sichtbar")">👁</th><th>@Lang.T("Name")</th><th>@Lang.T("Grundhöhe")</th><th></th><th></th></tr>
+                @for (var i = 0; i < _levels.Count; i++)
+                {
+                    var k = i;
+                    var row = _levels[k];
+                    <tr>
+                        <td><input type="radio" name="activeLevel" checked="@(_activeLevel == k)" @onchange="@(() => { _activeLevel = k; row.Visible = true; })" /></td>
+                        <td><input type="checkbox" title="@Lang.T("Sichtbar")" @bind="row.Visible" /></td>
+                        <td><input class="input" @bind="row.Name" /></td>
+                        <td><input class="input" inputmode="decimal" @bind="row.H" /></td>
+                        <td><button class="btn" title="@Lang.T("Nur diese Ebene zeigen")" @onclick="@(() => { foreach (var r in _levels) r.Visible = r == row; _activeLevel = k; })">@Lang.T("Nur diese")</button></td>
+                        <td><button class="btn" title="@Lang.T("Ebene entfernen – ihre Gleise kommen auf die Ebene darunter")" disabled="@(_levels.Count < 2)" @onclick="@(() => RemoveLevelRow(k))">✕</button></td>
+                    </tr>
+                }
+            </table>
+            <div class="button-row">
+                <button class="btn" disabled="@(_levels.Count >= LayoutPlan.MaxLevels)" @onclick="AddLevelRow">@Lang.T("Ebene hinzufügen")</button>
+                <button class="btn" @onclick="@(() => { foreach (var r in _levels) r.Visible = true; })">@Lang.T("Alle zeigen")</button>
+                <button class="btn" disabled="@(selected == 0)" title="@Lang.T("Gewählte Gleise bzw. das gewählte Objekt auf die aktive Ebene legen")" @onclick="MoveSelectionToActiveLevel">@Lang.F($"Gewählte ({selected}) auf aktive Ebene")</button>
+            </div>
+        </div>, wide: true, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () => ApplyLevelRows(), true));
+    }
+
+    private void AddLevelRow()
+    {
+        if (_levels.Count >= LayoutPlan.MaxLevels) return;
+        var top = _levels.Select(r => Fmt.Parse(r.H) ?? 0).DefaultIfEmpty(0).Max();
+        _levels.Add(new LevelRow { Name = PlanLevel.DefaultName(_levels.Count), H = N(top + _session.Plan.LevelStep) });
+        _activeLevel = _levels.Count - 1;
+    }
+
+    private void RemoveLevelRow(int k)
+    {
+        if (_levels.Count < 2) return;
+        _levels.RemoveAt(k);
+        if (_activeLevel >= k) _activeLevel = Math.Max(0, _activeLevel - 1);
+    }
+
+    private bool ApplyLevelRows()
+    {
+        var errors = new List<string>();
+        var edits = new List<LevelEdit>();
+        foreach (var (r, i) in _levels.Select((r, i) => (r, i)))
+        {
+            if (Fmt.Parse(r.H) is not { } h || h < -1000 || h > 5000) { errors.Add(Lang.F($"Ebene {i + 1}: Grundhöhe zwischen −1000 und 5000 mm.")); continue; }
+            edits.Add(new LevelEdit(r.Index, r.Name, h, r.Visible || i == _activeLevel));
+        }
+        if (!Fail(errors)) return false;
+        _session.ApplyLevels(edits, _activeLevel);
+        return true;
+    }
+
+    private void MoveSelectionToActiveLevel()
+    {
+        if (!ApplyLevelRows()) return;
+        CloseDialog();
+        _session.MoveSelectionToLevel(_session.Plan.ActiveLevel);
     }
 
     // ---------- Schenkel einzeln ----------

@@ -110,7 +110,7 @@ public sealed class PlanView : View
     public void Fit()
     {
         if (Width <= 0) return;
-        var (x0, y0, x1, y1) = _session.Plan.Bounds();
+        var (x0, y0, x1, y1) = _session.View.Bounds();
         var pad = Ui.Dp(36);
         // Ausdehnung der gedrehten Begrenzung
         var (c, s) = Turn();
@@ -196,14 +196,14 @@ public sealed class PlanView : View
     private PlanPainter Painter()
     {
         if (_painter is not null) return _painter;
-        _gauge = (float)_session.Plan.Gauge.TrackWidth;
-        return _painter = new PlanPainter(_session.Plan, _session.Selection, _session.ShowSections);
+        _gauge = (float)_session.View.Gauge.TrackWidth;
+        return _painter = new PlanPainter(_session.View, _session.Selection, _session.ShowSections);
     }
 
     protected override void OnDraw(Canvas canvas)
     {
         base.OnDraw(canvas);
-        var plan = _session.Plan;
+        var plan = _session.View;
         var painter = Painter();
         canvas.DrawColor(Ui.CanvasBack);
         canvas.Save();
@@ -286,7 +286,7 @@ public sealed class PlanView : View
         var z = _zoom;
         if (_session.Tool == CanvasTool.Board)
         {
-            var plan = _session.Plan;
+            var plan = _session.View;
             if (plan.BoardShape == BoardShape.Module)
                 foreach (var m in plan.Modules)
                     c.DrawRect((float)m.X, (float)m.Y, (float)(m.X + m.Width), (float)(m.Y + m.Depth), Stroke(Ui.Accent, 2 * Ui.Density / z));
@@ -466,7 +466,7 @@ public sealed class PlanView : View
         var active = _session.ActiveConnector;
         var tool = _session.Tool;
         var d = Ui.Density;
-        foreach (var cn in _session.Connections.All)
+        foreach (var cn in _session.VisibleConnectors())
         {
             var s = ToScreen(cn.Pose.X, cn.Pose.Y);
             if (!cn.IsOpen)
@@ -518,7 +518,7 @@ public sealed class PlanView : View
     {
         ConnectorRef? best = null;
         var bestD = radiusDp * Ui.Density;
-        foreach (var c in openOnly ? _session.Connections.Open : _session.Connections.All)
+        foreach (var c in _session.VisibleConnectors(openOnly))
         {
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             var d = (float)Math.Sqrt((s.X - sx) * (s.X - sx) + (s.Y - sy) * (s.Y - sy));
@@ -532,9 +532,9 @@ public sealed class PlanView : View
     {
         ConnectorRef? best = null;
         var bestD = 22 * Ui.Density;
-        foreach (var c in _session.Connections.All)
+        foreach (var c in _session.VisibleConnectors())
         {
-            if (_session.Plan.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
+            if (_session.View.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             var d = (float)Math.Sqrt((s.X - sx) * (s.X - sx) + (s.Y - sy) * (s.Y - sy));
             if (d < bestD) { bestD = d; best = c; }
@@ -556,18 +556,18 @@ public sealed class PlanView : View
         var tol = Math.Max(_gauge * 1.4, 16 * Ui.Density / _zoom);
         PlacedPiece? best = null;
         var bestD = tol;
-        foreach (var p in _session.Plan.Pieces)
+        foreach (var p in _session.View.Pieces)
             foreach (var l in p.WorldLegs())
             {
                 var d = l.DistanceTo(world.X, world.Y);
                 if (d < bestD - 0.01 || (Math.Abs(d - bestD) < 0.01 && best is not null && p.Height > best.Height)) { bestD = d; best = p; }
             }
-        return best ?? TableShape.Hit(_session.Plan, world.X, world.Y);
+        return best ?? TableShape.Hit(_session.View, world.X, world.Y);
     }
 
     private int? HitSmallObject(float sx, float sy, (double X, double Y) world)
     {
-        var plan = _session.Plan;
+        var plan = _session.View;
         int? best = null;
         double bestD = 20 * Ui.Density;
         void Try(int id, double x, double y)
@@ -601,7 +601,7 @@ public sealed class PlanView : View
 
     private int? HitArea((double X, double Y) world)
         => _session.ShowScenery
-            ? _session.Plan.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
+            ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
             : null;
 
     // ---------- Touch ----------
@@ -778,7 +778,7 @@ public sealed class PlanView : View
                 if (_moved)
                 {
                     var rect = new RectF(Math.Min(_downX, x), Math.Min(_downY, y), Math.Max(_downX, x), Math.Max(_downY, y));
-                    var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); var sp = ToScreen(m.X, m.Y); return rect.Contains(sp.X, sp.Y); }).Select(p => p.Id).ToList();
+                    var ids = _session.View.Pieces.Where(p => { var m = p.Middle(); var sp = ToScreen(m.X, m.Y); return rect.Contains(sp.X, sp.Y); }).Select(p => p.Id).ToList();
                     _session.Select(ids, add: true);
                     _session.Say(Lang.F($"{_session.Selection.Count} Gleise gewählt."));
                 }
@@ -837,14 +837,14 @@ public sealed class PlanView : View
                 LabelRequested?.Invoke(Math.Round(world.X), Math.Round(world.Y));
                 return;
             case CanvasTool.Dimension:
-                var snap = Annotation.Snap(_session.Plan, world.X, world.Y, Ui.Dp(22) / _zoom);
+                var snap = Annotation.Snap(_session.View, world.X, world.Y, Ui.Dp(22) / _zoom);
                 if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt antippen (Gleisenden und Plattenecken rasten ein).")); }
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
                 Invalidate();
                 return;
             case CanvasTool.Feeder:
                 // Tippen auf eine vorhandene Einspeisung entfernt sie wieder
-                if (HitSmallObject(x, y, world) is { } fo && _session.Plan.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
+                if (HitSmallObject(x, y, world) is { } fo && _session.View.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
                 else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis tippen."));
                 return;
@@ -854,7 +854,7 @@ public sealed class PlanView : View
                 return;
             case CanvasTool.Signal:
                 // Tippen auf ein vorhandenes Signal entfernt es wieder
-                if (HitSmallObject(x, y, world) is { } so && _session.Plan.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
+                if (HitSmallObject(x, y, world) is { } so && _session.View.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
                 else if (HitConnector(x, y, openOnly: false, radiusDp: 26) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
                 else _session.Say(Lang.T("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung tippen."));
                 return;

@@ -41,6 +41,24 @@ public sealed class PlanSession
 
     public PlanSession() => Connections = Connectivity.Analyze(Plan);
 
+    private LayoutPlan? _view;
+    private (LayoutPlan Plan, int Pieces, int Scenery, int Objects)? _viewKey;
+
+    /// <summary>
+    /// Was die Zeichenfläche zeigt und antippen lässt: der Plan ohne ausgeblendete Ebenen (dieselben Objekte).
+    /// Änderungen gehen immer an <see cref="Plan"/>.
+    /// </summary>
+    public LayoutPlan View
+    {
+        get
+        {
+            if (Plan.AllLevelsVisible) return Plan;
+            var key = (Plan, Plan.Pieces.Count, Plan.Scenery.Count, Plan.Feeders.Count + Plan.Isolations.Count + Plan.Signals.Count);
+            if (_view is null || _viewKey != key) { _view = Plan.VisibleView(); _viewKey = key; }
+            return _view;
+        }
+    }
+
     public TrackSystem CurrentSystem
     {
         get
@@ -48,6 +66,15 @@ public sealed class PlanSession
             var g = Plan.Gauge;
             return g.Systems.FirstOrDefault(s => SystemByGauge.TryGetValue(g.Id, out var id) && s.Id == id) ?? g.Systems[0];
         }
+    }
+
+    /// <summary>Gleisenden der sichtbaren Ebenen (Zeichenfläche: Antippen und Einrasten).</summary>
+    public IEnumerable<ConnectorRef> VisibleConnectors(bool openOnly = false)
+    {
+        var all = openOnly ? Connections.Open : Connections.All;
+        if (Plan.AllLevelsVisible) return all;
+        var plan = Plan;
+        return all.Where(c => plan.Find(c.PieceId) is { } p && plan.LevelVisible(p.Level));
     }
 
     public ConnectorRef? ActiveConnector => Active is { } a && Connections.Find(a.PieceId, a.Index) is { IsOpen: true } c ? c : null;
@@ -70,6 +97,7 @@ public sealed class PlanSession
     /// <summary>Nach einer Änderung: Verbindungen neu bestimmen und alle Ansichten aktualisieren.</summary>
     public void Commit()
     {
+        _view = null;
         Connections = Connectivity.Analyze(Plan);
         Selection.RemoveWhere(id => Plan.Find(id) is null);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
@@ -331,6 +359,7 @@ public sealed class PlanSession
             var q = p.Clone();
             q.Id = Plan.NextId++;
             q.X += dx; q.Y += dy;
+            q.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
             map[p.Id] = q.Id;
             Plan.Pieces.Add(q);
             Selection.Add(q.Id);
@@ -349,6 +378,7 @@ public sealed class PlanSession
             var item = s.Clone();
             item.Id = Plan.NextId++;
             item.MoveBy(dx, dy);
+            item.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
             Plan.Scenery.Add(item);
             pastedObject = item.Id;
         }
@@ -458,6 +488,7 @@ public sealed class PlanSession
     public void Undo(int steps)
     {
         if (History.Undo(Plan, steps) is not { } plan) return;
+        KeepVisibility(plan);
         Plan = plan;
         Dirty = true;
         Commit();
@@ -469,6 +500,7 @@ public sealed class PlanSession
     public void Redo(int steps)
     {
         if (History.Redo(Plan, steps) is not { } plan) return;
+        KeepVisibility(plan);
         Plan = plan;
         Dirty = true;
         Commit();
@@ -478,8 +510,123 @@ public sealed class PlanSession
     {
         SelectedObject = null;
         Selection.Clear();
-        foreach (var p in Plan.Pieces) Selection.Add(p.Id);
+        foreach (var p in View.Pieces) Selection.Add(p.Id);
         Changed?.Invoke();
+    }
+
+    // ---------- Ebenen ----------
+
+    /// <summary>Ein- und Ausblenden ist keine Planänderung: Rückgängig lässt die Sichtbarkeit, wie sie ist.</summary>
+    private void KeepVisibility(LayoutPlan restored)
+    {
+        for (var i = 0; i < restored.Levels.Count && i < Plan.Levels.Count; i++) restored.Levels[i].Visible = Plan.Levels[i].Visible;
+        restored.ActiveLevel = Math.Clamp(Plan.ActiveLevel, 0, restored.Levels.Count - 1);
+    }
+
+    /// <summary>Ebene ein- oder ausblenden. Gewählte Gleise einer ausgeblendeten Ebene werden abgewählt.</summary>
+    public void SetLevelVisible(int index, bool visible)
+    {
+        if (index < 0 || index >= Plan.Levels.Count || Plan.Levels[index].Visible == visible) return;
+        Plan.Levels[index].Visible = visible;
+        Dirty = true;
+        DropHidden();
+        Commit();
+        Say(visible ? Lang.F($"{Plan.Levels[index].Name} eingeblendet.") : Lang.F($"{Plan.Levels[index].Name} ausgeblendet."));
+    }
+
+    /// <summary>Nur eine Ebene zeigen (oder mit <paramref name="index"/> = −1 alle).</summary>
+    public void ShowOnlyLevel(int index)
+    {
+        for (var i = 0; i < Plan.Levels.Count; i++) Plan.Levels[i].Visible = index < 0 || i == index;
+        if (index >= 0 && index < Plan.Levels.Count) Plan.ActiveLevel = index;
+        Dirty = true;
+        DropHidden();
+        Commit();
+    }
+
+    public void SetActiveLevel(int index)
+    {
+        if (index < 0 || index >= Plan.Levels.Count) return;
+        Plan.ActiveLevel = index;
+        if (!Plan.Levels[index].Visible) Plan.Levels[index].Visible = true;
+        Dirty = true;
+        Commit();
+        Say(Lang.F($"Neue Gleise kommen auf {Plan.Levels[index].Name} ({Fmt.Num(Plan.Levels[index].Height, 0)} mm)."));
+    }
+
+    private void DropHidden()
+    {
+        Selection.RemoveWhere(id => Plan.Find(id) is { } p && !Plan.LevelVisible(p.Level));
+        if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item && !Plan.LevelVisible(item.Level)) SelectedObject = null;
+        if (Active is { } a && Plan.Find(a.PieceId) is { } ap && !Plan.LevelVisible(ap.Level)) Active = null;
+    }
+
+    /// <summary>
+    /// Übernimmt die Ebenen aus dem Dialog. <see cref="LevelEdit.Index"/> ist die bisherige Ebene (−1 = neu).
+    /// Ändert sich die Höhe einer Ebene, wandern ihre Gleise mit. Gleise und Objekte einer entfernten Ebene kommen auf die Ebene darunter.
+    /// </summary>
+    public void ApplyLevels(IReadOnlyList<LevelEdit> edits, int active)
+    {
+        if (edits.Count == 0) return;
+        edits = edits.Take(LayoutPlan.MaxLevels).ToList();
+        var structural = edits.Count != Plan.Levels.Count || edits.Select((e, i) => (e, i)).Any(t =>
+            t.e.Index != t.i || t.e.Name != Plan.Levels[t.i].Name || Math.Abs(t.e.Height - Plan.Levels[t.i].Height) > 1e-6);
+        if (structural) Record();
+        // Neue Nummer jeder bisherigen Ebene; entfernte Ebenen gehen auf die nächste erhaltene darunter
+        var map = new int[Plan.Levels.Count];
+        for (var old = 0; old < map.Length; old++)
+        {
+            var target = -1;
+            for (var o = old; o >= 0 && target < 0; o--) target = edits.ToList().FindIndex(e => e.Index == o);
+            map[old] = target < 0 ? 0 : target;
+        }
+        var heightShift = new double[map.Length];
+        for (var old = 0; old < map.Length; old++)
+            heightShift[old] = edits.ToList().FindIndex(e => e.Index == old) is var k and >= 0 ? edits[k].Height - Plan.Levels[old].Height
+                : edits[map[old]].Height - Plan.Levels[old].Height;
+        foreach (var p in Plan.Pieces)
+        {
+            var old = Math.Clamp(p.Level, 0, map.Length - 1);
+            p.Height += heightShift[old];
+            p.Level = map[old];
+        }
+        foreach (var s in Plan.Scenery) s.Level = map[Math.Clamp(s.Level, 0, map.Length - 1)];
+        Plan.Levels.Clear();
+        for (var i = 0; i < edits.Count; i++)
+            Plan.Levels.Add(new PlanLevel
+            {
+                Name = string.IsNullOrWhiteSpace(edits[i].Name) ? PlanLevel.DefaultName(i) : edits[i].Name.Trim(),
+                Height = edits[i].Height, Visible = edits[i].Visible,
+            });
+        Plan.ActiveLevel = Math.Clamp(active, 0, Plan.Levels.Count - 1);
+        Plan.Levels[Plan.ActiveLevel].Visible = true;
+        Dirty = true;
+        DropHidden();
+        Commit();
+        var hidden = Plan.Levels.Count(l => !l.Visible);
+        Say(hidden == 0
+            ? Lang.F($"{Plan.Levels.Count} Ebenen, alle sichtbar. Neue Gleise kommen auf {Plan.Levels[Plan.ActiveLevel].Name}.")
+            : Lang.F($"{Plan.Levels.Count} Ebenen, {hidden} ausgeblendet. Neue Gleise kommen auf {Plan.Levels[Plan.ActiveLevel].Name}."));
+    }
+
+    /// <summary>Gewählte Gleise (und das gewählte Objekt) auf eine Ebene legen; Gleise ändern ihre Höhe um den Höhenunterschied der Ebenen.</summary>
+    public void MoveSelectionToLevel(int index)
+    {
+        if (index < 0 || index >= Plan.Levels.Count) return;
+        var pieces = SelectedPieces.Where(p => p.Level != index).ToList();
+        var item = SelectedObject is { } so ? Plan.Scenery.FirstOrDefault(s => s.Id == so && s.Level != index) : null;
+        if (pieces.Count == 0 && item is null) { Say(Lang.T("Erst Gleise oder ein Objekt wählen, die auf eine andere Ebene sollen.")); return; }
+        Record();
+        foreach (var p in pieces)
+        {
+            p.Height += Plan.Levels[index].Height - Plan.Level(p.Level).Height;
+            p.Level = index;
+        }
+        if (item is not null) item.Level = index;
+        if (!Plan.Levels[index].Visible) Plan.Levels[index].Visible = true;
+        Commit();
+        var n = pieces.Count + (item is null ? 0 : 1);
+        Say(Lang.F($"{n} auf {Plan.Levels[index].Name} gelegt."));
     }
 
     public void ClearSelection()
@@ -651,6 +798,7 @@ public sealed class PlanSession
             {
                 piece.Grade = from.Index == 0 ? -neighbour.EffectiveGrade : neighbour.EffectiveGrade;
                 piece.Tunnel = neighbour.Tunnel;
+                piece.Level = neighbour.Level;
             }
         }
         if (to is not null) piece.Grade = (to.Z - piece.Height) / def.TrackLength;
@@ -841,6 +989,7 @@ public sealed class PlanSession
     {
         Record();
         item.Id = Plan.NextId++;
+        item.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
         if (string.IsNullOrWhiteSpace(item.Name))
             item.Name = $"{SceneryItem.KindName(item.Kind)} {Plan.Scenery.Count(s => s.Kind == item.Kind) + 1}";
         Plan.Scenery.Add(item);

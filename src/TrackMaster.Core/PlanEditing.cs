@@ -30,6 +30,7 @@ public static class PlanEditing
             if (plan.Find(target.PieceId) is { } neighbour)
                 piece.Grade = target.Index == 0 ? -neighbour.EffectiveGrade : neighbour.EffectiveGrade;
             piece.Tunnel = plan.Find(target.PieceId)?.Tunnel ?? false;
+            piece.Level = plan.Find(target.PieceId)?.Level ?? piece.Level;
         }
         else
             PlaceAt(piece, 0, fallbackCenter.X - def.TrackLength / 2, fallbackCenter.Y, 0);
@@ -143,7 +144,7 @@ public static class PlanEditing
         foreach (var p in pieces.ToList())
         {
             var q = plan.Add(p.Key);
-            q.X = p.X + offset; q.Y = p.Y + offset; q.Rotation = p.Rotation; q.Flipped = p.Flipped; q.Height = p.Height; q.Grade = p.Grade; q.Tunnel = p.Tunnel;
+            q.X = p.X + offset; q.Y = p.Y + offset; q.Rotation = p.Rotation; q.Flipped = p.Flipped; q.Height = p.Height; q.Grade = p.Grade; q.Tunnel = p.Tunnel; q.Level = p.Level;
             copies.Add(q);
         }
         return copies;

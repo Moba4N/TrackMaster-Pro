@@ -105,7 +105,7 @@ public sealed class PlanCanvas : FrameworkElement
     public void Fit()
     {
         if (ActualWidth <= 0) return;
-        var (x0, y0, x1, y1) = _session.Plan.Bounds();
+        var (x0, y0, x1, y1) = _session.View.Bounds();
         const double pad = 48;
         var (c, s) = Turn;
         var turned = new[] { (x0, y0), (x1, y0), (x1, y1), (x0, y1) }.Select(p => (X: p.Item1 * c - p.Item2 * s, Y: p.Item1 * s + p.Item2 * c)).ToList();
@@ -195,13 +195,13 @@ public sealed class PlanCanvas : FrameworkElement
     private PlanScene Scene()
     {
         if (_scene is not null) return _scene;
-        _gauge = _session.Plan.Gauge.TrackWidth;
-        return _scene = new PlanScene(_session.Plan, _session.Selection, _session.ShowSections);
+        _gauge = _session.View.Gauge.TrackWidth;
+        return _scene = new PlanScene(_session.View, _session.Selection, _session.ShowSections);
     }
 
     protected override void OnRender(DrawingContext dc)
     {
-        var plan = _session.Plan;
+        var plan = _session.View;
         var scene = Scene();
         dc.DrawRectangle(Theme.CanvasBrush, null, new Rect(RenderSize));
         double z = _zoom;
@@ -258,7 +258,7 @@ public sealed class PlanCanvas : FrameworkElement
         var z = _zoom;
         if (_session.Tool == CanvasTool.Board)
         {
-            var plan = _session.Plan;
+            var plan = _session.View;
             var outline = new Pen(Theme.AccentBrush, 2 / z);
             if (plan.BoardShape == BoardShape.Module)
                 foreach (var m in plan.Modules) dc.DrawRectangle(null, outline, new Rect(m.X, m.Y, m.Width, m.Depth));
@@ -287,8 +287,8 @@ public sealed class PlanCanvas : FrameworkElement
         }
         if (_dimStart is { } a)
         {
-            var b = Annotation.Snap(_session.Plan, _lastWorld.X, _lastWorld.Y, 12 / z);
-            var preview = new SceneryItem { Kind = SceneryKind.Dimension, Points = [a, b], Width = Annotation.DefaultTextSize(_session.Plan.Gauge) * 1.5, Height = Annotation.DefaultTextSize(_session.Plan.Gauge) * 0.8 };
+            var b = Annotation.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z);
+            var preview = new SceneryItem { Kind = SceneryKind.Dimension, Points = [a, b], Width = Annotation.DefaultTextSize(_session.View.Gauge) * 1.5, Height = Annotation.DefaultTextSize(_session.View.Gauge) * 0.8 };
             var plan = new LayoutPlan();
             plan.Scenery.Add(preview);
             PlanScene.DrawAnnotations(dc, plan, z, preview.Id);
@@ -427,7 +427,7 @@ public sealed class PlanCanvas : FrameworkElement
         var white = new Pen(Brushes.White, 1.5);
         var active = _session.ActiveConnector;
         var tool = _session.Tool;
-        foreach (var c in _session.Connections.All)
+        foreach (var c in _session.VisibleConnectors())
         {
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             if (!c.IsOpen)
@@ -469,7 +469,7 @@ public sealed class PlanCanvas : FrameworkElement
     {
         ConnectorRef? best = null;
         var bestD = radius;
-        foreach (var c in openOnly ? _session.Connections.Open : _session.Connections.All)
+        foreach (var c in _session.VisibleConnectors(openOnly))
         {
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             var d = (s - screen).Length;
@@ -483,9 +483,9 @@ public sealed class PlanCanvas : FrameworkElement
     {
         ConnectorRef? best = null;
         var bestD = 9.0;
-        foreach (var c in _session.Connections.All)
+        foreach (var c in _session.VisibleConnectors())
         {
-            if (_session.Plan.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
+            if (_session.View.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
             var d = (ToScreen(c.Pose.X, c.Pose.Y) - screen).Length;
             if (d < bestD) { bestD = d; best = c; }
         }
@@ -497,20 +497,20 @@ public sealed class PlanCanvas : FrameworkElement
         var tol = Math.Max(_gauge * 1.4, 7 / _zoom);
         PlacedPiece? best = null;
         var bestD = tol;
-        foreach (var p in _session.Plan.Pieces)
+        foreach (var p in _session.View.Pieces)
             foreach (var l in p.WorldLegs())
             {
                 var d = l.DistanceTo(world.X, world.Y);
                 // Bei gleichem Abstand gewinnt das höher liegende Gleis (Brücke)
                 if (d < bestD - 0.01 || (Math.Abs(d - bestD) < 0.01 && best is not null && p.Height > best.Height)) { bestD = d; best = p; }
             }
-        return best ?? TableShape.Hit(_session.Plan, world.X, world.Y);
+        return best ?? TableShape.Hit(_session.View, world.X, world.Y);
     }
 
     /// <summary>Kleine Objekte (Signal, Einspeisung, Trennstelle) nach Bildschirmabstand, dann Bäume und Gebäude.</summary>
     private int? HitSmallObject(Point screen, Point world)
     {
-        var plan = _session.Plan;
+        var plan = _session.View;
         int? best = null;
         var bestD = 11.0;
         void Try(int id, double x, double y)
@@ -543,7 +543,7 @@ public sealed class PlanCanvas : FrameworkElement
 
     private int? HitArea(Point world)
         => _session.ShowScenery
-            ? _session.Plan.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
+            ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
             : null;
 
     // ---------- Maus ----------
@@ -596,7 +596,7 @@ public sealed class PlanCanvas : FrameworkElement
                 LabelRequested?.Invoke(Math.Round(world.X), Math.Round(world.Y));
                 return;
             case CanvasTool.Dimension:
-                var snap = Annotation.Snap(_session.Plan, world.X, world.Y, 12 / _zoom);
+                var snap = Annotation.Snap(_session.View, world.X, world.Y, 12 / _zoom);
                 if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt anklicken (Gleisenden und Plattenecken rasten ein, Esc bricht ab).")); }
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
                 InvalidateVisual();
@@ -607,7 +607,7 @@ public sealed class PlanCanvas : FrameworkElement
                 return;
             case CanvasTool.Feeder:
                 // Klick auf eine vorhandene Einspeisung entfernt sie wieder
-                if (HitSmallObject(screen, world) is { } fo && _session.Plan.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
+                if (HitSmallObject(screen, world) is { } fo && _session.View.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
                 else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis klicken."));
                 return;
@@ -617,7 +617,7 @@ public sealed class PlanCanvas : FrameworkElement
                 return;
             case CanvasTool.Signal:
                 // Klick auf ein vorhandenes Signal entfernt es wieder
-                if (HitSmallObject(screen, world) is { } so && _session.Plan.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
+                if (HitSmallObject(screen, world) is { } so && _session.View.Signals.Any(s => s.Id == so)) _session.RemoveObject(so);
                 else if (HitConnector(screen, openOnly: false, radius: 14) is { } sc) _session.AddSignal(sc.PieceId, sc.Index);
                 else _session.Say(Lang.T("Signale stehen an Gleisenden: bitte auf einen Punkt an einer Gleisverbindung klicken."));
                 return;
@@ -756,7 +756,7 @@ public sealed class PlanCanvas : FrameworkElement
                     break;
                 }
                 _band = null;
-                var ids = _session.Plan.Pieces.Where(p => { var m = p.Middle(); return band.Contains(ToScreen(m.X, m.Y)); }).Select(p => p.Id).ToList();
+                var ids = _session.View.Pieces.Where(p => { var m = p.Middle(); return band.Contains(ToScreen(m.X, m.Y)); }).Select(p => p.Id).ToList();
                 _session.Select(ids, add: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
                 break;
             case DragMode.Create:

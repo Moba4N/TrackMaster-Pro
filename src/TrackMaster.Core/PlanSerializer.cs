@@ -28,6 +28,15 @@ public static class PlanSerializer
         [JsonPropertyName("feeders"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<FeederDto>? Feeders { get; set; }
         [JsonPropertyName("isolations"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<IsolationDto>? Isolations { get; set; }
         [JsonPropertyName("signals"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<SignalDto>? Signals { get; set; }
+        [JsonPropertyName("levels"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<LevelDto>? Levels { get; set; }
+        [JsonPropertyName("activeLevel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ActiveLevel { get; set; }
+    }
+
+    private sealed class LevelDto
+    {
+        [JsonPropertyName("name")] public string? Name { get; set; }
+        [JsonPropertyName("h")] public double H { get; set; }
+        [JsonPropertyName("visible")] public bool Visible { get; set; } = true;
     }
 
     private sealed class SceneryDto
@@ -42,6 +51,7 @@ public static class PlanSerializer
         [JsonPropertyName("d")] public double D { get; set; }
         [JsonPropertyName("rot")] public double Rot { get; set; }
         [JsonPropertyName("h")] public double H { get; set; }
+        [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Level { get; set; }
     }
 
     private sealed class FeederDto
@@ -103,6 +113,7 @@ public static class PlanSerializer
         [JsonPropertyName("grade"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double Grade { get; set; }
         [JsonPropertyName("tunnel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Tunnel { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
+        [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Level { get; set; }
     }
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
@@ -147,6 +158,7 @@ public static class PlanSerializer
                 Grade = Math.Round(p.Grade, 6),
                 Tunnel = p.Tunnel,
                 Addr = p.Address,
+                Level = p.Level,
             }).ToList(),
             Scenery = plan.Scenery.Count == 0 ? null : plan.Scenery.Select(s => new SceneryDto
             {
@@ -154,12 +166,15 @@ public static class PlanSerializer
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
                 Points = s.IsArea || s.Kind == SceneryKind.Dimension ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
-                X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height,
+                X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level,
             }).ToList(),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit }).ToList(),
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
                 { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
+            Levels = plan.Levels.Count == 1 && plan.Levels[0] is { Height: 0, Visible: true } ? null
+                : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
+            ActiveLevel = plan.ActiveLevel,
         };
         return JsonSerializer.Serialize(dto, Options);
     }
@@ -191,6 +206,18 @@ public static class PlanSerializer
             BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
             VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
         };
+        if (dto.Levels is { Count: > 0 } levels)
+        {
+            plan.Levels.Clear();
+            foreach (var l in levels.Take(LayoutPlan.MaxLevels))
+                plan.Levels.Add(new PlanLevel
+                {
+                    Name = string.IsNullOrWhiteSpace(l.Name) ? PlanLevel.DefaultName(plan.Levels.Count) : l.Name!,
+                    Height = double.IsFinite(l.H) ? Math.Clamp(l.H, -1000, 5000) : 0, Visible = l.Visible,
+                });
+        }
+        plan.ActiveLevel = Math.Clamp(dto.ActiveLevel, 0, plan.Levels.Count - 1);
+        int LevelOf(int level) => Math.Clamp(level, 0, plan.Levels.Count - 1);
         foreach (var l in dto.Board?.Legs ?? [])
             plan.BoardLegs.Add(new BoardLeg(l.Length > 0 && double.IsFinite(l[0]) ? Math.Max(0, l[0]) : 0, l.Length > 1 && double.IsFinite(l[1]) ? Math.Max(0, l[1]) : 0));
         foreach (var m in dto.Board?.Modules ?? [])
@@ -213,7 +240,7 @@ public static class PlanSerializer
             var piece = new PlacedPiece
             {
                 Id = p.Id is { } pid && pid > 0 && plan.Find(pid) is null ? pid : plan.NextId, Key = p.Key, X = p.X, Y = p.Y, Rotation = p.Rot, Flipped = p.Flip,
-                Height = p.Z, Grade = double.IsFinite(p.Grade) ? p.Grade : 0, Tunnel = p.Tunnel, Address = p.Addr,
+                Height = p.Z, Grade = double.IsFinite(p.Grade) ? p.Grade : 0, Tunnel = p.Tunnel, Address = p.Addr, Level = LevelOf(p.Level),
             };
             plan.Pieces.Add(piece);
             plan.NextId = Math.Max(plan.NextId, piece.Id + 1);
@@ -235,7 +262,7 @@ public static class PlanSerializer
             if (!Enum.TryParse<SceneryKind>(s.Kind, true, out var kind)) continue;
             var item = new SceneryItem
             {
-                Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H,
+                Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
             };
             if (item.IsArea && item.Points.Count < 3) continue;

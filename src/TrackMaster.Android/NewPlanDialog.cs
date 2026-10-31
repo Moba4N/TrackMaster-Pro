@@ -58,7 +58,7 @@ public static partial class Dialogs
             uLegs.Visibility = s == BoardShape.U ? ViewStates.Visible : ViewStates.Gone;
             moduleHint.Visibility = s == BoardShape.Module ? ViewStates.Visible : ViewStates.Gone;
             double bw = Ui.Parse(w, 0), bh = Ui.Parse(h, 0), bd = Ui.Parse(d, 0), l1 = Ui.Parse(legLeft, 0), l2 = Ui.Parse(legRight, 0);
-            if (bw < 100 || bh < 100) return;
+            if (bw < 50 || bh < 50) return;
             var t = turn.SelectedItemPosition;
             preview.Outlines = BoardGeometry.Outlines(s, bw, bh, bd, t, l1, l2);
             var area = BoardGeometry.Rects(s, bw, bh, bd, t, l1, l2).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
@@ -86,8 +86,8 @@ public static partial class Dialogs
         Show(c, Lang.T("Neuer Plan"), body, Lang.T("Anlegen"), () =>
         {
             var errors = new List<string>();
-            Read(w, Lang.T("Breite"), 100, 50000, errors, out var bw);
-            Read(h, Lang.T("Tiefe"), 100, 50000, errors, out var bh);
+            Read(w, Lang.T("Breite"), 50, 50000, errors, out var bw);
+            Read(h, Lang.T("Tiefe"), 50, 50000, errors, out var bh);
             var bd = 600.0;
             if (BoardGeometry.HasLegs(Shape())) Read(d, Lang.T("Schenkeltiefe"), 50, 50000, errors, out bd);
             double l1 = 0, l2 = 0;

@@ -17,6 +17,7 @@ public partial class App
     private View3DMode _mode3D;
     private LayoutPlan? _plan3D;
     private bool _riding, _trainOn;
+    private bool _scenery3D = true;
     private Train3D? _train;
     private readonly Dictionary<int, int> _routes = [];
     private RidePath? _path;
@@ -59,7 +60,7 @@ public partial class App
         }
         try
         {
-            var model = new Scene3DModel(plan);
+            var model = new Scene3DModel(plan, _scenery3D);
             var (data, meta) = ToData(model.Meshes);
             Js.GlSetMeshes(data, meta, false);
             _train = new Train3D(plan);
@@ -67,6 +68,22 @@ public partial class App
             Js.GlSetCamera([0, (x0 + x1) / 2, 0, (y0 + y1) / 2, Math.Max(x1 - x0, y1 - y0) * 1.15]);
             ApplyTime();
             if (_mode3D == View3DMode.Ride) StartRide();
+        }
+        catch (Exception e)
+        {
+            Report(e);
+        }
+    }
+
+    /// <summary>3D mit Gelände oder nur Platte und Gleise.</summary>
+    private void SetScenery3D(bool on)
+    {
+        if (_scenery3D == on || _plan3D is null) return;
+        _scenery3D = on;
+        try
+        {
+            var (data, meta) = ToData(new Scene3DModel(_plan3D, on).Meshes);
+            Js.GlSetMeshes(data, meta, false);
         }
         catch (Exception e)
         {

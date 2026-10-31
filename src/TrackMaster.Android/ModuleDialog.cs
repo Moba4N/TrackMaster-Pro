@@ -11,7 +11,7 @@ public static partial class Dialogs
     /// <summary>Module der Anlage bearbeiten: Name, Lage und Größe je Modul, Module anhängen oder entfernen, einen Plan als Modul ansetzen.</summary>
     public static void AskModules(Context c, LayoutPlan plan, Action<IReadOnlyList<ModuleEdit>> apply, Action appendPlan)
     {
-        var rows = new List<(int Index, EditText Name, EditText X, EditText Y, EditText W, EditText D)>();
+        var rows = new List<(int Index, EditText Name, EditText X, EditText Y, EditText W, EditText D, CheckBox Pick)>();
         var body = Ui.Column(c, 6);
         body.AddView(Hint(c, plan.BoardShape == BoardShape.Module
             ? Lang.T("Lage (X, Y = linke obere Ecke) und Größe jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Gleise über Modulgrenzen meldet die Planprüfung.")
@@ -25,8 +25,9 @@ public static partial class Dialogs
             {
                 var r = row;
                 var card = Ui.Column(c, 2);
-                foreach (var v in new View[] { r.Name, r.X, r.Y, r.W, r.D }) (v.Parent as ViewGroup)?.RemoveView(v);
+                foreach (var v in new View[] { r.Name, r.X, r.Y, r.W, r.D, r.Pick }) (v.Parent as ViewGroup)?.RemoveView(v);
                 var head = Ui.Row(c, 8);
+                head.AddView(r.Pick);
                 head.AddView(Ui.Field(c, Lang.T("Name"), r.Name), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
                 var remove = Ui.Button(c, "✕", () => { rows.Remove(r); Fill(); });
                 remove.Enabled = rows.Count > 1;
@@ -36,8 +37,8 @@ public static partial class Dialogs
                 list.AddView(card);
             }
         }
-        (int, EditText, EditText, EditText, EditText, EditText) Row(int index, string name, double x, double y, double w, double d)
-            => (index, Ui.TextField(c, name), Ui.Number(c, x, 0, signed: true), Ui.Number(c, y, 0, signed: true), Ui.Number(c, w), Ui.Number(c, d));
+        (int, EditText, EditText, EditText, EditText, EditText, CheckBox) Row(int index, string name, double x, double y, double w, double d)
+            => (index, Ui.TextField(c, name), Ui.Number(c, x, 0, signed: true), Ui.Number(c, y, 0, signed: true), Ui.Number(c, w), Ui.Number(c, d), new CheckBox(c));
         foreach (var m in ModuleLayout.Current(plan)) rows.Add(Row(m.Index, m.Name, m.X, m.Y, m.Width, m.Depth));
         Fill();
         body.AddView(Ui.Button(c, Lang.T("Modul anhängen"), () =>
@@ -51,9 +52,7 @@ public static partial class Dialogs
             Fill();
         }));
         var error = Error(c);
-        body.AddView(error);
-        AlertDialog? dialog = null;
-        dialog = Show(c, Lang.T("Module"), body, Lang.T("Übernehmen"), () =>
+        List<ModuleEdit>? Edits()
         {
             var errors = new List<string>();
             var edits = new List<ModuleEdit>();
@@ -68,7 +67,22 @@ public static partial class Dialogs
                 edits.Add(new ModuleEdit(r.Index, r.Name.Text ?? "", x, y, w, d));
             }
             SetError(error, errors);
-            if (errors.Count > 0) return false;
+            return errors.Count > 0 ? null : edits;
+        }
+        body.AddView(Ui.Button(c, Lang.T("Gewählte zusammenführen"), () =>
+        {
+            if (Edits() is not { } edits) return;
+            var (merged, problem) = ModuleLayout.Merge(edits, rows.Select((r, i) => (r, i)).Where(t => t.r.Pick.Checked).Select(t => t.i).ToList());
+            if (merged is null) { SetError(error, [problem!]); return; }
+            rows.Clear();
+            foreach (var m in merged) rows.Add(Row(m.Index, m.Name, m.X, m.Y, m.Width, m.Depth));
+            Fill();
+        }));
+        body.AddView(error);
+        AlertDialog? dialog = null;
+        dialog = Show(c, Lang.T("Module"), body, Lang.T("Übernehmen"), () =>
+        {
+            if (Edits() is not { } edits) return false;
             apply(edits);
             return true;
         }, neutral: (Lang.T("Plan ansetzen…"), () => { dialog?.Dismiss(); appendPlan(); }));

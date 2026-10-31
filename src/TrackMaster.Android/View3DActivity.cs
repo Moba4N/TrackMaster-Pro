@@ -43,7 +43,9 @@ public sealed class View3DActivity : Activity
     private volatile float _speedKmh = 60;
 
     // Rundumsicht
-    private double _yaw = -60, _pitch = 35, _distance;
+    private double _yaw = -60, _pitch = 35, _roll, _distance;
+    // Neigung frei von oben bis unter die Platte; mit dem Kippen um die Blickachse lässt sich die Anlage um alle drei Achsen drehen
+    private const double PitchMin = -89, PitchMax = 89;
     private Vec3 _target;
     private ScaleGestureDetector _scale = null!;
     private float _lastX, _lastY;
@@ -103,9 +105,32 @@ public sealed class View3DActivity : Activity
         _speedText.SetMinWidth(Ui.Dp(62));
         row2.AddView(_speedText);
         bar.AddView(row2, Ui.Fill());
+        var row3 = Ui.Row(this, 6);
+        Button? withScenery = null, tracksOnly = null;
+        void Scenery(bool on)
+        {
+            _renderer.Replace(new Scene3DModel(_plan, on));
+            Ui.SetButtonState(withScenery!, false, on);
+            Ui.SetButtonState(tracksOnly!, false, !on);
+            _view.RequestRender();
+        }
+        withScenery = Ui.Button(this, Lang.T("Mit Gelände"), () => Scenery(true));
+        tracksOnly = Ui.Button(this, Lang.T("Nur Gleisplan"), () => Scenery(false));
+        row3.AddView(withScenery);
+        row3.AddView(tracksOnly);
+        Ui.SetButtonState(withScenery, false, true);
+        row3.AddView(Ui.Label(this, Lang.T("Drehen:"), 12.5, color: Ui.TextSecondary));
+        foreach (var (text, axis) in new[] { ("X ↻", 0), ("Y ↻", 1), ("Z ↻", 2), (Lang.T("Gerade"), -1) })
+        {
+            var a = axis;
+            row3.AddView(Ui.Button(this, text, () => Turn(a, 15)));
+        }
+        var scroll3 = new HorizontalScrollView(this) { HorizontalScrollBarEnabled = false };
+        scroll3.AddView(row3);
+        bar.AddView(scroll3, Ui.Fill());
         root.AddView(bar, new FrameLayout.LayoutParams(-1, -2, GravityFlags.Top));
 
-        var help = Ui.Label(this, Lang.T("Ein Finger dreht · zwei Finger zoomen und verschieben · Mitfahren startet am gewählten Gleis"), 12, color: Ui.TextSecondary);
+        var help = Ui.Label(this, Lang.T("Ein Finger dreht und kippt (auch von unten) · zwei Finger zoomen und verschieben · X, Y, Z drehen um die Achsen · Mitfahren startet am gewählten Gleis"), 12, color: Ui.TextSecondary);
         help.Background = Ui.Rounded(Color.Argb(0xE0, 0xFF, 0xFF, 0xFF), radius: 6);
         help.SetPadding(Ui.Dp(10), Ui.Dp(6), Ui.Dp(10), Ui.Dp(6));
         root.AddView(help, new FrameLayout.LayoutParams(-2, -2, GravityFlags.Bottom | GravityFlags.Start) { LeftMargin = Ui.Dp(10), BottomMargin = Ui.Dp(10), RightMargin = Ui.Dp(10) });
@@ -165,13 +190,33 @@ public sealed class View3DActivity : Activity
     private void UpdateCamera()
     {
         var yaw = _yaw * Math.PI / 180;
-        var pitch = Math.Clamp(_pitch, 5, 89) * Math.PI / 180;
+        var pitch = Math.Clamp(_pitch, PitchMin, PitchMax) * Math.PI / 180;
         var eye = new Vec3(
             _target.X + _distance * Math.Cos(pitch) * Math.Sin(yaw),
             _target.Y + _distance * Math.Sin(pitch),
             _target.Z + _distance * Math.Cos(pitch) * Math.Cos(yaw));
-        _renderer.SetCamera(eye, _target, 50, Math.Max(2, _distance / 2000));
+        var forward = (_target - eye).Normalized();
+        var right = Vec3.Cross(forward, new Vec3(0, 1, 0)).Normalized();
+        var up = Vec3.Cross(right, forward);
+        var roll = _roll * Math.PI / 180;
+        _renderer.SetCamera(eye, _target, 50, Math.Max(2, _distance / 2000), up * Math.Cos(roll) + right * Math.Sin(roll));
         _view.RequestRender();
+    }
+
+    private static double Wrap(double degrees) => ((degrees + 540) % 360 + 360) % 360 - 180;
+
+    /// <summary>Drehen per Knopf: 0 = X (kippen), 1 = Y (Hochachse), 2 = Z (Blickachse), −1 = gerade ausrichten.</summary>
+    private void Turn(int axis, double degrees)
+    {
+        if (_riding) return;
+        switch (axis)
+        {
+            case 0: _pitch = Math.Clamp(_pitch + degrees, PitchMin, PitchMax); break;
+            case 1: _yaw = Wrap(_yaw + degrees); break;
+            case 2: _roll = Wrap(_roll + degrees); break;
+            default: (_yaw, _pitch, _roll) = (-60, 35, 0); break;
+        }
+        UpdateCamera();
     }
 
     private void OnTouch(object? sender, View.TouchEventArgs e)
@@ -196,7 +241,7 @@ public sealed class View3DActivity : Activity
                 _lastX = ev.GetX();
                 _lastY = ev.GetY();
                 _yaw -= dx / Ui.Density * 0.35;
-                _pitch = Math.Clamp(_pitch + dy / Ui.Density * 0.3, 5, 89);
+                _pitch = Math.Clamp(_pitch + dy / Ui.Density * 0.3, PitchMin, PitchMax);
                 UpdateCamera();
                 break;
         }
@@ -418,9 +463,9 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     private int _skyPos, _uTop, _uBottom;
     private float _aspect = 1;
     private readonly float[] _proj = new float[16], _viewM = new float[16], _mvp = new float[16];
-    private volatile CameraState _camera = new(new Vec3(0, 1000, 1000), new Vec3(0, 0, 0), 50, 2);
+    private volatile CameraState _camera = new(new Vec3(0, 1000, 1000), new Vec3(0, 0, 0), 50, 2, new Vec3(0, 1, 0));
 
-    private sealed record CameraState(Vec3 Eye, Vec3 Target, double FieldOfView, double Near);
+    private sealed record CameraState(Vec3 Eye, Vec3 Target, double FieldOfView, double Near, Vec3 Up);
 
     public DayLight Light { get; set; } = DayLight.At(13);
 
@@ -459,7 +504,12 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     }
 
     /// <summary>Kamera setzen. <paramref name="fieldOfView"/> ist wie unter Windows der waagrechte Blickwinkel.</summary>
-    public void SetCamera(Vec3 eye, Vec3 target, double fieldOfView, double near) => _camera = new CameraState(eye, target, fieldOfView, near);
+    public void SetCamera(Vec3 eye, Vec3 target, double fieldOfView, double near, Vec3? up = null) => _camera = new CameraState(eye, target, fieldOfView, near, up ?? new Vec3(0, 1, 0));
+
+    private volatile Scene3DModel? _replacement;
+
+    /// <summary>Anderes Modell zeigen (mit oder ohne Gelände); wird beim nächsten Bild im Zeichen-Thread hochgeladen.</summary>
+    public void Replace(Scene3DModel model) => _replacement = model;
 
     private static int Compile(int type, string source)
     {
@@ -539,6 +589,16 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
 
     public void OnDrawFrame(IGL10? gl)
     {
+        if (_replacement is { } model)
+        {
+            _replacement = null;
+            if (_meshes.Count > 0) GLES20.GlDeleteBuffers(_meshes.Count, _meshes.Select(m => m.Buffer).ToArray(), 0);
+            _meshes.Clear();
+            _pending.Clear();
+            _pending.AddRange(ToData(model.Meshes));
+            foreach (var (data, color, kind) in _pending)
+                _meshes.Add(new MeshBuffer(Upload(data), data.Length / 6, color, kind));
+        }
         Frame?.Invoke();
         var light = Light;
         var cam = _camera;
@@ -560,7 +620,7 @@ public sealed class SceneRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         // Kamera: waagrechter Blickwinkel → senkrechter
         var fovY = 2 * Math.Atan(Math.Tan(cam.FieldOfView * Math.PI / 360) / _aspect) * 180 / Math.PI;
         GLMatrix.PerspectiveM(_proj, 0, (float)fovY, _aspect, (float)cam.Near, 200000f);
-        GLMatrix.SetLookAtM(_viewM, 0, (float)cam.Eye.X, (float)cam.Eye.Y, (float)cam.Eye.Z, (float)cam.Target.X, (float)cam.Target.Y, (float)cam.Target.Z, 0, 1, 0);
+        GLMatrix.SetLookAtM(_viewM, 0, (float)cam.Eye.X, (float)cam.Eye.Y, (float)cam.Eye.Z, (float)cam.Target.X, (float)cam.Target.Y, (float)cam.Target.Z, (float)cam.Up.X, (float)cam.Up.Y, (float)cam.Up.Z);
         GLMatrix.MultiplyMM(_mvp, 0, _proj, 0, _viewM, 0);
 
         GLES20.GlEnable(GLES20.GlDepthTest);

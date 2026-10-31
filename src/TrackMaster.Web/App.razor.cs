@@ -210,6 +210,7 @@ public partial class App : ComponentBase, IAppHost
         Add("help", Lang.T("Bedienung"), ShowHelp);
         Add("undo", Lang.T("Rückgängig"), _session.Undo, () => _session.History.CanUndo);
         Add("redo", Lang.T("Wiederholen"), _session.Redo, () => _session.History.CanRedo);
+        Add("history", Lang.T("Verlauf"), ShowHistory, () => _session.History.CanUndo || _session.History.CanRedo);
         Add("rotL", Lang.T("Drehen"), () => _session.Rotate(-15), HasSelection);
         Add("rotR", Lang.T("Drehen"), () => _session.Rotate(15), HasSelection);
         Add("rotFree", Lang.T("Frei drehen"), AskFreeRotation, HasSelection);
@@ -247,6 +248,7 @@ public partial class App : ComponentBase, IAppHost
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); _propsOpen = true; });
         Add("modules", Lang.T("Module"), AskModules);
+        Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
         Add("labels", Lang.T("Beschriftung"), () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));
@@ -305,6 +307,7 @@ public partial class App : ComponentBase, IAppHost
         "sections" => _session.ShowSections,
         "toolSelect" => _session.Tool == CanvasTool.Select,
         "toolPan" => _session.Tool == CanvasTool.Pan,
+        "toolBoard" => _session.Tool == CanvasTool.Board,
         "toolFlex" => _session.Tool == CanvasTool.Flex,
         "toolTerrain" => _session.Tool == CanvasTool.Terrain,
         "toolWater" => _session.Tool == CanvasTool.Water,
@@ -321,7 +324,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolFeeder", "toolIsolation", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolFeeder", "toolIsolation", "toolSignal",
     ];
 
     private void SetTool(CanvasTool tool)
@@ -346,6 +349,9 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
+        CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
+            ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein.")
+            : Lang.T("Platte ziehen: eine Ecke der Platte ziehen ändert ihre Größe. Esc beendet."),
         _ => "",
     };
 

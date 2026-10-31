@@ -130,8 +130,8 @@ public sealed class PropertiesPanel : DockPanel
         _body.Children.Add(Theme.Field(Lang.T("Planname"), name));
 
         Section(Lang.T("Anlagenplatte"));
-        _boardWidth = NumberBox(plan.BoardWidth, v => plan.BoardWidth = Math.Clamp(v, 100, 50000), 0);
-        var height = NumberBox(plan.BoardHeight, v => plan.BoardHeight = Math.Clamp(v, 100, 50000), 0);
+        _boardWidth = NumberBox(plan.BoardWidth, v => plan.BoardWidth = Math.Clamp(v, 50, 50000), 0);
+        var height = NumberBox(plan.BoardHeight, v => plan.BoardHeight = Math.Clamp(v, 50, 50000), 0);
         var shape = new ComboBox();
         foreach (var f in BoardGeometry.All) shape.Items.Add(new ComboBoxItem { Content = BoardGeometry.Name(f), Tag = f, IsSelected = f == plan.BoardShape });
         shape.SelectionChanged += (_, _) =>

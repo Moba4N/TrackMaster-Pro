@@ -23,7 +23,7 @@ public sealed class PlanCanvas : FrameworkElement
     private PlanScene? _scene;
     private double _gauge;
 
-    private enum DragMode { None, Pan, Move, Band, Create, FlexDraw, FlexEnd }
+    private enum DragMode { None, Pan, Move, Band, Create, FlexDraw, FlexEnd, Board }
     private DragMode _drag;
     private Point _dragStartScreen;
     private Point _dragStartWorld;
@@ -256,6 +256,18 @@ public sealed class PlanCanvas : FrameworkElement
     private void DrawToolPreview(DrawingContext dc)
     {
         var z = _zoom;
+        if (_session.Tool == CanvasTool.Board)
+        {
+            var plan = _session.Plan;
+            var outline = new Pen(Theme.AccentBrush, 2 / z);
+            if (plan.BoardShape == BoardShape.Module)
+                foreach (var m in plan.Modules) dc.DrawRectangle(null, outline, new Rect(m.X, m.Y, m.Width, m.Depth));
+            else
+                dc.DrawRectangle(null, new Pen(Theme.AccentBrush, 1.2 / z), new Rect(0, 0, plan.BoardWidth, plan.BoardHeight));
+            var h = 6 / z;
+            foreach (var g in ModuleLayout.Handles(plan))
+                dc.DrawRectangle(Brushes.White, outline, new Rect(g.X - h, g.Y - h, 2 * h, 2 * h));
+        }
         if (_polygon.Count > 0)
         {
             var pts = _polygon.Append((_lastWorld.X, _lastWorld.Y)).ToList();
@@ -562,6 +574,11 @@ public sealed class PlanCanvas : FrameworkElement
 
         switch (_session.Tool)
         {
+            case CanvasTool.Board:
+                CaptureMouse();
+                if (_session.BeginBoardDrag(world.X, world.Y, 10 / _zoom)) _drag = DragMode.Board;
+                else { _drag = DragMode.Pan; _panStartX = _ox; _panStartY = _oy; }
+                return;
             case CanvasTool.Terrain:
             case CanvasTool.Water:
                 if (e.ClickCount == 2) { FinishPolygon(); return; }
@@ -673,6 +690,11 @@ public sealed class PlanCanvas : FrameworkElement
                 _moved = true;
                 _session.MoveBy(world.X - _dragStartWorld.X, world.Y - _dragStartWorld.Y);
                 break;
+            case DragMode.Board:
+                if (!_moved && (screen - _dragStartScreen).Length < 3) return;
+                _moved = true;
+                _session.BoardDragTo(world.X, world.Y);
+                break;
             case DragMode.Band:
                 if ((screen - _dragStartScreen).Length < 4) return;
                 _moved = true;
@@ -720,6 +742,9 @@ public sealed class PlanCanvas : FrameworkElement
         {
             case DragMode.Move:
                 _session.EndMove(16 / _zoom);
+                break;
+            case DragMode.Board:
+                _session.EndBoardDrag();
                 break;
             case DragMode.Band:
                 if (!_moved || _band is not { } band)

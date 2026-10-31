@@ -17,6 +17,9 @@ public sealed class Scene3D
 
     public Scene3D(LayoutPlan plan) => Fill(Model, new Scene3DModel(plan).Meshes);
 
+    /// <summary>Neu aufbauen, mit oder ohne Gelände.</summary>
+    public void Rebuild(LayoutPlan plan, bool scenery) => Fill(Model, new Scene3DModel(plan, scenery).Meshes);
+
     /// <summary>Ersetzt den Inhalt von <paramref name="target"/> durch die Netze (auch für den fahrenden Zug).</summary>
     public void Fill(Model3DGroup target, IReadOnlyDictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> meshes)
     {

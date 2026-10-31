@@ -52,7 +52,7 @@ public static partial class Dialogs
             moduleHint.Visibility = shape == BoardShape.Module ? Visibility.Visible : Visibility.Collapsed;
             double w = Fmt.Parse(width.Text) ?? 0, h = Fmt.Parse(height.Text) ?? 0, d = Fmt.Parse(depth.Text) ?? 0;
             double l1 = Fmt.Parse(legLeft.Text) ?? 0, l2 = Fmt.Parse(legRight.Text) ?? 0;
-            if (w < 100 || h < 100) return;
+            if (w < 50 || h < 50) return;
             var geometry = new StreamGeometry { FillRule = FillRule.EvenOdd };
             using (var ctx = geometry.Open())
                 foreach (var o in BoardGeometry.Outlines(shape, w, h, d, turnBox.SelectedIndex, l1, l2))
@@ -105,8 +105,8 @@ public static partial class Dialogs
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
-            Read(width, Lang.T("Breite"), 100, 50000, errors, out var w);
-            Read(height, Lang.T("Tiefe"), 100, 50000, errors, out var h);
+            Read(width, Lang.T("Breite"), 50, 50000, errors, out var w);
+            Read(height, Lang.T("Tiefe"), 50, 50000, errors, out var h);
             var d = 0.0;
             if (BoardGeometry.HasLegs(Shape())) Read(depth, Lang.T("Schenkeltiefe"), 50, 50000, errors, out d);
             double l1 = 0, l2 = 0;

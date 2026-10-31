@@ -151,6 +151,7 @@ public sealed class MainWindow : Window
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", () => SetTool(CanvasTool.Terrain));
+        Add("toolBoard", () => SetTool(CanvasTool.Board));
         Add("toolWater", () => SetTool(CanvasTool.Water));
         Add("toolBuilding", () => SetTool(CanvasTool.Building));
         Add("toolTree", () => SetTool(CanvasTool.Tree));
@@ -173,6 +174,7 @@ public sealed class MainWindow : Window
         Add("exit", Close);
         Add("undo", Session.Undo, () => Session.History.CanUndo);
         Add("redo", Session.Redo, () => Session.History.CanRedo);
+        Add("history", ShowHistory, () => Session.History.CanUndo || Session.History.CanRedo);
         Add("toolSelect", () => SetTool(CanvasTool.Select));
         Add("toolPan", () => SetTool(CanvasTool.Pan));
         Add("rotL", () => Session.Rotate(-15), HasSelection);
@@ -308,6 +310,7 @@ public sealed class MainWindow : Window
 
     private static string ToolHint(CanvasTool tool) => tool switch
     {
+        CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein."),
         CanvasTool.Terrain => Lang.T("Höhenfläche: Eckpunkte anklicken, Doppelklick oder Eingabetaste schließt die Fläche ab. Esc bricht ab."),
         CanvasTool.Water => Lang.T("Gewässer: Uferpunkte anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
@@ -330,6 +333,7 @@ public sealed class MainWindow : Window
         qat.Children.Add(QatButton("Save", Lang.T("Speichern (Strg+S)"), "save"));
         qat.Children.Add(QatButton("Undo", Lang.T("Rückgängig (Strg+Z)"), "undo"));
         qat.Children.Add(QatButton("Redo", Lang.T("Wiederholen (Strg+Y)"), "redo"));
+        qat.Children.Add(QatButton("History", Lang.T("Verlauf: bis zu 20 Schritte zurück oder vor"), "history"));
         left.Children.Add(qat);
         bar.Children.Add(left);
         bar.Children.Add(_title);
@@ -340,6 +344,13 @@ public sealed class MainWindow : Window
         right.Children.Add(CaptionButton(Lang.T("Schließen"), new System.Windows.Shapes.Path { Data = Geometry.Parse("M0,0 L10,10 M10,0 L0,10"), Width = 10, Height = 10 }, Close, true));
         bar.Children.Add(right);
         return bar;
+    }
+
+    private void ShowHistory()
+    {
+        var steps = Dialogs.AskHistory(this, Session.History);
+        if (steps > 0) Session.Redo(steps);
+        else if (steps < 0) Session.Undo(-steps);
     }
 
     private Button QatButton(string icon, string tip, string command)
@@ -505,7 +516,7 @@ public sealed class MainWindow : Window
         Ribbon.ApplicationMenu = _appMenu;
 
         Ribbon.Items.Add(Tab(Lang.T("Start"),
-            Group(Lang.T("Verlauf"), Large(Lang.T("Rückgängig"), "Undo", "undo", Lang.T("Letzten Schritt zurücknehmen (Strg+Z).")), Large(Lang.T("Wiederholen"), "Redo", "redo", Lang.T("Zurückgenommenen Schritt wiederholen (Strg+Y)."))),
+            Group(Lang.T("Verlauf"), Large(Lang.T("Rückgängig"), "Undo", "undo", Lang.T("Letzten Schritt zurücknehmen (Strg+Z).")), Large(Lang.T("Wiederholen"), "Redo", "redo", Lang.T("Zurückgenommenen Schritt wiederholen (Strg+Y).")), Large(Lang.T("Verlauf…"), "History", "history", Lang.T("Bis zu 20 Schritte auf einmal zurück oder vor springen."))),
             Group(Lang.T("Werkzeuge"),
                 Toggle(Lang.T("Auswählen"), "Select", true, () => Session.Tool == CanvasTool.Select, _ => SetTool(CanvasTool.Select), Lang.T("Gleise und Objekte wählen und verschieben (Esc).")),
                 Toggle(Lang.T("Verschieben"), "Hand", true, () => Session.Tool == CanvasTool.Pan, on => SetTool(on ? CanvasTool.Pan : CanvasTool.Select), Lang.T("Ansicht mit der linken Maustaste verschieben (auch: Leertaste halten)."))),
@@ -541,7 +552,8 @@ public sealed class MainWindow : Window
 
         Ribbon.Items.Add(Tab(Lang.T("Gelände"),
             Group(Lang.T("Grundplatte"), Large(Lang.T("Anlagen­platte"), "Board", "board", Lang.T("Breite und Tiefe der Anlagenplatte einstellen.")),
-                Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen."))),
+                Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
+                ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),

@@ -158,8 +158,8 @@
     {
         var plan = Plan;
         var errors = new List<string>();
-        Read("w", Lang.T("Breite"), 100, 50000, errors, out var bw);
-        Read("h", Lang.T("Tiefe"), 100, 50000, errors, out var bh);
+        Read("w", Lang.T("Breite"), 50, 50000, errors, out var bw);
+        Read("h", Lang.T("Tiefe"), 50, 50000, errors, out var bh);
         var newShape = Enum.TryParse<BoardShape>(F("shape"), out var sh) ? sh : plan.BoardShape;
         var bd = plan.BoardDepth;
         if (BoardGeometry.HasLegs(newShape)) Read("depth", Lang.T("Schenkeltiefe"), 50, 50000, errors, out bd);

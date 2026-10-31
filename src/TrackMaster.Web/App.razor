@@ -17,6 +17,7 @@
         </div>
         <button class="icon-btn" title="@Lang.T("Rückgängig (Strg+Z)")" disabled="@(!_session.History.CanUndo)" @onclick="@(() => Run("undo"))">@((MarkupString)Icons.Svg("Undo", 20))</button>
         <button class="icon-btn" title="@Lang.T("Wiederholen (Strg+Y)")" disabled="@(!_session.History.CanRedo)" @onclick="@(() => Run("redo"))">@((MarkupString)Icons.Svg("Redo", 20))</button>
+        <button class="icon-btn" title="@Lang.T("Verlauf: bis zu 20 Schritte zurück oder vor")" disabled="@(!_session.History.CanUndo && !_session.History.CanRedo)" @onclick="@(() => Run("history"))">@((MarkupString)Icons.Svg("History", 20))</button>
         <button class="edition @(_license.IsPro ? "pro" : "")" title="@_license.Summary" @onclick="@(() => Run("license"))">@_license.EditionName</button>
         <button class="icon-btn only-narrow" title="@Lang.T("Eigenschaften")" aria-label="@Lang.T("Eigenschaften")" @onclick="@(() => { _propsOpen = !_propsOpen; _libraryOpen = false; })">@((MarkupString)Icons.Svg("Properties", 20))</button>
     </header>
@@ -120,13 +121,22 @@
                     <span class="status3d">@_status3D</span>
                     <button class="btn accent" @onclick="Close3D">@Lang.T("Schließen")</button>
                 </div>
+                <div class="row">
+                    <button class="btn @(_scenery3D ? "on" : "")" title="@Lang.T("Gelände, Gewässer, Gebäude und Bäume zeigen")" @onclick="@(() => SetScenery3D(true))">@Lang.T("Mit Gelände")</button>
+                    <button class="btn @(!_scenery3D ? "on" : "")" title="@Lang.T("Nur Platte, Gleise und Pfeiler zeigen")" @onclick="@(() => SetScenery3D(false))">@Lang.T("Nur Gleisplan")</button>
+                    <span class="secondary small" style="margin-left:12px">@Lang.T("Drehen:")</span>
+                    <button class="btn" disabled="@_riding" title="@Lang.T("Um die Querachse kippen (X)")" @onclick="@(() => Js.GlTurn(0, 15))">X ↻</button>
+                    <button class="btn" disabled="@_riding" title="@Lang.T("Um die Hochachse drehen (Y)")" @onclick="@(() => Js.GlTurn(1, 15))">Y ↻</button>
+                    <button class="btn" disabled="@_riding" title="@Lang.T("Um die Blickachse drehen (Z)")" @onclick="@(() => Js.GlTurn(2, 15))">Z ↻</button>
+                    <button class="btn" disabled="@_riding" @onclick="@(() => Js.GlTurn(-1, 0))">@Lang.T("Gerade")</button>
+                </div>
                 <div class="row sliders">
                     <label class="slider"><span>@Lang.T("Tageszeit")</span><input type="range" min="0" max="72" value="@_hourStep" @oninput="SetHour" /><span class="value">@DayLight.TimeText(Hour)</span></label>
                     <label class="slider"><span>@Lang.T("Tempo")</span><input type="range" min="0" max="150" value="@_speedStep" @oninput="SetSpeed" /><span class="value">@($"{Speed:0} km/h")</span></label>
                 </div>
             </div>
             <div class="view3d-host"><canvas id="view3d-canvas"></canvas></div>
-            <div class="view3d-help">@Lang.T("Ziehen dreht · rechte Maustaste oder Umschalt + Ziehen verschiebt · Mausrad oder zwei Finger zoomen · Mitfahren startet am gewählten Gleis")</div>
+            <div class="view3d-help">@Lang.T("Ziehen dreht und kippt (auch von unten) · Strg + Ziehen dreht um die Blickachse · rechte Maustaste oder Umschalt + Ziehen verschiebt · Mausrad oder zwei Finger zoomen · Mitfahren startet am gewählten Gleis")</div>
         </div>
     }
 
@@ -203,7 +213,8 @@
         new(Lang.T("Gelände"),
         [
             new(Lang.T("Grundplatte"), [new(Lang.T("Anlagen­platte"), "Board", "board", true, Lang.T("Form und Maße der Anlagenplatte einstellen.")),
-                new(Lang.T("Module…"), "Modules", "modules", true, Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen."))]),
+                new(Lang.T("Module…"), "Modules", "modules", true, Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
+                new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen."))]),
             new(Lang.T("Landschaft"), [new(Lang.T("Gelände formen"), "Terrain", "toolTerrain", true, Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Gelände zeigen"), "Terrain", "scenery", false)]),
@@ -328,7 +339,7 @@
             var shape = NewShape;
             double bw = Fmt.Parse(D("w")) ?? 0, bh = Fmt.Parse(D("h")) ?? 0, bd = Fmt.Parse(D("depth")) ?? 0, l1 = Fmt.Parse(D("legL")) ?? 0, l2 = Fmt.Parse(D("legR")) ?? 0;
             var t = int.TryParse(D("turn"), out var tt) ? tt : 0;
-            var valid = bw >= 100 && bh >= 100;
+            var valid = bw >= 50 && bh >= 50;
         }
         @Hint(Lang.T("Der aktuelle Plan wird verworfen; Rückgängig holt ihn zurück. Form und Maße lassen sich später in den Eigenschaften des Plans ändern."))
         <div class="cols">
@@ -401,8 +412,8 @@
     private bool CreatePlan()
     {
         var errors = new List<string>();
-        Read("w", Lang.T("Breite"), 100, 50000, errors, out var bw);
-        Read("h", Lang.T("Tiefe"), 100, 50000, errors, out var bh);
+        Read("w", Lang.T("Breite"), 50, 50000, errors, out var bw);
+        Read("h", Lang.T("Tiefe"), 50, 50000, errors, out var bh);
         var shape = NewShape;
         var bd = 600.0;
         if (BoardGeometry.HasLegs(shape)) Read("depth", Lang.T("Schenkeltiefe"), 50, 50000, errors, out bd);
@@ -430,6 +441,7 @@
         public string Y { get; set; } = "";
         public string W { get; set; } = "";
         public string D { get; set; } = "";
+        public bool Pick { get; set; }
     }
 
     private List<ModuleRow> _modules = [];
@@ -445,11 +457,12 @@
                 ? Lang.T("Lage (X, Y = linke obere Ecke) und Größe jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Gleise über Modulgrenzen meldet die Planprüfung.")
                 : Lang.F($"Die Platte ({BoardGeometry.Name(plan.BoardShape)}) wird beim Übernehmen in Module zerlegt, je Rechteck eines. Danach lassen sich Module anhängen und verschieben."))
             <table class="table modules">
-                <tr><th>@Lang.T("Name")</th><th>X</th><th>Y</th><th>@Lang.T("Breite")</th><th>@Lang.T("Tiefe")</th><th></th></tr>
+                <tr><th title="@Lang.T("Zum Zusammenführen wählen")">✓</th><th>@Lang.T("Name")</th><th>X</th><th>Y</th><th>@Lang.T("Breite")</th><th>@Lang.T("Tiefe")</th><th></th></tr>
                 @foreach (var m in _modules)
                 {
                     var row = m;
                     <tr>
+                        <td><input type="checkbox" title="@Lang.T("Zum Zusammenführen wählen")" @bind="row.Pick" /></td>
                         <td><input class="input" @bind="row.Name" /></td>
                         <td><input class="input" inputmode="decimal" @bind="row.X" /></td>
                         <td><input class="input" inputmode="decimal" @bind="row.Y" /></td>
@@ -461,6 +474,7 @@
             </table>
             <div class="button-row">
                 <button class="btn" @onclick="AddModuleRow">@Lang.T("Modul anhängen")</button>
+                <button class="btn" disabled="@(_modules.Count(m => m.Pick) < 2)" @onclick="MergeModuleRows">@Lang.T("Gewählte zusammenführen")</button>
                 <button class="btn" @onclick="@(async () => { CloseDialog(); await AppendModuleFile(); })">@Lang.T("Plan als Modul ansetzen…")</button>
             </div>
         </div>, wide: true, keepFields: true);
@@ -468,23 +482,40 @@
         d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
         {
             var errors = new List<string>();
-            var edits = new List<ModuleEdit>();
-            foreach (var (m, i) in _modules.Select((m, i) => (m, i)))
-            {
-                double? x = Fmt.Parse(m.X), y = Fmt.Parse(m.Y), w = Fmt.Parse(m.W), dd = Fmt.Parse(m.D);
-                if (x is null || y is null || w is null || dd is null) { errors.Add(Lang.F($"Modul {i + 1}: bitte Zahlen eingeben.")); continue; }
-                if (w < ModuleLayout.MinSize || dd < ModuleLayout.MinSize || w > ModuleLayout.MaxSize || dd > ModuleLayout.MaxSize)
-                {
-                    errors.Add(Lang.F($"Modul {i + 1}: Breite und Tiefe zwischen {Fmt.Num(ModuleLayout.MinSize, 0)} und {Fmt.Num(ModuleLayout.MaxSize, 0)} mm."));
-                    continue;
-                }
-                edits.Add(new ModuleEdit(m.Index, m.Name, x.Value, y.Value, w.Value, dd.Value));
-            }
+            var edits = ModuleEdits(errors);
             if (!Fail(errors)) return false;
             _session.ApplyModules(edits);
             _view.Fit();
             return true;
         }, true));
+    }
+
+    private List<ModuleEdit> ModuleEdits(List<string> errors)
+    {
+        var edits = new List<ModuleEdit>();
+        foreach (var (m, i) in _modules.Select((m, i) => (m, i)))
+        {
+            double? x = Fmt.Parse(m.X), y = Fmt.Parse(m.Y), w = Fmt.Parse(m.W), dd = Fmt.Parse(m.D);
+            if (x is null || y is null || w is null || dd is null) { errors.Add(Lang.F($"Modul {i + 1}: bitte Zahlen eingeben.")); continue; }
+            if (w < ModuleLayout.MinSize || dd < ModuleLayout.MinSize || w > ModuleLayout.MaxSize || dd > ModuleLayout.MaxSize)
+            {
+                errors.Add(Lang.F($"Modul {i + 1}: Breite und Tiefe zwischen {Fmt.Num(ModuleLayout.MinSize, 0)} und {Fmt.Num(ModuleLayout.MaxSize, 0)} mm."));
+                continue;
+            }
+            edits.Add(new ModuleEdit(m.Index, m.Name, x.Value, y.Value, w.Value, dd.Value));
+        }
+        return edits;
+    }
+
+    private void MergeModuleRows()
+    {
+        var errors = new List<string>();
+        var edits = ModuleEdits(errors);
+        if (errors.Count > 0) { _session.Say(errors[0]); return; }
+        var pick = _modules.Select((m, i) => (m, i)).Where(t => t.m.Pick).Select(t => t.i).ToList();
+        var (rows, error) = ModuleLayout.Merge(edits, pick);
+        if (rows is null) { _session.Say(error!); return; }
+        _modules = rows.Select(Row).ToList();
     }
 
     private void AddModuleRow()
@@ -987,6 +1018,34 @@
             }
         </div>);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    // ---------- Verlauf ----------
+
+    private void ShowHistory()
+    {
+        var h = _session.History;
+        var redo = h.RedoLabels;
+        var undo = h.UndoLabels;
+        var d = Show(Lang.T("Verlauf"), @<div class="list history">
+            @Hint(Lang.T("Ein Klick springt zu diesem Stand: oben die zurückgenommenen Schritte (Wiederholen), unten die letzten Änderungen (Rückgängig)."))
+            @for (var i = redo.Count - 1; i >= 0; i--)
+            {
+                var steps = i + 1;
+                <button class="list-item redo" @onclick="@(() => { CloseDialog(); _session.Redo(steps); })">
+                    <span class="strong small">@Lang.F($"{steps} vor")</span><span>@redo[i]</span>
+                </button>
+            }
+            <div class="list-item on"><span class="strong small">@Lang.T("Jetzt")</span><span>@Lang.T("Aktueller Stand")</span></div>
+            @for (var i = 0; i < undo.Count; i++)
+            {
+                var steps = i + 1;
+                <button class="list-item" @onclick="@(() => { CloseDialog(); _session.Undo(steps); })">
+                    <span class="strong small">@Lang.F($"{steps} zurück")</span><span>@undo[i]</span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 
     private void ShowIssues(string title, IReadOnlyList<PlanIssue> issues, string? footer)

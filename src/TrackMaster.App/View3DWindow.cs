@@ -38,10 +38,12 @@ public sealed class View3DWindow : Window
 
     // Rundumsicht
     private Point3D _target;
-    private double _yaw = -60, _pitch = 35, _distance;
+    private double _yaw = -60, _pitch = 35, _roll, _distance;
+    // Neigung frei von oben bis unter die Platte; mit dem Kippen um die Blickachse lässt sich die Anlage um alle drei Achsen drehen
+    private const double PitchMin = -89, PitchMax = 89;
     private Point? _dragStart;
     private bool _panning;
-    private (double Yaw, double Pitch, Point3D Target) _dragOrigin;
+    private (double Yaw, double Pitch, double Roll, Point3D Target) _dragOrigin;
 
     // Mitfahren
     private RidePath? _path;
@@ -113,7 +115,28 @@ public sealed class View3DWindow : Window
         toolbar.Children.Add(_speed);
         toolbar.Children.Add(_speedText);
         toolbar.Children.Add(_status);
-        var top = new Border { Background = Brushes.White, BorderBrush = Theme.BorderStrongBrush, BorderThickness = new Thickness(0, 0, 0, 1), Child = toolbar };
+        var second = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 0, 12, 8) };
+        var withScenery = new RadioButton { Content = Lang.T("Mit Gelände"), IsChecked = true, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Gelände, Gewässer, Gebäude und Bäume zeigen") };
+        var tracksOnly = new RadioButton { Content = Lang.T("Nur Gleisplan"), Margin = new Thickness(0, 0, 24, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Nur Platte, Gleise und Pfeiler zeigen") };
+        withScenery.Checked += (_, _) => _scene.Rebuild(_plan, true);
+        tracksOnly.Checked += (_, _) => _scene.Rebuild(_plan, false);
+        second.Children.Add(withScenery);
+        second.Children.Add(tracksOnly);
+        second.Children.Add(Theme.Label(Lang.T("Drehen:"), 12, false, Theme.TextSecondaryBrush));
+        second.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        foreach (var (text, tip, axis) in new[] { ("X ↻", Lang.T("Um die Querachse kippen (X)"), 0), ("Y ↻", Lang.T("Um die Hochachse drehen (Y)"), 1), ("Z ↻", Lang.T("Um die Blickachse drehen (Z)"), 2), (Lang.T("Gerade"), "", -1) })
+        {
+            var b = Theme.Button(text);
+            b.Margin = new Thickness(8, 0, 0, 0);
+            if (tip.Length > 0) b.ToolTip = tip;
+            var a = axis;
+            b.Click += (_, _) => Turn(a, 15);
+            second.Children.Add(b);
+        }
+        var bars = new StackPanel();
+        bars.Children.Add(toolbar);
+        bars.Children.Add(second);
+        var top = new Border { Background = Brushes.White, BorderBrush = Theme.BorderStrongBrush, BorderThickness = new Thickness(0, 0, 0, 1), Child = bars };
         DockPanel.SetDock(top, Dock.Top);
 
         var stage = new Grid();
@@ -123,7 +146,7 @@ public sealed class View3DWindow : Window
         {
             Background = new SolidColorBrush(Color.FromArgb(0xE0, 0xFF, 0xFF, 0xFF)), CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(12),
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false,
-            Child = Theme.Label(Lang.T("Linke Maustaste: drehen · Rechte Maustaste: verschieben · Mausrad: zoomen · Mitfahren startet am gewählten Gleis"), 11.5, false, Theme.TextSecondaryBrush),
+            Child = Theme.Label(Lang.T("Linke Maustaste: drehen und kippen (auch von unten) · Strg + linke Maustaste: um die Blickachse drehen · Rechte Maustaste: verschieben · Mausrad: zoomen · Mitfahren startet am gewählten Gleis"), 11.5, false, Theme.TextSecondaryBrush),
         };
         stage.Children.Add(help);
         // Eingaben auf einer durchsichtigen Fläche, damit auch Klicks in den Himmel ankommen
@@ -176,14 +199,35 @@ public sealed class View3DWindow : Window
     private void UpdateCamera()
     {
         var yaw = _yaw * Math.PI / 180;
-        var pitch = Math.Clamp(_pitch, 5, 89) * Math.PI / 180;
+        var pitch = Math.Clamp(_pitch, PitchMin, PitchMax) * Math.PI / 180;
         var pos = new Point3D(
             _target.X + _distance * Math.Cos(pitch) * Math.Sin(yaw),
             _target.Y + _distance * Math.Sin(pitch),
             _target.Z + _distance * Math.Cos(pitch) * Math.Cos(yaw));
+        var look = _target - pos;
+        var forward = look; forward.Normalize();
+        var right = Vector3D.CrossProduct(forward, new Vector3D(0, 1, 0)); right.Normalize();
+        var up = Vector3D.CrossProduct(right, forward);
+        var roll = _roll * Math.PI / 180;
         _camera.Position = pos;
-        _camera.LookDirection = _target - pos;
-        _camera.UpDirection = new Vector3D(0, 1, 0);
+        _camera.LookDirection = look;
+        _camera.UpDirection = up * Math.Cos(roll) + right * Math.Sin(roll);
+    }
+
+    private static double Wrap(double degrees) => ((degrees + 540) % 360 + 360) % 360 - 180;
+
+    /// <summary>Drehen per Knopf: 0 = X (kippen), 1 = Y (Hochachse), 2 = Z (Blickachse), −1 = gerade ausrichten.</summary>
+    private void Turn(int axis, double degrees)
+    {
+        if (_rideButton.IsChecked == true) return;
+        switch (axis)
+        {
+            case 0: _pitch = Math.Clamp(_pitch + degrees, PitchMin, PitchMax); break;
+            case 1: _yaw = Wrap(_yaw + degrees); break;
+            case 2: _roll = Wrap(_roll + degrees); break;
+            default: (_yaw, _pitch, _roll) = (-60, 35, 0); break;
+        }
+        UpdateCamera();
     }
 
     private void OnMouseDown(object sender, MouseButtonEventArgs e)
@@ -192,7 +236,7 @@ public sealed class View3DWindow : Window
         var input = (IInputElement)sender;
         _dragStart = e.GetPosition(input);
         _panning = e.ChangedButton is MouseButton.Right or MouseButton.Middle;
-        _dragOrigin = (_yaw, _pitch, _target);
+        _dragOrigin = (_yaw, _pitch, _roll, _target);
         input.CaptureMouse();
     }
 
@@ -210,10 +254,12 @@ public sealed class View3DWindow : Window
             var forward = new Vector3D(-Math.Sin(yaw), 0, -Math.Cos(yaw));
             _target = _dragOrigin.Target - right * dx * scale + forward * dy * scale;
         }
+        else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+            _roll = Wrap(_dragOrigin.Roll + dx * 0.3);
         else
         {
             _yaw = _dragOrigin.Yaw - dx * 0.3;
-            _pitch = Math.Clamp(_dragOrigin.Pitch + dy * 0.25, 5, 89);
+            _pitch = Math.Clamp(_dragOrigin.Pitch + dy * 0.25, PitchMin, PitchMax);
         }
         UpdateCamera();
     }

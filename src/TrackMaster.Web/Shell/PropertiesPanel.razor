@@ -192,6 +192,7 @@
                 if (n.Length > 0) plan.Name = n;
                 plan.BoardWidth = bw;
                 plan.BoardHeight = bh;
+                if (plan.BoardShape != newShape) plan.BoardLegs.Clear();
                 plan.BoardShape = newShape;
                 plan.BoardTurn = t;
                 plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);
@@ -249,6 +250,12 @@
             <div class="cols">
                 <div><label class="field-label">@Lang.T("Linker Schenkel lang (mm)")</label><input class="input" inputmode="decimal" value="@F("legL")" @onchange="@(e => Set("legL", e, ApplyPlan))" /></div>
                 <div><label class="field-label">@Lang.T("Rechter Schenkel lang (mm)")</label><input class="input" inputmode="decimal" value="@F("legR")" @onchange="@(e => Set("legR", e, ApplyPlan))" /></div>
+            </div>
+        }
+        @if (BoardGeometry.HasLegs(shape) && shape == plan.BoardShape)
+        {
+            <div class="button-row">
+                <button class="btn" title="@Lang.T("Tiefe und Länge jedes Schenkels einzeln einstellen")" @onclick="@(() => Run("legs"))">@((MarkupString)Icons.Svg("Resize", 16)) @Lang.T("Schenkel einzeln…")</button>
             </div>
         }
         <div class="section">@Lang.T("Planprüfung")</div>

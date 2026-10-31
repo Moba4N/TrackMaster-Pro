@@ -349,6 +349,12 @@ public sealed class PlanView
                 c.DrawRect(r, Fill(Color.White));
                 c.DrawRect(r, Stroke(Ui.Accent, 2 * Ui.Density / z));
             }
+            // Griffe an den Schenkeln: Innenkante = Tiefe, freies Ende = Länge
+            foreach (var g in BoardGeometry.LegGrips(plan))
+            {
+                c.DrawCircle((float)g.X, (float)g.Y, h, Fill(g.Length ? Ui.Accent : Color.White));
+                c.DrawCircle((float)g.X, (float)g.Y, h, Stroke(Ui.Accent, 2 * Ui.Density / z));
+            }
         }
         if (_polygon.Count > 0)
         {

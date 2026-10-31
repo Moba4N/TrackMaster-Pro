@@ -149,11 +149,14 @@ public static partial class Dialogs
         var legRight = Ui.Number(c, BoardGeometry.Leg(plan.BoardLegRight, d0, full0));
         var uLegs = Columns(c, Ui.Field(c, Lang.T("Linker Schenkel lang (mm)"), legLeft), Ui.Field(c, Lang.T("Rechter Schenkel lang (mm)"), legRight));
         body.AddView(uLegs);
+        var legsButton = Ui.Button(c, Lang.T("Schenkel einzeln…"), () => run("legs"));
+        body.AddView(legsButton);
         void SyncLegs()
         {
             var sh = shapes[Math.Max(0, shape.SelectedItemPosition)];
             legs.Visibility = BoardGeometry.HasLegs(sh) ? ViewStates.Visible : ViewStates.Gone;
             uLegs.Visibility = sh == BoardShape.U ? ViewStates.Visible : ViewStates.Gone;
+            legsButton.Visibility = BoardGeometry.HasLegs(sh) && sh == plan.BoardShape ? ViewStates.Visible : ViewStates.Gone;
             size.Visibility = sh == BoardShape.Module ? ViewStates.Gone : ViewStates.Visible;
             modules.Visibility = sh == BoardShape.Module ? ViewStates.Visible : ViewStates.Gone;
         }
@@ -217,6 +220,7 @@ public static partial class Dialogs
                     if (n.Length > 0) plan.Name = n;
                     plan.BoardWidth = bw;
                     plan.BoardHeight = bh;
+                    if (plan.BoardShape != newShape) plan.BoardLegs.Clear();
                     plan.BoardShape = newShape;
                     plan.BoardTurn = t;
                     plan.BoardDepth = BoardGeometry.Depth(newShape, bw, bh, bd, t);

@@ -78,6 +78,8 @@ public static class PlanSerializer
         [JsonPropertyName("legL"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LegLeft { get; set; }
         [JsonPropertyName("legR"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LegRight { get; set; }
         [JsonPropertyName("modules"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModuleDto>? Modules { get; set; }
+        /// <summary>Eigene Maße je Schenkel als Paare [Tiefe, Länge]; 0 = Standard.</summary>
+        [JsonPropertyName("legs"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<double[]>? Legs { get; set; }
     }
 
     private sealed class ModuleDto
@@ -125,6 +127,9 @@ public static class PlanSerializer
                 Turn = plan.BoardShape == BoardShape.Rechteck || plan.BoardTurn == 0 ? null : plan.BoardTurn,
                 LegLeft = plan.BoardShape == BoardShape.U && plan.BoardLegLeft > 0 ? plan.BoardLegLeft : null,
                 LegRight = plan.BoardShape == BoardShape.U && plan.BoardLegRight > 0 ? plan.BoardLegRight : null,
+                Legs = BoardGeometry.HasLegs(plan.BoardShape) && plan.BoardLegs.Any(l => l.Depth > 0 || l.Length > 0)
+                    ? plan.BoardLegs.Take(BoardGeometry.LegNames(plan.BoardShape).Count).Select(l => new[] { Math.Round(l.Depth, 1), Math.Round(l.Length, 1) }).ToList()
+                    : null,
                 Modules = plan.BoardShape == BoardShape.Module && plan.Modules.Count > 0
                     ? plan.Modules.Select(m => new ModuleDto { Name = m.Name, X = Math.Round(m.X, 3), Y = Math.Round(m.Y, 3), W = Math.Round(m.Width, 3), D = Math.Round(m.Depth, 3) }).ToList()
                     : null,
@@ -186,6 +191,8 @@ public static class PlanSerializer
             BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
             VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
         };
+        foreach (var l in dto.Board?.Legs ?? [])
+            plan.BoardLegs.Add(new BoardLeg(l.Length > 0 && double.IsFinite(l[0]) ? Math.Max(0, l[0]) : 0, l.Length > 1 && double.IsFinite(l[1]) ? Math.Max(0, l[1]) : 0));
         foreach (var m in dto.Board?.Modules ?? [])
             if (m.W > 0 && m.D > 0 && double.IsFinite(m.X) && double.IsFinite(m.Y))
                 plan.Modules.Add(new BoardModule { Name = m.Name ?? "", X = m.X, Y = m.Y, Width = m.W, Depth = m.D });

@@ -142,6 +142,7 @@ public sealed class PropertiesPanel : DockPanel
                 // Modulanlage: die bisherige Platte wird zu Modulen; zurück zu einer festen Form ohne Module
                 if (f == BoardShape.Module) { ModuleLayout.ConvertToModules(plan); return; }
                 plan.Modules.Clear();
+                plan.BoardLegs.Clear();
                 plan.BoardShape = f;
                 plan.BoardDepth = BoardGeometry.Depth(f, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn);
             });
@@ -172,6 +173,7 @@ public sealed class PropertiesPanel : DockPanel
                 var right = NumberBox(BoardGeometry.Leg(plan.BoardLegRight, d, full), v => plan.BoardLegRight = v >= full ? 0 : Math.Max(v, d), 0);
                 _body.Children.Add(Columns(2, Theme.Field(Lang.T("Linker Schenkel lang (mm)"), left), Theme.Field(Lang.T("Rechter Schenkel lang (mm)"), right)));
             }
+            _body.Children.Add(Buttons(Cmd(Lang.T("Schenkel einzeln…"), "Resize", "legs")));
         }
 
         Section(Lang.T("Planprüfung"));

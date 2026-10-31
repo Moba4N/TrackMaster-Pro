@@ -197,6 +197,7 @@ public sealed class MainWindow : Window
         Add("search", _library.FocusSearch);
         Add("board", _properties.FocusBoard);
         Add("modules", AskModules);
+        Add("legs", AskLegs);
         Add("fit", Canvas.Fit);
         Add("zoomIn", () => Canvas.ZoomBy(1.25));
         Add("zoomOut", () => Canvas.ZoomBy(0.8));
@@ -880,6 +881,20 @@ public sealed class MainWindow : Window
         var dlg = new OpenFileDialog { Filter = FileFilter, Title = Lang.T("Gleisplan öffnen") };
         if (dlg.ShowDialog(this) != true) return;
         OpenPath(dlg.FileName);
+    }
+
+    private void AskLegs()
+    {
+        var plan = Session.Plan;
+        if (!BoardGeometry.HasLegs(plan.BoardShape)) return;
+        if (Dialogs.AskLegs(this, plan, out var reset) is not { } values) return;
+        Session.Edit(() =>
+        {
+            BoardGeometry.ResetLegs(plan);
+            if (!reset)
+                for (var i = 0; i < values.Count; i++) BoardGeometry.SetLeg(plan, i, values[i].Depth, values[i].Length);
+        });
+        Session.Say(BoardGeometry.Describe(plan));
     }
 
     private void AskModules()

@@ -9,6 +9,10 @@
 }
 <div class="shell @(_libraryOpen ? "lib-open" : "") @(_propsOpen ? "props-open" : "")" style="@RootStyle">
     <header class="titlebar">
+        @if (_homeUrl.Length > 0)
+        {
+            <a class="home-link" href="@_homeUrl" target="_top" title="@Lang.T("Zurück zur Startseite der Webseite")">@((MarkupString)Icons.Svg("Home", 18))<span class="hide-narrow">@Lang.T("Startseite")</span></a>
+        }
         <button class="icon-btn only-narrow" title="@Lang.T("Gleisbibliothek")" aria-label="@Lang.T("Gleisbibliothek")" @onclick="@(() => { _libraryOpen = !_libraryOpen; _propsOpen = false; })">@((MarkupString)Icons.Svg("Library", 20))</button>
         <img class="app-logo" src="img/logo-small.png" alt="TrackMaster Pro" title="@Lang.T("Über das Programm")" @onclick="@(() => Run("about"))" />
         <div class="titles">

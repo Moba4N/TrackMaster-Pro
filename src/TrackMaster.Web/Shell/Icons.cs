@@ -17,6 +17,7 @@ public static class Icons
         ["Pdf"] = "M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4",
         ["Print"] = "M7 8V3h10v5M7 17H3v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7h-4M7 13h10v8H7z",
         ["Exit"] = "M14 4h5v16h-5M10 8l-4 4 4 4M6 12h9",
+        ["Home"] = "M3 11l9-8 9 8M5 9.5V21h5v-6h4v6h5V9.5",
         ["Undo"] = "M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
         ["Redo"] = "M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3",
         ["Resize"] = "M3 3h6M3 3v6M21 21h-6M21 21v-6M3 3l7 7M21 21l-7-7M14 3h7v7M3 14v7h7",

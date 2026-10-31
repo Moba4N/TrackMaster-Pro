@@ -43,8 +43,12 @@ public partial class App : ComponentBase, IAppHost
     private sealed record Group(string Name, Item[] Items);
     private sealed record Tab(string Name, Group[] Groups);
 
+    /// <summary>Startseite der Webseite, in die der Planer eingebunden ist (aus index.html); leer = kein Link.</summary>
+    private string _homeUrl = "";
+
     protected override void OnInitialized()
     {
+        try { _homeUrl = Js.HomeUrl(); } catch { _homeUrl = ""; }
         _appearance = Settings.LoadAppearance();
         UseAppearance(_appearance);
         _license = new WebLicense(WebLicense.DeviceId(Settings.DeviceSeed()), () => Js.StorageGet(Settings.LicenseKey), text => Js.StorageSet(Settings.LicenseKey, text));

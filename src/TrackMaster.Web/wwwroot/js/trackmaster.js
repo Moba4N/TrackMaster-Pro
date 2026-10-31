@@ -349,6 +349,12 @@ export function reload() { location.reload(); }
 
 export function browserLanguage() { return navigator.language || "de"; }
 
+/** Adresse der Startseite der umgebenden Webseite aus <meta name="trackmaster-home">; leer = kein Link. */
+export function homeUrl() {
+    const m = document.querySelector('meta[name="trackmaster-home"]');
+    return (m && m.getAttribute("content") || "").trim();
+}
+
 export function storageGet(key) {
     try { return localStorage.getItem(key); } catch { return null; }
 }

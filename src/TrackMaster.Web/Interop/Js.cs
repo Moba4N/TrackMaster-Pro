@@ -73,6 +73,9 @@ public static partial class Js
     [JSImport("browserLanguage", Module)]
     public static partial string BrowserLanguage();
 
+    [JSImport("homeUrl", Module)]
+    public static partial string HomeUrl();
+
     // ---------- 3D ----------
 
     [JSImport("gl.open", Module)]

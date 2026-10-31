@@ -15,6 +15,8 @@ public sealed class PlacedPiece
     public double Grade { get; set; }
     /// <summary>Gleis liegt im Tunnel.</summary>
     public bool Tunnel { get; set; }
+    /// <summary>Ebene (0 … <see cref="LayoutPlan.MaxLevels"/> − 1), siehe <see cref="LayoutPlan.Levels"/>.</summary>
+    public int Level { get; set; }
     /// <summary>Digitaladresse (Weichen und Kreuzungsweichen).</summary>
     public int? Address { get; set; }
 
@@ -66,7 +68,7 @@ public sealed class PlacedPiece
 
     public PlacedPiece Clone() => new()
     {
-        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address,
+        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Level = Level,
     };
 }
 
@@ -89,6 +91,8 @@ public sealed class SceneryItem
     public double Rotation { get; set; }
     /// <summary>Höhe über der Platte in mm (Höhenfläche, Gebäude, Baum); bei Gewässern die Tiefe.</summary>
     public double Height { get; set; }
+    /// <summary>Ebene, auf der das Objekt liegt.</summary>
+    public int Level { get; set; }
 
     public bool IsArea => Kind is SceneryKind.Terrain or SceneryKind.Water;
     /// <summary>Beschriftung oder Maßlinie: wird immer gezeichnet, auch wenn das Gelände ausgeblendet ist.</summary>
@@ -133,7 +137,7 @@ public sealed class SceneryItem
 
     public SceneryItem Clone() => new()
     {
-        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height,
+        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level,
     };
 
     public static string KindName(SceneryKind k) => k switch
@@ -191,8 +195,26 @@ public sealed class Signal
     public int AddressCount => Type is SignalType.Vorsignal or SignalType.Sperrsignal or SignalType.Blocksignal ? 1 : 2;
 }
 
+/// <summary>Ebene der Anlage (z. B. Schattenbahnhof, Hauptebene, Bergstrecke) mit Grundhöhe für neue Gleise.</summary>
+public sealed class PlanLevel
+{
+    public string Name { get; set; } = "";
+    /// <summary>Grundhöhe über der Platte in mm; neue Gleise auf dieser Ebene beginnen in dieser Höhe.</summary>
+    public double Height { get; set; }
+    public bool Visible { get; set; } = true;
+
+    public PlanLevel Clone() => new() { Name = Name, Height = Height, Visible = Visible };
+
+    public static string DefaultName(int index) => Lang.F($"Ebene {index + 1}");
+}
+
+/// <summary>Zeile im Ebenen-Dialog: bisherige Ebene (−1 = neu), Name, Grundhöhe, sichtbar.</summary>
+public sealed record LevelEdit(int Index, string Name, double Height, bool Visible);
+
 public sealed class LayoutPlan
 {
+    /// <summary>Höchstens so viele Ebenen.</summary>
+    public const int MaxLevels = 10;
     public string Name { get; set; } = Lang.T("Neuer Plan");
     public string GaugeId { get; set; } = "H0";
     public double BoardWidth { get; set; } = 2000;
@@ -215,6 +237,10 @@ public sealed class LayoutPlan
     public List<Feeder> Feeders { get; } = [];
     public List<Isolation> Isolations { get; } = [];
     public List<Signal> Signals { get; } = [];
+    /// <summary>Ebenen; immer mindestens eine.</summary>
+    public List<PlanLevel> Levels { get; } = [new() { Name = PlanLevel.DefaultName(0) }];
+    /// <summary>Ebene, auf die neue Gleise und Objekte kommen.</summary>
+    public int ActiveLevel { get; set; }
     /// <summary>Länge des längsten Fahrzeugs in mm für die Planprüfung (0 = Vorgabe der Spur, siehe <see cref="VehicleDefaults"/>).</summary>
     public double VehicleLength { get; set; }
     public double EffectiveVehicleLength => VehicleLength > 0 ? VehicleLength : VehicleDefaults.Length(Gauge);
@@ -231,9 +257,45 @@ public sealed class LayoutPlan
 
     public PlacedPiece? Find(int id) => Pieces.FirstOrDefault(p => p.Id == id);
 
+    /// <summary>Vorschlag für den Abstand zur nächsten Ebene: lichte Höhe der Spur plus Trasse und Unterbau.</summary>
+    public double LevelStep => Math.Round((Gauge.ClearanceHeight + 40) / 10) * 10;
+
+    public PlanLevel Level(int index) => Levels[Math.Clamp(index, 0, Levels.Count - 1)];
+
+    public bool LevelVisible(int index) => Level(index).Visible;
+
+    /// <summary>Sind alle Ebenen sichtbar?</summary>
+    public bool AllLevelsVisible => Levels.All(l => l.Visible);
+
+    /// <summary>
+    /// Plan mit den sichtbaren Ebenen zum Zeichnen und Antippen: dieselben Objekte, nur ausgeblendete Ebenen fehlen.
+    /// Sind alle Ebenen sichtbar, ist es der Plan selbst.
+    /// </summary>
+    public LayoutPlan VisibleView()
+    {
+        if (AllLevelsVisible) return this;
+        var v = new LayoutPlan
+        {
+            Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
+            BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
+        };
+        v.Levels.Clear();
+        v.Levels.AddRange(Levels);
+        v.BoardLegs.AddRange(BoardLegs);
+        v.Modules.AddRange(Modules);
+        v.Pieces.AddRange(Pieces.Where(p => LevelVisible(p.Level)));
+        var ids = v.Pieces.Select(p => p.Id).ToHashSet();
+        v.Scenery.AddRange(Scenery.Where(s => LevelVisible(s.Level)));
+        v.Feeders.AddRange(Feeders.Where(f => ids.Contains(f.PieceId)));
+        v.Isolations.AddRange(Isolations.Where(i => ids.Contains(i.PieceId)));
+        v.Signals.AddRange(Signals.Where(s => ids.Contains(s.PieceId)));
+        return v;
+    }
+
     public PlacedPiece Add(string key)
     {
-        var piece = new PlacedPiece { Id = NextId++, Key = key };
+        var level = Math.Clamp(ActiveLevel, 0, Levels.Count - 1);
+        var piece = new PlacedPiece { Id = NextId++, Key = key, Level = level, Height = Levels[level].Height };
         Pieces.Add(piece);
         return piece;
     }

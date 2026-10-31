@@ -249,6 +249,7 @@ public partial class App : ComponentBase, IAppHost
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); _propsOpen = true; });
         Add("modules", Lang.T("Module"), AskModules);
         Add("legs", Lang.T("Schenkel einzeln"), AskLegs);
+        Add("levels", Lang.T("Ebenen"), AskLevels);
         Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));

@@ -32,7 +32,7 @@ public partial class App
 
     private void Open3D(View3DMode mode)
     {
-        _plan3D = _session.Plan;
+        _plan3D = _session.View;
         _mode3D = mode;
         _startPiece = _session.SelectedPieces.FirstOrDefault()?.Id;
         _routes.Clear();

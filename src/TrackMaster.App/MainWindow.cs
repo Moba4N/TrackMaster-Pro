@@ -198,6 +198,7 @@ public sealed class MainWindow : Window
         Add("board", _properties.FocusBoard);
         Add("modules", AskModules);
         Add("legs", AskLegs);
+        Add("levels", AskLevels);
         Add("fit", Canvas.Fit);
         Add("zoomIn", () => Canvas.ZoomBy(1.25));
         Add("zoomOut", () => Canvas.ZoomBy(0.8));
@@ -544,6 +545,8 @@ public sealed class MainWindow : Window
                 Toggle(Lang.T("Flexgleis ziehen"), "Flex", true, () => Session.Tool == CanvasTool.Flex, on => SetTool(on ? CanvasTool.Flex : CanvasTool.Select),
                     Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit. Bei verlegten Flexgleisen ein Ende anfassen und ziehen, um sie nachzuformen.")),
                 Large(Lang.T("Lücke schließen"), "Connector", "flexConnect", Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))),
+            Group(Lang.T("Ebenen"),
+                Large(Lang.T("Ebenen…"), "Layers", "levels", Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))),
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
@@ -592,7 +595,8 @@ public sealed class MainWindow : Window
                 Toggle(Lang.T("Gleisenden"), "Connector", false, () => Session.ShowEnds, on => { Session.ShowEnds = on; Canvas.InvalidateVisual(); }),
                 Toggle(Lang.T("Artikelnummern"), "Hash", false, () => Session.ShowLabels, on => { Session.ShowLabels = on; Canvas.InvalidateVisual(); }),
                 Toggle(Lang.T("Höhen"), "Slope", false, () => Session.ShowHeights, on => { Session.ShowHeights = on; Canvas.InvalidateVisual(); }),
-                Toggle(Lang.T("Gelände"), "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); })),
+                Toggle(Lang.T("Gelände"), "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); }),
+                Small(Lang.T("Ebenen…"), "Layers", "levels", Lang.T("Ebenen einzeln ein- und ausblenden."))),
             Group(Lang.T("Drehen"),
                 Large(Lang.T("Ansicht drehen…"), "ViewRotate", "viewAngle", Lang.T("Die Ansicht frei drehen – der Plan bleibt unverändert. Auch mit Strg + Mausrad.")),
                 Small(Lang.T("15° links"), "RotateLeft", "viewRotL", Lang.T("Ansicht 15° gegen den Uhrzeigersinn drehen.")),
@@ -749,6 +753,14 @@ public sealed class MainWindow : Window
                      Lang.F($"Gleislänge: {Fmt.Num(s.TrackLengthMm / 1000, 2)} m"), Lang.F($"Offene Enden: {s.OpenEnds}"), $"Zoom {Fmt.Num(Canvas.Zoom * 100, 0)} %",
                  })
             _statusLeft.Children.Add(new TextBlock { Text = text, Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.TextSecondaryBrush });
+        var level = new Button
+        {
+            Content = plan.Levels.Count > 1 ? $"{plan.Level(plan.ActiveLevel).Name} ({plan.Levels.Count(l => l.Visible)}/{plan.Levels.Count})" : plan.Level(plan.ActiveLevel).Name,
+            Height = 20, Padding = new Thickness(8, 0, 8, 0), FontSize = 11, ToolTip = Lang.T("Ebenen ein- und ausblenden"), BorderThickness = new Thickness(1),
+            Template = Theme.RoundedTemplate(), VerticalAlignment = VerticalAlignment.Center, Background = Theme.AccentLightBrush, BorderBrush = Theme.AccentBorderBrush,
+        };
+        level.Click += (_, _) => AskLevels();
+        _statusLeft.Children.Add(level);
     }
 
     private void ShowMessage(string text)
@@ -881,6 +893,14 @@ public sealed class MainWindow : Window
         var dlg = new OpenFileDialog { Filter = FileFilter, Title = Lang.T("Gleisplan öffnen") };
         if (dlg.ShowDialog(this) != true) return;
         OpenPath(dlg.FileName);
+    }
+
+    private void AskLevels()
+    {
+        var selected = Session.Selection.Count + (Session.SelectedObject is null ? 0 : 1);
+        if (Dialogs.AskLevels(this, Session.Plan, selected, out var move) is not { } r) return;
+        Session.ApplyLevels(r.Edits, r.Active);
+        if (move) Session.MoveSelectionToLevel(Session.Plan.ActiveLevel);
     }
 
     private void AskLegs()
@@ -1122,7 +1142,7 @@ public sealed class MainWindow : Window
 
     private void Open3D(View3DMode mode)
     {
-        var window = new View3DWindow(Session.Plan, Session.SelectedPieces.FirstOrDefault()?.Id, mode) { Owner = this };
+        var window = new View3DWindow(Session.View, Session.SelectedPieces.FirstOrDefault()?.Id, mode) { Owner = this };
         window.Show();
     }
 

@@ -439,6 +439,8 @@ public sealed class PlanSession
         var leg = grip is not null ? null : BoardGeometry.LegGrips(Plan).Where(h => Math.Abs(h.X - x) <= tolerance && Math.Abs(h.Y - y) <= tolerance)
             .OrderBy(h => Math.Abs(h.X - x) + Math.Abs(h.Y - y)).FirstOrDefault();
         if (grip is null && leg is null && ModuleLayout.ModuleAt(Plan, x, y) is { } m) grip = new BoardHandle(m, -1, x, y);
+        // Andere Plattenformen: Klick auf die Platte öffnet die Maße (ziehen geht nur an Ecken und Schenkeln)
+        if (grip is null && leg is null && Plan.BoardShape != BoardShape.Module && BoardGeometry.Contains(Plan, x, y)) grip = new BoardHandle(-1, -2, x, y);
         if (grip is null && leg is null) return false;
         Record();
         _boardDrag = (grip, leg, PlanSerializer.ToJson(Plan, withIds: true), x, y, false);
@@ -449,6 +451,7 @@ public sealed class PlanSession
     public void BoardDragTo(double x, double y)
     {
         if (_boardDrag is not { } d) return;
+        if (d.Grip is { Corner: -2 }) return;
         var plan = PlanSerializer.FromJson(d.Start, out _);
         if (d.Leg is { } leg)
         {
@@ -467,7 +470,13 @@ public sealed class PlanSession
     {
         if (_boardDrag is not { } d) return;
         _boardDrag = null;
-        if (!d.Changed) { History.DiscardLast(); return; }
+        if (!d.Changed)
+        {
+            // Nur geklickt: Maße von Hand eingeben
+            History.DiscardLast();
+            BoardPartClicked?.Invoke(d.Leg is not null ? -1 : d.Grip!.Module, d.Leg?.Leg ?? -1);
+            return;
+        }
         if (d.Leg is { } leg)
         {
             var r = BoardGeometry.ResolvedLegs(Plan)[leg.Leg];
@@ -481,6 +490,60 @@ public sealed class PlanSession
     }
 
     public bool BoardDragging => _boardDrag is not null;
+
+    /// <summary>Mit „Platte ziehen“ geklickt statt gezogen: Modul (−1 = ganze Platte) und Schenkel (−1 = keiner), deren Maße eingegeben werden sollen.</summary>
+    public event Action<int, int>? BoardPartClicked;
+
+    /// <summary>Maße der Platte von Hand (nicht bei Modulanlagen). <paramref name="depth"/>: Schenkeltiefe bei Formen mit Schenkeln.</summary>
+    public void SetBoardSize(double width, double height, double? depth = null)
+    {
+        if (Plan.BoardShape == BoardShape.Module) return;
+        Record();
+        Plan.BoardWidth = Math.Clamp(width, 50, 50000);
+        Plan.BoardHeight = Math.Clamp(height, 50, 50000);
+        if (depth is { } dd) Plan.BoardDepth = BoardGeometry.Depth(Plan.BoardShape, Plan.BoardWidth, Plan.BoardHeight, dd, Plan.BoardTurn);
+        Commit();
+        Say(Lang.F($"Plattengröße geändert: {BoardGeometry.Describe(Plan)}."));
+    }
+
+    /// <summary>
+    /// Dreht die ganze Anlage (Platte, Gleise, Gelände) um 90° im Uhrzeigersinn, oder mit <paramref name="module"/> nur dieses Modul samt Inhalt.
+    /// </summary>
+    public void RotateBoard(int module = -1)
+    {
+        Record();
+        var plan = Plan;
+        if (module >= 0) ModuleLayout.RotateModule(plan, module);
+        else
+        {
+            double w = plan.BoardWidth, h = plan.BoardHeight;
+            // (x, y) → (h − y, x): Drehung um 90° im Uhrzeigersinn, danach wieder ab 0, 0
+            PlanEditing.RotateAround(plan.Pieces, 0, 0, 90);
+            foreach (var p in plan.Pieces) p.X += h;
+            foreach (var s in plan.Scenery) { s.RotateAround(0, 0, 90); s.MoveBy(h, 0); }
+            if (plan.BoardShape == BoardShape.Module)
+            {
+                foreach (var m in plan.Modules) (m.X, m.Y, m.Width, m.Depth) = (h - m.Y - m.Depth, m.X, m.Depth, m.Width);
+                ModuleLayout.Fit(plan);
+            }
+            else
+            {
+                (plan.BoardWidth, plan.BoardHeight) = (h, w);
+                if (plan.BoardShape != BoardShape.Rechteck) plan.BoardTurn = (plan.BoardTurn + 1) % 4;
+            }
+        }
+        Commit();
+        Say(module >= 0 ? Lang.F($"{Plan.Modules[Math.Min(module, Plan.Modules.Count - 1)].Name} um 90° gedreht.") : Lang.F($"Anlage um 90° gedreht: {BoardGeometry.Describe(Plan)}."));
+    }
+
+    /// <summary>Lage und Größe eines Moduls von Hand.</summary>
+    public void SetModule(int index, string name, double x, double y, double width, double depth)
+    {
+        var rows = ModuleLayout.Current(Plan).ToList();
+        if (index < 0 || index >= rows.Count) return;
+        rows[index] = rows[index] with { Name = name, X = x, Y = y, Width = width, Depth = depth };
+        ApplyModules(rows);
+    }
 
     public void Undo() => Undo(1);
 
@@ -620,6 +683,15 @@ public sealed class PlanSession
         Say(hidden == 0
             ? Lang.F($"{Plan.Levels.Count} Ebenen, alle sichtbar. Neue Gleise kommen auf {Plan.Levels[Plan.ActiveLevel].Name}.")
             : Lang.F($"{Plan.Levels.Count} Ebenen, {hidden} ausgeblendet. Neue Gleise kommen auf {Plan.Levels[Plan.ActiveLevel].Name}."));
+    }
+
+    /// <summary>Neue Ebene über der höchsten anlegen und aktiv setzen.</summary>
+    public void AddLevel()
+    {
+        if (Plan.Levels.Count >= LayoutPlan.MaxLevels) { Say(Lang.F($"Höchstens {LayoutPlan.MaxLevels} Ebenen.")); return; }
+        var edits = Plan.Levels.Select((l, i) => new LevelEdit(i, l.Name, l.Height, l.Visible)).ToList();
+        edits.Add(new LevelEdit(-1, PlanLevel.DefaultName(edits.Count), (Plan.Levels.Count > 0 ? Plan.Levels.Max(l => l.Height) + Plan.LevelStep : 0), true));
+        ApplyLevels(edits, edits.Count - 1);
     }
 
     /// <summary>Gewählte Gleise (und das gewählte Objekt) auf eine Ebene legen; Gleise ändern ihre Höhe um den Höhenunterschied der Ebenen.</summary>

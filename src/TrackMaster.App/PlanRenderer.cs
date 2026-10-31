@@ -90,10 +90,10 @@ public sealed class PlanScene
     }
 
     /// <summary>Hügel wie auf einer Landkarte: Höhenstufen mit zunehmend erdigem Farbton und Höhenlinien.</summary>
-    private static void DrawHill(DrawingContext dc, SceneryItem s, double z, Pen? selected)
+    private static void DrawHill(DrawingContext dc, LayoutPlan plan, SceneryItem s, double z, Pen? selected)
     {
         var outline = Polygon(s.Points);
-        var f = TerrainField.For(s);
+        var f = TerrainField.For(plan, s);
         dc.DrawGeometry(TerrainBrush(0), null, outline);
         var contour = new Pen(ContourPen.Brush, 0.9 / z);
         var index = new Pen(ContourPen.Brush, 1.8 / z);
@@ -193,7 +193,7 @@ public sealed class PlanScene
         if (o.Scenery)
         {
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Terrain).OrderBy(s => s.Height))
-                DrawHill(dc, s, z, s.Id == o.SelectedObject ? selPen : null);
+                DrawHill(dc, plan, s, z, s.Id == o.SelectedObject ? selPen : null);
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Water))
             {
                 var water = Polygon(s.Points);

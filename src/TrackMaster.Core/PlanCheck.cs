@@ -139,7 +139,7 @@ public static class PlanCheck
                     issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Gewässer"), Lang.F($"Gleise liegen im Gewässer „{s.Name}“ – hier fehlt eine Brücke (Gleis höher legen)."), ids, cx, cy));
                     break;
                 case SceneryKind.Terrain:
-                    var field = TerrainField.For(s);
+                    var field = TerrainField.For(plan, s);
                     var buried = hits.Where(q => q.Z < field.At(q.X, q.Y) - gauge.TrackWidth && plan.Find(q.PieceId) is { Tunnel: false }).Select(q => q.PieceId).Distinct().ToList();
                     if (buried.Count > 0)
                         issues.Add(new PlanIssue(IssueLevel.Hinweis, "Tunnel", Lang.F($"{buried.Count} Gleis(e) liegen unter der Höhenfläche „{s.Name}“ – als Tunnel markieren?"), buried, cx, cy));

@@ -34,6 +34,7 @@ public sealed class MainActivity : Activity
     private LibraryPanel _library = null!;
     private LinearLayout _tabs = null!;
     private LinearLayout _actions = null!;
+    private LinearLayout _levelBar = null!;
     private HorizontalScrollView _actionScroll = null!;
     private TextView _title = null!, _edition = null!, _status = null!, _toast = null!;
     private LinearLayout _toolBar = null!;
@@ -66,6 +67,11 @@ public sealed class MainActivity : Activity
         _session.IsPro = () => _license.IsPro;
         _session.ProRequired += feature => Dialogs.ShowProRequired(this, feature, ShowLicense);
         _session.Message += ShowMessage;
+        _session.BoardPartClicked += (module, leg) => _canvas.Post(() =>
+        {
+            if (leg >= 0) Run("legs");
+            else Dialogs.AskBoardPart(this, _session, module, () => Run("modules"), () => Run("legs"));
+        });
         RestoreAutosave();
         RegisterCommands();
         BuildUi();
@@ -201,6 +207,7 @@ public sealed class MainActivity : Activity
         Add("modules", Lang.T("Module"), () => Dialogs.AskModules(this, _session.Plan, edits => { _session.ApplyModules(edits); _canvas.Fit(); }, () => Pick(RequestModule)));
         Add("legs", Lang.T("Schenkel einzeln"), () => Dialogs.AskLegs(this, _session));
         Add("levels", Lang.T("Ebenen"), () => Dialogs.AskLevels(this, _session));
+        Add("boardRotate", Lang.T("Anlage drehen"), () => _session.RotateBoard());
         Add("benchwork", Lang.T("Unterbau"), () => { if (_session.Plan.Benchwork is null) AskBenchwork(); else ShowBenchwork(); });
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
@@ -364,7 +371,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Ebenen…"), "levels", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
@@ -476,6 +483,15 @@ public sealed class MainActivity : Activity
         stage.AddView(_toast, new FrameLayout.LayoutParams(-2, -2, GravityFlags.Bottom | GravityFlags.Start) { LeftMargin = Ui.Dp(10), RightMargin = Ui.Dp(70), BottomMargin = Ui.Dp(10) });
         root.AddView(stage, Ui.Weight(1));
 
+        // Ebenenleiste: jede Ebene mit Haken zum Ein- und Ausblenden, Antippen macht sie aktiv
+        _levelBar = Ui.Row(this, 6);
+        _levelBar.SetPadding(Ui.Dp(8), Ui.Dp(4), Ui.Dp(8), Ui.Dp(4));
+        var levelScroll = new HorizontalScrollView(this) { HorizontalScrollBarEnabled = false };
+        levelScroll.SetBackgroundColor(Color.White);
+        levelScroll.AddView(_levelBar);
+        root.AddView(new View(this) { Background = new Android.Graphics.Drawables.ColorDrawable(Ui.Border) }, new LinearLayout.LayoutParams(-1, Math.Max(1, Ui.Dp(1))));
+        root.AddView(levelScroll, Ui.Fill());
+
         // Bibliothek und Statuszeile
         root.AddView(new View(this) { Background = new Android.Graphics.Drawables.ColorDrawable(Ui.Border) }, new LinearLayout.LayoutParams(-1, Math.Max(1, Ui.Dp(1))));
         _library = new LibraryPanel(this, _session, () => _canvas.CenterWorld());
@@ -584,6 +600,38 @@ public sealed class MainActivity : Activity
         _status.Text = Lang.F($"Spur {plan.GaugeId} · {stats.Pieces} Gleise · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m · offene Enden {stats.OpenEnds}") + (sel > 0 ? Lang.F($" · {sel} gewählt") : "");
         RefreshActions();
         UpdateToolBar();
+        UpdateLevelBar();
+    }
+
+    private void UpdateLevelBar()
+    {
+        var plan = _session.Plan;
+        _levelBar.RemoveAllViews();
+        var title = Ui.Label(this, Lang.T("Ebenen"), 12, true, Ui.TextSecondary);
+        title.Gravity = GravityFlags.CenterVertical;
+        _levelBar.AddView(title);
+        for (var i = 0; i < plan.Levels.Count; i++)
+        {
+            var index = i;
+            var l = plan.Levels[i];
+            var active = i == plan.ActiveLevel;
+            var chip = Ui.Row(this, 2);
+            chip.Background = Ui.Rounded(active ? Ui.AccentLight : Color.White, active ? Ui.AccentBorder : Ui.Border, 14);
+            chip.SetPadding(Ui.Dp(2), 0, Ui.Dp(10), 0);
+            var check = new CheckBox(this) { Checked = l.Visible };
+            check.Click += (_, _) => _session.SetLevelVisible(index, check.Checked);
+            chip.AddView(check);
+            var name = Ui.Label(this, $"{l.Name}  {Fmt.Num(l.Height, 0)}", 13, active);
+            name.Alpha = l.Visible ? 1f : 0.55f;
+            name.Click += (_, _) => _session.SetActiveLevel(index);
+            chip.AddView(name);
+            chip.Click += (_, _) => _session.SetActiveLevel(index);
+            _levelBar.AddView(chip);
+        }
+        var add = Ui.Button(this, "+", _session.AddLevel);
+        add.Enabled = plan.Levels.Count < 10;
+        _levelBar.AddView(add);
+        _levelBar.AddView(Ui.Button(this, "…", () => Run("levels")));
     }
 
     private void UpdateToolBar()
@@ -598,7 +646,7 @@ public sealed class MainActivity : Activity
         Ui.SetButtonState(_toolBack, false, false);
         _toolText.Text = tool switch
         {
-            CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein."),
+            CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen."),
             CanvasTool.Terrain => Lang.F($"Gelände formen: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
             CanvasTool.Water => Lang.F($"Gewässer: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
             CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein."),

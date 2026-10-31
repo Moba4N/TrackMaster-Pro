@@ -129,6 +129,17 @@ public sealed class SceneryItem
 
     public bool Contains(double px, double py) => Geometry2D.PointInPolygon(Outline(), px, py);
 
+    /// <summary>Dreht das Objekt um einen Punkt (Grad im Uhrzeigersinn bei y nach unten).</summary>
+    public void RotateAround(double cx, double cy, double degrees)
+    {
+        var r = degrees * Math.PI / 180;
+        double c = Math.Cos(r), s = Math.Sin(r);
+        (double X, double Y) Turn(double x, double y) => (cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c);
+        (X, Y) = Turn(X, Y);
+        Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
+        if (Kind is SceneryKind.Building or SceneryKind.Label) Rotation = Angles.Normalize(Rotation + degrees);
+    }
+
     public void MoveBy(double dx, double dy)
     {
         X += dx; Y += dy;

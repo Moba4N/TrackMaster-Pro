@@ -135,6 +135,7 @@ public sealed class Scene3DModel
 
         var totalLength = plan.Pieces.Sum(p => p.Def.TrackLength);
         var sleepers = totalLength / g < 8000;
+        if (Scenery) IndexTracks(plan);
         foreach (var p in plan.Pieces) Track(p, sleepers);
         foreach (var p in plan.Pieces.Where(p => p.Def.IsTable)) Table(p);
         foreach (var sig in plan.Signals) SignalModel(sig);
@@ -264,8 +265,8 @@ public sealed class Scene3DModel
     /// <summary>Hügel als Höhenfeld mit weichem Hang; Wiese, Erde und Fels je nach Neigung.</summary>
     private void Hill(SceneryItem s)
     {
-        if (s.Points.Count < 3 || s.Height <= 0) return;
-        var f = TerrainField.For(s);
+        if (s.Points.Count < 3 || s.Height + _plan.Level(s.Level).Height <= 0) return;
+        var f = TerrainField.For(_plan, s);
         Vec3 V(int i, int j) => P(f.X0 + i * f.Cell, f.Y0 + j * f.Cell, f.Vertex(i, j) + (f.Vertex(i, j) > 0 ? 0.2 : 0));
         void Tri(int i, int j, Vec3 a, Vec3 b, Vec3 c, int k)
         {
@@ -443,6 +444,83 @@ public sealed class Scene3DModel
         return list;
     }
 
+    private Dictionary<(int, int), List<(double X, double Y, double Z, int Id)>> _tracks = [];
+    private double _trackCell = 100;
+
+    /// <summary>Gleispunkte nach Rasterfeldern, um Gleise unter einem Damm schnell zu finden.</summary>
+    private void IndexTracks(LayoutPlan plan)
+    {
+        _trackCell = Math.Max(_g * 8, 60);
+        _tracks = [];
+        foreach (var p in plan.Pieces)
+        {
+            var legs = p.WorldLegs();
+            for (var li = 0; li < legs.Count; li++)
+                foreach (var q in Samples(p, li, legs[li], _g * 2, 0))
+                {
+                    var key = ((int)Math.Floor(q.X / _trackCell), (int)Math.Floor(q.Y / _trackCell));
+                    if (!_tracks.TryGetValue(key, out var list)) _tracks[key] = list = [];
+                    list.Add((q.X, q.Y, q.Z, p.Id));
+                }
+        }
+    }
+
+    private bool TrackBelow(double x, double y, double radius, double z, int self)
+    {
+        int r = (int)Math.Ceiling(radius / _trackCell), cx = (int)Math.Floor(x / _trackCell), cy = (int)Math.Floor(y / _trackCell);
+        for (var i = cx - r; i <= cx + r; i++)
+            for (var j = cy - r; j <= cy + r; j++)
+                if (_tracks.TryGetValue((i, j), out var list))
+                    foreach (var q in list)
+                        if (q.Id != self && q.Z < z - _g * 2 && (q.X - x) * (q.X - x) + (q.Y - y) * (q.Y - y) < radius * radius) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Damm aus Erde mit Böschung 1 : 1,5 unter einem hochliegenden Gleisabschnitt bis auf die Landschaft.
+    /// False, wenn darunter ein anderes Gleis liegt – dann trägt eine Brücke.
+    /// </summary>
+    private bool Embankment(PlacedPiece p, List<(double X, double Y, double Z, double H)> pts, double lift)
+    {
+        var g = _g;
+        var top = 1.45 * g;
+        foreach (var q in pts)
+            if (TrackBelow(q.X, q.Y, top + (q.Z - lift) * 1.5 + g * 2, q.Z - lift, p.Id)) return false;
+        var slope = Mesh(new Rgb(0x86, 0x9A, 0x58));
+        var slopeDark = Mesh(new Rgb(0x7A, 0x8C, 0x50));
+        for (var i = 0; i + 1 < pts.Count; i++)
+        {
+            var (a, b) = (pts[i], pts[i + 1]);
+            static (double X, double Y) N(double h) => (-Math.Sin(h), Math.Cos(h));
+            var (na, nb) = (N(a.H), N(b.H));
+            double za = a.Z - lift, zb = b.Z - lift;
+            foreach (var side in new[] { -1.0, 1.0 })
+            {
+                double ga = TerrainField.GroundAt(_plan, a.X + na.X * side * top, a.Y + na.Y * side * top);
+                double gb = TerrainField.GroundAt(_plan, b.X + nb.X * side * top, b.Y + nb.Y * side * top);
+                double ra = top + Math.Max(0, za - ga) * 1.5, rb = top + Math.Max(0, zb - gb) * 1.5;
+                var ta = P(a.X + na.X * side * top, a.Y + na.Y * side * top, za);
+                var tb = P(b.X + nb.X * side * top, b.Y + nb.Y * side * top, zb);
+                var fa = P(a.X + na.X * side * ra, a.Y + na.Y * side * ra, ga);
+                var fb = P(b.X + nb.X * side * rb, b.Y + nb.Y * side * rb, gb);
+                var mesh = Noise(p.Id, i, side > 0 ? 1 : 2) < 0.5 ? slope : slopeDark;
+                if (side < 0) mesh.Quad(fa, fb, tb, ta);
+                else mesh.Quad(ta, tb, fb, fa);
+            }
+        }
+        // Dammkrone unter dem Schotter
+        var crown = Mesh(new Rgb(0x8E, 0x82, 0x66));
+        for (var i = 0; i + 1 < pts.Count; i++)
+        {
+            var (a, b) = (pts[i], pts[i + 1]);
+            static (double X, double Y) N(double h) => (-Math.Sin(h), Math.Cos(h));
+            var (na, nb) = (N(a.H), N(b.H));
+            double za = a.Z - lift - 0.05, zb = b.Z - lift - 0.05;
+            crown.Quad(P(a.X - na.X * top, a.Y - na.Y * top, za), P(b.X - nb.X * top, b.Y - nb.Y * top, zb), P(b.X + nb.X * top, b.Y + nb.Y * top, zb), P(a.X + na.X * top, a.Y + na.Y * top, za));
+        }
+        return true;
+    }
+
     private void Track(PlacedPiece p, bool sleepers)
     {
         var g = _g;
@@ -520,10 +598,11 @@ public sealed class Scene3DModel
                     }
                 }
             }
-            // Pfeiler unter hochliegenden Gleisen
+            // Mit Gelände: Damm unter hochliegenden Gleisen, außer über anderen Gleisen (dort Brücke mit Pfeilern)
             var mid = legs[li].At(0.5);
             var zm = p.HeightAt(li, 0.5);
             var below = Scenery ? TerrainField.GroundAt(_plan, mid.X, mid.Y) : 0;
+            if (Scenery && !p.Tunnel && zm - below > g * 1.5 && Embankment(p, pts, lift)) continue;
             if (zm - below > g * 1.5 && !p.Tunnel)
             {
                 var w = g * 0.6;

@@ -229,7 +229,11 @@ public class BoardDragTests
         s.EndBoardDrag();
         Assert.Equal(2200, s.Plan.BoardWidth);
         Assert.Equal(500, s.Plan.Pieces[0].X, 3);
-        Assert.False(s.BeginBoardDrag(1000, 600, 10));
+        // Klick in die Platte: nur Maße eingeben, Ziehen ändert nichts
+        Assert.True(s.BeginBoardDrag(1000, 600, 10));
+        s.BoardDragTo(1400, 900);
+        s.EndBoardDrag();
+        Assert.Equal(2200, s.Plan.BoardWidth);
     }
 }
 

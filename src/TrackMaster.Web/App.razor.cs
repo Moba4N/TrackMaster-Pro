@@ -51,6 +51,7 @@ public partial class App : ComponentBase, IAppHost
         _session.IsPro = () => _license.IsPro;
         _session.ProRequired += feature => ShowProRequired(feature);
         _session.Message += ShowToast;
+        _session.BoardPartClicked += (module, leg) => { AskBoardPart(module, leg); StateHasChanged(); };
         RestoreAutosave();
         _view = new PlanView(_session);
         _view.PropertiesRequested += () => Run("props");
@@ -250,6 +251,7 @@ public partial class App : ComponentBase, IAppHost
         Add("modules", Lang.T("Module"), AskModules);
         Add("legs", Lang.T("Schenkel einzeln"), AskLegs);
         Add("levels", Lang.T("Ebenen"), AskLevels);
+        Add("boardRotate", Lang.T("Anlage drehen"), () => _session.RotateBoard());
         Add("benchwork", Lang.T("Unterbau"), () => { if (_session.Plan.Benchwork is null) AskBenchwork(); else ShowBenchwork(); });
         Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
@@ -353,8 +355,8 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
-            ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein.")
-            : Lang.T("Platte ziehen: eine Ecke der Platte ziehen ändert ihre Größe. Esc beendet."),
+            ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")
+            : Lang.T("Platte ziehen: eine Ecke der Platte ziehen ändert ihre Größe, Klick auf die Platte: Maße eintippen oder drehen. Esc beendet."),
         _ => "",
     };
 

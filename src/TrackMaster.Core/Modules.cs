@@ -173,6 +173,76 @@ public static class ModuleLayout
         return (result, null);
     }
 
+    /// <summary>
+    /// Teilt das Modul <paramref name="index"/> in zwei: <paramref name="acrossWidth"/> = senkrechter Schnitt (die Breite wird geteilt),
+    /// sonst waagerecht. <paramref name="at"/> ist der Abstand des Schnitts von der linken bzw. oberen Kante. Gleise bleiben liegen.
+    /// </summary>
+    public static (List<ModuleEdit>? Rows, string? Error) Split(IReadOnlyList<ModuleEdit> rows, int index, bool acrossWidth, double at)
+    {
+        if (index < 0 || index >= rows.Count) return (null, Lang.T("Bitte ein Modul wählen."));
+        var m = rows[index];
+        var size = acrossWidth ? m.Width : m.Depth;
+        if (!double.IsFinite(at) || at < MinSize || size - at < MinSize)
+            return (null, Lang.F($"Die Teilung muss mindestens {Fmt.Num(MinSize, 0)} mm von beiden Kanten entfernt sein (Modul {Fmt.Num(size, 0)} mm)."));
+        var first = acrossWidth ? m with { Width = at } : m with { Depth = at };
+        var second = acrossWidth
+            ? new ModuleEdit(Merged, Lang.F($"{m.Name} b"), m.X + at, m.Y, m.Width - at, m.Depth)
+            : new ModuleEdit(Merged, Lang.F($"{m.Name} b"), m.X, m.Y + at, m.Width, m.Depth - at);
+        var result = rows.ToList();
+        result[index] = first with { Name = Lang.F($"{m.Name} a") };
+        result.Insert(index + 1, second);
+        return (result, null);
+    }
+
+    /// <summary>
+    /// Setzt das Modul <paramref name="moving"/> an eine Seite von <paramref name="target"/> (0 rechts, 1 unten, 2 links, 3 oben),
+    /// bündig mit dessen Anfang. <paramref name="longSide"/>: das Modul liegt mit seiner langen Seite an, sonst mit der kurzen
+    /// (es wird dafür um 90° gedreht). Gleise auf dem Modul wandern mit, ohne Drehung.
+    /// </summary>
+    public static (List<ModuleEdit>? Rows, string? Error) Join(IReadOnlyList<ModuleEdit> rows, int moving, int target, int side, bool longSide)
+    {
+        if (moving < 0 || target < 0 || moving >= rows.Count || target >= rows.Count || moving == target)
+            return (null, Lang.T("Bitte zwei verschiedene Module wählen."));
+        var a = rows[target];
+        var b = rows[moving];
+        double longer = Math.Max(b.Width, b.Depth), shorter = Math.Min(b.Width, b.Depth);
+        // Anliegende Kante: bei rechts/links senkrecht (Tiefe), bei oben/unten waagerecht (Breite)
+        var touching = longSide ? longer : shorter;
+        var other = longSide ? shorter : longer;
+        var vertical = side is 0 or 2;
+        double w = vertical ? other : touching, d = vertical ? touching : other;
+        var (x, y) = side switch
+        {
+            0 => (a.X + a.Width, a.Y),
+            1 => (a.X, a.Y + a.Depth),
+            2 => (a.X - w, a.Y),
+            _ => (a.X, a.Y - d),
+        };
+        var placed = b with { X = x, Y = y, Width = w, Depth = d };
+        var overlap = rows.Where((r, i) => i != moving).Any(r =>
+            Math.Min(r.X + r.Width, x + w) - Math.Max(r.X, x) > 0.5 && Math.Min(r.Y + r.Depth, y + d) - Math.Max(r.Y, y) > 0.5);
+        if (overlap) return (null, Lang.T("An dieser Seite liegt schon ein anderes Modul."));
+        var result = rows.ToList();
+        result[moving] = placed;
+        return (result, null);
+    }
+
+    /// <summary>Dreht ein Modul samt Gleisen und Gelände darauf um 90° im Uhrzeigersinn um seine Mitte.</summary>
+    public static void RotateModule(LayoutPlan plan, int index)
+    {
+        if (plan.BoardShape != BoardShape.Module || index < 0 || index >= plan.Modules.Count) return;
+        var m = plan.Modules[index];
+        double cx = m.X + m.Width / 2, cy = m.Y + m.Depth / 2;
+        var old = plan.Modules.Select(x => x.Clone()).ToList();
+        var pieces = plan.Pieces.Where(p => Owner(old, p.Middle().X, p.Middle().Y) == index).ToList();
+        PlanEditing.RotateAround(pieces, cx, cy, 90);
+        foreach (var s in plan.Scenery.Where(s => Owner(old, s.Center().X, s.Center().Y) == index)) s.RotateAround(cx, cy, 90);
+        (m.Width, m.Depth) = (m.Depth, m.Width);
+        m.X = cx - m.Width / 2;
+        m.Y = cy - m.Depth / 2;
+        Fit(plan);
+    }
+
     /// <summary>Griffe zum Ändern der Platte mit der Maus: die Ecken jedes Moduls bzw. die Außenecken der Platte.</summary>
     public static List<BoardHandle> Handles(LayoutPlan plan)
     {

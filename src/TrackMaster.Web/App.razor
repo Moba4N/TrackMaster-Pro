@@ -92,6 +92,21 @@
         <div class="scrim" @onclick="@(() => { _libraryOpen = false; _propsOpen = false; })"></div>
     </main>
 
+    <div class="levelbar" role="toolbar" aria-label="@Lang.T("Ebenen")">
+        <span class="lb-title">@((MarkupString)Icons.Svg("Layers", 14)) @Lang.T("Ebenen")</span>
+        @for (var i = 0; i < plan.Levels.Count; i++)
+        {
+            var k = i;
+            var level = plan.Levels[k];
+            <span class="lb-chip @(plan.ActiveLevel == k ? "active" : "") @(level.Visible ? "" : "hidden")">
+                <input type="checkbox" title="@Lang.T("Ein- oder ausblenden")" checked="@level.Visible" disabled="@(plan.ActiveLevel == k && level.Visible && plan.Levels.Count(l => l.Visible) == 1)" @onchange="@(e => _session.SetLevelVisible(k, e.Value is true))" />
+                <button title="@Lang.T("Aktive Ebene: neue Gleise kommen hierher")" @onclick="@(() => _session.SetActiveLevel(k))">@level.Name <span class="secondary">@Fmt.Num(level.Height, 0)</span></button>
+            </span>
+        }
+        <button class="lb-add" title="@Lang.T("Ebene hinzufügen")" disabled="@(plan.Levels.Count >= LayoutPlan.MaxLevels)" @onclick="@(() => _session.AddLevel())">+</button>
+        <button class="lb-add" title="@Lang.T("Ebenen bearbeiten")" @onclick="@(() => Run("levels"))">…</button>
+    </div>
+
     <footer class="statusbar">
         <span class="st-item">@Lang.F($"Spur {plan.GaugeId}")</span>
         <span class="st-item">@Lang.F($"{stats.Pieces} Gleise")</span>
@@ -103,7 +118,6 @@
             <span class="st-item">@Lang.F($"{selected} gewählt")</span>
         }
         <span class="st-spacer"></span>
-        <button class="st-toggle on" title="@Lang.T("Ebenen ein- und ausblenden")" @onclick="@(() => Run("levels"))">@((MarkupString)Icons.Svg("Layers", 14)) @plan.Level(plan.ActiveLevel).Name@(plan.Levels.Count > 1 ? $" ({plan.Levels.Count(l => l.Visible)}/{plan.Levels.Count})" : "")</button>
         <span class="st-item hide-narrow" id="status-xy"></span>
         <span class="st-item hide-narrow">@_zoomText</span>
         <button class="st-toggle @(_session.SnapEnabled ? "on" : "")" title="@Lang.T("Gleise rasten an freien Enden ein")" @onclick="@(() => Run("snap"))">@Lang.T("Einrasten")</button>
@@ -216,7 +230,8 @@
         [
             new(Lang.T("Grundplatte"), [new(Lang.T("Anlagen­platte"), "Board", "board", true, Lang.T("Form und Maße der Anlagenplatte einstellen.")),
                 new(Lang.T("Module…"), "Modules", "modules", true, Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
-                new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen.")),
+                new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
+                new(Lang.T("Anlage 90° drehen"), "RotateRight", "boardRotate", false, Lang.T("Platte, Gleise und Gelände zusammen um 90° im Uhrzeigersinn drehen. Frei in alle Richtungen drehen geht in der 3D-Ansicht.")),
                 new(Lang.T("Unterbau…"), "Table", "benchwork", true, Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))]),
             new(Lang.T("Landschaft"), [new(Lang.T("Gelände formen"), "Terrain", "toolTerrain", true, Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
@@ -480,6 +495,34 @@
                 <button class="btn" @onclick="AddModuleRow">@Lang.T("Modul anhängen")</button>
                 <button class="btn" disabled="@(_modules.Count(m => m.Pick) < 2)" @onclick="MergeModuleRows">@Lang.T("Gewählte zusammenführen")</button>
                 <button class="btn" @onclick="@(async () => { CloseDialog(); await AppendModuleFile(); })">@Lang.T("Plan als Modul ansetzen…")</button>
+            </div>
+            <div class="section">@Lang.T("Teilen")</div>
+            <div class="button-row inline">
+                <select class="input" @bind="_splitIndex">@for (var i = 0; i < _modules.Count; i++) { var k = i; <option value="@k">@_modules[k].Name</option> }</select>
+                <select class="input" @bind="_splitAcross">
+                    <option value="@true">@Lang.T("senkrecht (Breite teilen)")</option>
+                    <option value="@false">@Lang.T("waagerecht (Tiefe teilen)")</option>
+                </select>
+                <input class="input" inputmode="decimal" placeholder="@Lang.T("bei mm (leer = Mitte)")" @bind="_splitAt" />
+                <button class="btn" @onclick="SplitModuleRow">@Lang.T("Teilen")</button>
+            </div>
+            <div class="section">@Lang.T("Anfügen")</div>
+            <div class="button-row inline">
+                <select class="input" @bind="_joinMove">@for (var i = 0; i < _modules.Count; i++) { var k = i; <option value="@k">@_modules[k].Name</option> }</select>
+                <span class="secondary small">@Lang.T("mit der")</span>
+                <select class="input" @bind="_joinLong">
+                    <option value="@true">@Lang.T("langen Seite")</option>
+                    <option value="@false">@Lang.T("kurzen Seite")</option>
+                </select>
+                <span class="secondary small">@Lang.T("an")</span>
+                <select class="input" @bind="_joinTarget">@for (var i = 0; i < _modules.Count; i++) { var k = i; <option value="@k">@_modules[k].Name</option> }</select>
+                <select class="input" @bind="_joinSide">
+                    <option value="0">@Lang.T("rechts")</option>
+                    <option value="1">@Lang.T("unten")</option>
+                    <option value="2">@Lang.T("links")</option>
+                    <option value="3">@Lang.T("oben")</option>
+                </select>
+                <button class="btn" @onclick="JoinModuleRows">@Lang.T("Anfügen")</button>
             </div>
         </div>, wide: true, keepFields: true);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
@@ -757,6 +800,101 @@
         var (rows, error) = ModuleLayout.Merge(edits, pick);
         if (rows is null) { _session.Say(error!); return; }
         _modules = rows.Select(Row).ToList();
+    }
+
+    private int _splitIndex, _joinMove = 1, _joinTarget, _joinSide;
+    private bool _splitAcross = true, _joinLong = true;
+    private string _splitAt = "";
+
+    private void SplitModuleRow()
+    {
+        var errors = new List<string>();
+        var edits = ModuleEdits(errors);
+        if (errors.Count > 0) { _session.Say(errors[0]); return; }
+        if (_splitIndex < 0 || _splitIndex >= edits.Count) return;
+        var m = edits[_splitIndex];
+        var at = Fmt.Parse(_splitAt) ?? (_splitAcross ? m.Width : m.Depth) / 2;
+        var (rows, error) = ModuleLayout.Split(edits, _splitIndex, _splitAcross, at);
+        if (rows is null) { _session.Say(error!); return; }
+        _modules = rows.Select(Row).ToList();
+        _splitAt = "";
+    }
+
+    private void JoinModuleRows()
+    {
+        var errors = new List<string>();
+        var edits = ModuleEdits(errors);
+        if (errors.Count > 0) { _session.Say(errors[0]); return; }
+        var (rows, error) = ModuleLayout.Join(edits, _joinMove, _joinTarget, _joinSide, _joinLong);
+        if (rows is null) { _session.Say(error!); return; }
+        var picks = _modules.Select(m => m.Pick).ToList();
+        _modules = rows.Select(Row).ToList();
+        for (var i = 0; i < picks.Count && i < _modules.Count; i++) _modules[i].Pick = picks[i];
+    }
+
+    // ---------- Platte ziehen: Maße von Hand ----------
+
+    private void AskBoardPart(int module, int leg)
+    {
+        var plan = _session.Plan;
+        if (leg >= 0) { AskLegs(); return; }
+        _d.Clear();
+        if (module >= 0 && plan.BoardShape == BoardShape.Module && module < plan.Modules.Count)
+        {
+            var m = plan.Modules[module];
+            _d["name"] = m.Name; _d["x"] = N(m.X); _d["y"] = N(m.Y); _d["w"] = N(m.Width); _d["d"] = N(m.Depth);
+            var dm = Show(Lang.F($"Maße: {m.Name}"), @<div class="form">
+                @Hint(Lang.T("Lage (X, Y = linke obere Ecke) und Größe in mm. Gleise und Gelände auf dem Modul wandern mit."))
+                <label class="field-label">@Lang.T("Name")</label><input class="input" @bind='_d["name"]' />
+                <div class="cols">
+                    <div><label class="field-label">X</label><input class="input" inputmode="decimal" @bind='_d["x"]' /></div>
+                    <div><label class="field-label">Y</label><input class="input" inputmode="decimal" @bind='_d["y"]' /></div>
+                    <div><label class="field-label">@Lang.T("Breite (mm)")</label><input class="input" inputmode="decimal" @bind='_d["w"]' /></div>
+                    <div><label class="field-label">@Lang.T("Tiefe (mm)")</label><input class="input" inputmode="decimal" @bind='_d["d"]' /></div>
+                </div>
+            </div>, keepFields: true);
+            dm.Buttons.Add(new(Lang.T("Um 90° drehen"), () => { _session.RotateBoard(module); return true; }));
+            dm.Buttons.Add(new(Lang.T("Alle Module…"), () => { CloseDialog(); AskModules(); return false; }));
+            dm.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+            {
+                var errors = new List<string>();
+                Read("x", "X", -50000, 50000, errors, out var x);
+                Read("y", "Y", -50000, 50000, errors, out var y);
+                Read("w", Lang.T("Breite"), ModuleLayout.MinSize, ModuleLayout.MaxSize, errors, out var w);
+                Read("d", Lang.T("Tiefe"), ModuleLayout.MinSize, ModuleLayout.MaxSize, errors, out var dd);
+                if (!Fail(errors)) return false;
+                _session.SetModule(module, D("name"), x, y, w, dd);
+                return true;
+            }, true));
+            return;
+        }
+        var hasLegs = BoardGeometry.HasLegs(plan.BoardShape);
+        _d["w"] = N(plan.BoardWidth); _d["h"] = N(plan.BoardHeight);
+        _d["depth"] = N(BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn));
+        var d = Show(Lang.T("Plattenmaße"), @<div class="form">
+            @Hint(Lang.F($"{BoardGeometry.Describe(plan)}. Breite und Tiefe sind die Außenmaße in mm."))
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Breite außen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["w"]' /></div>
+                <div><label class="field-label">@Lang.T("Tiefe außen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["h"]' /></div>
+                @if (hasLegs)
+                {
+                    <div><label class="field-label">@Lang.T("Schenkeltiefe (mm)")</label><input class="input" inputmode="decimal" @bind='_d["depth"]' /></div>
+                }
+            </div>
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Um 90° drehen"), () => { _session.RotateBoard(); return true; }));
+        if (hasLegs) d.Buttons.Add(new(Lang.T("Schenkel einzeln…"), () => { CloseDialog(); AskLegs(); return false; }));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+        {
+            var errors = new List<string>();
+            Read("w", Lang.T("Breite"), 50, 50000, errors, out var w);
+            Read("h", Lang.T("Tiefe"), 50, 50000, errors, out var h);
+            double dep = 0;
+            if (hasLegs) Read("depth", Lang.T("Schenkeltiefe"), 50, 50000, errors, out dep);
+            if (!Fail(errors)) return false;
+            _session.SetBoardSize(w, h, hasLegs ? dep : null);
+            return true;
+        }, true));
     }
 
     private void AddModuleRow()

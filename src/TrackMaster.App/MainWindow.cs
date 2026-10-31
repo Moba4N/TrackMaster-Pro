@@ -34,6 +34,7 @@ public sealed class MainWindow : Window
     private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _zoomText = new() { Width = 48, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly StackPanel _statusLeft = new() { Orientation = Orientation.Horizontal };
+    private readonly StackPanel _levelBar = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 3, 8, 3) };
     private readonly TextBlock _statusMessage = new() { Margin = new Thickness(10, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _cursorText = new() { Margin = new Thickness(14, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.TextSecondaryBrush };
     private readonly Border _editionBadge = new() { CornerRadius = new CornerRadius(4), Padding = new Thickness(7, 1, 7, 1), Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -80,6 +81,7 @@ public sealed class MainWindow : Window
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition());
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(26) });
         grid.Children.Add(BuildTitleBar());
         BuildRibbon();
@@ -92,8 +94,15 @@ public sealed class MainWindow : Window
         var work = BuildWorkArea();
         Grid.SetRow(work, 2);
         grid.Children.Add(work);
+        var levels = new Border
+        {
+            Background = Theme.WindowBrush, BorderBrush = Theme.BorderStrongBrush, BorderThickness = new Thickness(0, 1, 0, 0),
+            Child = new ScrollViewer { Content = _levelBar, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled },
+        };
+        Grid.SetRow(levels, 3);
+        grid.Children.Add(levels);
         var status = BuildStatusBar();
-        Grid.SetRow(status, 3);
+        Grid.SetRow(status, 4);
         grid.Children.Add(status);
         _root = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(0xB9, 0xB9, 0xB9)), BorderThickness = new Thickness(1), Child = grid };
         Content = _root;
@@ -105,6 +114,7 @@ public sealed class MainWindow : Window
         _backupTimer.Tick += (_, _) => { if (_changedSinceBackup) BackupNow(); };
         if (!Program.ScreenshotMode) _backupTimer.Start();
         Session.Message += ShowMessage;
+        Session.BoardPartClicked += (module, leg) => Dispatcher.InvokeAsync(() => AskBoardPart(module, leg));
         Session.ProRequired += feature => { if (Dialogs.ShowProRequired(this, feature)) Run("license"); };
         Canvas.ViewChanged += () => { _zoomText.Text = $"{Fmt.Num(Canvas.Zoom * 100, 0)} %"; UpdateStatus(); };
         Canvas.LabelRequested += (x, y) => { if (Dialogs.AskText(this, Lang.T("Beschriftung"), "Text") is { } text) Session.AddLabel(text, x, y); };
@@ -199,6 +209,7 @@ public sealed class MainWindow : Window
         Add("modules", AskModules);
         Add("legs", AskLegs);
         Add("levels", AskLevels);
+        Add("boardRotate", () => Session.RotateBoard());
         Add("benchwork", () => { if (Session.Plan.Benchwork is null) AskBenchwork(); else ShowBenchwork(); });
         Add("fit", Canvas.Fit);
         Add("zoomIn", () => Canvas.ZoomBy(1.25));
@@ -313,7 +324,7 @@ public sealed class MainWindow : Window
 
     private static string ToolHint(CanvasTool tool) => tool switch
     {
-        CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein."),
+        CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen."),
         CanvasTool.Terrain => Lang.T("Höhenfläche: Eckpunkte anklicken, Doppelklick oder Eingabetaste schließt die Fläche ab. Esc bricht ab."),
         CanvasTool.Water => Lang.T("Gewässer: Uferpunkte anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
@@ -557,8 +568,9 @@ public sealed class MainWindow : Window
 
         Ribbon.Items.Add(Tab(Lang.T("Gelände"),
             Group(Lang.T("Grundplatte"), Large(Lang.T("Anlagen­platte"), "Board", "board", Lang.T("Breite und Tiefe der Anlagenplatte einstellen.")),
+                Large(Lang.T("Anlage 90° drehen"), "RotateRight", "boardRotate", Lang.T("Ganze Anlage samt Gleisen und Gelände um 90° im Uhrzeigersinn drehen.")),
                 Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
-                ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen.")),
+                ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
                 Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
@@ -755,14 +767,74 @@ public sealed class MainWindow : Window
                      Lang.F($"Gleislänge: {Fmt.Num(s.TrackLengthMm / 1000, 2)} m"), Lang.F($"Offene Enden: {s.OpenEnds}"), $"Zoom {Fmt.Num(Canvas.Zoom * 100, 0)} %",
                  })
             _statusLeft.Children.Add(new TextBlock { Text = text, Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.TextSecondaryBrush });
-        var level = new Button
+        UpdateLevelBar();
+    }
+
+    /// <summary>Ebenenleiste unten: je Ebene ein Haken zum Ein- und Ausblenden und ein Klick zum Aktivieren.</summary>
+    private void UpdateLevelBar()
+    {
+        var plan = Session.Plan;
+        _levelBar.Children.Clear();
+        var title = Theme.Label(Lang.T("Ebenen"), 11, true, Theme.TextSecondaryBrush);
+        title.VerticalAlignment = VerticalAlignment.Center;
+        title.Margin = new Thickness(0, 0, 10, 0);
+        _levelBar.Children.Add(title);
+        for (var i = 0; i < plan.Levels.Count; i++)
         {
-            Content = plan.Levels.Count > 1 ? $"{plan.Level(plan.ActiveLevel).Name} ({plan.Levels.Count(l => l.Visible)}/{plan.Levels.Count})" : plan.Level(plan.ActiveLevel).Name,
-            Height = 20, Padding = new Thickness(8, 0, 8, 0), FontSize = 11, ToolTip = Lang.T("Ebenen ein- und ausblenden"), BorderThickness = new Thickness(1),
-            Template = Theme.RoundedTemplate(), VerticalAlignment = VerticalAlignment.Center, Background = Theme.AccentLightBrush, BorderBrush = Theme.AccentBorderBrush,
-        };
-        level.Click += (_, _) => AskLevels();
-        _statusLeft.Children.Add(level);
+            var index = i;
+            var l = plan.Levels[i];
+            var active = i == plan.ActiveLevel;
+            var chip = new StackPanel { Orientation = Orientation.Horizontal };
+            var check = new CheckBox { IsChecked = l.Visible, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0), ToolTip = Lang.T("Ebene ein- oder ausblenden") };
+            check.Click += (_, _) => Session.SetLevelVisible(index, check.IsChecked == true);
+            chip.Children.Add(check);
+            chip.Children.Add(new TextBlock { Text = $"{l.Name}  {Fmt.Num(l.Height, 0)}", VerticalAlignment = VerticalAlignment.Center, FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal, Opacity = l.Visible ? 1 : 0.55 });
+            var b = new Button
+            {
+                Content = chip, Height = 22, Padding = new Thickness(6, 0, 8, 0), Margin = new Thickness(0, 0, 6, 0), FontSize = 11, BorderThickness = new Thickness(1),
+                Template = Theme.RoundedTemplate(), VerticalAlignment = VerticalAlignment.Center,
+                Background = active ? Theme.AccentLightBrush : Brushes.Transparent, BorderBrush = active ? Theme.AccentBorderBrush : Theme.ControlBorderBrush,
+                ToolTip = Lang.T("Klicken macht diese Ebene aktiv: Neue Gleise kommen auf sie."),
+            };
+            b.Click += (_, _) => Session.SetActiveLevel(index);
+            _levelBar.Children.Add(b);
+        }
+        Button Tool(string text, string tip, Action run)
+        {
+            var t = new Button { Content = text, Height = 22, MinWidth = 26, Padding = new Thickness(6, 0, 6, 0), Margin = new Thickness(0, 0, 6, 0), FontSize = 11, BorderThickness = new Thickness(1), Template = Theme.RoundedTemplate(), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent, BorderBrush = Theme.ControlBorderBrush, ToolTip = tip };
+            t.Click += (_, _) => run();
+            return t;
+        }
+        var add = Tool("+", Lang.T("Neue Ebene darüber anlegen"), Session.AddLevel);
+        add.IsEnabled = plan.Levels.Count < 10;
+        _levelBar.Children.Add(add);
+        _levelBar.Children.Add(Tool("…", Lang.T("Ebenen…"), AskLevels));
+    }
+
+    /// <summary>Klick mit „Platte ziehen“: Maße eines Moduls oder der Platte eintippen.</summary>
+    private void AskBoardPart(int module, int leg)
+    {
+        var plan = Session.Plan;
+        if (leg >= 0) { AskLegs(); return; }
+        if (module >= 0 && plan.BoardShape == BoardShape.Module && module < plan.Modules.Count)
+        {
+            var m = plan.Modules[module];
+            var choice = Dialogs.AskBoardPart(this, Lang.F($"Maße: {m.Name}"), Lang.T("Lage (X, Y = linke obere Ecke) und Größe in mm. Gleise und Gelände auf dem Modul wandern mit."), m.Name,
+                [("X", m.X, -50000, 50000), ("Y", m.Y, -50000, 50000), (Lang.T("Breite (mm)"), m.Width, ModuleLayout.MinSize, ModuleLayout.MaxSize), (Lang.T("Tiefe (mm)"), m.Depth, ModuleLayout.MinSize, ModuleLayout.MaxSize)],
+                Lang.T("Alle Module…"), out var name, out var v);
+            if (choice == Dialogs.BoardPartChoice.Apply) Session.SetModule(module, name, v[0], v[1], v[2], v[3]);
+            else if (choice == Dialogs.BoardPartChoice.Rotate) Session.RotateBoard(module);
+            else if (choice == Dialogs.BoardPartChoice.More) AskModules();
+            return;
+        }
+        var hasLegs = BoardGeometry.HasLegs(plan.BoardShape);
+        var fields = new List<(string, double, double, double)> { (Lang.T("Breite außen (mm)"), plan.BoardWidth, 50, 50000), (Lang.T("Tiefe außen (mm)"), plan.BoardHeight, 50, 50000) };
+        if (hasLegs) fields.Add((Lang.T("Schenkeltiefe (mm)"), BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn), 50, 50000));
+        var c = Dialogs.AskBoardPart(this, Lang.T("Plattenmaße"), Lang.F($"{BoardGeometry.Describe(plan)}. Breite und Tiefe sind die Außenmaße in mm."), null, fields,
+            hasLegs ? Lang.T("Schenkel einzeln…") : null, out _, out var values);
+        if (c == Dialogs.BoardPartChoice.Apply) Session.SetBoardSize(values[0], values[1], hasLegs ? values[2] : null);
+        else if (c == Dialogs.BoardPartChoice.Rotate) Session.RotateBoard();
+        else if (c == Dialogs.BoardPartChoice.More) AskLegs();
     }
 
     private void ShowMessage(string text)

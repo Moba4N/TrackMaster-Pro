@@ -46,14 +46,20 @@ public sealed class TerrainField
     }
 
     /// <summary>Höhenfeld einer Höhenfläche; wird je Form und Höhe nur einmal berechnet.</summary>
-    public static TerrainField For(SceneryItem s)
+    public static TerrainField For(SceneryItem s) => For(s, 0);
+
+    /// <summary>Höhenfläche im Plan: liegt sie auf einer höheren Ebene, wächst sie um deren Grundhöhe mit.</summary>
+    public static TerrainField For(LayoutPlan plan, SceneryItem s) => For(s, plan.Level(s.Level).Height);
+
+    public static TerrainField For(SceneryItem s, double baseHeight)
     {
-        var key = $"{s.Height:R}|{string.Join(";", s.Points.Select(p => $"{p.X:R},{p.Y:R}"))}";
+        var height = s.Height + Math.Max(0, baseHeight);
+        var key = $"{height:R}|{string.Join(";", s.Points.Select(p => $"{p.X:R},{p.Y:R}"))}";
         lock (Cache)
         {
             if (Cache.TryGetValue(key, out var f)) return f;
             if (Cache.Count > 64) Cache.Clear();
-            return Cache[key] = new TerrainField(s.Points, s.Height);
+            return Cache[key] = new TerrainField(s.Points, height);
         }
     }
 
@@ -62,7 +68,7 @@ public sealed class TerrainField
     {
         double z = 0;
         foreach (var s in plan.Scenery)
-            if (s.Kind == SceneryKind.Terrain && s.Points.Count >= 3) z = Math.Max(z, For(s).At(x, y));
+            if (s.Kind == SceneryKind.Terrain && s.Points.Count >= 3) z = Math.Max(z, For(plan, s).At(x, y));
         return z;
     }
 

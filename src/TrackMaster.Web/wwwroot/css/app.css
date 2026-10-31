@@ -382,6 +382,27 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
 .st-item.warn { color: var(--open-end); font-weight: 600; }
 .st-item.ok { color: var(--success); }
 .st-spacer { flex: 1; }
+.button-row.inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.button-row.inline .input { width: auto; flex: 1 1 110px; min-width: 0; }
+.levelbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: var(--panel, #FAFAFA);
+    border-top: 1px solid var(--border-strong);
+    font-size: .82em;
+    overflow-x: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.lb-title { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); margin-right: 4px; }
+.lb-chip { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--border-strong); border-radius: 12px; padding: 0 8px 0 4px; background: #fff; }
+.lb-chip button { border: 0; background: transparent; padding: 2px 2px; font-size: inherit; color: inherit; cursor: pointer; }
+.lb-chip.active { background: var(--accent-light); border-color: var(--accent-border); color: var(--accent-dark); font-weight: 600; }
+.lb-chip.hidden button { opacity: .5; text-decoration: line-through; }
+.lb-add { border: 1px solid var(--border-strong); background: #fff; border-radius: 12px; min-width: 26px; padding: 1px 8px; font-size: inherit; cursor: pointer; }
+.lb-add:disabled { opacity: .4; cursor: default; }
 .st-toggle {
     border: 1px solid transparent;
     background: transparent;

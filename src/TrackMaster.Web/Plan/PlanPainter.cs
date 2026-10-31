@@ -176,7 +176,7 @@ public sealed class PlanPainter
                 var path = Polygon(s.Points);
                 c.DrawPath(path, Fill(TerrainColor(0)));
                 var n = 0;
-                foreach (var (level, loops) in TerrainField.For(s).Layers())
+                foreach (var (level, loops) in TerrainField.For(plan, s).Layers())
                 {
                     n++;
                     var layer = new Path();

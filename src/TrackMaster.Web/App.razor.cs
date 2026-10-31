@@ -248,6 +248,7 @@ public partial class App : ComponentBase, IAppHost
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); _propsOpen = true; });
         Add("modules", Lang.T("Module"), AskModules);
+        Add("legs", Lang.T("Schenkel einzeln"), AskLegs);
         Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));

@@ -232,3 +232,62 @@ public class BoardDragTests
         Assert.False(s.BeginBoardDrag(1000, 600, 10));
     }
 }
+
+public class LegTests
+{
+    private static double Area(IReadOnlyList<(double X, double Y)> p)
+        => p.Select((q, i) => q.X * p[(i + 1) % p.Count].Y - p[(i + 1) % p.Count].X * q.Y).Sum() / 2;
+
+    [Theory]
+    [InlineData(BoardShape.L)]
+    [InlineData(BoardShape.U)]
+    [InlineData(BoardShape.T)]
+    [InlineData(BoardShape.Z)]
+    [InlineData(BoardShape.Ring)]
+    [InlineData(BoardShape.E)]
+    [InlineData(BoardShape.G)]
+    public void Jeder_Schenkel_laesst_sich_einzeln_bemassen(BoardShape shape)
+    {
+        for (var turn = 0; turn < 4; turn++)
+        {
+            var plan = new LayoutPlan { BoardShape = shape, BoardWidth = 3000, BoardHeight = 3000, BoardDepth = 500, BoardTurn = turn };
+            var names = BoardGeometry.LegNames(shape);
+            for (var i = 0; i < names.Count; i++)
+            {
+                BoardGeometry.SetLeg(plan, i, depth: 300 + 40 * i);
+                if (BoardGeometry.LegHasLength(shape, i)) BoardGeometry.SetLeg(plan, i, length: BoardGeometry.ResolvedLegs(plan)[i].Length - 200);
+            }
+            var legs = BoardGeometry.ResolvedLegs(plan);
+            for (var i = 0; i < names.Count; i++) Assert.Equal(300 + 40 * i, legs[i].Depth, 3);
+            // Umriss = Fläche der Rechtecke (Löcher zählen negativ)
+            var outlines = BoardGeometry.Outlines(plan);
+            Assert.Equal(BoardGeometry.Area(plan) * 1e6, Math.Abs(outlines.Sum(Area)), 1);
+            // Griffe liegen auf der Platte
+            Assert.All(BoardGeometry.LegGrips(plan), g => Assert.True(BoardGeometry.Contains(plan, g.X, g.Y, 1)));
+        }
+    }
+
+    [Fact]
+    public void Schenkel_mit_der_Maus_ziehen()
+    {
+        var s = new PlanSession();
+        var plan = new LayoutPlan { BoardShape = BoardShape.L, BoardWidth = 3000, BoardHeight = 2000, BoardDepth = 600 };
+        s.Replace(plan, null);
+        // Länge des unteren Schenkels: Griff am rechten Ende
+        var grip = BoardGeometry.LegGrips(plan).Single(g => g.Leg == 1 && g.Length);
+        Assert.True(s.BeginBoardDrag(grip.X, grip.Y, 5));
+        s.BoardDragTo(grip.X - 800, grip.Y);
+        s.EndBoardDrag();
+        Assert.Equal(2200, BoardGeometry.ResolvedLegs(s.Plan)[1].Length, 3);
+        Assert.False(BoardGeometry.Contains(s.Plan, 2500, 1800));
+        // Tiefe des linken Schenkels
+        grip = BoardGeometry.LegGrips(s.Plan).Single(g => g.Leg == 0 && !g.Length);
+        Assert.True(s.BeginBoardDrag(grip.X, grip.Y, 5));
+        s.BoardDragTo(grip.X + 150, grip.Y);
+        s.EndBoardDrag();
+        Assert.Equal(750, BoardGeometry.ResolvedLegs(s.Plan)[0].Depth, 3);
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.Equal(750, BoardGeometry.ResolvedLegs(back)[0].Depth, 3);
+        Assert.Equal(2200, BoardGeometry.ResolvedLegs(back)[1].Length, 3);
+    }
+}

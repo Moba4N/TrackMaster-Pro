@@ -490,6 +490,70 @@
         }, true));
     }
 
+    // ---------- Schenkel einzeln ----------
+
+    private void AskLegs()
+    {
+        var plan = _session.Plan;
+        if (!BoardGeometry.HasLegs(plan.BoardShape)) { _propsOpen = true; return; }
+        var names = BoardGeometry.LegNames(plan.BoardShape);
+        var resolved = BoardGeometry.ResolvedLegs(plan);
+        _d.Clear();
+        for (var i = 0; i < names.Count; i++)
+        {
+            var own = i < plan.BoardLegs.Count ? plan.BoardLegs[i] : new BoardLeg(0, 0);
+            _d[$"ld{i}"] = own.Depth > 0 ? N(resolved[i].Depth) : "";
+            var ownLength = plan.BoardShape == BoardShape.U && i < 2 ? (i == 0 ? plan.BoardLegLeft : plan.BoardLegRight) : own.Length;
+            _d[$"ll{i}"] = ownLength > 0 && BoardGeometry.LegHasLength(plan.BoardShape, i) ? N(resolved[i].Length) : "";
+        }
+        var d = Show(Lang.T("Schenkel einzeln"), @<div class="form">
+            @Hint(Lang.F($"{BoardGeometry.Name(plan.BoardShape)}: Tiefe und Länge jedes Schenkels in mm. Leere Felder nehmen die gemeinsame Schenkeltiefe ({Fmt.Num(BoardGeometry.Depth(plan.BoardShape, plan.BoardWidth, plan.BoardHeight, plan.BoardDepth, plan.BoardTurn), 0)} mm) bzw. die volle Länge. Mit „Platte ziehen“ lassen sich die runden Griffe auch mit der Maus ziehen."))
+            <table class="table modules">
+                <tr><th>@Lang.T("Schenkel")</th><th>@Lang.T("Tiefe")</th><th>@Lang.T("Länge")</th></tr>
+                @for (var i = 0; i < names.Count; i++)
+                {
+                    var k = i;
+                    <tr>
+                        <td>@names[k]</td>
+                        <td><input class="input" inputmode="decimal" placeholder="@N(resolved[k].Depth)" @bind='_d[$"ld{k}"]' /></td>
+                        <td>
+                            @if (BoardGeometry.LegHasLength(plan.BoardShape, k))
+                            {
+                                <input class="input" inputmode="decimal" placeholder="@N(resolved[k].Length)" @bind='_d[$"ll{k}"]' />
+                            }
+                            else
+                            {
+                                <span class="secondary small">@Lang.T("durch Außenmaß")</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </table>
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Alle zurücksetzen"), () => { _session.Edit(() => BoardGeometry.ResetLegs(plan)); return true; }));
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+        {
+            var errors = new List<string>();
+            var values = new List<(double Depth, double Length)>();
+            for (var i = 0; i < names.Count; i++)
+            {
+                double dep = 0, len = 0;
+                if (D($"ld{i}").Trim().Length > 0) Read($"ld{i}", Lang.F($"{names[i]} Tiefe"), 50, 50000, errors, out dep);
+                if (BoardGeometry.LegHasLength(plan.BoardShape, i) && D($"ll{i}").Trim().Length > 0) Read($"ll{i}", Lang.F($"{names[i]} Länge"), 50, 50000, errors, out len);
+                values.Add((dep, len));
+            }
+            if (!Fail(errors)) return false;
+            _session.Edit(() =>
+            {
+                BoardGeometry.ResetLegs(plan);
+                for (var i = 0; i < values.Count; i++) BoardGeometry.SetLeg(plan, i, values[i].Depth, values[i].Length);
+            });
+            _session.Say(BoardGeometry.Describe(plan));
+            return true;
+        }, true));
+    }
+
     private List<ModuleEdit> ModuleEdits(List<string> errors)
     {
         var edits = new List<ModuleEdit>();

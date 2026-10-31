@@ -399,17 +399,19 @@ public sealed class PlanSession
 
     // ---------- Platte mit der Maus ändern ----------
 
-    private (BoardHandle Grip, string Start, double X, double Y, bool Changed)? _boardDrag;
+    private (BoardHandle? Grip, LegGrip? Leg, string Start, double X, double Y, bool Changed)? _boardDrag;
 
     /// <summary>Platte bearbeiten: Ecke anfassen (Größe) oder Modul anfassen (verschieben). False, wenn dort nichts ist.</summary>
     public bool BeginBoardDrag(double x, double y, double tolerance)
     {
         var grip = ModuleLayout.Handles(Plan).Where(h => Math.Abs(h.X - x) <= tolerance && Math.Abs(h.Y - y) <= tolerance)
             .OrderBy(h => Math.Abs(h.X - x) + Math.Abs(h.Y - y)).FirstOrDefault();
-        if (grip is null && ModuleLayout.ModuleAt(Plan, x, y) is { } m) grip = new BoardHandle(m, -1, x, y);
-        if (grip is null) return false;
+        var leg = grip is not null ? null : BoardGeometry.LegGrips(Plan).Where(h => Math.Abs(h.X - x) <= tolerance && Math.Abs(h.Y - y) <= tolerance)
+            .OrderBy(h => Math.Abs(h.X - x) + Math.Abs(h.Y - y)).FirstOrDefault();
+        if (grip is null && leg is null && ModuleLayout.ModuleAt(Plan, x, y) is { } m) grip = new BoardHandle(m, -1, x, y);
+        if (grip is null && leg is null) return false;
         Record();
-        _boardDrag = (grip, PlanSerializer.ToJson(Plan, withIds: true), x, y, false);
+        _boardDrag = (grip, leg, PlanSerializer.ToJson(Plan, withIds: true), x, y, false);
         return true;
     }
 
@@ -418,7 +420,13 @@ public sealed class PlanSession
     {
         if (_boardDrag is not { } d) return;
         var plan = PlanSerializer.FromJson(d.Start, out _);
-        if (d.Grip.Corner < 0) ModuleLayout.MoveModule(plan, d.Grip.Module, x - d.X, y - d.Y);
+        if (d.Leg is { } leg)
+        {
+            var value = leg.Value + (x - d.X) * leg.AxisX + (y - d.Y) * leg.AxisY;
+            if (leg.Length) BoardGeometry.SetLeg(plan, leg.Leg, length: Math.Max(1, value));
+            else BoardGeometry.SetLeg(plan, leg.Leg, depth: Math.Max(1, value));
+        }
+        else if (d.Grip!.Corner < 0) ModuleLayout.MoveModule(plan, d.Grip.Module, x - d.X, y - d.Y);
         else ModuleLayout.DragCorner(plan, d.Grip.Module, d.Grip.Corner, x, y);
         Plan = plan;
         _boardDrag = d with { Changed = true };
@@ -430,7 +438,14 @@ public sealed class PlanSession
         if (_boardDrag is not { } d) return;
         _boardDrag = null;
         if (!d.Changed) { History.DiscardLast(); return; }
-        Say(d.Grip.Corner < 0 && d.Grip.Module < Plan.Modules.Count
+        if (d.Leg is { } leg)
+        {
+            var r = BoardGeometry.ResolvedLegs(Plan)[leg.Leg];
+            var name = BoardGeometry.LegNames(Plan.BoardShape)[leg.Leg];
+            Say(leg.Length ? Lang.F($"{name}: Länge {Fmt.Num(r.Length, 0)} mm.") : Lang.F($"{name}: Tiefe {Fmt.Num(r.Depth, 0)} mm."));
+            return;
+        }
+        Say(d.Grip!.Corner < 0 && d.Grip.Module < Plan.Modules.Count
             ? Lang.F($"{Plan.Modules[d.Grip.Module].Name} verschoben: {BoardGeometry.Describe(Plan)}.")
             : Lang.F($"Plattengröße geändert: {BoardGeometry.Describe(Plan)}."));
     }

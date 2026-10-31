@@ -267,6 +267,9 @@ public sealed class PlanCanvas : FrameworkElement
             var h = 6 / z;
             foreach (var g in ModuleLayout.Handles(plan))
                 dc.DrawRectangle(Brushes.White, outline, new Rect(g.X - h, g.Y - h, 2 * h, 2 * h));
+            // Griffe an den Schenkeln: Innenkante = Tiefe, freies Ende = Länge
+            foreach (var g in BoardGeometry.LegGrips(plan))
+                dc.DrawEllipse(g.Length ? Theme.AccentBrush : Brushes.White, outline, new Point(g.X, g.Y), h, h);
         }
         if (_polygon.Count > 0)
         {

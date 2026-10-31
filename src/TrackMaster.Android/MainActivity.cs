@@ -199,6 +199,7 @@ public sealed class MainActivity : Activity
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); Dialogs.ShowProperties(this, _session, Run); });
         Add("modules", Lang.T("Module"), () => Dialogs.AskModules(this, _session.Plan, edits => { _session.ApplyModules(edits); _canvas.Fit(); }, () => Pick(RequestModule)));
+        Add("legs", Lang.T("Schenkel einzeln"), () => Dialogs.AskLegs(this, _session));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
         Add("labels", Lang.T("Beschriftung"), () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));

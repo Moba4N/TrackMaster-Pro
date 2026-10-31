@@ -514,6 +514,19 @@ public sealed class PlanSession
         Changed?.Invoke();
     }
 
+    // ---------- Unterbau ----------
+
+    /// <summary>Holz-Unterbau setzen oder mit null entfernen.</summary>
+    public void SetBenchwork(BenchworkSpec? spec)
+    {
+        Record();
+        Plan.Benchwork = spec?.Clone();
+        Commit();
+        if (spec is null) { Say(Lang.T("Unterbau entfernt.")); return; }
+        var b = Core.Benchwork.Build(Plan, spec);
+        Say(Lang.F($"Unterbau übernommen: {b.LegCount} Beine, Oberkante {Fmt.Num(spec.Height, 0)} mm. Die 3D-Ansicht zeigt ihn."));
+    }
+
     // ---------- Ebenen ----------
 
     /// <summary>Ein- und Ausblenden ist keine Planänderung: Rückgängig lässt die Sichtbarkeit, wie sie ist.</summary>

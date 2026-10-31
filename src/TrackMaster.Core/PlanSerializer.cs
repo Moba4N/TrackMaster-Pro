@@ -30,6 +30,7 @@ public static class PlanSerializer
         [JsonPropertyName("signals"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<SignalDto>? Signals { get; set; }
         [JsonPropertyName("levels"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<LevelDto>? Levels { get; set; }
         [JsonPropertyName("activeLevel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ActiveLevel { get; set; }
+        [JsonPropertyName("benchwork"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BenchworkSpec? Benchwork { get; set; }
     }
 
     private sealed class LevelDto
@@ -175,6 +176,7 @@ public static class PlanSerializer
             Levels = plan.Levels.Count == 1 && plan.Levels[0] is { Height: 0, Visible: true } ? null
                 : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
             ActiveLevel = plan.ActiveLevel,
+            Benchwork = plan.Benchwork,
         };
         return JsonSerializer.Serialize(dto, Options);
     }
@@ -217,6 +219,7 @@ public static class PlanSerializer
                 });
         }
         plan.ActiveLevel = Math.Clamp(dto.ActiveLevel, 0, plan.Levels.Count - 1);
+        if (dto.Benchwork is { } bench && Enum.IsDefined(bench.LegStyle) && Core.Benchwork.Validate(bench).Count == 0) plan.Benchwork = bench;
         int LevelOf(int level) => Math.Clamp(level, 0, plan.Levels.Count - 1);
         foreach (var l in dto.Board?.Legs ?? [])
             plan.BoardLegs.Add(new BoardLeg(l.Length > 0 && double.IsFinite(l[0]) ? Math.Max(0, l[0]) : 0, l.Length > 1 && double.IsFinite(l[1]) ? Math.Max(0, l[1]) : 0));

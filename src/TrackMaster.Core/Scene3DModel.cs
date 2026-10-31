@@ -113,11 +113,13 @@ public sealed class Scene3DModel
         var plan = _plan;
         var g = _g;
         // Platte
-        var thickness = Math.Max(g * 1.5, 15);
+        var bench = plan.Benchwork;
+        var thickness = bench is null ? Math.Max(g * 1.5, 15) : Math.Max(bench.TopThickness, 3);
+        if (bench is not null) Bench(Benchwork.Build(plan, bench));
         foreach (var r in BoardGeometry.Rects(plan))
         {
             Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, -thickness), P(r.X1, r.Y1, 0), top: false);
-            Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, -thickness * 1.6), P(r.X1 + 2, r.Y1 + 2, -thickness));
+            if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, -thickness * 1.6), P(r.X1 + 2, r.Y1 + 2, -thickness));
             if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1);
             else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, 0), P(r.X0, r.Y1, 0), P(r.X1, r.Y1, 0), P(r.X1, r.Y0, 0));
         }
@@ -200,6 +202,30 @@ public sealed class Scene3DModel
     private static readonly Rgb[] Grass = [new(0x76, 0x98, 0x4A), new(0x7D, 0x9E, 0x4E), new(0x84, 0xA3, 0x53), new(0x8A, 0xA6, 0x57), new(0x92, 0xA8, 0x5C)];
 
     /// <summary>Weiches Rauschen 0…1 (bilinear zwischen festen Zufallswerten im Raster <paramref name="scale"/>).</summary>
+    /// <summary>Holz-Unterbau: Rahmen, Beine, Traversen und Stellfüße (die Deckplatte ist die Platte selbst).</summary>
+    private void Bench(BenchworkPlan b)
+    {
+        foreach (var p in b.Pieces)
+        {
+            var color = p.Kind switch
+            {
+                BenchKind.Bein => new Rgb(0xA8, 0x80, 0x52),
+                BenchKind.Traverse => new Rgb(0xC2, 0x9E, 0x6C),
+                BenchKind.Platte => (Rgb?)null,
+                _ => new Rgb(0xD4, 0xB4, 0x82),
+            };
+            if (color is { } c) Mesh(c).Box(P(p.X0, p.Y0, p.Z0), P(p.X1, p.Y1, p.Z1));
+        }
+        if (!b.Spec.Feet) return;
+        foreach (var p in b.Pieces.Where(p => p.Kind == BenchKind.Bein && p.Section == (b.Spec.LegStyle == BenchLegStyle.LBein ? b.Spec.FrameSection : p.Section)))
+        {
+            var cx = (p.X0 + p.X1) / 2;
+            var cy = b.Spec.LegStyle == BenchLegStyle.LBein ? p.Y0 + b.Spec.LegDepth / 2 : (p.Y0 + p.Y1) / 2;
+            var r = Math.Min(b.Spec.LegWidth, b.Spec.LegDepth) * 0.35;
+            Mesh(new Rgb(0x40, 0x40, 0x44)).Box(P(cx - r, cy - r, -b.Spec.Height), P(cx + r, cy + r, p.Z0));
+        }
+    }
+
     public static double Smooth(double x, double y, double scale, int seed)
     {
         double fx = x / scale, fy = y / scale;

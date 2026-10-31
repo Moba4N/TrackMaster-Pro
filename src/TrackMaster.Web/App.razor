@@ -216,7 +216,8 @@
         [
             new(Lang.T("Grundplatte"), [new(Lang.T("Anlagen­platte"), "Board", "board", true, Lang.T("Form und Maße der Anlagenplatte einstellen.")),
                 new(Lang.T("Module…"), "Modules", "modules", true, Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
-                new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen."))]),
+                new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen.")),
+                new(Lang.T("Unterbau…"), "Table", "benchwork", true, Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))]),
             new(Lang.T("Landschaft"), [new(Lang.T("Gelände formen"), "Terrain", "toolTerrain", true, Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Gelände zeigen"), "Terrain", "scenery", false)]),
@@ -491,6 +492,96 @@
             _view.Fit();
             return true;
         }, true));
+    }
+
+    // ---------- Unterbau ----------
+
+    private void AskBenchwork()
+    {
+        var plan = _session.Plan;
+        var s = plan.Benchwork ?? BenchworkSpec.Defaults(plan.Gauge);
+        _d.Clear();
+        _d["height"] = N(s.Height); _d["top"] = N(s.TopThickness); _d["ft"] = N(s.FrameThickness); _d["fh"] = N(s.FrameHeight); _d["cross"] = N(s.CrossSpacing);
+        _d["style"] = ((int)s.LegStyle).ToString(); _d["lw"] = N(s.LegWidth); _d["ld"] = N(s.LegDepth); _d["lspace"] = N(s.LegSpacing);
+        _d["braces"] = s.Braces ? "1" : ""; _d["bh"] = N(s.BraceHeight); _d["feet"] = s.Feet ? "1" : ""; _d["foot"] = N(s.FootHeight);
+        _d["stock"] = N(s.StockLength); _d["sw"] = N(s.SheetWidth); _d["sd"] = N(s.SheetDepth);
+        RenderFragment Field(string key, string label) => @<div><label class="field-label">@label</label><input class="input" inputmode="decimal" @bind='_d[key]' @bind:event="oninput" /></div>;
+        var d = Show(Lang.T("Unterbau"), @<div class="form">
+            @Hint(Lang.F($"Holzkonstrukt unter der Platte ({BoardGeometry.Describe(plan)}): Zargen rundum und Querriegel unter jedem Plattenteil, Beine innen in den Ecken und entlang der langen Seiten. Alle Maße in mm. Die 3D-Ansicht zeigt den Unterbau."))
+            <div class="cols">
+                @Field("height", Lang.T("Höhe Oberkante Platte über Boden"))
+                @Field("top", Lang.T("Plattenstärke (0 = offener Rahmen)"))
+                @Field("ft", Lang.T("Latte für Rahmen: Stärke"))
+                @Field("fh", Lang.T("Latte für Rahmen: Höhe"))
+                @Field("cross", Lang.T("Querriegel höchstens alle"))
+                <div>
+                    <label class="field-label">@Lang.T("Beine")</label>
+                    <select class="input" @bind='_d["style"]'>
+                        <option value="0">@Lang.T("Kantholz")</option>
+                        <option value="1">@Lang.T("L-Bein aus zwei Latten")</option>
+                    </select>
+                </div>
+                @Field("lw", Lang.T("Bein: Breite"))
+                @Field("ld", Lang.T("Bein: Tiefe"))
+                @Field("lspace", Lang.T("Beine höchstens alle"))
+                <div><label class="field-label"><input type="checkbox" checked="@(D("braces") == "1")" @onchange="@(e => _d["braces"] = e.Value is true ? "1" : "")" /> @Lang.T("Fußtraversen in Höhe")</label><input class="input" inputmode="decimal" @bind='_d["bh"]' @bind:event="oninput" /></div>
+                <div><label class="field-label"><input type="checkbox" checked="@(D("feet") == "1")" @onchange="@(e => _d["feet"] = e.Value is true ? "1" : "")" /> @Lang.T("Stellfüße, Höhe")</label><input class="input" inputmode="decimal" @bind='_d["foot"]' @bind:event="oninput" /></div>
+                @Field("stock", Lang.T("Lattenlänge im Handel"))
+                @Field("sw", Lang.T("Plattenformat: Breite"))
+                @Field("sd", Lang.T("Plattenformat: Tiefe"))
+            </div>
+        </div>, wide: true, keepFields: true);
+        if (plan.Benchwork is not null) d.Buttons.Add(new(Lang.T("Entfernen"), () => { _session.SetBenchwork(null); return true; }));
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+        {
+            var errors = new List<string>();
+            double V(string key) => Fmt.Parse(D(key)) ?? double.NaN;
+            var spec = new BenchworkSpec
+            {
+                Height = V("height"), TopThickness = V("top"), FrameThickness = V("ft"), FrameHeight = V("fh"), CrossSpacing = V("cross"),
+                LegStyle = D("style") == "1" ? BenchLegStyle.LBein : BenchLegStyle.Kantholz, LegWidth = V("lw"), LegDepth = V("ld"), LegSpacing = V("lspace"),
+                Braces = D("braces") == "1", BraceHeight = V("bh"), Feet = D("feet") == "1", FootHeight = V("foot"),
+                StockLength = V("stock"), SheetWidth = V("sw"), SheetDepth = V("sd"),
+            };
+            errors.AddRange(Benchwork.Validate(spec));
+            if (!Fail(errors)) return false;
+            _session.SetBenchwork(spec);
+            CloseDialog();
+            ShowBenchwork();
+            return false;
+        }, true));
+    }
+
+    private void ShowBenchwork()
+    {
+        if (_session.Plan.Benchwork is not { } spec) { AskBenchwork(); return; }
+        var b = Benchwork.Build(_session.Plan, spec);
+        var d = Show(Lang.T("Unterbau – Materialliste"), @<div class="list">
+            @foreach (var n in b.Notes)
+            {
+                <div class="secondary">• @n</div>
+            }
+            <table class="table bench">
+                <tr><th>@Lang.T("Menge")</th><th>@Lang.T("Material")</th><th>@Lang.T("Maß")</th><th>@Lang.T("Hinweis")</th></tr>
+                @foreach (var m in b.Materials)
+                {
+                    <tr><td>@Fmt.Num(m.Quantity, 0) @m.Unit</td><td>@m.Item</td><td>@m.Size</td><td class="secondary">@m.Note</td></tr>
+                }
+            </table>
+            <h4>@Lang.T("Zuschnitt")</h4>
+            <table class="table bench">
+                <tr><th>@Lang.T("Anzahl")</th><th>@Lang.T("Länge")</th><th>@Lang.T("Teil")</th><th>@Lang.T("Querschnitt")</th></tr>
+                @foreach (var c in b.Cuts)
+                {
+                    <tr><td>@c.Count ×</td><td>@Fmt.Num(c.Length, 0) mm</td><td>@c.Use</td><td>@c.Section mm</td></tr>
+                }
+            </table>
+        </div>, wide: true);
+        d.Buttons.Add(new(Lang.T("Maße ändern…"), () => { CloseDialog(); AskBenchwork(); return false; }));
+        d.Buttons.Add(new(Lang.T("Kopieren"), () => { _ = Interop.Js.CopyText(b.ToText()); ShowToast(Lang.T("In die Zwischenablage kopiert.")); return false; }));
+        d.Buttons.Add(new(Lang.T("Als CSV speichern"), () => { Export(b.ToCsv(), "text/csv", Lang.F($"{SafeName} – Unterbau.csv")); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 
     // ---------- Ebenen ----------

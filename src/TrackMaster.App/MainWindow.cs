@@ -199,6 +199,7 @@ public sealed class MainWindow : Window
         Add("modules", AskModules);
         Add("legs", AskLegs);
         Add("levels", AskLevels);
+        Add("benchwork", () => { if (Session.Plan.Benchwork is null) AskBenchwork(); else ShowBenchwork(); });
         Add("fit", Canvas.Fit);
         Add("zoomIn", () => Canvas.ZoomBy(1.25));
         Add("zoomOut", () => Canvas.ZoomBy(0.8));
@@ -557,7 +558,8 @@ public sealed class MainWindow : Window
         Ribbon.Items.Add(Tab(Lang.T("Gelände"),
             Group(Lang.T("Grundplatte"), Large(Lang.T("Anlagen­platte"), "Board", "board", Lang.T("Breite und Tiefe der Anlagenplatte einstellen.")),
                 Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
-                ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen."))),
+                ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen.")),
+                Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),
@@ -893,6 +895,23 @@ public sealed class MainWindow : Window
         var dlg = new OpenFileDialog { Filter = FileFilter, Title = Lang.T("Gleisplan öffnen") };
         if (dlg.ShowDialog(this) != true) return;
         OpenPath(dlg.FileName);
+    }
+
+    private void AskBenchwork()
+    {
+        var spec = Dialogs.AskBenchwork(this, Session.Plan, out var remove);
+        if (remove) { Session.SetBenchwork(null); return; }
+        if (spec is null) return;
+        Session.SetBenchwork(spec);
+        ShowBenchwork();
+    }
+
+    private void ShowBenchwork()
+    {
+        if (Session.Plan.Benchwork is not { } spec) return;
+        var b = Benchwork.Build(Session.Plan, spec);
+        Dialogs.ShowBenchwork(this, b, AskBenchwork,
+            () => ExportTo(Lang.T("Materialliste als CSV speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Unterbau.csv"), b.ToCsv()));
     }
 
     private void AskLevels()

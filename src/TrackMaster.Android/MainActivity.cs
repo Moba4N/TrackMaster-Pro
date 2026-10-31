@@ -201,6 +201,7 @@ public sealed class MainActivity : Activity
         Add("modules", Lang.T("Module"), () => Dialogs.AskModules(this, _session.Plan, edits => { _session.ApplyModules(edits); _canvas.Fit(); }, () => Pick(RequestModule)));
         Add("legs", Lang.T("Schenkel einzeln"), () => Dialogs.AskLegs(this, _session));
         Add("levels", Lang.T("Ebenen"), () => Dialogs.AskLevels(this, _session));
+        Add("benchwork", Lang.T("Unterbau"), () => { if (_session.Plan.Benchwork is null) AskBenchwork(); else ShowBenchwork(); });
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));
         Add("labels", Lang.T("Beschriftung"), () => Toggle(() => _session.ShowLabels = !_session.ShowLabels));
@@ -363,7 +364,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Ebenen…"), "levels", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
@@ -699,6 +700,21 @@ public sealed class MainActivity : Activity
                 Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
                     cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
         });
+    }
+
+    private void AskBenchwork() => Dialogs.AskBenchwork(this, _session, ShowBenchwork);
+
+    private void ShowBenchwork()
+    {
+        if (_session.Plan.Benchwork is not { } spec) return;
+        var b = Benchwork.Build(_session.Plan, spec);
+        Dialogs.ShowBenchwork(this, b, AskBenchwork,
+            () =>
+            {
+                if (GetSystemService(ClipboardService) is global::Android.Content.ClipboardManager cm)
+                    cm.PrimaryClip = global::Android.Content.ClipData.NewPlainText("TrackMaster", b.ToText());
+            },
+            () => Export(b.ToCsv(), "text/csv", Lang.F($"{SafeName} – Unterbau.csv")));
     }
 
     private void AskFrame() => Dialogs.AskFrame(this, _session.Plan.Gauge, spec =>

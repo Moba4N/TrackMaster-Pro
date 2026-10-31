@@ -250,6 +250,7 @@ public partial class App : ComponentBase, IAppHost
         Add("modules", Lang.T("Module"), AskModules);
         Add("legs", Lang.T("Schenkel einzeln"), AskLegs);
         Add("levels", Lang.T("Ebenen"), AskLevels);
+        Add("benchwork", Lang.T("Unterbau"), () => { if (_session.Plan.Benchwork is null) AskBenchwork(); else ShowBenchwork(); });
         Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("grid", Lang.T("Raster"), () => Toggle(() => _session.ShowGrid = !_session.ShowGrid));
         Add("ends", Lang.T("Gleisenden"), () => Toggle(() => _session.ShowEnds = !_session.ShowEnds));

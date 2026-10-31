@@ -536,6 +536,7 @@ button.list-item:hover { background: var(--hover); }
 .table td { padding: 5px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .table td.count { width: 48px; font-weight: 600; white-space: nowrap; }
 .table th { text-align: left; font-weight: 600; color: var(--text-secondary); font-size: .9em; padding: 5px 4px; border-bottom: 1px solid var(--border-strong); }
+.table.bench td:first-child { white-space: nowrap; text-align: right; padding-right: 12px; }
 .table.ribs td:nth-child(3) { text-align: right; padding-right: 12px; }
 .table.keys td:first-child { width: 1%; white-space: nowrap; padding-right: 14px; }
 kbd {

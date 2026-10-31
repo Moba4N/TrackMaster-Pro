@@ -237,6 +237,8 @@ public sealed class LayoutPlan
     public List<Feeder> Feeders { get; } = [];
     public List<Isolation> Isolations { get; } = [];
     public List<Signal> Signals { get; } = [];
+    /// <summary>Holz-Unterbau (Rahmen, Beine, Deckplatte); null = keiner geplant.</summary>
+    public BenchworkSpec? Benchwork { get; set; }
     /// <summary>Ebenen; immer mindestens eine.</summary>
     public List<PlanLevel> Levels { get; } = [new() { Name = PlanLevel.DefaultName(0) }];
     /// <summary>Ebene, auf die neue Gleise und Objekte kommen.</summary>
@@ -278,6 +280,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
+            Benchwork = Benchwork,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);

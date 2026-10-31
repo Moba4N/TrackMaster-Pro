@@ -39,7 +39,7 @@ public sealed class MainActivity : Activity
     private LinearLayout _toolBar = null!;
     private TextView _toolText = null!;
     private Button _toolFinish = null!, _toolBack = null!;
-    private Button _undo = null!, _redo = null!;
+    private Button _undo = null!, _redo = null!, _history = null!;
     private string _tab = Lang.T("Start");
     private readonly Dictionary<string, Command> _commands = [];
     private readonly List<(Button Button, Func<bool> Active)> _toggles = [];
@@ -161,6 +161,7 @@ public sealed class MainActivity : Activity
         Add("help", Lang.T("Bedienung"), () => Dialogs.ShowHelp(this));
         Add("undo", Lang.T("Rückgängig"), _session.Undo, () => _session.History.CanUndo);
         Add("redo", Lang.T("Wiederholen"), _session.Redo, () => _session.History.CanRedo);
+        Add("history", Lang.T("Verlauf"), ShowHistory, () => _session.History.CanUndo || _session.History.CanRedo);
         Add("rotL", Lang.T("Drehen"), () => _session.Rotate(-15), HasSelection);
         Add("rotR", Lang.T("Drehen"), () => _session.Rotate(15), HasSelection);
         Add("rotFree", Lang.T("Frei drehen"), AskFreeRotation, HasSelection);
@@ -213,6 +214,7 @@ public sealed class MainActivity : Activity
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
         Add("toolTerrain", Lang.T("Gelände formen"), () => SetTool(CanvasTool.Terrain));
+        Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
         Add("toolBuilding", Lang.T("Gebäude"), () => SetTool(CanvasTool.Building));
         Add("toolTree", Lang.T("Vegetation"), () => SetTool(CanvasTool.Tree));
@@ -244,6 +246,27 @@ public sealed class MainActivity : Activity
         Appearance.Save(this, chosen);
         Recreate();
     });
+
+    /// <summary>Verlauf: bis zu 20 Schritte in jede Richtung, ein Tipp springt dorthin.</summary>
+    private void ShowHistory()
+    {
+        var redo = _session.History.RedoLabels;
+        var undo = _session.History.UndoLabels;
+        var items = new List<string>();
+        var steps = new List<int>();
+        for (var i = redo.Count - 1; i >= 0; i--) { items.Add($"↷ {Lang.F($"{i + 1} vor")}  {redo[i]}"); steps.Add(i + 1); }
+        items.Add($"● {Lang.T("Aktueller Stand")}"); steps.Add(0);
+        for (var i = 0; i < undo.Count; i++) { items.Add($"↶ {Lang.F($"{i + 1} zurück")}  {undo[i]}"); steps.Add(-(i + 1)); }
+        new AlertDialog.Builder(this).SetTitle(Lang.T("Verlauf"))!
+            .SetItems(items.ToArray(), (_, e) =>
+            {
+                var n = steps[e.Which];
+                if (n > 0) _session.Redo(n);
+                else if (n < 0) _session.Undo(-n);
+            })!
+            .SetNegativeButton(Lang.T("Schließen"), (_, _) => { })!
+            .Show();
+    }
 
     private void ChangeLanguage()
     {
@@ -338,7 +361,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
@@ -386,6 +409,9 @@ public sealed class MainActivity : Activity
         _redo.SetTextSize(Android.Util.ComplexUnitType.Sp, 18);
         header.AddView(_undo);
         header.AddView(_redo);
+        _history = Ui.Button(this, "⏱", () => Run("history"));
+        _history.SetTextSize(Android.Util.ComplexUnitType.Sp, 16);
+        header.AddView(_history);
         root.AddView(header, Ui.Fill());
 
         // Register
@@ -516,6 +542,7 @@ public sealed class MainActivity : Activity
         "sections" => _session.ShowSections,
         "toolFlex" => _session.Tool == CanvasTool.Flex,
         "toolTerrain" => _session.Tool == CanvasTool.Terrain,
+        "toolBoard" => _session.Tool == CanvasTool.Board,
         "toolWater" => _session.Tool == CanvasTool.Water,
         "toolBuilding" => _session.Tool == CanvasTool.Building,
         "toolTree" => _session.Tool == CanvasTool.Tree,
@@ -539,6 +566,8 @@ public sealed class MainActivity : Activity
         _redo.Enabled = _session.History.CanRedo;
         Ui.SetButtonState(_undo, false, false);
         Ui.SetButtonState(_redo, false, false);
+        _history.Enabled = _session.History.CanUndo || _session.History.CanRedo;
+        Ui.SetButtonState(_history, false, false);
     }
 
     private void Refresh()
@@ -566,6 +595,7 @@ public sealed class MainActivity : Activity
         Ui.SetButtonState(_toolBack, false, false);
         _toolText.Text = tool switch
         {
+            CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein."),
             CanvasTool.Terrain => Lang.F($"Gelände formen: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
             CanvasTool.Water => Lang.F($"Gewässer: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
             CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein."),

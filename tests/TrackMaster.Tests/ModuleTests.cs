@@ -135,3 +135,100 @@ public class ModuleTests
         Assert.Contains(PlanCheck.Run(plan), i => i.Category == "Modulgrenze");
     }
 }
+
+public class HistoryTests
+{
+    [Fact]
+    public void Mehrere_Schritte_zurueck_und_wieder_vor()
+    {
+        var s = new PlanSession();
+        s.Replace(LayoutPlan.Empty("H0"), null);
+        for (var i = 1; i <= 5; i++)
+        {
+            s.Record();
+            s.Plan.Name = $"Stand {i}";
+            s.Commit();
+            s.Say($"Schritt {i}. Rückgängig holt ihn zurück.");
+        }
+        Assert.Equal(5, s.History.UndoLabels.Count);
+        Assert.EndsWith("Schritt 5", s.History.UndoLabels[0]);
+        s.Undo(3);
+        Assert.Equal("Stand 2", s.Plan.Name);
+        Assert.Equal(3, s.History.RedoLabels.Count);
+        Assert.EndsWith("Schritt 3", s.History.RedoLabels[0]);
+        s.Redo(2);
+        Assert.Equal("Stand 4", s.Plan.Name);
+        s.Undo(10);
+        Assert.Equal(LayoutPlan.Empty("H0").Name, s.Plan.Name);
+        s.Redo(10);
+        Assert.Equal("Stand 5", s.Plan.Name);
+        Assert.False(s.History.CanRedo);
+    }
+}
+
+public class BoardDragTests
+{
+    private const string Straight = "H0|mc|24188";
+
+    [Fact]
+    public void Nebeneinander_liegende_Module_lassen_sich_zusammenfuehren()
+    {
+        var plan = LayoutPlan.Empty("H0");
+        ModuleLayout.Single(plan, 1000, 500);
+        plan.Modules.Add(ModuleLayout.NextModule(plan));
+        plan.Modules.Add(new BoardModule { Name = "C", X = 0, Y = 500, Width = 600, Depth = 300 });
+        var rows = ModuleLayout.Current(plan);
+        var (merged, error) = ModuleLayout.Merge(rows, [0, 1]);
+        Assert.Null(error);
+        Assert.Equal(2, merged!.Count);
+        Assert.Equal(2000, merged[0].Width);
+        // A und C ergeben kein Rechteck
+        Assert.Null(ModuleLayout.Merge(rows, [0, 2]).Rows);
+        var a = plan.Add(Straight); a.X = 1500; a.Y = 250;
+        ModuleLayout.Apply(plan, merged);
+        Assert.Equal(2, plan.Modules.Count);
+        Assert.Equal(1500, a.X, 3);
+    }
+
+    [Fact]
+    public void Modul_mit_der_Maus_ziehen_nimmt_Gleise_mit_und_ist_ein_Schritt()
+    {
+        var s = new PlanSession();
+        var plan = LayoutPlan.Empty("H0");
+        ModuleLayout.Single(plan, 1000, 500);
+        plan.Modules.Add(ModuleLayout.NextModule(plan));
+        ModuleLayout.Fit(plan);
+        var a = plan.Add(Straight); a.X = 1200; a.Y = 250;
+        s.Replace(plan, null);
+        Assert.True(s.BeginBoardDrag(1500, 250, 5));
+        s.BoardDragTo(1500, 400);
+        s.BoardDragTo(1500, 760);
+        s.EndBoardDrag();
+        Assert.Equal(500, s.Plan.Modules[1].Y, 3);
+        Assert.Equal(750, s.Plan.Pieces[0].Y, 3);
+        s.Undo();
+        Assert.Equal(0, s.Plan.Modules[1].Y, 3);
+    }
+
+    [Fact]
+    public void Ecke_ziehen_aendert_die_Groesse_und_Gleise_bleiben_liegen()
+    {
+        var s = new PlanSession();
+        var plan = LayoutPlan.Empty("H0");
+        plan.BoardWidth = 2000; plan.BoardHeight = 1000;
+        var a = plan.Add(Straight); a.X = 800; a.Y = 500;
+        s.Replace(plan, null);
+        Assert.True(s.BeginBoardDrag(2000, 1000, 10));
+        s.BoardDragTo(2500, 1200);
+        s.EndBoardDrag();
+        Assert.Equal(2500, s.Plan.BoardWidth);
+        Assert.Equal(1200, s.Plan.BoardHeight);
+        // linke obere Ecke nach rechts unten: Gleise behalten ihren Platz relativ zur rechten unteren Ecke
+        Assert.True(s.BeginBoardDrag(0, 0, 10));
+        s.BoardDragTo(300, 100);
+        s.EndBoardDrag();
+        Assert.Equal(2200, s.Plan.BoardWidth);
+        Assert.Equal(500, s.Plan.Pieces[0].X, 3);
+        Assert.False(s.BeginBoardDrag(1000, 600, 10));
+    }
+}

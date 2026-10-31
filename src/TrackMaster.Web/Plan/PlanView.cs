@@ -29,7 +29,7 @@ public sealed class PlanView
     public float Width { get; private set; }
     public float Height { get; private set; }
 
-    private enum DragMode { None, Pan, Move, Band, Building, FlexDraw, FlexEnd }
+    private enum DragMode { None, Pan, Move, Band, Building, FlexDraw, FlexEnd, Board }
     private DragMode _drag;
     private float _downX, _downY;
     private (double X, double Y) _downWorld, _lastWorld;
@@ -334,6 +334,22 @@ public sealed class PlanView
     private void DrawToolPreview(Canvas c)
     {
         var z = _zoom;
+        if (_session.Tool == CanvasTool.Board)
+        {
+            var plan = _session.Plan;
+            if (plan.BoardShape == BoardShape.Module)
+                foreach (var m in plan.Modules)
+                    c.DrawRect(new RectF((float)m.X, (float)m.Y, (float)(m.X + m.Width), (float)(m.Y + m.Depth)), Stroke(Ui.Accent, 2 * Ui.Density / z));
+            else
+                c.DrawRect(new RectF(0, 0, (float)plan.BoardWidth, (float)plan.BoardHeight), Stroke(Ui.Accent, 1.2f * Ui.Density / z));
+            var h = 6 * Ui.Density / z;
+            foreach (var g in ModuleLayout.Handles(plan))
+            {
+                var r = new RectF((float)g.X - h, (float)g.Y - h, (float)g.X + h, (float)g.Y + h);
+                c.DrawRect(r, Fill(Color.White));
+                c.DrawRect(r, Stroke(Ui.Accent, 2 * Ui.Density / z));
+            }
+        }
         if (_polygon.Count > 0)
         {
             var path = PlanPainter.Polygon(_polygon);
@@ -652,6 +668,7 @@ public sealed class PlanView
                 // Zweiter Finger: laufende Aktion abbrechen, ab jetzt zoomen, verschieben und drehen
                 CancelLongPress();
                 if (_drag == DragMode.Move) _session.EndMove(Ui.Dp(20) / _zoom);
+                if (_session.BoardDragging) _session.EndBoardDrag();
                 EndFlex();
                 _drag = DragMode.None;
                 _band = null;
@@ -709,6 +726,9 @@ public sealed class PlanView
             case DragMode.Move:
                 _session.MoveBy(world.X - _downWorld.X, world.Y - _downWorld.Y);
                 break;
+            case DragMode.Board:
+                _session.BoardDragTo(world.X, world.Y);
+                break;
             case DragMode.Band:
                 _band = new RectF(Math.Min(_downX, x), Math.Min(_downY, y), Math.Max(_downX, x), Math.Max(_downY, y));
                 Invalidate();
@@ -754,6 +774,7 @@ public sealed class PlanView
             TouchUp(x, y, world, time);
         }
         else MouseUp(x, y, world);
+        if (_session.BoardDragging) _session.EndBoardDrag();
         _drag = DragMode.None;
     }
 
@@ -761,6 +782,7 @@ public sealed class PlanView
     {
         _touches.Remove(id);
         CancelLongPress();
+        if (_session.BoardDragging) _session.EndBoardDrag();
         if (_drag == DragMode.Move) _session.EndMove(Ui.Dp(20) / _zoom);
         EndFlex();
         _drag = DragMode.None;
@@ -833,6 +855,9 @@ public sealed class PlanView
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 PolygonChanged?.Invoke();
                 Invalidate();
+                return;
+            case CanvasTool.Board:
+                _drag = _session.BeginBoardDrag(world.X, world.Y, Reach(10, 24) / _zoom) ? DragMode.Board : DragMode.Pan;
                 return;
             case CanvasTool.Building:
                 _drag = DragMode.Building;
@@ -996,6 +1021,9 @@ public sealed class PlanView
         if (HitCompass(x, y)) { _drag = DragMode.Pan; return; }
         switch (_session.Tool)
         {
+            case CanvasTool.Board:
+                _drag = _session.BeginBoardDrag(world.X, world.Y, Ui.Dp(24) / _zoom) ? DragMode.Board : DragMode.Pan;
+                return;
             case CanvasTool.Building:
                 _drag = DragMode.Building;
                 return;

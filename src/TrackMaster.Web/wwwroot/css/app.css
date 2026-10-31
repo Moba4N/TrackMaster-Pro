@@ -523,6 +523,7 @@ dl.rows dd { margin: 0; text-align: right; }
     text-align: left;
 }
 button.list-item:hover { background: var(--hover); }
+.history .list-item.redo { opacity: 0.7; border-style: dashed; }
 .list-item.on { background: var(--tip-back); border: 2px solid var(--accent); padding: 7px 9px; }
 .list-item.static { background: transparent; border-color: transparent; border-bottom-color: var(--border); border-radius: 0; padding: 6px 2px; }
 .list-item .texts { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
@@ -649,6 +650,7 @@ kbd {
 
 /* Moduldialog */
 .table.modules td { padding: 3px 3px; border-bottom: none; }
-.table.modules td:first-child { width: 34%; }
+.table.modules td:first-child { width: 24px; }
+.table.modules td:nth-child(2) { width: 32%; }
 .table.modules .input { min-width: 0; width: 100%; }
 .table.modules .btn { padding: 4px 8px; }

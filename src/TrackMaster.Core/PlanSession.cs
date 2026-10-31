@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension }
 
 /// <summary>
 /// Der geöffnete Plan mit Auswahl, aktivem Gleisende und Rückgängig-Verlauf.
@@ -54,7 +54,11 @@ public sealed class PlanSession
 
     public IReadOnlyList<PlacedPiece> SelectedPieces => Plan.Pieces.Where(p => Selection.Contains(p.Id)).ToList();
 
-    public void Say(string text) => Message?.Invoke(text);
+    public void Say(string text)
+    {
+        History.Label(text);
+        Message?.Invoke(text);
+    }
 
     /// <summary>Vor einer Änderung: Zustand für Rückgängig merken.</summary>
     public void Record()
@@ -107,8 +111,8 @@ public sealed class PlanSession
         Record();
         Plan = LayoutPlan.Empty(gaugeId);
         Plan.BoardShape = shape;
-        Plan.BoardWidth = Math.Clamp(width, 100, 50000);
-        Plan.BoardHeight = Math.Clamp(height, 100, 50000);
+        Plan.BoardWidth = Math.Clamp(width, 50, 50000);
+        Plan.BoardHeight = Math.Clamp(height, 50, 50000);
         Plan.BoardDepth = BoardGeometry.Depth(shape, Plan.BoardWidth, Plan.BoardHeight, depth, turn);
         Plan.BoardTurn = ((turn % 4) + 4) % 4;
         Plan.BoardLegLeft = shape == BoardShape.U ? Math.Max(0, legLeft) : 0;
@@ -393,17 +397,63 @@ public sealed class PlanSession
         Commit();
     }
 
-    public void Undo()
+    // ---------- Platte mit der Maus ändern ----------
+
+    private (BoardHandle Grip, string Start, double X, double Y, bool Changed)? _boardDrag;
+
+    /// <summary>Platte bearbeiten: Ecke anfassen (Größe) oder Modul anfassen (verschieben). False, wenn dort nichts ist.</summary>
+    public bool BeginBoardDrag(double x, double y, double tolerance)
     {
-        if (History.Undo(Plan) is not { } plan) return;
+        var grip = ModuleLayout.Handles(Plan).Where(h => Math.Abs(h.X - x) <= tolerance && Math.Abs(h.Y - y) <= tolerance)
+            .OrderBy(h => Math.Abs(h.X - x) + Math.Abs(h.Y - y)).FirstOrDefault();
+        if (grip is null && ModuleLayout.ModuleAt(Plan, x, y) is { } m) grip = new BoardHandle(m, -1, x, y);
+        if (grip is null) return false;
+        Record();
+        _boardDrag = (grip, PlanSerializer.ToJson(Plan, withIds: true), x, y, false);
+        return true;
+    }
+
+    /// <summary>Während des Ziehens: Zustand vom Anfang neu berechnen, damit sich nichts aufsummiert.</summary>
+    public void BoardDragTo(double x, double y)
+    {
+        if (_boardDrag is not { } d) return;
+        var plan = PlanSerializer.FromJson(d.Start, out _);
+        if (d.Grip.Corner < 0) ModuleLayout.MoveModule(plan, d.Grip.Module, x - d.X, y - d.Y);
+        else ModuleLayout.DragCorner(plan, d.Grip.Module, d.Grip.Corner, x, y);
+        Plan = plan;
+        _boardDrag = d with { Changed = true };
+        Commit();
+    }
+
+    public void EndBoardDrag()
+    {
+        if (_boardDrag is not { } d) return;
+        _boardDrag = null;
+        if (!d.Changed) { History.DiscardLast(); return; }
+        Say(d.Grip.Corner < 0 && d.Grip.Module < Plan.Modules.Count
+            ? Lang.F($"{Plan.Modules[d.Grip.Module].Name} verschoben: {BoardGeometry.Describe(Plan)}.")
+            : Lang.F($"Plattengröße geändert: {BoardGeometry.Describe(Plan)}."));
+    }
+
+    public bool BoardDragging => _boardDrag is not null;
+
+    public void Undo() => Undo(1);
+
+    /// <summary>Mehrere Schritte zurück (Verlaufsliste).</summary>
+    public void Undo(int steps)
+    {
+        if (History.Undo(Plan, steps) is not { } plan) return;
         Plan = plan;
         Dirty = true;
         Commit();
     }
 
-    public void Redo()
+    public void Redo() => Redo(1);
+
+    /// <summary>Mehrere Schritte vor (Verlaufsliste).</summary>
+    public void Redo(int steps)
     {
-        if (History.Redo(Plan) is not { } plan) return;
+        if (History.Redo(Plan, steps) is not { } plan) return;
         Plan = plan;
         Dirty = true;
         Commit();

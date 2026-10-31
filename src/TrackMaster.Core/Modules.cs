@@ -14,8 +14,17 @@ public sealed class BoardModule
     public BoardModule Clone() => new() { Name = Name, X = X, Y = Y, Width = Width, Depth = Depth };
 }
 
-/// <summary>Neue Lage und Größe eines Moduls aus dem Moduldialog; <see cref="Index"/> = −1 für ein neues Modul.</summary>
-public sealed record ModuleEdit(int Index, string Name, double X, double Y, double Width, double Depth);
+/// <summary>Griff an einer Ecke: <see cref="Module"/> = −1 für die Außenecke der ganzen Platte, <see cref="Corner"/> 0…3 im Uhrzeigersinn ab links oben (−1 = Modul verschieben).</summary>
+public sealed record BoardHandle(int Module, int Corner, double X, double Y);
+
+/// <summary>
+/// Neue Lage und Größe eines Moduls aus dem Moduldialog; <see cref="Index"/> = −1 für ein neues Modul,
+/// <see cref="ModuleLayout.Merged"/> für ein aus mehreren zusammengeführtes Modul (rastet nicht ein, bewegt keine Inhalte).
+/// </summary>
+public sealed record ModuleEdit(int Index, string Name, double X, double Y, double Width, double Depth)
+{
+    public BoardRect Rect => new(X, Y, X + Width, Y + Depth);
+}
 
 /// <summary>
 /// Modulanlage: Die Platte besteht aus einzelnen Modulen, die sich getrennt bauen und dann zusammensetzen lassen.
@@ -23,7 +32,10 @@ public sealed record ModuleEdit(int Index, string Name, double X, double Y, doub
 /// </summary>
 public static class ModuleLayout
 {
-    public const double MinSize = 100, MaxSize = 20000;
+    public const double MinSize = 50, MaxSize = 20000;
+
+    /// <summary>Kennung für ein zusammengeführtes Modul in <see cref="ModuleEdit.Index"/>.</summary>
+    public const int Merged = -2;
 
     /// <summary>Kleinster Abstand, ab dem ein Modul an die Kante eines anderen einrastet (mm).</summary>
     public const double SnapDistance = 30;
@@ -116,6 +128,7 @@ public static class ModuleLayout
                 Width = Math.Clamp(e.Width, MinSize, MaxSize), Depth = Math.Clamp(e.Depth, MinSize, MaxSize),
             };
             // Neue und verschobene Module rasten an den Kanten der übrigen ein
+            if (e.Index == Merged) { result.Add(m); continue; }
             if (e.Index < 0 || e.Index >= old.Count || Math.Abs(old[e.Index].X - m.X) > 0.001 || Math.Abs(old[e.Index].Y - m.Y) > 0.001)
                 SnapEdges(m, edits.Where(o => o != e).Select(o => new BoardRect(o.X, o.Y, o.X + o.Width, o.Y + o.Depth)));
             if (e.Index >= 0 && e.Index < old.Count && (Math.Abs(old[e.Index].X - m.X) > 0.001 || Math.Abs(old[e.Index].Y - m.Y) > 0.001))
@@ -131,6 +144,114 @@ public static class ModuleLayout
         plan.Modules.AddRange(result);
         plan.BoardShape = BoardShape.Module;
         Fit(plan);
+    }
+
+    /// <summary>
+    /// Führt die Module <paramref name="pick"/> (Positionen in <paramref name="rows"/>) zu einem zusammen. Das geht nur,
+    /// wenn sie lückenlos ein Rechteck ergeben. Liefert die neue Liste oder eine Fehlermeldung.
+    /// </summary>
+    public static (List<ModuleEdit>? Rows, string? Error) Merge(IReadOnlyList<ModuleEdit> rows, IReadOnlyCollection<int> pick)
+    {
+        if (pick.Count < 2) return (null, Lang.T("Bitte mindestens zwei Module zum Zusammenführen wählen."));
+        var chosen = pick.Order().Select(i => rows[i]).ToList();
+        double x0 = chosen.Min(r => r.X), y0 = chosen.Min(r => r.Y), x1 = chosen.Max(r => r.X + r.Width), y1 = chosen.Max(r => r.Y + r.Depth);
+        var area = chosen.Sum(r => r.Width * r.Depth);
+        var overlap = false;
+        for (var i = 0; i < chosen.Count; i++)
+            for (var j = i + 1; j < chosen.Count; j++)
+            {
+                var (a, b) = (chosen[i].Rect, chosen[j].Rect);
+                if (Math.Min(a.X1, b.X1) - Math.Max(a.X0, b.X0) > 0.5 && Math.Min(a.Y1, b.Y1) - Math.Max(a.Y0, b.Y0) > 0.5) overlap = true;
+            }
+        if (overlap || Math.Abs(area - (x1 - x0) * (y1 - y0)) > 1)
+            return (null, Lang.T("Zusammenführen geht nur bei Modulen, die lückenlos aneinander liegen und zusammen ein Rechteck ergeben."));
+        var merged = new ModuleEdit(Merged, chosen[0].Name, x0, y0, x1 - x0, y1 - y0);
+        var result = new List<ModuleEdit>();
+        for (var i = 0; i < rows.Count; i++)
+            if (i == pick.Min()) result.Add(merged);
+            else if (!pick.Contains(i)) result.Add(rows[i]);
+        return (result, null);
+    }
+
+    /// <summary>Griffe zum Ändern der Platte mit der Maus: die Ecken jedes Moduls bzw. die Außenecken der Platte.</summary>
+    public static List<BoardHandle> Handles(LayoutPlan plan)
+    {
+        var result = new List<BoardHandle>();
+        if (plan.BoardShape == BoardShape.Module && plan.Modules.Count > 0)
+            for (var i = 0; i < plan.Modules.Count; i++)
+                result.AddRange(Corners(plan.Modules[i].Rect).Select((c, k) => new BoardHandle(i, k, c.X, c.Y)));
+        else
+            result.AddRange(Corners(new BoardRect(0, 0, plan.BoardWidth, plan.BoardHeight)).Select((c, k) => new BoardHandle(-1, k, c.X, c.Y)));
+        return result;
+    }
+
+    /// <summary>Ecken eines Rechtecks: 0 links oben, 1 rechts oben, 2 rechts unten, 3 links unten.</summary>
+    public static (double X, double Y)[] Corners(BoardRect r) => [(r.X0, r.Y0), (r.X1, r.Y0), (r.X1, r.Y1), (r.X0, r.Y1)];
+
+    /// <summary>Modul unter dem Punkt (das zuletzt angelegte zuerst) oder null.</summary>
+    public static int? ModuleAt(LayoutPlan plan, double x, double y)
+    {
+        if (plan.BoardShape != BoardShape.Module) return null;
+        for (var i = plan.Modules.Count - 1; i >= 0; i--)
+            if (plan.Modules[i].Rect.Contains(x, y)) return i;
+        return null;
+    }
+
+    /// <summary>Verschiebt ein Modul samt Gleisen und Gelände um dx, dy; es rastet an Nachbarkanten ein.</summary>
+    public static void MoveModule(LayoutPlan plan, int index, double dx, double dy)
+    {
+        var edits = Current(plan).Select(e => e.Index == index ? e with { X = e.X + dx, Y = e.Y + dy } : e).ToList();
+        Apply(plan, edits);
+    }
+
+    /// <summary>
+    /// Zieht Ecke <paramref name="corner"/> eines Moduls (oder der ganzen Platte bei <paramref name="index"/> = −1) auf x, y;
+    /// die gegenüberliegende Ecke bleibt liegen. Gleise und Gelände bleiben an ihrem Platz.
+    /// </summary>
+    public static void DragCorner(LayoutPlan plan, int index, int corner, double x, double y)
+    {
+        var rect = index >= 0 && index < plan.Modules.Count ? plan.Modules[index].Rect : new BoardRect(0, 0, plan.BoardWidth, plan.BoardHeight);
+        var fixedCorner = Corners(rect)[(corner + 2) % 4];
+        var left = corner is 0 or 3;
+        var top = corner is 0 or 1;
+        if (index >= 0)
+        {
+            // an Kanten der anderen Module einrasten
+            var others = plan.Modules.Where((_, i) => i != index).Select(m => m.Rect).ToList();
+            x = SnapValue(x, others.SelectMany(o => new[] { o.X0, o.X1 }));
+            y = SnapValue(y, others.SelectMany(o => new[] { o.Y0, o.Y1 }));
+        }
+        double x0 = left ? Math.Min(x, fixedCorner.X - MinSize) : fixedCorner.X, x1 = left ? fixedCorner.X : Math.Max(x, fixedCorner.X + MinSize);
+        double y0 = top ? Math.Min(y, fixedCorner.Y - MinSize) : fixedCorner.Y, y1 = top ? fixedCorner.Y : Math.Max(y, fixedCorner.Y + MinSize);
+        x0 = Math.Max(x0, x1 - MaxSize * (index >= 0 ? 1 : 2.5));
+        y0 = Math.Max(y0, y1 - MaxSize * (index >= 0 ? 1 : 2.5));
+        x1 = Math.Min(x1, x0 + MaxSize * (index >= 0 ? 1 : 2.5));
+        y1 = Math.Min(y1, y0 + MaxSize * (index >= 0 ? 1 : 2.5));
+        x0 = Math.Round(x0); y0 = Math.Round(y0); x1 = Math.Round(x1); y1 = Math.Round(y1);
+        if (index >= 0)
+        {
+            var m = plan.Modules[index];
+            (m.X, m.Y, m.Width, m.Depth) = (x0, y0, x1 - x0, y1 - y0);
+            Fit(plan);
+            return;
+        }
+        // ganze Platte: sie beginnt immer bei 0, 0 – Inhalte so verschieben, dass sie an ihrem Platz bleiben
+        if (Math.Abs(x0) > 0.001 || Math.Abs(y0) > 0.001)
+        {
+            foreach (var p in plan.Pieces) { p.X -= x0; p.Y -= y0; }
+            foreach (var s in plan.Scenery) s.MoveBy(-x0, -y0);
+        }
+        plan.BoardWidth = x1 - x0;
+        plan.BoardHeight = y1 - y0;
+    }
+
+    private static double SnapValue(double v, IEnumerable<double> targets)
+    {
+        var best = SnapDistance;
+        var result = v;
+        foreach (var t in targets)
+            if (Math.Abs(t - v) < best) { best = Math.Abs(t - v); result = t; }
+        return result;
     }
 
     private static void SnapEdges(BoardModule m, IEnumerable<BoardRect> others)

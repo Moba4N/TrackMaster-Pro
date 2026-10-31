@@ -97,6 +97,9 @@ public static partial class Js
 
     public static void GlSetCamera(double[] values) => GlSetCamera(values.AsSpan());
 
+    [JSImport("gl.turn", Module)]
+    public static partial void GlTurn(int axis, double degrees);
+
     [JSImport("gl.render", Module)]
     public static partial void GlRender();
 

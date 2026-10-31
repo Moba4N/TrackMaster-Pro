@@ -86,10 +86,14 @@ public sealed class Scene3DModel
 
     public Dictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> Meshes { get; } = [];
 
-    public Scene3DModel(LayoutPlan plan)
+    /// <summary>Gelände zeigen (Wiese, Hügel, Gewässer, Gebäude, Bäume) oder nur Platte und Gleise.</summary>
+    public bool Scenery { get; }
+
+    public Scene3DModel(LayoutPlan plan, bool scenery = true)
     {
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
+        Scenery = scenery;
         Build();
     }
 
@@ -114,10 +118,11 @@ public sealed class Scene3DModel
         {
             Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, -thickness), P(r.X1, r.Y1, 0), top: false);
             Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, -thickness * 1.6), P(r.X1 + 2, r.Y1 + 2, -thickness));
-            Meadow(r.X0, r.Y0, r.X1, r.Y1);
+            if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1);
+            else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, 0), P(r.X0, r.Y1, 0), P(r.X1, r.Y1, 0), P(r.X1, r.Y0, 0));
         }
 
-        foreach (var s in plan.Scenery)
+        foreach (var s in Scenery ? plan.Scenery : [])
             switch (s.Kind)
             {
                 case SceneryKind.Terrain: Hill(s); break;
@@ -492,7 +497,7 @@ public sealed class Scene3DModel
             // Pfeiler unter hochliegenden Gleisen
             var mid = legs[li].At(0.5);
             var zm = p.HeightAt(li, 0.5);
-            var below = TerrainField.GroundAt(_plan, mid.X, mid.Y);
+            var below = Scenery ? TerrainField.GroundAt(_plan, mid.X, mid.Y) : 0;
             if (zm - below > g * 1.5 && !p.Tunnel)
             {
                 var w = g * 0.6;

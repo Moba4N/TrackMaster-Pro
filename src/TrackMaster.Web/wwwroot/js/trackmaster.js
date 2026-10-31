@@ -527,7 +527,7 @@ function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l
 
 const g3 = {
     gl: null, canvas: null, prog: null, sky: null, skyBuf: null, loc: {}, meshes: [], dynamic: [],
-    light: null, ride: null, orbit: { yaw: -60, pitch: 35, dist: 1000, target: [0, 0, 0] },
+    light: null, ride: null, orbit: { yaw: -60, pitch: 35, roll: 0, dist: 1000, target: [0, 0, 0] },
     animating: false, last: 0, frame: 0, observer: null, pointers: new Map(),
 };
 
@@ -566,11 +566,19 @@ function glResize() {
     glRender();
 }
 
+// Neigung frei von oben bis unter die Platte, dazu Kippen um die Blickachse: die Anlage lässt sich um alle drei Achsen drehen
+const PITCH_MIN = -89, PITCH_MAX = 89;
+
 function orbitCamera() {
     const o = g3.orbit;
-    const yaw = o.yaw * Math.PI / 180, pitch = Math.min(89, Math.max(5, o.pitch)) * Math.PI / 180;
+    const yaw = o.yaw * Math.PI / 180, pitch = Math.min(PITCH_MAX, Math.max(PITCH_MIN, o.pitch)) * Math.PI / 180;
     const eye = [o.target[0] + o.dist * Math.cos(pitch) * Math.sin(yaw), o.target[1] + o.dist * Math.sin(pitch), o.target[2] + o.dist * Math.cos(pitch) * Math.cos(yaw)];
-    return { eye, target: o.target, fov: 50, near: Math.max(2, o.dist / 2000) };
+    const f = norm([o.target[0] - eye[0], o.target[1] - eye[1], o.target[2] - eye[2]]);
+    const r = norm([f[1] * 0 - f[2] * 1, f[2] * 0 - f[0] * 0, f[0] * 1 - f[1] * 0]);
+    const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+    const a = o.roll * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+    const up = [u[0] * c + r[0] * sn, u[1] * c + r[1] * sn, u[2] * c + r[2] * sn];
+    return { eye, target: o.target, up, fov: 50, near: Math.max(2, o.dist / 2000) };
 }
 
 function attach3D(c) {
@@ -598,9 +606,11 @@ function attach3D(c) {
             lastPinch = { d, mx, my };
         } else if (p.button === 2 || p.button === 1 || e.shiftKey) {
             pan(dx, dy);
+        } else if (e.ctrlKey || e.altKey) {
+            o.roll = ((o.roll + dx * 0.35 + 540) % 360) - 180;
         } else {
             o.yaw -= dx * 0.35;
-            o.pitch = Math.min(89, Math.max(5, o.pitch + dy * 0.3));
+            o.pitch = Math.min(PITCH_MAX, Math.max(PITCH_MIN, o.pitch + dy * 0.3));
         }
         glRender();
     });
@@ -649,7 +659,7 @@ function drawScene() {
     const cam = g3.ride || orbitCamera();
     const aspect = h === 0 ? 1 : w / h;
     const fovY = 2 * Math.atan(Math.tan(cam.fov * Math.PI / 360) / aspect);
-    const mvp = multiply(perspective(fovY, aspect, cam.near, 200000), lookAt(cam.eye, cam.target, [0, 1, 0]));
+    const mvp = multiply(perspective(fovY, aspect, cam.near, 200000), lookAt(cam.eye, cam.target, cam.up || [0, 1, 0]));
 
     gl.enable(gl.DEPTH_TEST);
     gl.useProgram(g3.prog);
@@ -758,6 +768,15 @@ export const gl = {
         glRender();
     },
     render() { glRender(); },
+    // Drehen per Knopf: Achse 0 = X (kippen vor/zurück), 1 = Y (Hochachse), 2 = Z (Blickachse); grad 0 bei Achse −1 = gerade ausrichten
+    turn(axis, deg) {
+        const o = g3.orbit;
+        if (axis === 0) o.pitch = Math.min(PITCH_MAX, Math.max(PITCH_MIN, o.pitch + deg));
+        else if (axis === 1) o.yaw = ((o.yaw + deg + 540) % 360) - 180;
+        else if (axis === 2) o.roll = ((o.roll + deg + 540) % 360) - 180;
+        else { o.yaw = -60; o.pitch = 35; o.roll = 0; }
+        glRender();
+    },
     animate(on) {
         if (on === g3.animating) return;
         g3.animating = on;

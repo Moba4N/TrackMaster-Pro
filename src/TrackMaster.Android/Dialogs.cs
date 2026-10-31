@@ -179,8 +179,8 @@ public static partial class Dialogs
         Show(c, Lang.T("Plan"), body, Lang.T("Übernehmen"), () =>
         {
             var errors = new List<string>();
-            Read(w, Lang.T("Breite"), 100, 50000, errors, out var bw);
-            Read(h, Lang.T("Tiefe"), 100, 50000, errors, out var bh);
+            Read(w, Lang.T("Breite"), 50, 50000, errors, out var bw);
+            Read(h, Lang.T("Tiefe"), 50, 50000, errors, out var bh);
             var newShape = shapes[Math.Max(0, shape.SelectedItemPosition)];
             var bd = plan.BoardDepth;
             if (BoardGeometry.HasLegs(newShape)) Read(depth, Lang.T("Schenkeltiefe"), 50, 50000, errors, out bd);

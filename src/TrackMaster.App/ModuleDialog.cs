@@ -12,8 +12,12 @@ public static partial class Dialogs
     /// </summary>
     public static IReadOnlyList<ModuleEdit>? AskModules(Window owner, LayoutPlan plan, Action appendPlan)
     {
-        var rows = ModuleLayout.Current(plan).Select(m => (m.Index, Name: new TextBox { Text = m.Name }, X: NumberBox(m.X, 0), Y: NumberBox(m.Y, 0), W: NumberBox(m.Width, 0), D: NumberBox(m.Depth, 0))).ToList();
+        (int Index, TextBox Name, TextBox X, TextBox Y, TextBox W, TextBox D, CheckBox Pick) Row(ModuleEdit m)
+            => (m.Index, new TextBox { Text = m.Name }, NumberBox(m.X, 0), NumberBox(m.Y, 0), NumberBox(m.Width, 0), NumberBox(m.Depth, 0),
+                new CheckBox { ToolTip = Lang.T("Zum Zusammenführen wählen"), VerticalAlignment = VerticalAlignment.Center });
+        var rows = ModuleLayout.Current(plan).Select(Row).ToList();
         var table = new Grid();
+        table.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
         foreach (var width in new[] { 2.0, 1, 1, 1, 1 })
             table.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width, GridUnitType.Star) });
         table.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
@@ -22,7 +26,7 @@ public static partial class Dialogs
             table.Children.Clear();
             table.RowDefinitions.Clear();
             table.RowDefinitions.Add(new RowDefinition());
-            string[] heads = [Lang.T("Name"), "X", "Y", Lang.T("Breite"), Lang.T("Tiefe")];
+            string[] heads = ["✓", Lang.T("Name"), "X", "Y", Lang.T("Breite"), Lang.T("Tiefe")];
             for (var c = 0; c < heads.Length; c++)
             {
                 var t = Theme.Label(heads[c], 12, true, Theme.TextSecondaryBrush);
@@ -33,7 +37,7 @@ public static partial class Dialogs
             {
                 var row = rows[i];
                 table.RowDefinitions.Add(new RowDefinition());
-                FrameworkElement[] cells = [row.Name, row.X, row.Y, row.W, row.D];
+                FrameworkElement[] cells = [row.Pick, row.Name, row.X, row.Y, row.W, row.D];
                 for (var c = 0; c < cells.Length; c++)
                 {
                     if (cells[c].Parent is Panel old) old.Children.Remove(cells[c]);
@@ -45,7 +49,7 @@ public static partial class Dialogs
                 remove.ToolTip = Lang.T("Modul entfernen");
                 remove.IsEnabled = rows.Count > 1;
                 remove.Click += (_, _) => { rows.Remove(row); Fill(); };
-                Grid.SetRow(remove, i + 1); Grid.SetColumn(remove, 5);
+                Grid.SetRow(remove, i + 1); Grid.SetColumn(remove, 6);
                 table.Children.Add(remove);
             }
         }
@@ -58,31 +62,12 @@ public static partial class Dialogs
                 if (Fmt.Parse(r.X.Text) is { } x && Fmt.Parse(r.Y.Text) is { } y && Fmt.Parse(r.W.Text) is { } w && Fmt.Parse(r.D.Text) is { } d)
                     temp.Modules.Add(new BoardModule { X = x, Y = y, Width = w, Depth = d });
             var next = ModuleLayout.NextModule(temp);
-            rows.Add((-1, new TextBox { Text = Lang.F($"Modul {rows.Count + 1}") }, NumberBox(next.X, 0), NumberBox(next.Y, 0), NumberBox(next.Width, 0), NumberBox(next.Depth, 0)));
+            rows.Add(Row(new ModuleEdit(-1, Lang.F($"Modul {rows.Count + 1}"), next.X, next.Y, next.Width, next.Depth)));
             Fill();
         };
         var appendButton = Theme.Button(Lang.T("Plan als Modul ansetzen…"), "Open");
         var error = ErrorText();
-        var body = new StackPanel();
-        body.Children.Add(Hint(plan.BoardShape == BoardShape.Module
-            ? Lang.T("Lage (X, Y = linke obere Ecke) und Größe jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Gleise über Modulgrenzen meldet die Planprüfung.")
-            : Lang.F($"Die Platte ({BoardGeometry.Name(plan.BoardShape)}) wird beim Übernehmen in Module zerlegt, je Rechteck eines. Danach lassen sich Module anhängen und verschieben.")));
-        body.Children.Add(table);
-        var buttons = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-        add.Margin = new Thickness(0, 0, 8, 0);
-        buttons.Children.Add(add);
-        buttons.Children.Add(appendButton);
-        body.Children.Add(buttons);
-        body.Children.Add(error);
-        var ok = Theme.Button(Lang.T("Übernehmen"), accent: true);
-        ok.IsDefault = true;
-        var cancel = Theme.Button(Lang.T("Abbrechen"));
-        cancel.IsCancel = true;
-        var win = Small(owner, Lang.T("Module"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, 640, 520, cancel, ok);
-        IReadOnlyList<ModuleEdit>? result = null;
-        var append = false;
-        appendButton.Click += (_, _) => { append = true; win.Close(); };
-        ok.Click += (_, _) =>
+        List<ModuleEdit>? Edits()
         {
             var errors = new List<string>();
             var edits = new List<ModuleEdit>();
@@ -96,7 +81,42 @@ public static partial class Dialogs
                 Read(r.D, Lang.F($"{name} Tiefe"), ModuleLayout.MinSize, ModuleLayout.MaxSize, errors, out var d);
                 edits.Add(new ModuleEdit(r.Index, r.Name.Text, x, y, w, d));
             }
-            if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
+            error.Text = string.Join("\n", errors);
+            return errors.Count > 0 ? null : edits;
+        }
+        var merge = Theme.Button(Lang.T("Gewählte zusammenführen"));
+        merge.Margin = new Thickness(0, 0, 8, 0);
+        merge.Click += (_, _) =>
+        {
+            if (Edits() is not { } edits) return;
+            var (merged, problem) = ModuleLayout.Merge(edits, rows.Select((r, i) => (r, i)).Where(t => t.r.Pick.IsChecked == true).Select(t => t.i).ToList());
+            if (merged is null) { error.Text = problem!; return; }
+            rows = merged.Select(Row).ToList();
+            Fill();
+        };
+        var body = new StackPanel();
+        body.Children.Add(Hint(plan.BoardShape == BoardShape.Module
+            ? Lang.T("Lage (X, Y = linke obere Ecke) und Größe jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Gleise über Modulgrenzen meldet die Planprüfung.")
+            : Lang.F($"Die Platte ({BoardGeometry.Name(plan.BoardShape)}) wird beim Übernehmen in Module zerlegt, je Rechteck eines. Danach lassen sich Module anhängen und verschieben.")));
+        body.Children.Add(table);
+        var buttons = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        add.Margin = new Thickness(0, 0, 8, 0);
+        buttons.Children.Add(add);
+        buttons.Children.Add(merge);
+        buttons.Children.Add(appendButton);
+        body.Children.Add(buttons);
+        body.Children.Add(error);
+        var ok = Theme.Button(Lang.T("Übernehmen"), accent: true);
+        ok.IsDefault = true;
+        var cancel = Theme.Button(Lang.T("Abbrechen"));
+        cancel.IsCancel = true;
+        var win = Small(owner, Lang.T("Module"), new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, 640, 520, cancel, ok);
+        IReadOnlyList<ModuleEdit>? result = null;
+        var append = false;
+        appendButton.Click += (_, _) => { append = true; win.Close(); };
+        ok.Click += (_, _) =>
+        {
+            if (Edits() is not { } edits) return;
             result = edits;
             win.Close();
         };

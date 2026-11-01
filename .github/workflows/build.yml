@@ -134,6 +134,10 @@ jobs:
           Hb "darstellung" @("--dialog", "appearance")
           Hb "ueber" @("--dialog", "about")
           Hb "frei-drehen" @("--select", "--dialog", "rotFree")
+          Hb "module" @("--dialog", "modules")
+          Hb "ebenen" @("--dialog", "levels")
+          Hb "unterbau" @("--dialog", "benchwork")
+          Hb "spantenbau" @("--pro", "--dialog", "frame")
           # Dieselben Bilder mit englischer Oberfläche für das englische Handbuch
           New-Item -ItemType Directory -Force artifacts/handbuch-en | Out-Null
           function HbEn($name, [string[]]$more) {
@@ -158,6 +162,10 @@ jobs:
           HbEn "design-blaupause" @("--design", "blaupause")
           HbEn "design-werkstatt" @("--design", "werkstatt", "--font", "bahnschrift")
           HbEn "darstellung" @("--dialog", "appearance")
+          HbEn "module" @("--dialog", "modules")
+          HbEn "ebenen" @("--dialog", "levels")
+          HbEn "unterbau" @("--dialog", "benchwork")
+          HbEn "spantenbau" @("--pro", "--dialog", "frame")
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh

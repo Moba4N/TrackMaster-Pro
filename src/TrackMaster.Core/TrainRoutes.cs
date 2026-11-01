@@ -181,6 +181,7 @@ public static class TrainRoutes
                 positions = Passages(p).Select(x => x.Path).Distinct().OrderBy(x => x).Select(x => PositionName(p, x)).ToList(),
             }).ToList(),
             signals = plan.Signals.Select(s => new { id = s.Id, name = SignalName(s), type = Signal.TypeName(s.Type), address = s.Address, addresses = s.AddressCount, piece = s.PieceId }).ToList(),
+            detectors = plan.Detectors.Select(d => new { id = d.Id, name = d.Name, type = d.Type.ToString().ToLowerInvariant(), address = d.Address, piece = d.PieceId }).ToList(),
             sections = sections.Select(s => new { number = s.Number, pieces = s.PieceIds, lengthMm = Math.Round(s.LengthMm), circuits = s.Circuits }).ToList(),
             routes = routes.Select((r, i) => new
             {

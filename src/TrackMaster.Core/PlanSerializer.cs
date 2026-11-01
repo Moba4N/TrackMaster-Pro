@@ -10,10 +10,11 @@ public static class PlanSerializer
 {
     public const string FileExtension = ".trackmaster.json";
     /// <summary>
-    /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. Ältere Programmversionen
+    /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. 3: Raum, Hintergrundbild,
+    /// Rückmelder, Preise und Bestand, gesperrte und gruppierte Gleise. Ältere Programmversionen
     /// überspringen, was sie nicht kennen; neuere Dateien öffnet dieses Programm mit einem Hinweis.
     /// </summary>
-    public const int CurrentFormat = 2;
+    public const int CurrentFormat = 3;
 
     private sealed class FileDto
     {
@@ -31,6 +32,33 @@ public static class PlanSerializer
         [JsonPropertyName("levels"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<LevelDto>? Levels { get; set; }
         [JsonPropertyName("activeLevel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ActiveLevel { get; set; }
         [JsonPropertyName("benchwork"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BenchworkSpec? Benchwork { get; set; }
+        [JsonPropertyName("detectors"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<DetectorDto>? Detectors { get; set; }
+        [JsonPropertyName("train"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Train { get; set; }
+        [JsonPropertyName("prices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, double>? Prices { get; set; }
+        [JsonPropertyName("stock"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, int>? Stock { get; set; }
+        [JsonPropertyName("background"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BackgroundDto? Background { get; set; }
+    }
+
+    private sealed class DetectorDto
+    {
+        [JsonPropertyName("id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Id { get; set; }
+        [JsonPropertyName("piece")] public int Piece { get; set; }
+        [JsonPropertyName("type")] public string? Type { get; set; }
+        [JsonPropertyName("name")] public string? Name { get; set; }
+        [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
+    }
+
+    private sealed class BackgroundDto
+    {
+        [JsonPropertyName("mime")] public string? Mime { get; set; }
+        [JsonPropertyName("data")] public string? Data { get; set; }
+        [JsonPropertyName("pw")] public int PixelWidth { get; set; }
+        [JsonPropertyName("ph")] public int PixelHeight { get; set; }
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+        [JsonPropertyName("w")] public double W { get; set; }
+        [JsonPropertyName("opacity")] public double Opacity { get; set; } = 0.5;
+        [JsonPropertyName("visible")] public bool Visible { get; set; } = true;
     }
 
     private sealed class LevelDto
@@ -53,6 +81,7 @@ public static class PlanSerializer
         [JsonPropertyName("rot")] public double Rot { get; set; }
         [JsonPropertyName("h")] public double H { get; set; }
         [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Level { get; set; }
+        [JsonPropertyName("var"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Variant { get; set; }
     }
 
     private sealed class FeederDto
@@ -115,6 +144,31 @@ public static class PlanSerializer
         [JsonPropertyName("tunnel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Tunnel { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
         [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Level { get; set; }
+        [JsonPropertyName("lock"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Lock { get; set; }
+        [JsonPropertyName("group"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Group { get; set; }
+    }
+
+    /// <summary>
+    /// Hintergrundbilder der Rückgängig-Schritte: Im Verlauf steht nur ein Verweis, damit nicht jeder Schritt das ganze Bild kopiert.
+    /// </summary>
+    private static readonly Dictionary<string, string> ImageCache = [];
+    private const string ImageRef = "#ref:";
+
+    private static string StoreImage(string data)
+    {
+        lock (ImageCache)
+        {
+            var key = $"{data.Length}:{(data.Length > 96 ? data.Substring(data.Length / 3, 48) + data[^24..] : data)}";
+            if (ImageCache.Count > 16 && !ImageCache.ContainsKey(key)) ImageCache.Clear();
+            ImageCache[key] = data;
+            return ImageRef + key;
+        }
+    }
+
+    private static string? LoadImage(string? data)
+    {
+        if (data is null || !data.StartsWith(ImageRef, StringComparison.Ordinal)) return data;
+        lock (ImageCache) return ImageCache.GetValueOrDefault(data[ImageRef.Length..]);
     }
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
@@ -126,7 +180,7 @@ public static class PlanSerializer
     /// <param name="withIds">Für Rückgängig-Schritte: auch Kennungen von Gelände und Elektrik behalten, damit die Auswahl erhalten bleibt.</param>
     public static string ToJson(LayoutPlan plan, bool withIds = false)
     {
-        var needIds = withIds || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0;
+        var needIds = withIds || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0;
         var dto = new FileDto
         {
             Name = plan.Name,
@@ -160,14 +214,16 @@ public static class PlanSerializer
                 Tunnel = p.Tunnel,
                 Addr = p.Address,
                 Level = p.Level,
+                Lock = p.Locked,
+                Group = p.Group,
             }).ToList(),
             Scenery = plan.Scenery.Count == 0 ? null : plan.Scenery.Select(s => new SceneryDto
             {
                 Id = withIds ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea || s.Kind == SceneryKind.Dimension ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
-                X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level,
+                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
             }).ToList(),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit }).ToList(),
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
@@ -177,6 +233,16 @@ public static class PlanSerializer
                 : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
             ActiveLevel = plan.ActiveLevel,
             Benchwork = plan.Benchwork,
+            Detectors = plan.Detectors.Count == 0 ? null : plan.Detectors.Select(d => new DetectorDto
+                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address }).ToList(),
+            Train = plan.TrainLength > 0 ? plan.TrainLength : null,
+            Prices = plan.Prices.Count == 0 ? null : new Dictionary<string, double>(plan.Prices),
+            Stock = plan.Stock.Count == 0 ? null : new Dictionary<string, int>(plan.Stock),
+            Background = plan.Background is not { Data.Length: > 0 } bg ? null : new BackgroundDto
+            {
+                Mime = bg.Mime, Data = withIds ? StoreImage(bg.Data) : bg.Data, PixelWidth = bg.PixelWidth, PixelHeight = bg.PixelHeight,
+                X = Math.Round(bg.X, 2), Y = Math.Round(bg.Y, 2), W = Math.Round(bg.Width, 3), Opacity = Math.Round(bg.Opacity, 3), Visible = bg.Visible,
+            },
         };
         return JsonSerializer.Serialize(dto, Options);
     }
@@ -207,7 +273,19 @@ public static class PlanSerializer
             BoardLegLeft = Math.Max(0, dto.Board?.LegLeft ?? 0),
             BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
             VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
+            TrainLength = dto.Train is double tl && double.IsFinite(tl) ? Math.Clamp(tl, 0, 100000) : 0,
         };
+        foreach (var (k, v) in dto.Prices ?? [])
+            if (double.IsFinite(v) && v >= 0) plan.Prices[k] = v;
+        foreach (var (k, v) in dto.Stock ?? [])
+            if (v >= 0) plan.Stock[k] = v;
+        if (dto.Background is { } b && LoadImage(b.Data) is { Length: > 0 } img && b.W > 0 && double.IsFinite(b.W) && b.PixelWidth > 0 && b.PixelHeight > 0)
+            plan.Background = new PlanBackground
+            {
+                Data = img, Mime = b.Mime is "image/jpeg" or "image/png" or "image/gif" or "image/webp" ? b.Mime : "image/png",
+                PixelWidth = b.PixelWidth, PixelHeight = b.PixelHeight, X = double.IsFinite(b.X) ? b.X : 0, Y = double.IsFinite(b.Y) ? b.Y : 0,
+                Width = b.W, Opacity = double.IsFinite(b.Opacity) ? Math.Clamp(b.Opacity, 0.05, 1) : 0.5, Visible = b.Visible,
+            };
         if (dto.Levels is { Count: > 0 } levels)
         {
             plan.Levels.Clear();
@@ -244,6 +322,7 @@ public static class PlanSerializer
             {
                 Id = p.Id is { } pid && pid > 0 && plan.Find(pid) is null ? pid : plan.NextId, Key = p.Key, X = p.X, Y = p.Y, Rotation = p.Rot, Flipped = p.Flip,
                 Height = p.Z, Grade = double.IsFinite(p.Grade) ? p.Grade : 0, Tunnel = p.Tunnel, Address = p.Addr, Level = LevelOf(p.Level),
+                Locked = p.Lock, Group = Math.Max(0, p.Group),
             };
             plan.Pieces.Add(piece);
             plan.NextId = Math.Max(plan.NextId, piece.Id + 1);
@@ -258,7 +337,7 @@ public static class PlanSerializer
         }
         // Erst Kennungen aus der Datei vergeben, damit neue Kennungen sie nicht doppelt belegen
         foreach (var w in (dto.Scenery ?? []).Select(x => x.Id).Concat((dto.Feeders ?? []).Select(x => x.Id))
-                     .Concat((dto.Isolations ?? []).Select(x => x.Id)).Concat((dto.Signals ?? []).Select(x => x.Id)))
+                     .Concat((dto.Isolations ?? []).Select(x => x.Id)).Concat((dto.Signals ?? []).Select(x => x.Id)).Concat((dto.Detectors ?? []).Select(x => x.Id)))
             if (w is { } v) plan.NextId = Math.Max(plan.NextId, v + 1);
         foreach (var s in dto.Scenery ?? [])
         {
@@ -266,9 +345,10 @@ public static class PlanSerializer
             var item = new SceneryItem
             {
                 Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
+                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
             };
-            if (item.IsArea && item.Points.Count < 3) continue;
+            if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind == SceneryKind.Dimension && item.Points.Count != 2) continue;
             plan.Scenery.Add(item);
         }
@@ -284,6 +364,13 @@ public static class PlanSerializer
                 {
                     Id = Id(g.Id), PieceId = g.Piece, Index = g.End, Name = g.Name ?? "", Address = g.Addr,
                     Type = Enum.TryParse<SignalType>(g.Type, true, out var t) ? t : SignalType.Hauptsignal,
+                });
+        foreach (var d in dto.Detectors ?? [])
+            if (plan.Find(d.Piece) is not null)
+                plan.Detectors.Add(new Detector
+                {
+                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr,
+                    Type = Enum.TryParse<DetectorType>(d.Type, true, out var dt) ? dt : DetectorType.Strom,
                 });
         return plan;
     }

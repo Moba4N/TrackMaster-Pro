@@ -132,6 +132,13 @@ public static class SvgWriter
                     i += 8;
                     break;
                 }
+                case Graphics.Op.Image:
+                {
+                    if (canvas.Images.TryGetValue(canvas.Strings[(int)d[i + 1]], out var img))
+                        sb.Append($"<image href=\"{img.DataUrl}\" x=\"{N(d[i + 2])}\" y=\"{N(d[i + 3])}\" width=\"{N(d[i + 4] - d[i + 2])}\" height=\"{N(d[i + 5] - d[i + 3])}\" opacity=\"{N(d[i + 6])}\" preserveAspectRatio=\"none\"/>");
+                    i += 7;
+                    break;
+                }
                 case Graphics.Op.FillAll:
                     sb.Append($"<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\"{Fill(0, d[i + 1], 0)}/>");
                     i += 2;

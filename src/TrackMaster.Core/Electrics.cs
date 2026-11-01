@@ -263,6 +263,13 @@ public static class Electrics
         return (x, y, c.Heading);
     }
 
+    /// <summary>Lage des Rückmelder-Symbols: neben der Gleismitte, gegenüber der Einspeisung.</summary>
+    public static (double X, double Y) DetectorPoint(PlacedPiece p, double gauge)
+    {
+        var m = p.Middle();
+        return (m.X + Math.Sin(m.HeadingRad) * gauge * 2.2, m.Y - Math.Cos(m.HeadingRad) * gauge * 2.2);
+    }
+
     /// <summary>Kabelplan als Text: Abschnitte mit Einspeisungen, Trennstellen, Kehrschleifen und Decoderbelegung.</summary>
     public static string WiringPlan(LayoutPlan plan)
     {
@@ -283,6 +290,14 @@ public static class Electrics
         sb.AppendLine(Lang.F($"Trennstellen ({plan.Isolations.Count})"));
         foreach (var i in plan.Isolations)
             sb.AppendLine(Lang.F($"  Nr. {i.Id}: Gleis {plan.Find(i.PieceId)?.Def.Number} (Nr. {i.PieceId}), Ende {i.Index}"));
+        if (plan.Detectors.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine(Lang.F($"Rückmelder ({plan.Detectors.Count})"));
+            foreach (var d in plan.Detectors.OrderBy(d => d.Address ?? int.MaxValue))
+                sb.AppendLine(Lang.F($"  {(d.Name.Length > 0 ? d.Name : $"Nr. {d.Id}")}: {Detector.TypeName(d.Type)} an Gleis {plan.Find(d.PieceId)?.Def.Number} (Nr. {d.PieceId})") +
+                              (d.Address is { } a ? Lang.F($", Kontakt {a} (Modul {(a - 1) / Detector.InputsPerModule + 1}, Eingang {(a - 1) % Detector.InputsPerModule + 1})") : Lang.T(", ohne Adresse")));
+        }
         sb.AppendLine();
         sb.AppendLine(Lang.T("Kehrschleifen"));
         if (r.ThreeRail) sb.AppendLine(Lang.T("  Mittelleiter: Kehrschleifen brauchen keine Sonderschaltung."));

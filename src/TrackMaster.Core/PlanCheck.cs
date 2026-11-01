@@ -147,6 +147,21 @@ public static class PlanCheck
             }
         }
 
+        issues.AddRange(RoomPlan.Check(plan));
+
+        // Nutzlänge: Abstellgleise mit Prellbock, die kürzer als der längste Zug sind
+        if (plan.TrainLength > 0)
+        {
+            var shortRuns = UsableLength.Runs(plan, conn).Where(r => r.EndsAtBuffer && !r.Closed && r.Length < plan.TrainLength - 0.5).ToList();
+            if (shortRuns.Count > 0 && plan.Find(shortRuns[0].PieceIds[0]) is { } first)
+            {
+                var m = first.Middle();
+                issues.Add(new PlanIssue(IssueLevel.Hinweis, Lang.T("Nutzlänge"),
+                    Lang.F($"{shortRuns.Count} Abstellgleis(e) sind kürzer als der Zug ({Fmt.Num(plan.TrainLength, 0)} mm), das kürzeste hat {Fmt.Num(shortRuns.Min(r => r.Length), 0)} mm."),
+                    shortRuns.SelectMany(r => r.PieceIds).ToList(), m.X, m.Y));
+            }
+        }
+
         var open = conn.Open.Count;
         if (open > 0 && plan.Pieces.Count > 0)
         {

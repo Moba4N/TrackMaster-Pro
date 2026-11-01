@@ -28,6 +28,9 @@
         case Signal g:
             @SignalForm(g)
             break;
+        case Detector det:
+            @DetectorForm(det)
+            break;
         case PlacedPiece p:
             @PieceForm(p)
             break;
@@ -60,6 +63,7 @@
         Feeder => Lang.T("Einspeisung"),
         Isolation => Lang.T("Trennstelle"),
         Signal => "Signal",
+        Detector => Lang.T("Rückmelder"),
         PlacedPiece => Lang.T("Gleis"),
         IReadOnlyList<PlacedPiece> many => Lang.F($"{many.Count} Gleise"),
         _ => Lang.T("Plan"),
@@ -93,6 +97,12 @@
                 _f["width"] = N(s.Width);
                 _f["depth"] = N(s.Depth);
                 _f["rotation"] = N(s.Rotation, 1);
+                _f["variant"] = s.Variant.ToString();
+                break;
+            case Detector det:
+                _f["name"] = det.Name;
+                _f["type"] = det.Type.ToString();
+                _f["address"] = det.Address?.ToString() ?? "";
                 break;
             case Feeder f:
                 _f["circuit"] = f.Circuit;
@@ -122,6 +132,7 @@
                 _f["legL"] = N(BoardGeometry.Leg(Plan.BoardLegLeft, d0, full));
                 _f["legR"] = N(BoardGeometry.Leg(Plan.BoardLegRight, d0, full));
                 _f["vehicle"] = N(Plan.EffectiveVehicleLength);
+                _f["train"] = Plan.TrainLength > 0 ? N(Plan.TrainLength) : "";
                 break;
         }
     }
@@ -170,7 +181,10 @@
             Read("legR", Lang.T("Rechter Schenkel"), 50, 50000, errors, out l2);
         }
         Read("vehicle", Lang.T("Fahrzeuglänge"), 20, 5000, errors, out var vl);
+        double train = 0;
+        if (F("train").Trim().Length > 0) Read("train", Lang.T("Zuglänge"), 0, 100000, errors, out train);
         if (Fail(errors)) return;
+        if (Math.Abs(train - plan.TrainLength) > 0.01) Session.Edit(() => plan.TrainLength = train);
         var n = F("name").Trim();
         var t = int.TryParse(F("turn"), out var tt) ? tt : plan.BoardTurn;
         var full = t % 2 == 0 ? bh : bw;
@@ -259,8 +273,10 @@
             </div>
         }
         <div class="section">@Lang.T("Planprüfung")</div>
-        <label class="field-label">@Lang.T("Längstes Fahrzeug (mm)")</label>
-        <input class="input" inputmode="decimal" value="@F("vehicle")" @onchange="@(e => Set("vehicle", e, ApplyPlan))" />
+        <div class="cols">
+            <div><label class="field-label">@Lang.T("Längstes Fahrzeug (mm)")</label><input class="input" inputmode="decimal" value="@F("vehicle")" @onchange="@(e => Set("vehicle", e, ApplyPlan))" /></div>
+            <div><label class="field-label" title="@Lang.T("Für die Nutzlänge der Gleise; leer = nicht prüfen")">@Lang.T("Längster Zug (mm)")</label><input class="input" inputmode="decimal" placeholder="–" value="@F("train")" @onchange="@(e => Set("train", e, ApplyPlan))" /></div>
+        </div>
         <div class="section">@Lang.T("Übersicht")</div>
         <dl class="rows">
             <dt>@Lang.T("Spur")</dt><dd>@gauge.Id · @gauge.Scale · @Fmt.Num(gauge.TrackWidth) mm</dd>
@@ -270,7 +286,7 @@
             <dt>@Lang.T("Kleinster Radius")</dt><dd>@(stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–")</dd>
             <dt>@Lang.T("Größte Steigung")</dt><dd class="@(stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? "danger" : "")">@(stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"))</dd>
             <dt>@Lang.T("Höchster Punkt")</dt><dd>@Fmt.Num(stats.MaxHeight, 0) mm</dd>
-            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.")</dd>
+            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
             <dt>@Lang.T("Offene Gleisenden")</dt><dd class="@(stats.OpenEnds > 0 ? "open" : "ok")">@stats.OpenEnds</dd>
         </dl>
         <div class="button-row">
@@ -370,6 +386,15 @@
             <dl class="rows"><dt>@Lang.T("Höhe am Ende")</dt><dd>@Fmt.Num(heights[1], 1) mm</dd></dl>
         }
         <label class="check"><input type="checkbox" checked="@p.Tunnel" @onchange="e => SetTunnel(p, e.Value is true)" /> @Lang.T("liegt im Tunnel")</label>
+        <label class="check"><input type="checkbox" checked="@p.Locked" @onchange="e => Session.Edit(() => p.Locked = e.Value is true)" /> @Lang.T("gesperrt (nicht verschieben, drehen oder löschen)")</label>
+        @if (UsableLength.For(Plan, p.Id, Session.Connections) is { } run)
+        {
+            <dl class="rows"><dt>@Lang.T("Nutzlänge")</dt><dd class="@(Plan.TrainLength > 0 && !run.Closed && run.Length < Plan.TrainLength ? "danger" : "")">@UsableLength.Describe(Plan, run)</dd></dl>
+        }
+        @if (p.Group > 0)
+        {
+            <dl class="rows"><dt>@Lang.T("Gruppe")</dt><dd>@Lang.F($"{Plan.Pieces.Count(x => x.Group == p.Group)} Gleise")</dd></dl>
+        }
         @if (d.Drives > 0)
         {
             <div class="section">@Lang.T("Digital")</div>
@@ -406,7 +431,15 @@
             <button class="btn" @onclick="@(() => Run("delete"))">@Lang.T("Löschen")</button>
             <button class="btn" @onclick="@(() => Run("gradient"))">@Lang.T("Steigung…")</button>
             <button class="btn" @onclick="@(() => Run("tunnel"))">@(sel.All(p => p.Tunnel) ? Lang.T("Tunnel aufheben") : Lang.T("Als Tunnel"))</button>
+            <button class="btn" @onclick="@(() => Run("lock"))">@(sel.All(p => p.Locked) ? Lang.T("Entsperren") : Lang.T("Sperren"))</button>
+            <button class="btn" @onclick="@(() => Run(sel.All(p => p.Group > 0 && p.Group == sel[0].Group) ? "ungroup" : "group"))">@(sel.All(p => p.Group > 0 && p.Group == sel[0].Group) ? Lang.T("Gruppe auflösen") : Lang.T("Gruppieren"))</button>
+            <button class="btn" @onclick="@(() => Run("parallel"))">@Lang.T("Parallelgleis…")</button>
+            <button class="btn" @onclick="@(() => Run("profile"))">@Lang.T("Höhenprofil")</button>
         </div>
+        @if (sel.Any(p => p.Locked))
+        {
+            <div class="warn-box">@Lang.F($"{sel.Count(p => p.Locked)} der gewählten Gleise sind gesperrt.")</div>
+        }
         <div class="tip-box">@Lang.T("Ziehe die Auswahl an ein freies Gleisende – die ganze Gruppe rastet dort ein.")</div>
     };
 
@@ -446,6 +479,16 @@
             case SceneryKind.Tree:
                 Num("width", Lang.T("Durchmesser"), 3, 1000, v => { s.Width = v; s.Depth = v; });
                 Num("height", Lang.T("Höhe"), 5, 2000, v => s.Height = v);
+                break;
+            case SceneryKind.Room:
+                Num("width", Lang.T("Wandstärke"), 0, 1000, v => s.Width = v);
+                break;
+            case SceneryKind.Obstacle:
+                Num("width", Lang.T("Breite"), 5, 20000, v => s.Width = v);
+                Num("depth", Lang.T("Tiefe"), 5, 20000, v => s.Depth = v);
+                Num("height", Lang.T("Höhe"), 0, 5000, v => s.Height = v);
+                Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
+                if (int.TryParse(F("variant"), out var variant) && Enum.IsDefined((ObstacleType)variant)) apply.Add(() => s.Variant = variant);
                 break;
         }
         if (Fail(errors)) return;
@@ -493,6 +536,28 @@
             case SceneryKind.Tree:
                 <div class="cols">@NumField(Lang.T("Durchmesser (mm)"), "width", ApplyScenery)@NumField(Lang.T("Höhe (mm)"), "height", ApplyScenery)</div>
                 break;
+            case SceneryKind.Room:
+                <div class="cols">@NumField(Lang.T("Wandstärke (mm)"), "width", ApplyScenery)</div>
+                <dl class="rows">
+                    <dt>@Lang.T("Eckpunkte")</dt><dd>@s.Points.Count</dd>
+                    <dt>@Lang.T("Grundfläche")</dt><dd>@Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2) m²</dd>
+                </dl>
+                break;
+            case SceneryKind.Obstacle:
+                <label class="field-label">@Lang.T("Art")</label>
+                <select class="input" value="@F("variant")" @onchange="@(e => Set("variant", e, ApplyScenery))">
+                    @foreach (var t in Enum.GetValues<ObstacleType>())
+                    {
+                        <option value="@((int)t)">@SceneryItem.ObstacleName(t)</option>
+                    }
+                </select>
+                <div class="cols">@NumField(Lang.T("Breite (mm)"), "width", ApplyScenery)@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)</div>
+                <div class="cols">@NumField(Lang.T("Höhe (mm)"), "height", ApplyScenery)@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
+                @if (s.Obstacle == ObstacleType.Tuer)
+                {
+                    <div class="tip-box">@Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")</div>
+                }
+                break;
         }
         <div class="button-row"><button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button></div>
         <div class="tip-box">@Lang.T("Ein gewähltes Objekt lässt sich mit der Maus (oder dem Finger) verschieben.")</div>
@@ -530,6 +595,46 @@
             <dt>@Lang.T("Gleis")</dt><dd>@Plan.Find(i.PieceId)?.Def.Number (Nr. @i.PieceId)</dd>
             <dt>@Lang.T("Gleisende")</dt><dd>@i.Index</dd>
             <dt>@Lang.T("Ausführung")</dt><dd>@(Electrics.IsThreeRail(Plan) ? Lang.T("Mittelleiter getrennt") : Lang.T("beide Schienen isoliert"))</dd>
+        </dl>
+        <div class="button-row"><button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button></div>
+    };
+
+    private void ApplyDetector()
+    {
+        if (_target is not Detector det) return;
+        var errors = new List<string>();
+        double a = 0;
+        if (F("address").Trim().Length > 0) Read("address", Lang.T("Kontakt"), 0, 4096, errors, out a);
+        if (Fail(errors)) return;
+        var t = Enum.TryParse<DetectorType>(F("type"), out var tt) ? tt : det.Type;
+        var n = F("name").Trim();
+        int? addr = a >= 1 ? (int)Math.Round(a) : null;
+        if (n != det.Name || t != det.Type || addr != det.Address) Session.Edit(() => { det.Name = n; det.Type = t; det.Address = addr; });
+    }
+
+    private RenderFragment DetectorForm(Detector det) => __builder =>
+    {
+        <label class="field-label">@Lang.T("Name")</label>
+        <input class="input" value="@F("name")" @onchange="@(e => Set("name", e, ApplyDetector))" />
+        <label class="field-label">@Lang.T("Art")</label>
+        <select class="input" value="@F("type")" @onchange="@(e => Set("type", e, ApplyDetector))">
+            @foreach (var t in Enum.GetValues<DetectorType>())
+            {
+                <option value="@t">@Detector.TypeName(t)</option>
+            }
+        </select>
+        <label class="field-label">@Lang.T("Kontakt am Rückmeldemodul (leer = keiner)")</label>
+        <input class="input" inputmode="numeric" value="@F("address")" @onchange="@(e => Set("address", e, ApplyDetector))" />
+        <dl class="rows">
+            @if (det.Address is { } a)
+            {
+                <dt>@Lang.T("Modul / Eingang")</dt><dd>@Lang.F($"{(a - 1) / Detector.InputsPerModule + 1} / {(a - 1) % Detector.InputsPerModule + 1}")</dd>
+            }
+            <dt>@Lang.T("Gleis")</dt><dd>@Plan.Find(det.PieceId)?.Def.Number (Nr. @det.PieceId)</dd>
+            @if (UsableLength.For(Plan, det.PieceId, Session.Connections) is { } run)
+            {
+                <dt>@Lang.T("Meldeabschnitt")</dt><dd>@Fmt.Num(run.Length, 0) mm</dd>
+            }
         </dl>
         <div class="button-row"><button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button></div>
     };

@@ -1,12 +1,15 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector }
+
+/// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
+public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
 
 /// <summary>
 /// Der geöffnete Plan mit Auswahl, aktivem Gleisende und Rückgängig-Verlauf.
 /// Zeichenfläche, Bibliothek und Eigenschaften hören auf <see cref="Changed"/>.
 /// </summary>
-public sealed class PlanSession
+public sealed partial class PlanSession
 {
     public LayoutPlan Plan { get; private set; } = SamplePlan.Build();
     public Connectivity Connections { get; private set; }
@@ -27,6 +30,8 @@ public sealed class PlanSession
     public CanvasTool Tool { get; set; } = CanvasTool.Select;
     /// <summary>Signaltyp für das Werkzeug „Signal setzen“.</summary>
     public SignalType SignalType { get; set; } = SignalType.Hauptsignal;
+    /// <summary>Art des Raumelements für das Werkzeug „Raumelement“.</summary>
+    public ObstacleType ObstacleType { get; set; } = ObstacleType.Tuer;
     /// <summary>Gewähltes Objekt (Gelände, Einspeisung, Trennstelle, Signal) – Gleise stehen in <see cref="Selection"/>.</summary>
     public int? SelectedObject { get; private set; }
     /// <summary>Ergebnis der letzten Prüfung; die Zeichenfläche markiert die Stellen.</summary>
@@ -53,7 +58,7 @@ public sealed class PlanSession
         get
         {
             if (Plan.AllLevelsVisible) return Plan;
-            var key = (Plan, Plan.Pieces.Count, Plan.Scenery.Count, Plan.Feeders.Count + Plan.Isolations.Count + Plan.Signals.Count);
+            var key = (Plan, Plan.Pieces.Count, Plan.Scenery.Count, Plan.Feeders.Count + Plan.Isolations.Count + Plan.Signals.Count + Plan.Detectors.Count);
             if (_view is null || _viewKey != key) { _view = Plan.VisibleView(); _viewKey = key; }
             return _view;
         }
@@ -80,6 +85,20 @@ public sealed class PlanSession
     public ConnectorRef? ActiveConnector => Active is { } a && Connections.Find(a.PieceId, a.Index) is { IsOpen: true } c ? c : null;
 
     public IReadOnlyList<PlacedPiece> SelectedPieces => Plan.Pieces.Where(p => Selection.Contains(p.Id)).ToList();
+
+    /// <summary>Gewählte Gleise, die nicht gesperrt sind (nur diese lassen sich verschieben, drehen und löschen).</summary>
+    public IReadOnlyList<PlacedPiece> MovablePieces => Plan.Pieces.Where(p => Selection.Contains(p.Id) && !p.Locked).ToList();
+
+    /// <summary>Meldung, wenn gesperrte Gleise in der Auswahl liegen bleiben; true, wenn gar nichts beweglich ist.</summary>
+    private bool LockedNotice(IReadOnlyList<PlacedPiece> movable)
+    {
+        var locked = Selection.Count - movable.Count;
+        if (locked <= 0) return false;
+        Say(movable.Count == 0
+            ? Lang.T("Die gewählten Gleise sind gesperrt. Zum Bearbeiten erst wieder entsperren (Sperren).")
+            : Lang.F($"{locked} gesperrte(s) Gleis(e) bleiben unverändert."));
+        return movable.Count == 0;
+    }
 
     public void Say(string text)
     {
@@ -261,8 +280,8 @@ public sealed class PlanSession
 
     public void Rotate(double degrees)
     {
-        var sel = SelectedPieces;
-        if (sel.Count == 0) return;
+        var sel = MovablePieces;
+        if (Selection.Count == 0 || LockedNotice(sel)) return;
         Record();
         PlanEditing.Rotate(sel, degrees);
         Commit();
@@ -270,7 +289,8 @@ public sealed class PlanSession
 
     public void Flip()
     {
-        var sel = SelectedPieces;
+        var sel = MovablePieces;
+        if (Selection.Count == 0 || LockedNotice(sel)) return;
         if (!sel.Any(p => p.Def.CanFlip)) { Say(Lang.T("Gerade Gleise und Prellböcke lassen sich nicht spiegeln.")); return; }
         Record();
         PlanEditing.Flip(sel);
@@ -288,10 +308,12 @@ public sealed class PlanSession
             Say(Lang.T("Gelöscht. Rückgängig holt es zurück."));
             return;
         }
-        var n = Selection.Count;
-        if (n == 0) return;
+        if (Selection.Count == 0) return;
+        var movable = MovablePieces;
+        if (LockedNotice(movable)) return;
+        var n = movable.Count;
         Record();
-        Plan.RemovePieces(Selection);
+        Plan.RemovePieces(movable.Select(p => p.Id).ToHashSet());
         Selection.Clear();
         Commit();
         Say(Lang.F($"{n} {(n == 1 ? Lang.T("Gleis") : Lang.T("Gleise"))} gelöscht. Rückgängig holt sie zurück."));
@@ -321,6 +343,7 @@ public sealed class PlanSession
         temp.Feeders.AddRange(Plan.Feeders.Where(f => ids.Contains(f.PieceId)).Select(f => f.Clone()));
         temp.Isolations.AddRange(Plan.Isolations.Where(i => ids.Contains(i.PieceId)).Select(i => i.Clone()));
         temp.Signals.AddRange(Plan.Signals.Where(g => ids.Contains(g.PieceId)).Select(g => g.Clone()));
+        temp.Detectors.AddRange(Plan.Detectors.Where(d => ids.Contains(d.PieceId)).Select(d => d.Clone()));
         if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item) temp.Scenery.Add(item.Clone());
         if (temp.Pieces.Count == 0 && temp.Scenery.Count == 0) return null;
         var n = temp.Pieces.Count + temp.Scenery.Count;
@@ -353,11 +376,15 @@ public sealed class PlanSession
         var (dx, dy) = at is { } t ? (t.X - cx, t.Y - cy) : (60.0, 60.0);
         Record();
         var map = new Dictionary<int, int>();
+        var groups = new Dictionary<int, int>();
+        var nextGroup = Plan.Pieces.Select(p => p.Group).DefaultIfEmpty(0).Max() + 1;
         Selection.Clear();
         foreach (var p in src.Pieces)
         {
             var q = p.Clone();
             q.Id = Plan.NextId++;
+            q.Locked = false;
+            if (q.Group > 0) q.Group = groups.TryGetValue(q.Group, out var gr) ? gr : groups[q.Group] = nextGroup++;
             q.X += dx; q.Y += dy;
             q.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
             map[p.Id] = q.Id;
@@ -371,6 +398,12 @@ public sealed class PlanSession
             var sig = g.Clone();
             sig.Id = Plan.NextId++; sig.PieceId = map[g.PieceId]; sig.Address = null;
             Plan.Signals.Add(sig);
+        }
+        foreach (var d in src.Detectors)
+        {
+            var det = d.Clone();
+            det.Id = Plan.NextId++; det.PieceId = map[d.PieceId]; det.Address = null;
+            Plan.Detectors.Add(det);
         }
         int? pastedObject = null;
         foreach (var s in src.Scenery)
@@ -422,8 +455,10 @@ public sealed class PlanSession
     public void Nudge(double dx, double dy, bool record)
     {
         if (Selection.Count == 0) return;
+        var movable = MovablePieces;
+        if (LockedNotice(movable)) return;
         if (record) Record();
-        foreach (var p in SelectedPieces) { p.X += dx; p.Y += dy; }
+        foreach (var p in movable) { p.X += dx; p.Y += dy; }
         Commit();
     }
 
@@ -726,8 +761,16 @@ public sealed class PlanSession
     {
         SelectedObject = null;
         if (!add) Selection.Clear();
-        foreach (var id in ids) Selection.Add(id);
+        foreach (var id in WithGroups(ids)) Selection.Add(id);
         Changed?.Invoke();
+    }
+
+    /// <summary>Kennungen samt allen Gleisen derselben Gruppen.</summary>
+    private IEnumerable<int> WithGroups(IEnumerable<int> ids)
+    {
+        var list = ids.ToList();
+        var groups = Plan.Pieces.Where(p => p.Group > 0 && list.Contains(p.Id)).Select(p => p.Group).ToHashSet();
+        return groups.Count == 0 ? list : list.Concat(Plan.Pieces.Where(p => groups.Contains(p.Group)).Select(p => p.Id)).Distinct();
     }
 
     public void SelectObject(int? id)
@@ -740,11 +783,14 @@ public sealed class PlanSession
 
     public object? FindObject(int id)
         => (object?)Plan.Scenery.FirstOrDefault(s => s.Id == id) ?? (object?)Plan.Feeders.FirstOrDefault(f => f.Id == id)
-           ?? (object?)Plan.Isolations.FirstOrDefault(i => i.Id == id) ?? Plan.Signals.FirstOrDefault(s => s.Id == id);
+           ?? (object?)Plan.Isolations.FirstOrDefault(i => i.Id == id) ?? (object?)Plan.Signals.FirstOrDefault(s => s.Id == id)
+           ?? Plan.Detectors.FirstOrDefault(d => d.Id == id);
 
     public void Toggle(int id)
     {
-        if (!Selection.Remove(id)) Selection.Add(id);
+        var ids = WithGroups([id]).ToList();
+        if (Selection.Contains(id)) Selection.ExceptWith(ids);
+        else Selection.UnionWith(ids);
         Changed?.Invoke();
     }
 
@@ -796,7 +842,8 @@ public sealed class PlanSession
 
     public void BeginMove()
     {
-        _moveStart = SelectedPieces.Select(p => (p, p.X, p.Y)).ToList();
+        _moveStart = MovablePieces.Select(p => (p, p.X, p.Y)).ToList();
+        if (_moveStart.Count == 0 && Selection.Count > 0) LockedNotice(_moveStart.Select(m => m.Item1).ToList());
         _moveObject = SelectedObject is { } id && Plan.Scenery.FirstOrDefault(s => s.Id == id) is { } item ? (item, 0, 0) : null;
         _moveRecorded = false;
     }
@@ -822,7 +869,7 @@ public sealed class PlanSession
     {
         if (_moveStart is { Count: > 0 } && _moveRecorded && SnapEnabled)
         {
-            PlanEditing.Snap(Plan, Selection, snapTolerance);
+            PlanEditing.Snap(Plan, _moveStart.Select(m => m.Piece.Id).ToHashSet(), snapTolerance);
             Commit();
         }
         _moveStart = null;
@@ -1087,7 +1134,7 @@ public sealed class PlanSession
     /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
     public void RemoveObject(int id)
     {
-        var what = FindObject(id) switch { Feeder => Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), _ => Lang.T("Objekt") };
+        var what = FindObject(id) switch { Feeder => Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
         Record();
         if (!Plan.RemoveObject(id)) { History.DiscardLast(); return; }
         if (SelectedObject == id) SelectedObject = null;

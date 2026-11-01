@@ -296,6 +296,84 @@ public partial class App : ComponentBase, IAppHost
         Pro("csv", Lang.T("Export als CSV"), () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Stückliste.csv")));
         Pro("print", Lang.T("Drucken"), AskPrint);
         Pro("svg", Lang.T("Export als SVG"), () => Export(SvgExport.Build(_session.Plan), "image/svg+xml", $"{SafeName}.svg"));
+        Pro("dxf", Lang.T("Export als DXF"), () => Export(DxfExport.Build(_session.Plan), "application/dxf", $"{SafeName}.dxf"));
+        Pro("png", Lang.T("Export als PNG"), () => _ = ExportPng());
+        // Paket 1 und 2: Raum, Hintergrundbild, Anordnen, Parallelgleis, Höhenprofil, Rückmelder
+        Add("lock", Lang.T("Sperren"), _session.ToggleLock, HasSelection);
+        Add("group", Lang.T("Gruppieren"), _session.GroupSelection, () => _session.Selection.Count > 1);
+        Add("ungroup", Lang.T("Gruppe auflösen"), _session.Ungroup, HasSelection);
+        Add("alignL", Lang.T("Links ausrichten"), () => _session.Align(AlignMode.Left), () => _session.Selection.Count > 1);
+        Add("alignR", Lang.T("Rechts ausrichten"), () => _session.Align(AlignMode.Right), () => _session.Selection.Count > 1);
+        Add("alignT", Lang.T("Oben ausrichten"), () => _session.Align(AlignMode.Top), () => _session.Selection.Count > 1);
+        Add("alignB", Lang.T("Unten ausrichten"), () => _session.Align(AlignMode.Bottom), () => _session.Selection.Count > 1);
+        Add("alignCX", Lang.T("Mittig waagrecht"), () => _session.Align(AlignMode.CenterX), () => _session.Selection.Count > 1);
+        Add("alignCY", Lang.T("Mittig senkrecht"), () => _session.Align(AlignMode.CenterY), () => _session.Selection.Count > 1);
+        Add("parallel", Lang.T("Parallelgleis"), AskParallel, HasSelection);
+        Add("profile", Lang.T("Höhenprofil"), ShowProfile);
+        Add("roomRect", Lang.T("Raum"), AskRoom);
+        Add("toolRoom", Lang.T("Raum zeichnen"), () => SetTool(CanvasTool.Room));
+        Add("toolDoor", Lang.T("Tür"), () => SetObstacleTool(ObstacleType.Tuer));
+        Add("toolWindow", Lang.T("Fenster"), () => SetObstacleTool(ObstacleType.Fenster));
+        Add("toolColumn", Lang.T("Säule"), () => SetObstacleTool(ObstacleType.Saeule));
+        Add("toolHeater", Lang.T("Heizkörper"), () => SetObstacleTool(ObstacleType.Heizkoerper));
+        Add("toolFurniture", Lang.T("Möbel"), () => SetObstacleTool(ObstacleType.Moebel));
+        Add("bgLoad", Lang.T("Hintergrundbild laden"), () => _ = LoadBackground());
+        Add("bgEdit", Lang.T("Hintergrundbild"), AskBackground, () => _session.Plan.Background is not null);
+        Add("bgScale", Lang.T("Bild nach Maß skalieren"), AskScaleBackground, () => _session.Plan.Background is not null);
+        Add("bgToggle", Lang.T("Hintergrundbild zeigen"), () => _session.EditBackground(b => b.Visible = !b.Visible), () => _session.Plan.Background is not null);
+        Add("toolDetector", Lang.T("Rückmelder"), () =>
+        {
+            if (_session.Tool == CanvasTool.Detector) SetTool(CanvasTool.Select);
+            else AskDetectorType(t => { _session.DetectorType = t; SetTool(CanvasTool.Detector); });
+        });
+    }
+
+    private void SetObstacleTool(ObstacleType type)
+    {
+        if (_session.Tool == CanvasTool.Obstacle && _session.ObstacleType == type) { SetTool(CanvasTool.Select); return; }
+        _session.ObstacleType = type;
+        SetTool(CanvasTool.Select);
+        SetTool(CanvasTool.Obstacle);
+    }
+
+    /// <summary>Plan als PNG: alles im Blick, längste Seite etwa 4000 Pixel.</summary>
+    private async Task ExportPng()
+    {
+        var plan = _session.Plan;
+        var (x0, y0, x1, y1) = plan.Bounds();
+        const double margin = 40;
+        double w = x1 - x0 + 2 * margin, h = y1 - y0 + 2 * margin;
+        var scale = (float)Math.Min(4, 4000 / Math.Max(w, h));
+        int pw = (int)Math.Ceiling(w * scale), ph = (int)Math.Ceiling(h * scale);
+        var c = new Graphics.Canvas(pw, ph);
+        c.Save();
+        c.Scale(scale, scale);
+        c.Translate((float)(margin - x0), (float)(margin - y0));
+        new PlanPainter(plan, new HashSet<int>(), false).Draw(c, scale, _session.ShowScenery, new HashSet<int>(), null);
+        c.Restore();
+        var name = $"{SafeName}.png";
+        if (await Js.DownloadPng(name, Graphics.SvgWriter.Image(c), pw, ph)) ShowToast(Lang.F($"Gespeichert: {name} ({pw} × {ph} Pixel)"));
+        else ShowToast(Lang.T("Das Bild ließ sich nicht erzeugen."));
+    }
+
+    private async Task LoadBackground()
+    {
+        var result = await Js.PickImage(2400);
+        if (string.IsNullOrEmpty(result)) return;
+        var parts = result.Split('\0');
+        if (parts.Length < 5 || !int.TryParse(parts[2], out var pw) || !int.TryParse(parts[3], out var ph) || pw <= 0 || ph <= 0)
+        {
+            Message(Lang.T("Hintergrundbild"), Lang.T("Das Bild ließ sich nicht lesen (PNG, JPEG, GIF oder WebP)."));
+            return;
+        }
+        var old = _session.Plan.Background;
+        _session.SetBackground(new PlanBackground
+        {
+            Data = parts[4], Mime = parts[1], PixelWidth = pw, PixelHeight = ph,
+            X = old?.X ?? 0, Y = old?.Y ?? 0, Width = old?.Width ?? _session.Plan.BoardWidth, Opacity = old?.Opacity ?? 0.5,
+        });
+        _view.Fit();
+        Refresh();
     }
 
     private void Toggle(Action change)
@@ -327,6 +405,14 @@ public partial class App : ComponentBase, IAppHost
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
+        "toolRoom" => _session.Tool == CanvasTool.Room,
+        "toolDetector" => _session.Tool == CanvasTool.Detector,
+        "toolDoor" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Tuer,
+        "toolWindow" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Fenster,
+        "toolColumn" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Saeule,
+        "toolHeater" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Heizkoerper,
+        "toolFurniture" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Moebel,
+        "bgToggle" => _session.Plan.Background is { Visible: true },
         _ => false,
     };
 
@@ -334,6 +420,7 @@ public partial class App : ComponentBase, IAppHost
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
         "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolFeeder", "toolIsolation", "toolSignal",
+        "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
     ];
 
     private void SetTool(CanvasTool tool)
@@ -353,6 +440,9 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Building => Lang.T("Gebäude: klicken oder Rechteck aufziehen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis klicken."),
+        CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),
+        CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: klicken oder Rechteck aufziehen."),
+        CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis klicken (Klick auf einen Rückmelder entfernt ihn)."),
         CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) klicken."),
         CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
@@ -379,7 +469,7 @@ public partial class App : ComponentBase, IAppHost
     {
         if (_dialog is not null)
         {
-            if (key == "Escape") { CloseDialog(); return true; }
+            if (key == "Escape") { DismissDialog(); return true; }
             return false;
         }
         if (_open3D)

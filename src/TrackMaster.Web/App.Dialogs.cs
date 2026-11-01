@@ -13,6 +13,8 @@ public partial class App
         public List<DialogButton> Buttons { get; } = [];
         public bool Wide { get; init; }
         public string? Error { get; set; }
+        /// <summary>Beim Schließen über ×, Esc oder den Hintergrund; false lässt den Dialog offen.</summary>
+        public Func<bool>? OnDismiss { get; set; }
     }
 
     /// <summary>Schaltfläche im Dialog; <paramref name="Click"/> gibt false zurück, wenn der Dialog offen bleiben soll.</summary>
@@ -39,6 +41,13 @@ public partial class App
         _dialog = _dialogStack.Count > 0 ? _dialogStack.Pop() : null;
         if (_dialog is null) Js_FocusPlan();
         StateHasChanged();
+    }
+
+    /// <summary>Schließen über ×, Esc oder den Hintergrund.</summary>
+    private void DismissDialog()
+    {
+        if (_dialog?.OnDismiss is { } f && !f()) { StateHasChanged(); return; }
+        CloseDialog();
     }
 
     private void CloseAllDialogs()

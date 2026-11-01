@@ -164,7 +164,9 @@ public static partial class Dialogs
         SyncLegs();
         body.AddView(Section(c, Lang.T("Planprüfung")));
         var vehicle = Ui.Number(c, plan.EffectiveVehicleLength);
-        body.AddView(Ui.Field(c, Lang.T("Längstes Fahrzeug (mm)"), vehicle));
+        var train = Ui.TextField(c, plan.TrainLength > 0 ? Fmt.Num(plan.TrainLength, 0).Replace(".", "") : "", "–");
+        train.InputType = Android.Text.InputTypes.ClassNumber | Android.Text.InputTypes.NumberFlagDecimal;
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Längstes Fahrzeug (mm)"), vehicle), Ui.Field(c, Lang.T("Längster Zug (mm)"), train)));
         body.AddView(Section(c, Lang.T("Übersicht")));
         body.AddView(Rows(c,
             (Lang.T("Spur"), $"{gauge.Id} · {gauge.Scale} · {Fmt.Num(gauge.TrackWidth)} mm", null),
@@ -174,7 +176,7 @@ public static partial class Dialogs
             (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
             (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Ui.Danger : null),
             (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig."), null),
+            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
             (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Ui.OpenEnd : Ui.Success)));
         body.AddView(Hint(c, Lang.T("So geht’s: Tippe ein orangefarbenes Gleisende an und dann ein Gleis in der Bibliothek – es wird dort angesetzt. ") +
                              Lang.T("Gewählte Gleise lassen sich mit dem Finger verschieben und rasten an freien Enden ein. Zwei Finger zoomen und verschieben die Ansicht, ") +
@@ -194,7 +196,10 @@ public static partial class Dialogs
                 Read(legRight, Lang.T("Rechter Schenkel"), 50, 50000, errors, out l2);
             }
             Read(vehicle, Lang.T("Fahrzeuglänge"), 20, 5000, errors, out var vl);
+            double tl = 0;
+            if ((train.Text ?? "").Trim().Length > 0) Read(train, Lang.T("Zuglänge"), 0, 100000, errors, out tl);
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
+            if (Math.Abs(tl - plan.TrainLength) > 0.01) session.Edit(() => plan.TrainLength = tl);
             var n = (name.Text ?? "").Trim();
             var t = turn.SelectedItemPosition;
             var full = t % 2 == 0 ? bh : bw;
@@ -269,6 +274,12 @@ public static partial class Dialogs
         if (heights.Count > 1) body.AddView(Rows(c, (Lang.T("Höhe am Ende"), $"{Fmt.Num(heights[1], 1)} mm", null)));
         var tunnel = new CheckBox(c) { Text = Lang.T("liegt im Tunnel"), Checked = p.Tunnel };
         body.AddView(tunnel);
+        var locked = new CheckBox(c) { Text = Lang.T("gesperrt (nicht verschieben, drehen oder löschen)"), Checked = p.Locked };
+        body.AddView(locked);
+        if (UsableLength.For(session.Plan, p.Id, session.Connections) is { } run2)
+            body.AddView(Rows(c, (Lang.T("Nutzlänge"), UsableLength.Describe(session.Plan, run2), session.Plan.TrainLength > 0 && !run2.Closed && run2.Length < session.Plan.TrainLength ? Ui.Danger : null)));
+        if (p.Group > 0)
+            body.AddView(Rows(c, (Lang.T("Gruppe"), Lang.F($"{session.Plan.Pieces.Count(x => x.Group == p.Group)} Gleise"), null)));
         EditText? address = null;
         if (d.Drives > 0)
         {
@@ -302,7 +313,7 @@ public static partial class Dialogs
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
             int? addr = address is null ? p.Address : va >= 1 ? (int)Math.Round(va) : null;
             var changed = Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
-                          || Math.Abs(vh - p.Height) > 1e-6 || Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9 || tunnel.Checked != p.Tunnel || addr != p.Address;
+                          || Math.Abs(vh - p.Height) > 1e-6 || Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9 || tunnel.Checked != p.Tunnel || addr != p.Address || locked.Checked != p.Locked;
             if (changed)
                 session.Edit(() =>
                 {
@@ -311,6 +322,7 @@ public static partial class Dialogs
                     if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
                     p.Tunnel = tunnel.Checked;
                     p.Address = addr;
+                    p.Locked = locked.Checked;
                 });
             return true;
         });
@@ -331,7 +343,19 @@ public static partial class Dialogs
         Line((Lang.T("15° links"), "rotL"), (Lang.T("15° rechts"), "rotR"));
         Line((Lang.T("Duplizieren"), "duplicate"), (Lang.T("Löschen"), "delete"));
         Line((Lang.T("Steigung…"), "gradient"), (sel.All(p => p.Tunnel) ? Lang.T("Tunnel aufheben") : Lang.T("Als Tunnel"), "tunnel"));
+        var grouped = sel.All(p => p.Group > 0 && p.Group == sel[0].Group);
+        Line((sel.All(p => p.Locked) ? Lang.T("Entsperren") : Lang.T("Sperren"), "lock"), (grouped ? Lang.T("Gruppe auflösen") : Lang.T("Gruppieren"), grouped ? "ungroup" : "group"));
+        Line((Lang.T("Parallelgleis…"), "parallel"), (Lang.T("Höhenprofil"), "profile"));
+        Line((Lang.T("Links ausrichten"), "alignL"), (Lang.T("Rechts ausrichten"), "alignR"));
+        Line((Lang.T("Oben ausrichten"), "alignT"), (Lang.T("Unten ausrichten"), "alignB"));
         body.AddView(grid);
+        if (sel.Any(p => p.Locked))
+        {
+            var warn = Ui.Label(c, Lang.F($"{sel.Count(p => p.Locked)} der gewählten Gleise sind gesperrt."), 12.5, color: Ui.Warning);
+            warn.Background = Ui.Rounded(Ui.WarningBack);
+            warn.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
+            body.AddView(warn);
+        }
         body.AddView(Hint(c, Lang.T("Ziehe die Auswahl an ein freies Gleisende – die ganze Gruppe rastet dort ein.")));
         dialog = Show(c, Lang.F($"{sel.Count} Gleise gewählt"), body, Lang.T("Schließen"), cancelText: null);
     }
@@ -349,6 +373,7 @@ public static partial class Dialogs
                 var name = Ui.TextField(c, s.Name);
                 body.AddView(Ui.Field(c, s.Kind == SceneryKind.Label ? "Text" : Lang.T("Name"), name));
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
+                Spinner? obstacleKind = null;
                 EditText Num(double v, string label, double min, double max, Action<double> apply)
                 {
                     var e = Ui.Number(c, v, 0, min < 0);
@@ -384,6 +409,25 @@ public static partial class Dialogs
                             Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 5, 2000, v => s.Height = v)),
                             Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
                         break;
+                    case SceneryKind.Room:
+                        body.AddView(Ui.Field(c, Lang.T("Wandstärke (mm)"), Num(s.Width, Lang.T("Wandstärke"), 0, 1000, v => s.Width = v)));
+                        body.AddView(Rows(c, (Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Grundfläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));
+                        break;
+                    case SceneryKind.Obstacle:
+                    {
+                        var kinds = Enum.GetValues<ObstacleType>();
+                        obstacleKind = Choice(c, kinds.Select(SceneryItem.ObstacleName).ToList(), Array.IndexOf(kinds, s.Obstacle));
+                        body.AddView(Ui.Field(c, Lang.T("Art"), obstacleKind));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), 5, 20000, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 5, 20000, v => s.Depth = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0, 5000, v => s.Height = v)),
+                            Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                        if (s.Obstacle == ObstacleType.Tuer)
+                            body.AddView(Hint(c, Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")));
+                        break;
+                    }
                     case SceneryKind.Tree:
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Durchmesser (mm)"), Num(s.Width, Lang.T("Durchmesser"), 3, 1000, v => { s.Width = v; s.Depth = v; })),
@@ -402,6 +446,7 @@ public static partial class Dialogs
                     {
                         if (n.Length > 0) s.Name = n;
                         foreach (var (f, _, v) in values) f.Apply(v);
+                        if (obstacleKind is not null) s.Variant = (int)Enum.GetValues<ObstacleType>()[Math.Max(0, obstacleKind.SelectedItemPosition)];
                     });
                     return true;
                 });
@@ -422,6 +467,34 @@ public static partial class Dialogs
                 {
                     var t = (circuit.Text ?? "").Trim();
                     if (t.Length > 0 && t != f.Circuit) session.Edit(() => f.Circuit = t);
+                    return true;
+                });
+                break;
+            }
+            case Detector det:
+            {
+                var name = Ui.TextField(c, det.Name);
+                body.AddView(Ui.Field(c, Lang.T("Name"), name));
+                var types = Enum.GetValues<DetectorType>();
+                var type = Choice(c, types.Select(Detector.TypeName).ToList(), Array.IndexOf(types, det.Type));
+                body.AddView(Ui.Field(c, Lang.T("Art"), type));
+                var address = Ui.Number(c, det.Address ?? 0);
+                body.AddView(Ui.Field(c, Lang.T("Kontakt am Rückmeldemodul (0 = keiner)"), address));
+                var rows = new List<(string, string, Color?)>();
+                if (det.Address is { } da) rows.Add((Lang.T("Modul / Eingang"), Lang.F($"{(da - 1) / Detector.InputsPerModule + 1} / {(da - 1) % Detector.InputsPerModule + 1}"), null));
+                rows.Add((Lang.T("Gleis"), $"{plan.Find(det.PieceId)?.Def.Number} (Nr. {det.PieceId})", null));
+                if (UsableLength.For(plan, det.PieceId, session.Connections) is { } drun) rows.Add((Lang.T("Meldeabschnitt"), $"{Fmt.Num(drun.Length, 0)} mm", null));
+                body.AddView(Rows(c, [.. rows]));
+                DeleteButton();
+                dialog = Show(c, Lang.T("Rückmelder"), body, Lang.T("Übernehmen"), () =>
+                {
+                    var errors = new List<string>();
+                    Read(address, Lang.T("Kontakt"), 0, 4096, errors, out var a);
+                    if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
+                    var t = types[Math.Max(0, type.SelectedItemPosition)];
+                    var n = (name.Text ?? "").Trim();
+                    int? addr = a >= 1 ? (int)Math.Round(a) : null;
+                    if (n != det.Name || t != det.Type || addr != det.Address) session.Edit(() => { det.Name = n; det.Type = t; det.Address = addr; });
                     return true;
                 });
                 break;
@@ -904,42 +977,6 @@ public static partial class Dialogs
         }
         if (footer is not null) body.AddView(Hint(c, footer));
         dialog = Show(c, title, body, Lang.T("Schließen"), cancelText: null);
-    }
-
-    public static void ShowBillOfMaterials(Context c, LayoutPlan plan, bool pro, Action exportCsv)
-    {
-        var rows = BillOfMaterials.Build(plan);
-        var stats = plan.Statistics();
-        var body = Ui.Column(c, 6);
-        body.AddView(Ui.Label(c, Lang.F($"{plan.Name} · Spur {plan.GaugeId} · {stats.Pieces} Teile · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m Gleis"), 13, color: Ui.TextSecondary));
-        if (rows.Count == 0) body.AddView(Ui.Label(c, Lang.T("Der Plan enthält noch keine Gleise."), 14));
-        foreach (var r in rows)
-        {
-            var row = Ui.Row(c, 10);
-            var count = Ui.Label(c, $"{r.Count}×", 15, true);
-            count.SetMinWidth(Ui.Dp(40));
-            row.AddView(count);
-            var text = Ui.Column(c, 0);
-            text.AddView(Ui.Label(c, $"{r.Def.Number} · {r.Def.Name}", 14));
-            text.AddView(Ui.Label(c, $"{r.Def.Spec} · {r.Def.SystemName}", 12.5, color: Ui.TextSecondary));
-            row.AddView(text, Ui.Weight(1, vertical: false));
-            body.AddView(row, Ui.Fill());
-        }
-        var extras = BillOfMaterials.Accessories(plan);
-        if (extras.Count > 0)
-        {
-            body.AddView(Section(c, Lang.T("Zubehör")));
-            foreach (var a in extras)
-            {
-                var row = Ui.Row(c, 10);
-                var count = Ui.Label(c, $"{a.Count}×", 15, true);
-                count.SetMinWidth(Ui.Dp(40));
-                row.AddView(count);
-                row.AddView(Ui.Label(c, $"{a.Name} – {a.Detail}", 13.5), Ui.Weight(1, vertical: false));
-                body.AddView(row, Ui.Fill());
-            }
-        }
-        Show(c, Lang.T("Stückliste"), body, Lang.T("Schließen"), cancelText: null, neutral: (pro ? Lang.T("Als CSV speichern") : Lang.T("CSV (Pro)"), exportCsv));
     }
 
     public static void ShowAddresses(Context c, PlanSession session, Action wiring)

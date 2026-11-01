@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Controls.Ribbon;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using Microsoft.Win32;
@@ -143,12 +144,14 @@ public sealed class MainWindow : Window
         Add("save", () => SaveFile(false));
         Add("saveAs", () => SaveFile(true));
         Add("sample", () => { if (ConfirmDiscard()) { Session.LoadSample(); Canvas.Fit(); } });
-        Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, Session.Plan, () => Run("csv")));
+        Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, Session, () => Run("csv"), ImportPriceList));
         // Pro-Funktionen fragen erst die Lizenz ab
         void Pro(string id, string feature, Action run, Func<bool>? can = null) => Add(id, () => { if (Session.RequirePro(feature)) run(); }, can);
         Pro("csv", Lang.T("Stückliste als CSV"), ExportCsv);
         Pro("svg", Lang.T("SVG-Export"), ExportSvg);
         Pro("print", Lang.T("Drucken"), PrintPlan);
+        Pro("dxf", Lang.T("Export als DXF"), () => ExportTo(Lang.T("Gleisplan als DXF speichern"), Lang.T("DXF-Zeichnung (*.dxf)|*.dxf"), $"{SafeName}.dxf", DxfExport.Build(Session.Plan)));
+        Pro("png", Lang.T("Export als PNG"), ExportPng);
         Add("license", ShowLicense);
         Add("check", () => ShowCheck(false));
         Add("elecCheck", () => ShowCheck(true));
@@ -228,6 +231,168 @@ public sealed class MainWindow : Window
         Add("language", ChangeLanguage);
         Add("about", () => Dialogs.ShowAbout(this, License));
         Add("update", () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null);
+
+        // Raum, Hintergrundbild, Anordnen, Parallelgleis, Höhenprofil, Rückmelder
+        bool Several() => Session.Selection.Count > 1;
+        bool HasBackground() => Session.Plan.Background is not null;
+        Add("lock", Session.ToggleLock, HasSelection);
+        Add("group", Session.GroupSelection, Several);
+        Add("ungroup", Session.Ungroup, HasSelection);
+        Add("alignL", () => Session.Align(AlignMode.Left), Several);
+        Add("alignR", () => Session.Align(AlignMode.Right), Several);
+        Add("alignT", () => Session.Align(AlignMode.Top), Several);
+        Add("alignB", () => Session.Align(AlignMode.Bottom), Several);
+        Add("alignCX", () => Session.Align(AlignMode.CenterX), Several);
+        Add("alignCY", () => Session.Align(AlignMode.CenterY), Several);
+        Add("parallel", () => { if (Dialogs.AskParallel(this, Session.Plan.Gauge) is { } p) Session.AddParallel(p.Spacing, p.Left); }, HasSelection);
+        Add("profile", () => { if (Session.Profile() is { } profile) Dialogs.ShowProfile(this, profile); });
+        Add("roomRect", () =>
+        {
+            if (Dialogs.AskRoom(this, Session.Plan) is not { } room) return;
+            Session.AddRoom(room.X, room.Y, room.Width, room.Depth, room.Wall);
+            Canvas.Fit();
+        });
+        Add("toolRoom", () => SetTool(CanvasTool.Room));
+        Add("toolDoor", () => SetObstacleTool(ObstacleType.Tuer));
+        Add("toolWindow", () => SetObstacleTool(ObstacleType.Fenster));
+        Add("toolColumn", () => SetObstacleTool(ObstacleType.Saeule));
+        Add("toolHeater", () => SetObstacleTool(ObstacleType.Heizkoerper));
+        Add("toolFurniture", () => SetObstacleTool(ObstacleType.Moebel));
+        Add("bgLoad", LoadBackground);
+        Add("bgEdit", AskBackground, HasBackground);
+        Add("bgScale", AskScaleBackground, HasBackground);
+        Add("bgToggle", () => { Session.EditBackground(b => b.Visible = !b.Visible); SyncToggles(); }, HasBackground);
+        Add("toolDetector", () =>
+        {
+            if (Dialogs.AskDetectorType(this, Session.DetectorType) is not { } type) return;
+            Session.DetectorType = type;
+            SetTool(CanvasTool.Detector);
+        });
+    }
+
+    private void SetObstacleTool(ObstacleType type)
+    {
+        Session.ObstacleType = type;
+        SetTool(CanvasTool.Obstacle);
+    }
+
+    private bool ImportPriceList()
+    {
+        var dlg = new OpenFileDialog { Filter = Lang.T("Preisliste (*.csv;*.txt)|*.csv;*.txt|Alle Dateien (*.*)|*.*"), Title = Lang.T("Preisliste einlesen") };
+        if (dlg.ShowDialog(this) != true) return false;
+        try { return Session.ImportPrices(File.ReadAllText(dlg.FileName)) > 0; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, Lang.F($"Die Datei ließ sich nicht lesen.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+    }
+
+    /// <summary>Plan als PNG: alles im Blick, längste Seite etwa 4000 Pixel.</summary>
+    private void ExportPng()
+    {
+        var plan = Session.Plan;
+        var (x0, y0, x1, y1) = plan.Bounds();
+        const double margin = 40;
+        double w = x1 - x0 + 2 * margin, h = y1 - y0 + 2 * margin;
+        var scale = Math.Min(4, 4000 / Math.Max(w, h));
+        int pw = (int)Math.Ceiling(w * scale), ph = (int)Math.Ceiling(h * scale);
+        var dlg = new SaveFileDialog { Filter = Lang.T("PNG-Bild (*.png)|*.png"), Title = Lang.T("Gleisplan als PNG speichern"), FileName = $"{SafeName}.png" };
+        if (dlg.ShowDialog(this) != true) return;
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, pw, ph));
+            dc.PushTransform(new ScaleTransform(scale, scale));
+            dc.PushTransform(new TranslateTransform(margin - x0, margin - y0));
+            new PlanScene(plan, new HashSet<int>(), false).Draw(dc, scale, new RenderOptions(Session.ShowScenery, false, new HashSet<int>(), null));
+            dc.Pop();
+            dc.Pop();
+        }
+        var bitmap = new RenderTargetBitmap(pw, ph, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        try
+        {
+            using (var stream = File.Create(dlg.FileName)) encoder.Save(stream);
+            ShowMessage(Lang.F($"Gespeichert: {Path.GetFileName(dlg.FileName)} ({pw} × {ph} Pixel)"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Bild unter den Plan legen (Grundriss, Skizze, Foto). Große Bilder werden auf 2400 Pixel verkleinert und als JPEG gespeichert.</summary>
+    private void LoadBackground()
+    {
+        var dlg = new OpenFileDialog { Filter = Lang.T("Bilder (*.png;*.jpg;*.jpeg;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.gif;*.webp"), Title = Lang.T("Hintergrundbild laden") };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            var bytes = File.ReadAllBytes(dlg.FileName);
+            if (ImageInfo.Read(bytes) is not { Width: > 0, Height: > 0 } info)
+            {
+                MessageBox.Show(this, Lang.T("Das Bild ließ sich nicht lesen (PNG, JPEG, GIF oder WebP)."), Lang.T("Hintergrundbild"), MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            const int max = 2400;
+            string mime = info.Mime;
+            int pw = info.Width, ph = info.Height;
+            if (Math.Max(pw, ph) > max || bytes.Length > 3_000_000)
+            {
+                var source = new BitmapImage();
+                source.BeginInit();
+                source.CacheOption = BitmapCacheOption.OnLoad;
+                source.StreamSource = new MemoryStream(bytes);
+                source.EndInit();
+                var f = Math.Min(1, (double)max / Math.Max(source.PixelWidth, source.PixelHeight));
+                var scaled = new TransformedBitmap(source, new ScaleTransform(f, f));
+                var jpeg = new JpegBitmapEncoder { QualityLevel = 85 };
+                jpeg.Frames.Add(BitmapFrame.Create(scaled));
+                using var ms = new MemoryStream();
+                jpeg.Save(ms);
+                bytes = ms.ToArray();
+                mime = "image/jpeg";
+                pw = scaled.PixelWidth;
+                ph = scaled.PixelHeight;
+            }
+            var old = Session.Plan.Background;
+            Session.SetBackground(new PlanBackground
+            {
+                Data = Convert.ToBase64String(bytes), Mime = mime, PixelWidth = pw, PixelHeight = ph,
+                X = old?.X ?? 0, Y = old?.Y ?? 0, Width = old?.Width ?? Session.Plan.BoardWidth, Opacity = old?.Opacity ?? 0.5,
+            });
+            Canvas.Fit();
+            SyncToggles();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException)
+        {
+            MessageBox.Show(this, Lang.F($"Das Bild ließ sich nicht laden.\n\n{ex.Message}"), Lang.T("Hintergrundbild"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void AskBackground()
+    {
+        if (Session.Plan.Background is not { } bg) return;
+        var action = Dialogs.AskBackground(this, bg, (x, y, w, opacity, visible) => Session.EditBackground(b => { b.X = x; b.Y = y; b.Width = w; b.Opacity = opacity; b.Visible = visible; }));
+        if (action == "remove") Session.SetBackground(null);
+        else if (action == "replace") LoadBackground();
+        SyncToggles();
+    }
+
+    private void AskScaleBackground()
+    {
+        var dim = Session.SelectedObject is { } id ? Session.Plan.Scenery.FirstOrDefault(s => s.Id == id && s.Kind == SceneryKind.Dimension) : null;
+        if (dim is null || dim.Points.Count != 2)
+        {
+            MessageBox.Show(this, Lang.T("So geht’s: Mit dem Werkzeug „Maß“ (Start › Beschriften) eine Linie über eine Strecke im Bild ziehen, deren echte Länge du kennst – z. B. eine Wand oder ein Gleis. Die Maßlinie anklicken und dann hier die echte Länge eingeben."),
+                Lang.T("Nach Maß skalieren"), MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var measured = Math.Sqrt(Math.Pow(dim.Points[1].X - dim.Points[0].X, 2) + Math.Pow(dim.Points[1].Y - dim.Points[0].Y, 2));
+        if (Dialogs.AskScaleBackground(this, measured) is { } len) Session.ScaleBackground(len);
     }
 
     /// <summary>
@@ -333,6 +498,9 @@ public sealed class MainWindow : Window
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
         CanvasTool.Signal => Lang.T("Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder."),
+        CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
+        CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
+        CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
         _ => "",
     };
 
@@ -461,6 +629,25 @@ public sealed class MainWindow : Window
         return b;
     }
 
+    /// <summary>Werkzeug-Schalter für ein Raumelement (Tür, Fenster …): an, solange genau dieses Element gesetzt wird.</summary>
+    private RibbonToggleButton ObstacleToggle(string label, string icon, ObstacleType type, string command, string description)
+    {
+        var b = new RibbonToggleButton
+        {
+            Label = label, SmallImageSource = Icons.Get(icon), LargeImageSource = Icons.Get(icon), ToolTipTitle = label, ToolTipDescription = description,
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        bool On() => Session.Tool == CanvasTool.Obstacle && Session.ObstacleType == type;
+        b.Click += (_, _) =>
+        {
+            if (On()) SetTool(CanvasTool.Select);
+            else Run(command);
+            SyncToggles();
+        };
+        _toggles.Add((b, On));
+        return b;
+    }
+
     private RibbonToggleButton Toggle(string label, string icon, bool large, Func<bool> isOn, Action<bool> set, string? description = null)
     {
         var b = new RibbonToggleButton
@@ -518,6 +705,8 @@ public sealed class MainWindow : Window
         _appMenu.Items.Add(Item(Lang.T("Stückliste…"), "List", "bom"));
         _appMenu.Items.Add(Item(Lang.T("Stückliste als CSV…"), "Csv", "csv"));
         _appMenu.Items.Add(Item(Lang.T("Als SVG exportieren (1:1)…"), "Image", "svg"));
+        _appMenu.Items.Add(Item(Lang.T("Als PNG-Bild exportieren…"), "Image", "png"));
+        _appMenu.Items.Add(Item(Lang.T("Als DXF exportieren (CAD)…"), "Dxf", "dxf"));
         _appMenu.Items.Add(Item(Lang.T("Drucken…"), "Print", "print"));
         _appMenu.Items.Add(new RibbonSeparator());
         _appMenu.Items.Add(Item(Lang.T("Beispielplan laden"), "Template", "sample"));
@@ -539,6 +728,16 @@ public sealed class MainWindow : Window
                 Small(Lang.T("Anschluss wechseln"), "Swap", "swap", Lang.T("Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A).")), Small(Lang.T("Duplizieren"), "Copy", "duplicate", Lang.T("Strg+D")), Small(Lang.T("Löschen"), "Delete", "delete", Lang.T("Entf")),
                 Small(Lang.T("Kopieren"), "Copy", "copy", Lang.T("Gewählte Gleise samt Einspeisungen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan.")),
                 Small(Lang.T("Einfügen"), "Paste", "paste", Lang.T("Kopiertes an der Mausposition einfügen (Strg+V)."))),
+            Group(Lang.T("Anordnen"),
+                Small(Lang.T("Sperren"), "Lock", "lock", Lang.T("Gewählte Gleise gegen Verschieben, Drehen und Löschen sperren – ein zweiter Klick entsperrt sie.")),
+                Small(Lang.T("Gruppieren"), "Group", "group", Lang.T("Gewählte Gleise zu einer Gruppe zusammenfassen: ein Klick wählt dann alle.")),
+                Small(Lang.T("Gruppe auflösen"), "Ungroup", "ungroup"),
+                Small(Lang.T("Links ausrichten"), "AlignLeft", "alignL", Lang.T("Gewählte Gleisgruppen an der linken Kante ausrichten.")),
+                Small(Lang.T("Rechts ausrichten"), "AlignRight", "alignR"),
+                Small(Lang.T("Mittig waagrecht"), "AlignCenterH", "alignCX"),
+                Small(Lang.T("Oben ausrichten"), "AlignTop", "alignT"),
+                Small(Lang.T("Unten ausrichten"), "AlignBottom", "alignB"),
+                Small(Lang.T("Mittig senkrecht"), "AlignCenterV", "alignCY")),
             Group(Lang.T("Beschriften"),
                 ToolToggle("Text", "Text", true, CanvasTool.Label, "toolLabel", Lang.T("Beschriftung setzen: auf die Stelle klicken und den Text eingeben.")),
                 ToolToggle(Lang.T("Maß"), "Ruler", true, CanvasTool.Dimension, "toolDimension", Lang.T("Maßlinie: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."))),
@@ -556,12 +755,14 @@ public sealed class MainWindow : Window
             Group(Lang.T("Flexgleis"),
                 Toggle(Lang.T("Flexgleis ziehen"), "Flex", true, () => Session.Tool == CanvasTool.Flex, on => SetTool(on ? CanvasTool.Flex : CanvasTool.Select),
                     Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit. Bei verlegten Flexgleisen ein Ende anfassen und ziehen, um sie nachzuformen.")),
-                Large(Lang.T("Lücke schließen"), "Connector", "flexConnect", Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))),
+                Large(Lang.T("Lücke schließen"), "Connector", "flexConnect", Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis.")),
+                Large(Lang.T("Parallel­gleis…"), "Parallel", "parallel", Lang.T("Flexgleis im festen Abstand neben die gewählten Gleise legen."))),
             Group(Lang.T("Ebenen"),
                 Large(Lang.T("Ebenen…"), "Layers", "levels", Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))),
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
+                Large(Lang.T("Höhen­profil"), "Profile", "profile", Lang.T("Höhe und Steigung entlang der gewählten Gleise als Diagramm.")),
                 Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
                 Large(Lang.T("Trasse…"), "Ramp", "rampCut", Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")),
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
@@ -581,6 +782,22 @@ public sealed class MainWindow : Window
             Group(Lang.T("Anzeigen"),
                 Toggle(Lang.T("Gelände zeigen"), "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); }))));
 
+        Ribbon.Items.Add(Tab(Lang.T("Raum"),
+            Group(Lang.T("Raum"),
+                Large(Lang.T("Raum…"), "Room", "roomRect", Lang.T("Rechteckigen Raum mit Innenmaßen und Wandstärke um die Anlage legen.")),
+                ToolToggle(Lang.T("Raum zeichnen"), "Room", true, CanvasTool.Room, "toolRoom", Lang.T("Raum mit beliebigem Grundriss als Vieleck zeichnen (Ecken der Wand-Innenkante)."))),
+            Group(Lang.T("Raumelemente"),
+                ObstacleToggle(Lang.T("Tür"), "Door", ObstacleType.Tuer, "toolDoor", Lang.T("Tür mit Schwenkbereich – die Planprüfung meldet, wenn die Platte im Weg ist.")),
+                ObstacleToggle(Lang.T("Fenster"), "Window", ObstacleType.Fenster, "toolWindow", Lang.T("Fenster in der Wand; die Platte darf darunter liegen.")),
+                ObstacleToggle(Lang.T("Säule"), "Column", ObstacleType.Saeule, "toolColumn", Lang.T("Säule oder Pfeiler im Raum.")),
+                ObstacleToggle(Lang.T("Heizkörper"), "Heater", ObstacleType.Heizkoerper, "toolHeater", Lang.T("Heizkörper an der Wand.")),
+                ObstacleToggle(Lang.T("Möbel"), "Furniture", ObstacleType.Moebel, "toolFurniture", Lang.T("Schrank, Regal oder Tisch."))),
+            Group(Lang.T("Hintergrundbild"),
+                Large(Lang.T("Bild laden…"), "Image", "bgLoad", Lang.T("Grundriss, Skizze oder Vorlage als Bild unter den Plan legen.")),
+                Small(Lang.T("Lage und Deckkraft…"), "Image", "bgEdit", Lang.T("Position, Breite und Deckkraft des Bilds einstellen oder es entfernen.")),
+                Small(Lang.T("Nach Maß skalieren…"), "Ruler", "bgScale", Lang.T("Mit einer Maßlinie über eine bekannte Strecke den Maßstab des Bilds einstellen.")),
+                Toggle(Lang.T("Bild zeigen"), "Image", false, () => Session.Plan.Background is { Visible: true }, _ => Run("bgToggle")))));
+
         var signalMenu = new RibbonMenuButton
         {
             Label = Lang.T("Signal setzen"), LargeImageSource = Icons.Get("Signal"), SmallImageSource = Icons.Get("Signal"), ToolTipTitle = Lang.T("Signal setzen"),
@@ -598,6 +815,7 @@ public sealed class MainWindow : Window
             Group(Lang.T("Digital"),
                 Large(Lang.T("Decoder"), "Chip", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 signalMenu,
+                ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));

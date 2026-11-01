@@ -138,6 +138,12 @@ jobs:
           Hb "ebenen" @("--dialog", "levels")
           Hb "unterbau" @("--dialog", "benchwork")
           Hb "spantenbau" @("--pro", "--dialog", "frame")
+          Hb "raum" @("--tab", "Raum", "--room")
+          Hb "raum-dialog" @("--dialog", "roomRect")
+          Hb "parallel" @("--select", "--dialog", "parallel")
+          Hb "profil" @("--select", "--dialog", "profile")
+          Hb "rueckmelder" @("--dialog", "toolDetector")
+          Hb "start-anordnen" @("--select")
           # Dieselben Bilder mit englischer Oberfläche für das englische Handbuch
           New-Item -ItemType Directory -Force artifacts/handbuch-en | Out-Null
           function HbEn($name, [string[]]$more) {
@@ -166,6 +172,12 @@ jobs:
           HbEn "ebenen" @("--dialog", "levels")
           HbEn "unterbau" @("--dialog", "benchwork")
           HbEn "spantenbau" @("--pro", "--dialog", "frame")
+          HbEn "raum" @("--tab", "Raum", "--room")
+          HbEn "raum-dialog" @("--dialog", "roomRect")
+          HbEn "parallel" @("--select", "--dialog", "parallel")
+          HbEn "profil" @("--select", "--dialog", "profile")
+          HbEn "rueckmelder" @("--dialog", "toolDetector")
+          HbEn "start-anordnen" @("--select")
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh

@@ -141,7 +141,6 @@ jobs:
           Hb "raum" @("--tab", "Raum", "--room")
           Hb "raum-dialog" @("--dialog", "roomRect")
           Hb "parallel" @("--select", "--dialog", "parallel")
-          Hb "profil" @("--select", "--dialog", "profile")
           Hb "rueckmelder" @("--dialog", "toolDetector")
           Hb "start-anordnen" @("--select")
           # Dieselben Bilder mit englischer Oberfläche für das englische Handbuch
@@ -175,24 +174,8 @@ jobs:
           HbEn "raum" @("--tab", "Raum", "--room")
           HbEn "raum-dialog" @("--dialog", "roomRect")
           HbEn "parallel" @("--select", "--dialog", "parallel")
-          HbEn "profil" @("--select", "--dialog", "profile")
           HbEn "rueckmelder" @("--dialog", "toolDetector")
           HbEn "start-anordnen" @("--select")
-
-      - name: Neue Handbuchbilder als Base64 (vorübergehend)
-        if: github.ref != 'refs/heads/main'
-        shell: pwsh
-        run: |
-          foreach ($dir in @("handbuch", "handbuch-en")) {
-            foreach ($name in @("raum", "raum-dialog", "parallel", "profil", "rueckmelder", "start-anordnen", "stueckliste")) {
-              $file = "$PWD/artifacts/$dir/$name.png"
-              if (-not (Test-Path $file)) { continue }
-              $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
-              Write-Output "HB-$dir-$name-BEGIN"
-              for ($i = 0; $i -lt $b64.Length; $i += 4000) { Write-Output $b64.Substring($i, [Math]::Min(4000, $b64.Length - $i)) }
-              Write-Output "HB-$dir-$name-END"
-            }
-          }
 
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh

@@ -167,6 +167,18 @@ jobs:
           HbEn "unterbau" @("--dialog", "benchwork")
           HbEn "spantenbau" @("--pro", "--dialog", "frame")
 
+      - name: TEMP Handbuchbilder als Base64
+        shell: pwsh
+        run: |
+          foreach ($dir in @("handbuch", "handbuch-en")) {
+            foreach ($file in Get-ChildItem "$PWD/artifacts/$dir/*.png") {
+              $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file.FullName))
+              Write-Output "HB-$dir/$($file.Name)-BEGIN"
+              for ($i = 0; $i -lt $b64.Length; $i += 4000) { Write-Output $b64.Substring($i, [Math]::Min(4000, $b64.Length - $i)) }
+              Write-Output "HB-$dir/$($file.Name)-END"
+            }
+          }
+
       - name: Vorschau für die Prüfung (verkleinert, Base64)
         shell: pwsh
         run: |

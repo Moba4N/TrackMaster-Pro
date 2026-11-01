@@ -8,6 +8,13 @@ public sealed record BomRow(TrackPieceDef Def, int Count);
 /// <summary>Zubehör für die Stückliste (Antriebe, Decoder, Signale, Einspeiser, Isolierverbinder).</summary>
 public sealed record AccessoryRow(string Name, string Detail, int Count);
 
+/// <summary>Zeile der Stückliste mit Bestand und Preis. <see cref="Key"/> ist der Schlüssel in <see cref="LayoutPlan.Prices"/> und <see cref="LayoutPlan.Stock"/>.</summary>
+public sealed record CostRow(string Key, string System, string Article, string Name, string Detail, int Count, int Stock, int ToBuy, double? Price)
+{
+    public double? Total => Price * Count;
+    public double? TotalToBuy => Price * ToBuy;
+}
+
 public static class BillOfMaterials
 {
     /// <summary>Gleise nach Artikel gezählt. Flexgleis wird zusammengefasst: Gesamtlänge und Zahl der Stücke im Handel (+5 % Verschnitt).</summary>
@@ -50,19 +57,108 @@ public static class BillOfMaterials
         }
         var addresses = Electrics.SwitchingItems(plan).Sum(i => i.AddressCount);
         if (addresses > 0) rows.Add(new(Lang.T("Weichendecoder (4 Ausgänge)"), Lang.F($"{addresses} Adressen"), (int)Math.Ceiling(addresses / 4.0)));
+        foreach (var g in plan.Detectors.GroupBy(d => d.Type).OrderBy(g => g.Key))
+            rows.Add(new(Detector.TypeName(g.Key), Lang.T("Rückmelder"), g.Count()));
+        if (plan.Detectors.Count > 0)
+            rows.Add(new(Lang.F($"Rückmeldemodul ({Detector.InputsPerModule} Eingänge)"), Lang.F($"{plan.Detectors.Count} Rückmelder"), (int)Math.Ceiling(plan.Detectors.Count / (double)Detector.InputsPerModule)));
         return rows;
     }
 
-    /// <summary>CSV mit Semikolon und BOM, damit Excel Umlaute und Spalten richtig erkennt.</summary>
+    /// <summary>Schlüssel für Preis und Bestand eines Zubehörteils.</summary>
+    public static string AccessoryKey(AccessoryRow a) => "zubehoer|" + a.Name;
+
+    /// <summary>
+    /// Stückliste mit Bestand und Preisen: was gebraucht wird, was schon da ist, was noch zu kaufen ist und was es kostet.
+    /// </summary>
+    public static IReadOnlyList<CostRow> Costs(LayoutPlan plan)
+    {
+        CostRow Row(string key, string system, string article, string name, string detail, int count)
+        {
+            var stock = plan.Stock.GetValueOrDefault(key);
+            double? price = plan.Prices.TryGetValue(key, out var p) ? p : null;
+            var buy = Math.Max(0, count - stock);
+            return new CostRow(key, system, article, name, detail, count, stock, buy, price);
+        }
+        var rows = Build(plan).Select(r => Row(r.Def.Key, r.Def.SystemName, r.Def.Number, r.Def.Name, r.Def.Spec, r.Count)).ToList();
+        rows.AddRange(Accessories(plan).Select(a => Row(AccessoryKey(a), Lang.T("Zubehör"), "", a.Name, a.Detail, a.Count)));
+        return rows;
+    }
+
+    /// <summary>Summen: alles neu gekauft, noch zu kaufen (abzüglich Bestand) und Zahl der Zeilen ohne Preis.</summary>
+    public static (double All, double ToBuy, int WithoutPrice) Totals(IReadOnlyList<CostRow> rows)
+        => (rows.Sum(r => (r.Price ?? 0) * r.Count), rows.Sum(r => (r.Price ?? 0) * r.ToBuy), rows.Count(r => r.Price is null));
+
+    /// <summary>Geldbetrag mit zwei Nachkommastellen (ohne Währungszeichen).</summary>
+    public static string Money(double v) => Fmt.Num(v, 2);
+
+    /// <summary>CSV mit Semikolon und BOM, damit Excel Umlaute und Spalten richtig erkennt; mit Bestand und Preisen, soweit eingetragen.</summary>
     public static string ToCsv(LayoutPlan plan)
     {
         var sb = new StringBuilder("﻿");
-        sb.Append(Lang.T("\"Hersteller/System\";\"Artikel\";\"Bezeichnung\";\"Daten\";\"Anzahl\"\r\n"));
-        foreach (var r in Build(plan))
-            sb.Append(string.Join(';', new[] { r.Def.SystemName, r.Def.Number, r.Def.Name, r.Def.Spec, r.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
-        foreach (var a in Accessories(plan))
-            sb.Append(string.Join(';', new[] { Lang.T("Zubehör"), "", a.Name, a.Detail, a.Count.ToString(CultureInfo.InvariantCulture) }.Select(Quote))).Append("\r\n");
+        var rows = Costs(plan);
+        var money = plan.Prices.Count > 0;
+        var stock = plan.Stock.Count > 0;
+        var head = new List<string> { Lang.T("Hersteller/System"), Lang.T("Artikel"), Lang.T("Bezeichnung"), Lang.T("Daten"), Lang.T("Anzahl") };
+        if (stock) head.AddRange([Lang.T("Bestand"), Lang.T("Zu kaufen")]);
+        if (money) head.AddRange([Lang.T("Einzelpreis"), Lang.T("Summe")]);
+        sb.Append(string.Join(';', head.Select(Quote))).Append("\r\n");
+        string I(int v) => v.ToString(CultureInfo.InvariantCulture);
+        foreach (var r in rows)
+        {
+            var cells = new List<string> { r.System, r.Article, r.Name, r.Detail, I(r.Count) };
+            if (stock) cells.AddRange([I(r.Stock), I(r.ToBuy)]);
+            if (money) cells.AddRange([r.Price is { } p ? Money(p) : "", r.Price is { } q ? Money(q * (stock ? r.ToBuy : r.Count)) : ""]);
+            sb.Append(string.Join(';', cells.Select(Quote))).Append("\r\n");
+        }
+        if (money)
+        {
+            var (all, buy, _) = Totals(rows);
+            var cells = new List<string> { "", "", stock ? Lang.T("Summe zu kaufen") : Lang.T("Summe"), "", "" };
+            if (stock) cells.AddRange(["", ""]);
+            cells.AddRange(["", Money(stock ? buy : all)]);
+            sb.Append(string.Join(';', cells.Select(Quote))).Append("\r\n");
+        }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Liest eine Preisliste als CSV (Artikelnummer; Preis – Trennzeichen Semikolon, Komma oder Tabulator) und trägt die Preise
+    /// für alle Artikel des Plans mit dieser Nummer ein. Liefert die Zahl der übernommenen Preise.
+    /// </summary>
+    public static int ImportPrices(LayoutPlan plan, string csv)
+    {
+        var byNumber = Costs(plan).Where(r => r.Article.Length > 0).GroupBy(r => r.Article.Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.Select(r => r.Key).ToList(), StringComparer.OrdinalIgnoreCase);
+        var byName = Costs(plan).GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.Select(r => r.Key).ToList(), StringComparer.OrdinalIgnoreCase);
+        var n = 0;
+        foreach (var raw in csv.Replace("\r", "").Split('\n'))
+        {
+            var line = raw.Trim().TrimStart('\uFEFF');
+            if (line.Length == 0) continue;
+            var sep = line.Contains(';') ? ';' : line.Contains('\t') ? '\t' : ',';
+            var cells = line.Split(sep).Select(c => c.Trim().Trim('"').Trim()).ToList();
+            if (cells.Count < 2) continue;
+            // Preis: letzte Zelle, die eine Zahl ist (mit Komma oder Punkt, gern mit €)
+            double? price = null;
+            for (var i = cells.Count - 1; i >= 1 && price is null; i--)
+                price = ParseMoney(cells[i]);
+            if (price is not { } value) continue;
+            var keys = byNumber.GetValueOrDefault(cells[0]) ?? byName.GetValueOrDefault(cells[0]);
+            if (keys is null) continue;
+            foreach (var k in keys) plan.Prices[k] = value;
+            n++;
+        }
+        return n;
+    }
+
+    /// <summary>Betrag aus Text („12,90“, „12.90 €“, „1.234,50“); null, wenn es keiner ist.</summary>
+    public static double? ParseMoney(string text)
+    {
+        var t = text.Replace("€", "").Replace("EUR", "", StringComparison.OrdinalIgnoreCase).Replace("$", "").Replace(" ", "").Trim();
+        if (t.Length == 0 || !t.Any(char.IsDigit) || t.Any(ch => !(char.IsDigit(ch) || ch is ',' or '.' or '-'))) return null;
+        if (t.Contains(',') && t.Contains('.'))
+            t = t.LastIndexOf(',') > t.LastIndexOf('.') ? t.Replace(".", "").Replace(',', '.') : t.Replace(",", "");
+        else t = t.Replace(',', '.');
+        return double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v >= 0 && double.IsFinite(v) ? Math.Round(v, 2) : null;
     }
 
     private static string Quote(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";

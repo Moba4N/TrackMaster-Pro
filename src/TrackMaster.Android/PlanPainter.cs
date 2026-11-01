@@ -163,10 +163,12 @@ public sealed class PlanPainter
     {
         var plan = _plan;
         float z = zoom, g = _g;
+        var selWidth = Math.Max(2.5f * Ui.Density / z, g * 0.25f);
+        DrawRooms(c, z, selectedObject, selWidth);
         var board = BoardPath(plan);
         c.DrawPath(board, Fill(Ui.Board));
+        if (plan.Background is { Visible: true, PixelWidth: > 0 } bg) DrawBackground(c, bg);
         c.DrawPath(board, Stroke(Ui.BoardStroke, 1.2f * Ui.Density / z));
-        var selWidth = Math.Max(2.5f * Ui.Density / z, g * 0.25f);
 
         if (scenery)
         {
@@ -209,6 +211,7 @@ public sealed class PlanPainter
                 c.DrawLine((float)ridge.Item1.Item1, (float)ridge.Item1.Item2, (float)ridge.Item2.Item1, (float)ridge.Item2.Item2, Stroke(RoofStroke, 1.2f * Ui.Density / z));
             }
         }
+        DrawObstacles(c, z, selectedObject, selWidth);
         afterBoard?.Invoke(c);
 
         if (selection.Count > 0)
@@ -280,9 +283,124 @@ public sealed class PlanPainter
                 c.DrawCircle(x, y, r, t.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(TreeStroke, 1 * Ui.Density / z));
             }
 
+        DrawLocks(c, z);
         DrawElectrics(c, z, selectedObject);
         DrawAnnotations(c, plan, z, selectedObject);
     }
+
+    // ---------- Raum, Raumelemente, gesperrte Gleise ----------
+
+    private static readonly Color WallColor = Color.Rgb(0x6E, 0x69, 0x63);
+    private static readonly Color FloorColor = Color.Argb(0x2C, 0x9A, 0x8C, 0x78);
+    private static readonly Color DoorColor = Color.Rgb(0x8A, 0x5A, 0x2B);
+    private static readonly Color WindowFill = Color.Argb(0xB0, 0xC4, 0xE4, 0xF7);
+    private static readonly Color WindowStroke = Color.Rgb(0x3F, 0x86, 0xC0);
+    private static readonly Color ColumnFill = Color.Argb(0xD0, 0x80, 0x80, 0x80);
+    private static readonly Color HeaterFill = Color.Argb(0xC0, 0xEE, 0xA8, 0x96);
+    private static readonly Color HeaterStroke = Color.Rgb(0xB0, 0x4A, 0x32);
+    private static readonly Color FurnitureFill = Color.Argb(0x90, 0xB8, 0x98, 0x70);
+    private static readonly Color FurnitureStroke = Color.Rgb(0x7A, 0x5C, 0x3A);
+    private static readonly Color OtherFill = Color.Argb(0x80, 0xA0, 0xA0, 0xA0);
+    private static readonly Color DetectorColor = Color.Rgb(0x6B, 0x3F, 0xA0);
+    private static readonly Color LockColor = Color.Rgb(0x5C, 0x5C, 0x5C);
+
+    /// <summary>Räume: Boden und Wände (Wandstärke nach außen), unter der Platte.</summary>
+    private void DrawRooms(Canvas c, float z, int? selectedObject, float selWidth)
+    {
+        foreach (var r in _plan.Scenery.Where(s => s.Kind == SceneryKind.Room && s.Points.Count >= 3))
+        {
+            var path = Polygon(r.Points);
+            var wall = Stroke(WallColor, (float)Math.Max(r.Width * 2, 2 * Ui.Density / z));
+            wall.StrokeJoin = Paint.Join.Miter;
+            c.DrawPath(path, wall);
+            c.DrawPath(path, Fill(Ui.Board));
+            c.DrawPath(path, Fill(FloorColor));
+            if (r.Id == selectedObject) c.DrawPath(path, Stroke(Ui.Accent, selWidth));
+        }
+    }
+
+    /// <summary>Türen mit Schwenkbereich, Fenster, Säulen, Heizkörper und Möbel.</summary>
+    private void DrawObstacles(Canvas c, float z, int? selectedObject, float selWidth)
+    {
+        var line = 1.2f * Ui.Density / z;
+        foreach (var o in _plan.Scenery.Where(s => s.Kind == SceneryKind.Obstacle))
+        {
+            float hw = (float)o.Width / 2, hd = (float)o.Depth / 2;
+            c.Save();
+            c.Translate((float)o.X, (float)o.Y);
+            c.Rotate((float)o.Rotation);
+            var rect = new Path();
+            rect.MoveTo(-hw, -hd); rect.LineTo(hw, -hd); rect.LineTo(hw, hd); rect.LineTo(-hw, hd); rect.Close();
+            switch (o.Obstacle)
+            {
+                case ObstacleType.Tuer:
+                {
+                    // Angeschlagen links an der Wandseite (oben), schlägt nach unten auf
+                    var w = (float)o.Width;
+                    var swing = new Path();
+                    swing.MoveTo(-hw, -hd);
+                    for (var i = 0; i <= 18; i++)
+                    {
+                        var a = i / 18.0 * Math.PI / 2;
+                        swing.LineTo(-hw + (float)(Math.Cos(a) * w), -hd + (float)(Math.Sin(a) * Math.Min(w, o.Depth)));
+                    }
+                    swing.Close();
+                    c.DrawPath(swing, Fill(Color.Argb(0x30, DoorColor.R, DoorColor.G, DoorColor.B)));
+                    c.DrawPath(swing, Stroke(DoorColor, line, effect: new DashPathEffect([6 / z, 4 / z], 0)));
+                    c.DrawLine(-hw, -hd, -hw, -hd + (float)Math.Min(w, o.Depth), Stroke(DoorColor, Math.Max(3 * Ui.Density / z, 30)));
+                    break;
+                }
+                case ObstacleType.Fenster:
+                    c.DrawPath(rect, Fill(WindowFill));
+                    c.DrawPath(rect, Stroke(WindowStroke, line));
+                    c.DrawLine(-hw, 0, hw, 0, Stroke(WindowStroke, line));
+                    break;
+                case ObstacleType.Saeule:
+                    c.DrawPath(rect, Fill(ColumnFill));
+                    c.DrawPath(rect, Stroke(WallColor, line));
+                    c.DrawLine(-hw, -hd, hw, hd, Stroke(WallColor, line));
+                    c.DrawLine(-hw, hd, hw, -hd, Stroke(WallColor, line));
+                    break;
+                case ObstacleType.Heizkoerper:
+                    c.DrawPath(rect, Fill(HeaterFill));
+                    c.DrawPath(rect, Stroke(HeaterStroke, line));
+                    var ribs = Math.Max(2, (int)(o.Width / 60));
+                    for (var i = 1; i < ribs; i++)
+                    {
+                        var x = -hw + hw * 2 * i / ribs;
+                        c.DrawLine(x, -hd, x, hd, Stroke(HeaterStroke, line * 0.7f));
+                    }
+                    break;
+                case ObstacleType.Moebel:
+                    c.DrawPath(rect, Fill(FurnitureFill));
+                    c.DrawPath(rect, Stroke(FurnitureStroke, line));
+                    break;
+                default:
+                    c.DrawPath(rect, Fill(OtherFill));
+                    c.DrawPath(rect, Stroke(WallColor, line, effect: new DashPathEffect([6 / z, 4 / z], 0)));
+                    break;
+            }
+            if (o.Id == selectedObject) c.DrawPath(rect, Stroke(Ui.Accent, selWidth));
+            c.Restore();
+        }
+    }
+
+    /// <summary>Kleines Schloss auf gesperrten Gleisen.</summary>
+    private void DrawLocks(Canvas c, float z)
+    {
+        var s = 4.5f * Ui.Density / z;
+        foreach (var p in _plan.Pieces.Where(p => p.Locked))
+        {
+            var m = p.Middle();
+            float x = (float)m.X, y = (float)m.Y;
+            c.DrawCircle(x, y - s * 0.35f, s * 0.6f, Stroke(LockColor, s * 0.32f));
+            c.DrawRect(x - s, y - s * 0.2f, x + s, y + s * 1.1f, Fill(LockColor));
+            c.DrawCircle(x, y + s * 0.4f, s * 0.22f, Fill(Color.White));
+        }
+    }
+
+    /// <summary>Lage des Rückmelder-Symbols: neben der Gleismitte, gegenüber der Einspeisung.</summary>
+    public static (double X, double Y) DetectorPoint(PlacedPiece p, double gauge) => Electrics.DetectorPoint(p, gauge);
 
     private static readonly Color DimensionColor = Color.Rgb(0x1F, 0x4E, 0x79);
 
@@ -366,6 +484,17 @@ public sealed class PlanPainter
             bolt.LineTo(cx - r * 0.15f, cy + r * 0.65f);
             c.DrawPath(bolt, Stroke(Color.White, r * 0.18f, Paint.Cap.Round));
         }
+        foreach (var det in plan.Detectors)
+        {
+            if (plan.Find(det.PieceId) is not { } p) continue;
+            var m = p.Middle();
+            var (cx, cy) = DetectorPoint(p, g);
+            var r = Math.Max(g * 0.85f, 4.5f * d / z);
+            c.DrawLine((float)m.X, (float)m.Y, (float)cx, (float)cy, Stroke(DetectorColor, Math.Max(g * 0.15f, 1 / z)));
+            c.DrawRect((float)cx - r, (float)cy - r, (float)cx + r, (float)cy + r, Fill(DetectorColor));
+            c.DrawRect((float)cx - r, (float)cy - r, (float)cx + r, (float)cy + r, det.Id == selectedObject ? Stroke(Ui.Accent, 2.5f * d / z) : Stroke(Color.White, 1 / z));
+            c.DrawCircle((float)cx, (float)cy, r * 0.42f, det.Type == DetectorType.Strom ? Stroke(Color.White, r * 0.22f) : Fill(Color.White));
+        }
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
@@ -442,6 +571,35 @@ public sealed class PlanPainter
         c.Scale(scale, scale);
         DrawSignalFace(c, face, 0, 1.2f / scale);
         c.Restore();
+    }
+
+    /// <summary>Hintergrundbild maßstäblich unter dem Plan.</summary>
+    private void DrawBackground(Canvas c, PlanBackground bg)
+    {
+        if (Image(bg) is not { } bitmap) return;
+        _p.Reset();
+        _p.FilterBitmap = true;
+        _p.Alpha = (int)Math.Round(Math.Clamp(bg.Opacity, 0, 1) * 255);
+        c.DrawBitmap(bitmap, null, new RectF((float)bg.X, (float)bg.Y, (float)(bg.X + bg.Width), (float)(bg.Y + bg.Height)), _p);
+    }
+
+    private static string? _imageKey;
+    private static Bitmap? _image;
+
+    /// <summary>Hintergrundbild einmal dekodieren und behalten, solange es sich nicht ändert.</summary>
+    public static Bitmap? Image(PlanBackground bg)
+    {
+        if (_imageKey == bg.Key) return _image;
+        _image?.Recycle();
+        _image = null;
+        _imageKey = bg.Key;
+        try
+        {
+            var bytes = Convert.FromBase64String(bg.Data);
+            _image = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
+        }
+        catch (FormatException) { }
+        return _image;
     }
 
     /// <summary>Vorschaubild eines Katalogteils für die Bibliothek, eingepasst in <paramref name="size"/>.</summary>

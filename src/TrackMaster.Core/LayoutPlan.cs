@@ -19,6 +19,10 @@ public sealed class PlacedPiece
     public int Level { get; set; }
     /// <summary>Digitaladresse (Weichen und Kreuzungsweichen).</summary>
     public int? Address { get; set; }
+    /// <summary>Gesperrt: lässt sich nicht verschieben, drehen, spiegeln oder löschen.</summary>
+    public bool Locked { get; set; }
+    /// <summary>Gruppe (0 = keine): ein Klick wählt alle Gleise der Gruppe.</summary>
+    public int Group { get; set; }
 
     public TrackPieceDef Def => Catalog.Get(Key);
 
@@ -68,11 +72,14 @@ public sealed class PlacedPiece
 
     public PlacedPiece Clone() => new()
     {
-        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Level = Level,
+        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Level = Level, Locked = Locked, Group = Group,
     };
 }
 
-public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension }
+public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle }
+
+/// <summary>Art eines Raumelements (<see cref="SceneryKind.Obstacle"/>).</summary>
+public enum ObstacleType { Tuer, Fenster, Saeule, Heizkoerper, Moebel, Sonstiges }
 
 /// <summary>
 /// Gelände und Ausstattung. Höhenflächen und Gewässer sind Vielecke (<see cref="Points"/>),
@@ -93,6 +100,13 @@ public sealed class SceneryItem
     public double Height { get; set; }
     /// <summary>Ebene, auf der das Objekt liegt.</summary>
     public int Level { get; set; }
+    /// <summary>Art des Raumelements (<see cref="ObstacleType"/>), sonst 0.</summary>
+    public int Variant { get; set; }
+
+    public ObstacleType Obstacle => Enum.IsDefined((ObstacleType)Variant) ? (ObstacleType)Variant : ObstacleType.Sonstiges;
+
+    /// <summary>Raum (Wände als Vieleck, <see cref="Width"/> = Wandstärke) oder Raumelement (Tür, Fenster, Säule …).</summary>
+    public bool IsRoom => Kind is SceneryKind.Room or SceneryKind.Obstacle;
 
     public bool IsArea => Kind is SceneryKind.Terrain or SceneryKind.Water;
     /// <summary>Beschriftung oder Maßlinie: wird immer gezeichnet, auch wenn das Gelände ausgeblendet ist.</summary>
@@ -105,12 +119,14 @@ public sealed class SceneryItem
         {
             case SceneryKind.Terrain:
             case SceneryKind.Water:
+            case SceneryKind.Room:
                 return Points;
             case SceneryKind.Label:
                 return Annotation.LabelOutline(this);
             case SceneryKind.Dimension:
                 return Annotation.DimensionOutline(this);
             case SceneryKind.Building:
+            case SceneryKind.Obstacle:
                 var r = Rotation * Math.PI / 180;
                 double c = Math.Cos(r), s = Math.Sin(r), hw = Width / 2, hd = Depth / 2;
                 return new[] { (-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd) }
@@ -123,7 +139,7 @@ public sealed class SceneryItem
     public (double X, double Y) Center()
     {
         if (Kind == SceneryKind.Dimension && Points.Count == 2) return ((Points[0].X + Points[1].X) / 2, (Points[0].Y + Points[1].Y) / 2);
-        if (!IsArea || Points.Count == 0) return (X, Y);
+        if ((!IsArea && Kind != SceneryKind.Room) || Points.Count == 0) return (X, Y);
         return (Points.Average(p => p.X), Points.Average(p => p.Y));
     }
 
@@ -137,7 +153,7 @@ public sealed class SceneryItem
         (double X, double Y) Turn(double x, double y) => (cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c);
         (X, Y) = Turn(X, Y);
         Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
-        if (Kind is SceneryKind.Building or SceneryKind.Label) Rotation = Angles.Normalize(Rotation + degrees);
+        if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle) Rotation = Angles.Normalize(Rotation + degrees);
     }
 
     public void MoveBy(double dx, double dy)
@@ -148,7 +164,7 @@ public sealed class SceneryItem
 
     public SceneryItem Clone() => new()
     {
-        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level,
+        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant,
     };
 
     public static string KindName(SceneryKind k) => k switch
@@ -158,8 +174,34 @@ public sealed class SceneryItem
         SceneryKind.Building => Lang.T("Gebäude"),
         SceneryKind.Label => Lang.T("Beschriftung"),
         SceneryKind.Dimension => Lang.T("Maß"),
+        SceneryKind.Room => Lang.T("Raum"),
+        SceneryKind.Obstacle => Lang.T("Raumelement"),
         _ => Lang.T("Baum"),
     };
+
+    public static string ObstacleName(ObstacleType t) => t switch
+    {
+        ObstacleType.Tuer => Lang.T("Tür"),
+        ObstacleType.Fenster => Lang.T("Fenster"),
+        ObstacleType.Saeule => Lang.T("Säule"),
+        ObstacleType.Heizkoerper => Lang.T("Heizkörper"),
+        ObstacleType.Moebel => Lang.T("Möbel"),
+        _ => Lang.T("Sonstiges"),
+    };
+
+    /// <summary>Übliche Maße (Breite, Tiefe, Höhe in mm) eines Raumelements.</summary>
+    public static (double Width, double Depth, double Height) ObstacleSize(ObstacleType t) => t switch
+    {
+        ObstacleType.Tuer => (900, 900, 2000),
+        ObstacleType.Fenster => (1200, 200, 1400),
+        ObstacleType.Saeule => (300, 300, 2500),
+        ObstacleType.Heizkoerper => (1000, 120, 600),
+        ObstacleType.Moebel => (1000, 450, 900),
+        _ => (600, 600, 1000),
+    };
+
+    /// <summary>Darf eine Anlagenplatte darüber liegen (Fenster und Heizkörper unter der Platte sind oft in Ordnung, Türen nicht)?</summary>
+    public static bool BoardMayCover(ObstacleType t) => t is ObstacleType.Fenster;
 }
 
 /// <summary>Einspeisung: hier wird ein Gleis an einen Stromkreis (Booster/Trafo) angeschlossen.</summary>
@@ -206,6 +248,57 @@ public sealed class Signal
     public int AddressCount => Type is SignalType.Vorsignal or SignalType.Sperrsignal or SignalType.Blocksignal ? 1 : 2;
 }
 
+public enum DetectorType { Strom, Kontakt, Reed }
+
+/// <summary>Rückmelder auf einem Gleis: meldet der Steuerung, ob das Gleis besetzt ist bzw. ein Zug vorbeifährt.</summary>
+public sealed class Detector
+{
+    public int Id { get; set; }
+    public int PieceId { get; set; }
+    public DetectorType Type { get; set; } = DetectorType.Strom;
+    public string Name { get; set; } = "";
+    /// <summary>Kontakt bzw. Eingang am Rückmeldemodul (z. B. s88: Modul × 16 + Eingang).</summary>
+    public int? Address { get; set; }
+    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address };
+
+    public static string TypeName(DetectorType t) => t switch
+    {
+        DetectorType.Kontakt => Lang.T("Schaltgleis / Kontakt"),
+        DetectorType.Reed => Lang.T("Reedkontakt"),
+        _ => Lang.T("Gleisbesetztmelder"),
+    };
+
+    /// <summary>Eingänge je Rückmeldemodul (s88, RM-GB-8 o. ä. mit 16 bzw. 8 Eingängen).</summary>
+    public const int InputsPerModule = 16;
+}
+
+/// <summary>Hintergrundbild (z. B. eingescannter Gleisplan oder Raumskizze), maßstäblich unter dem Plan.</summary>
+public sealed class PlanBackground
+{
+    /// <summary>Bild als Base64 (PNG oder JPEG).</summary>
+    public string Data { get; set; } = "";
+    public string Mime { get; set; } = "image/png";
+    public int PixelWidth { get; set; }
+    public int PixelHeight { get; set; }
+    /// <summary>Linke obere Ecke in mm.</summary>
+    public double X { get; set; }
+    public double Y { get; set; }
+    /// <summary>Breite in mm; die Höhe folgt aus dem Seitenverhältnis.</summary>
+    public double Width { get; set; } = 1000;
+    public double Opacity { get; set; } = 0.5;
+    public bool Visible { get; set; } = true;
+
+    public double Height => PixelWidth > 0 ? Width * PixelHeight / PixelWidth : Width;
+    public string DataUrl => $"data:{Mime};base64,{Data}";
+    /// <summary>Kurze Kennung des Bildinhalts (zum Zwischenspeichern des entpackten Bildes).</summary>
+    public string Key => $"bg{Data.Length}_{(Data.Length > 64 ? Data.Substring(Data.Length / 2, 32) : Data).GetHashCode():X}";
+
+    public PlanBackground Clone() => new()
+    {
+        Data = Data, Mime = Mime, PixelWidth = PixelWidth, PixelHeight = PixelHeight, X = X, Y = Y, Width = Width, Opacity = Opacity, Visible = Visible,
+    };
+}
+
 /// <summary>Ebene der Anlage (z. B. Schattenbahnhof, Hauptebene, Bergstrecke) mit Grundhöhe für neue Gleise.</summary>
 public sealed class PlanLevel
 {
@@ -248,6 +341,15 @@ public sealed class LayoutPlan
     public List<Feeder> Feeders { get; } = [];
     public List<Isolation> Isolations { get; } = [];
     public List<Signal> Signals { get; } = [];
+    public List<Detector> Detectors { get; } = [];
+    /// <summary>Hintergrundbild; null = keins.</summary>
+    public PlanBackground? Background { get; set; }
+    /// <summary>Preis je Artikel (Schlüssel wie in der Stückliste) in der Währung des Anwenders.</summary>
+    public Dictionary<string, double> Prices { get; } = [];
+    /// <summary>Vorhandene Stückzahl je Artikel (eigener Bestand).</summary>
+    public Dictionary<string, int> Stock { get; } = [];
+    /// <summary>Längster Zug in mm für Nutzlängen (0 = nicht prüfen).</summary>
+    public double TrainLength { get; set; }
     /// <summary>Holz-Unterbau (Rahmen, Beine, Deckplatte); null = keiner geplant.</summary>
     public BenchworkSpec? Benchwork { get; set; }
     /// <summary>Ebenen; immer mindestens eine.</summary>
@@ -291,7 +393,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork,
+            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);
@@ -303,6 +405,9 @@ public sealed class LayoutPlan
         v.Feeders.AddRange(Feeders.Where(f => ids.Contains(f.PieceId)));
         v.Isolations.AddRange(Isolations.Where(i => ids.Contains(i.PieceId)));
         v.Signals.AddRange(Signals.Where(s => ids.Contains(s.PieceId)));
+        v.Detectors.AddRange(Detectors.Where(d => ids.Contains(d.PieceId)));
+        foreach (var kv in Prices) v.Prices[kv.Key] = kv.Value;
+        foreach (var kv in Stock) v.Stock[kv.Key] = kv.Value;
         return v;
     }
 
@@ -321,12 +426,13 @@ public sealed class LayoutPlan
         Feeders.RemoveAll(f => ids.Contains(f.PieceId));
         Isolations.RemoveAll(i => ids.Contains(i.PieceId));
         Signals.RemoveAll(s => ids.Contains(s.PieceId));
+        Detectors.RemoveAll(d => ids.Contains(d.PieceId));
         return n;
     }
 
     /// <summary>Entfernt ein Objekt (Gelände, Einspeisung, Trennstelle, Signal) über seine Kennung.</summary>
     public bool RemoveObject(int id)
-        => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) > 0;
+        => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) + Detectors.RemoveAll(d => d.Id == id) > 0;
 
     public PlanStatistics Statistics(Connectivity? connectivity = null)
     {
@@ -358,6 +464,11 @@ public sealed class LayoutPlan
         foreach (var s in Scenery)
             foreach (var (x, y) in s.Outline())
                 Include(x, y);
+        if (Background is { Visible: true } bg)
+        {
+            Include(bg.X, bg.Y);
+            Include(bg.X + bg.Width, bg.Y + bg.Height);
+        }
         return (x0, y0, x1, y1);
     }
 }

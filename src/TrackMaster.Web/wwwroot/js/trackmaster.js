@@ -218,11 +218,114 @@ export function draw(id, view, strings) {
                 i += 5;
                 break;
             }
+            case 18: {
+                const img = images.get(strings[d[i + 1]]);
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, Math.min(1, d[i + 6]));
+                    ctx.drawImage(img, d[i + 2], d[i + 3], d[i + 4] - d[i + 2], d[i + 5] - d[i + 3]);
+                    ctx.restore();
+                }
+                i += 7;
+                break;
+            }
             default:
                 i = d.length;
         }
     }
     for (const k of s.paths.keys()) if (!used.has(k)) s.paths.delete(k);
+}
+
+// ---------- Bilder (Hintergrundbild des Plans) ----------
+
+const images = new Map();
+
+export function setImage(key, dataUrl, canvasId) {
+    if (images.has(key)) return;
+    if (images.size > 4) images.clear();
+    const img = new Image();
+    img.onload = () => requestFrame(canvasId);
+    img.src = dataUrl;
+    images.set(key, img);
+}
+
+// Bild wählen und bei Bedarf verkleinern (lange Seite höchstens maxPx), damit Plan und Sicherung im Browser handlich bleiben.
+// Ergebnis: "Name\0mime\0Breite\0Höhe\0Base64" oder leer.
+export function pickImage(maxPx) {
+    return new Promise(resolve => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/png,image/jpeg,image/gif,image/webp";
+        input.style.display = "none";
+        let done = false;
+        const finish = v => { if (!done) { done = true; resolve(v); input.remove(); } };
+        input.addEventListener("change", () => {
+            const f = input.files && input.files[0];
+            if (!f) { finish(""); return; }
+            const r = new FileReader();
+            r.onerror = () => finish("");
+            r.onload = () => {
+                const img = new Image();
+                img.onerror = () => finish("");
+                img.onload = () => {
+                    let w = img.naturalWidth, h = img.naturalHeight;
+                    const url = String(r.result);
+                    const small = Math.max(w, h) <= maxPx && f.size <= 1500000 && /^data:image\/(png|jpeg);/.test(url);
+                    if (small) {
+                        const comma = url.indexOf(",");
+                        finish([f.name, url.substring(5, url.indexOf(";")), w, h, url.substring(comma + 1)].join("\u0000"));
+                        return;
+                    }
+                    const k = Math.min(1, maxPx / Math.max(w, h));
+                    w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+                    const c = document.createElement("canvas");
+                    c.width = w; c.height = h;
+                    const ctx = c.getContext("2d");
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const out = c.toDataURL("image/jpeg", 0.85);
+                    finish([f.name, "image/jpeg", w, h, out.substring(out.indexOf(",") + 1)].join("\u0000"));
+                };
+                img.src = String(r.result);
+            };
+            r.readAsDataURL(f);
+        });
+        input.addEventListener("cancel", () => finish(""));
+        document.body.appendChild(input);
+        input.click();
+    });
+}
+
+// SVG (mit eingebetteten Bildern) als PNG herunterladen.
+export function downloadPng(fileName, svg, width, height) {
+    return new Promise(resolve => {
+        const img = new Image();
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+        img.onload = () => {
+            const c = document.createElement("canvas");
+            c.width = width; c.height = height;
+            const ctx = c.getContext("2d");
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(url);
+            c.toBlob(b => {
+                if (!b) { resolve(false); return; }
+                const u = URL.createObjectURL(b);
+                const a = document.createElement("a");
+                a.href = u;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(u), 10000);
+                resolve(true);
+            }, "image/png");
+        };
+        img.src = url;
+    });
 }
 
 // ---------- Zeichenfläche des Plans: Größe, Zeiger, Ziehen aus der Bibliothek ----------

@@ -163,6 +163,15 @@ public sealed class PlanView : View
             _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
+        if (_session.Tool == CanvasTool.Room)
+        {
+            _session.AddScenery(new SceneryItem { Kind = SceneryKind.Room, Points = [.. _polygon], Width = RoomPlan.DefaultWall, Height = 2500, Name = Lang.T("Raum") });
+            _polygon.Clear();
+            PolygonChanged?.Invoke();
+            _session.Say(Lang.T("Raum angelegt (Innenkante der Wände). Wandstärke und Name stehen in den Eigenschaften."));
+            Invalidate();
+            return;
+        }
         var water = _session.Tool == CanvasTool.Water;
         _session.AddScenery(new SceneryItem
         {
@@ -308,7 +317,12 @@ public sealed class PlanView : View
         if (_polygon.Count > 0)
         {
             var path = PlanPainter.Polygon(_polygon);
-            c.DrawPath(path, Fill(_session.Tool == CanvasTool.Water ? Color.Argb(0x60, 0x86, 0xBC, 0xE6) : Color.Argb(0x60, 0x9C, 0xB8, 0x7E)));
+            c.DrawPath(path, Fill(_session.Tool switch
+            {
+                CanvasTool.Water => Color.Argb(0x60, 0x86, 0xBC, 0xE6),
+                CanvasTool.Room => Color.Argb(0x50, 0x9A, 0x8C, 0x78),
+                _ => Color.Argb(0x60, 0x9C, 0xB8, 0x7E),
+            }));
             c.DrawPath(path, Stroke(Ui.Accent, 1.5f * Ui.Density / z));
             foreach (var p in _polygon)
             {
@@ -440,13 +454,13 @@ public sealed class PlanView : View
 
     private void DrawSceneryNames(Canvas c, LayoutPlan plan)
     {
-        foreach (var s in plan.Scenery.Where(s => s.Kind != SceneryKind.Tree))
+        foreach (var s in plan.Scenery.Where(s => s.Kind is not (SceneryKind.Tree or SceneryKind.Room) && !s.IsAnnotation))
         {
             var o = s.Outline();
-            if ((o.Max(p => p.X) - o.Min(p => p.X)) * _zoom < Ui.Dp(60)) continue;
+            if (o.Count == 0 || (o.Max(p => p.X) - o.Min(p => p.X)) * _zoom < Ui.Dp(60)) continue;
             var (cx, cy) = s.Center();
             var p = ToScreen(cx, cy);
-            DrawTag(c, s.Kind == SceneryKind.Water ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
+            DrawTag(c, s.Kind is SceneryKind.Water or SceneryKind.Obstacle ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
         }
     }
 
@@ -593,6 +607,12 @@ public sealed class PlanView : View
                 var c = p.WorldConnectors()[i.Index];
                 Try(i.Id, c.X, c.Y);
             }
+        foreach (var det in plan.Detectors)
+            if (plan.Find(det.PieceId) is { } p)
+            {
+                var (dx, dy) = PlanPainter.DetectorPoint(p, _gauge);
+                Try(det.Id, dx, dy);
+            }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
         if (!_session.ShowScenery) return null;
@@ -600,9 +620,17 @@ public sealed class PlanView : View
     }
 
     private int? HitArea((double X, double Y) world)
-        => _session.ShowScenery
+        => (_session.ShowScenery
             ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
-            : null;
+            : null) ?? HitRoom(world);
+
+    /// <summary>Raumelement unter dem Finger oder Wand eines Raums (nach Gleisen und Gelände).</summary>
+    private int? HitRoom((double X, double Y) world)
+    {
+        var plan = _session.View;
+        if (plan.Scenery.Where(s => s.Kind == SceneryKind.Obstacle).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } element) return element.Id;
+        return plan.Scenery.Where(s => s.Kind == SceneryKind.Room).FirstOrDefault(s => RoomPlan.HitsWall(s, world.X, world.Y, Ui.Dp(16) / _zoom))?.Id;
+    }
 
     // ---------- Touch ----------
 
@@ -747,9 +775,10 @@ public sealed class PlanView : View
                 _drag = _session.BeginBoardDrag(world.X, world.Y, Ui.Dp(24) / _zoom) ? DragMode.Board : DragMode.Pan;
                 return;
             case CanvasTool.Building:
+            case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension:
+            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:
@@ -786,6 +815,19 @@ public sealed class PlanView : View
                 return;
             case DragMode.Building:
                 var r = (X0: Math.Min(_downWorld.X, world.X), Y0: Math.Min(_downWorld.Y, world.Y), X1: Math.Max(_downWorld.X, world.X), Y1: Math.Max(_downWorld.Y, world.Y));
+                if (_session.Tool == CanvasTool.Obstacle)
+                {
+                    var item = RoomPlan.Element(_session.ObstacleType, Math.Round(_downWorld.X), Math.Round(_downWorld.Y));
+                    if (_moved && r.X1 - r.X0 >= 5 && r.Y1 - r.Y0 >= 5)
+                    {
+                        item.X = Math.Round((r.X0 + r.X1) / 2); item.Y = Math.Round((r.Y0 + r.Y1) / 2);
+                        item.Width = Math.Round(r.X1 - r.X0); item.Depth = Math.Round(r.Y1 - r.Y0);
+                    }
+                    _session.AddScenery(item);
+                    _session.Say(Lang.F($"{item.Name} gesetzt. Größe und Drehung stehen in den Eigenschaften."));
+                    Invalidate();
+                    return;
+                }
                 if (!_moved || r.X1 - r.X0 < 5 || r.Y1 - r.Y0 < 5)
                     r = (_downWorld.X - _gauge * 6, _downWorld.Y - _gauge * 4, _downWorld.X + _gauge * 6, _downWorld.Y + _gauge * 4);
                 _session.AddScenery(new SceneryItem
@@ -825,6 +867,7 @@ public sealed class PlanView : View
         {
             case CanvasTool.Terrain:
             case CanvasTool.Water:
+            case CanvasTool.Room:
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 PolygonChanged?.Invoke();
                 Invalidate();
@@ -847,6 +890,12 @@ public sealed class PlanView : View
                 if (HitSmallObject(x, y, world) is { } fo && _session.View.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
                 else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis tippen."));
+                return;
+            case CanvasTool.Detector:
+                // Tippen auf einen vorhandenen Rückmelder entfernt ihn wieder
+                if (HitSmallObject(x, y, world) is { } dobj && _session.View.Detectors.Any(d => d.Id == dobj)) _session.RemoveObject(dobj);
+                else if (HitPiece(world) is { } dp) _session.AddDetector(dp.Id);
+                else _session.Say(Lang.T("Für einen Rückmelder bitte direkt auf ein Gleis tippen."));
                 return;
             case CanvasTool.Isolation:
                 if (HitConnector(x, y, openOnly: false, radiusDp: 26) is { } ic) _session.ToggleIsolation(ic.PieceId, ic.Index);

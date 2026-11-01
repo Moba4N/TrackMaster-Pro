@@ -76,6 +76,16 @@ public static partial class Js
     [JSImport("homeUrl", Module)]
     public static partial string HomeUrl();
 
+    [JSImport("setImage", Module)]
+    public static partial void SetImage(string key, string dataUrl, string canvasId);
+
+    /// <summary>Bild wählen (bei Bedarf verkleinert); Ergebnis „Name\0mime\0Breite\0Höhe\0Base64“ oder leer.</summary>
+    [JSImport("pickImage", Module)]
+    public static partial Task<string> PickImage(int maxPx);
+
+    [JSImport("downloadPng", Module)]
+    public static partial Task<bool> DownloadPng(string fileName, string svg, int width, int height);
+
     // ---------- 3D ----------
 
     [JSImport("gl.open", Module)]

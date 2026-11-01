@@ -171,6 +171,14 @@ public sealed class PlanCanvas : FrameworkElement
             if (_polygon.Count > 0) _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
+        if (_session.Tool == CanvasTool.Room)
+        {
+            _session.AddScenery(new SceneryItem { Kind = SceneryKind.Room, Points = [.. _polygon], Width = RoomPlan.DefaultWall, Height = 2500, Name = Lang.T("Raum") });
+            _polygon.Clear();
+            _session.Say(Lang.T("Raum angelegt. Wandstärke und Name stehen in den Eigenschaften; die Planprüfung meldet zu enge Gänge."));
+            InvalidateVisual();
+            return;
+        }
         var water = _session.Tool == CanvasTool.Water;
         _session.AddScenery(new SceneryItem
         {
@@ -274,7 +282,12 @@ public sealed class PlanCanvas : FrameworkElement
         if (_polygon.Count > 0)
         {
             var pts = _polygon.Append((_lastWorld.X, _lastWorld.Y)).ToList();
-            var fill = _session.Tool == CanvasTool.Water ? new SolidColorBrush(Color.FromArgb(0x60, 0x86, 0xBC, 0xE6)) : new SolidColorBrush(Color.FromArgb(0x60, 0x9C, 0xB8, 0x7E));
+            var fill = _session.Tool switch
+            {
+                CanvasTool.Water => new SolidColorBrush(Color.FromArgb(0x60, 0x86, 0xBC, 0xE6)),
+                CanvasTool.Room => new SolidColorBrush(Color.FromArgb(0x50, 0x9A, 0x8C, 0x78)),
+                _ => new SolidColorBrush(Color.FromArgb(0x60, 0x9C, 0xB8, 0x7E)),
+            };
             dc.DrawGeometry(fill, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, PlanScene.Polygon(pts));
             foreach (var p in _polygon) dc.DrawEllipse(Brushes.White, new Pen(Theme.AccentBrush, 1.5 / z), new Point(p.X, p.Y), 4 / z, 4 / z);
         }
@@ -293,7 +306,7 @@ public sealed class PlanCanvas : FrameworkElement
             plan.Scenery.Add(preview);
             PlanScene.DrawAnnotations(dc, plan, z, preview.Id);
         }
-        if (_drag == DragMode.Create && _session.Tool == CanvasTool.Building && _moved)
+        if (_drag == DragMode.Create && _session.Tool is CanvasTool.Building or CanvasTool.Obstacle && _moved)
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x80, 0xB8, 0x5C, 0x45)), new Pen(Theme.AccentBrush, 1.5 / z), new Rect(_dragStartWorld, _lastWorld));
     }
 
@@ -396,7 +409,7 @@ public sealed class PlanCanvas : FrameworkElement
 
     private void DrawSceneryNames(DrawingContext dc, LayoutPlan plan)
     {
-        foreach (var s in plan.Scenery.Where(s => s.Kind != SceneryKind.Tree))
+        foreach (var s in plan.Scenery.Where(s => s.Kind is not (SceneryKind.Tree or SceneryKind.Room) && !s.IsAnnotation))
         {
             var outline = s.Outline();
             var w = (outline.Max(p => p.X) - outline.Min(p => p.X)) * _zoom;
@@ -404,7 +417,7 @@ public sealed class PlanCanvas : FrameworkElement
             var (cx, cy) = s.Center();
             var text = s.Kind switch
             {
-                SceneryKind.Water => s.Name,
+                SceneryKind.Water or SceneryKind.Obstacle => s.Name,
                 _ => $"{s.Name} · {Fmt.Num(s.Height, 0)} mm",
             };
             DrawTag(dc, text, ToScreen(cx, cy), Theme.TextSecondaryBrush, 10);
@@ -535,6 +548,12 @@ public sealed class PlanCanvas : FrameworkElement
                 var c = p.WorldConnectors()[i.Index];
                 Try(i.Id, c.X, c.Y);
             }
+        foreach (var det in plan.Detectors)
+            if (plan.Find(det.PieceId) is { } p)
+            {
+                var (dx, dy) = Electrics.DetectorPoint(p, _gauge);
+                Try(det.Id, dx, dy);
+            }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
         if (!_session.ShowScenery) return null;
@@ -542,9 +561,17 @@ public sealed class PlanCanvas : FrameworkElement
     }
 
     private int? HitArea(Point world)
-        => _session.ShowScenery
+        => (_session.ShowScenery
             ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
-            : null;
+            : null) ?? HitRoom(world);
+
+    /// <summary>Raumelement unter dem Zeiger oder Wand eines Raums (nach Gleisen und Gelände).</summary>
+    private int? HitRoom(Point world)
+    {
+        var plan = _session.View;
+        if (plan.Scenery.Where(s => s.Kind == SceneryKind.Obstacle).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } element) return element.Id;
+        return plan.Scenery.Where(s => s.Kind == SceneryKind.Room).FirstOrDefault(s => RoomPlan.HitsWall(s, world.X, world.Y, 8 / _zoom))?.Id;
+    }
 
     // ---------- Maus ----------
 
@@ -584,11 +611,13 @@ public sealed class PlanCanvas : FrameworkElement
                 return;
             case CanvasTool.Terrain:
             case CanvasTool.Water:
+            case CanvasTool.Room:
                 if (e.ClickCount == 2) { FinishPolygon(); return; }
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 InvalidateVisual();
                 return;
             case CanvasTool.Building:
+            case CanvasTool.Obstacle:
                 CaptureMouse();
                 _drag = DragMode.Create;
                 return;
@@ -610,6 +639,12 @@ public sealed class PlanCanvas : FrameworkElement
                 if (HitSmallObject(screen, world) is { } fo && _session.View.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
                 else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis klicken."));
+                return;
+            case CanvasTool.Detector:
+                // Klick auf einen vorhandenen Rückmelder entfernt ihn wieder
+                if (HitSmallObject(screen, world) is { } dobj && _session.View.Detectors.Any(d => d.Id == dobj)) _session.RemoveObject(dobj);
+                else if (HitPiece(world) is { } dp) _session.AddDetector(dp.Id);
+                else _session.Say(Lang.T("Für einen Rückmelder bitte direkt auf ein Gleis klicken."));
                 return;
             case CanvasTool.Isolation:
                 if (HitConnector(screen, openOnly: false, radius: 14) is { } ic) _session.ToggleIsolation(ic.PieceId, ic.Index);
@@ -762,6 +797,19 @@ public sealed class PlanCanvas : FrameworkElement
             case DragMode.Create:
                 var end = ToWorld(e.GetPosition(this));
                 var r = new Rect(_dragStartWorld, end);
+                if (_session.Tool == CanvasTool.Obstacle)
+                {
+                    var item = RoomPlan.Element(_session.ObstacleType, Math.Round(_dragStartWorld.X), Math.Round(_dragStartWorld.Y));
+                    if (_moved && r.Width >= 5 && r.Height >= 5)
+                    {
+                        item.X = Math.Round(r.X + r.Width / 2); item.Y = Math.Round(r.Y + r.Height / 2);
+                        item.Width = Math.Round(r.Width); item.Depth = Math.Round(r.Height);
+                    }
+                    _session.AddScenery(item);
+                    _session.Say(Lang.F($"{item.Name} gesetzt. Größe und Drehung stehen in den Eigenschaften."));
+                    InvalidateVisual();
+                    break;
+                }
                 if (!_moved || r.Width < 5 || r.Height < 5)
                     r = new Rect(_dragStartWorld.X - _gauge * 6, _dragStartWorld.Y - _gauge * 4, _gauge * 12, _gauge * 8);
                 _session.AddScenery(new SceneryItem

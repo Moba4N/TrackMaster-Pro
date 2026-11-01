@@ -187,8 +187,17 @@ public sealed class PlanScene
     {
         var plan = _plan;
         double z = zoom, g = _gauge;
-        dc.DrawGeometry(Theme.BoardBrush, new Pen(Theme.BoardStrokeBrush, 1.2 / z) { LineJoin = PenLineJoin.Round }, BoardOutline(plan));
         var selPen = new Pen(Theme.AccentBrush, Math.Max(2.5 / z, g * 0.25));
+        DrawRooms(dc, z, o, selPen);
+        var board = BoardOutline(plan);
+        dc.DrawGeometry(Theme.BoardBrush, null, board);
+        if (plan.Background is { Visible: true, PixelWidth: > 0 } bg && Image(bg) is { } image)
+        {
+            dc.PushOpacity(bg.Opacity);
+            dc.DrawImage(image, new Rect(bg.X, bg.Y, bg.Width, bg.Height));
+            dc.Pop();
+        }
+        dc.DrawGeometry(null, new Pen(Theme.BoardStrokeBrush, 1.2 / z) { LineJoin = PenLineJoin.Round }, board);
 
         if (o.Scenery)
         {
@@ -212,6 +221,7 @@ public sealed class PlanScene
                 dc.DrawLine(new Pen(RoofStroke, 1.2 / z), ridge.Item1, ridge.Item2);
             }
         }
+        DrawObstacles(dc, z, o, selPen);
         afterBoard?.Invoke(dc);
 
         if (o.Selected.Count > 0)
@@ -245,8 +255,134 @@ public sealed class PlanScene
             foreach (var t in plan.Scenery.Where(s => s.Kind == SceneryKind.Tree))
                 DrawTree(dc, t, z, t.Id == o.SelectedObject ? selPen : null);
 
+        DrawLocks(dc, z);
         DrawElectrics(dc, z, o);
         DrawAnnotations(dc, plan, z, o.SelectedObject);
+    }
+
+    // ---------- Hintergrundbild, Raum, Raumelemente, gesperrte Gleise ----------
+
+    private static readonly Dictionary<string, ImageSource?> Images = [];
+
+    /// <summary>Entpacktes Hintergrundbild (zwischengespeichert, solange sich der Inhalt nicht ändert).</summary>
+    public static ImageSource? Image(PlanBackground bg)
+    {
+        var key = bg.Key;
+        if (Images.TryGetValue(key, out var cached)) return cached;
+        if (Images.Count > 4) Images.Clear();
+        ImageSource? img = null;
+        try
+        {
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.StreamSource = new System.IO.MemoryStream(Convert.FromBase64String(bg.Data));
+            bmp.EndInit();
+            bmp.Freeze();
+            img = bmp;
+        }
+        catch (Exception e) when (e is FormatException or NotSupportedException or System.IO.IOException or InvalidOperationException or ArgumentException)
+        {
+            img = null;
+        }
+        Images[key] = img;
+        return img;
+    }
+
+    private static readonly Brush WallBrush = Frozen(Color.FromRgb(0x6E, 0x69, 0x63));
+    private static readonly Brush FloorBrush = Frozen(Color.FromArgb(0x2C, 0x9A, 0x8C, 0x78));
+    private static readonly Brush DoorBrush = Frozen(Color.FromRgb(0x8A, 0x5A, 0x2B));
+    private static readonly Brush DoorFill = Frozen(Color.FromArgb(0x30, 0x8A, 0x5A, 0x2B));
+    private static readonly Brush WindowFill = Frozen(Color.FromArgb(0xB0, 0xC4, 0xE4, 0xF7));
+    private static readonly Brush ColumnFill = Frozen(Color.FromArgb(0xD0, 0x80, 0x80, 0x80));
+    private static readonly Brush HeaterFill = Frozen(Color.FromArgb(0xC0, 0xEE, 0xA8, 0x96));
+    private static readonly Brush HeaterStroke = Frozen(Color.FromRgb(0xB0, 0x4A, 0x32));
+    private static readonly Brush FurnitureFill = Frozen(Color.FromArgb(0x90, 0xB8, 0x98, 0x70));
+    private static readonly Brush FurnitureStroke = Frozen(Color.FromRgb(0x7A, 0x5C, 0x3A));
+    private static readonly Brush OtherFill = Frozen(Color.FromArgb(0x80, 0xA0, 0xA0, 0xA0));
+    private static readonly Brush DetectorBrush = Frozen(Color.FromRgb(0x6B, 0x3F, 0xA0));
+    private static readonly Brush LockBrush = Frozen(Color.FromRgb(0x5C, 0x5C, 0x5C));
+
+    private void DrawRooms(DrawingContext dc, double z, RenderOptions o, Pen selPen)
+    {
+        foreach (var r in _plan.Scenery.Where(s => s.Kind == SceneryKind.Room && s.Points.Count >= 3))
+        {
+            var poly = Polygon(r.Points);
+            dc.DrawGeometry(null, new Pen(WallBrush, Math.Max(r.Width * 2, 2 / z)) { LineJoin = PenLineJoin.Miter }, poly);
+            dc.DrawGeometry(Theme.BoardBrush, null, poly);
+            dc.DrawGeometry(FloorBrush, r.Id == o.SelectedObject ? selPen : null, poly);
+        }
+    }
+
+    private void DrawObstacles(DrawingContext dc, double z, RenderOptions o, Pen selPen)
+    {
+        var line = 1.2 / z;
+        foreach (var s in _plan.Scenery.Where(s => s.Kind == SceneryKind.Obstacle))
+        {
+            double hw = s.Width / 2, hd = s.Depth / 2;
+            dc.PushTransform(new TranslateTransform(s.X, s.Y));
+            dc.PushTransform(new RotateTransform(s.Rotation));
+            var rect = new Rect(-hw, -hd, s.Width, s.Depth);
+            switch (s.Obstacle)
+            {
+                case ObstacleType.Tuer:
+                {
+                    var reach = Math.Min(s.Width, s.Depth);
+                    var swing = new StreamGeometry();
+                    using (var ctx = swing.Open())
+                    {
+                        ctx.BeginFigure(new Point(-hw, -hd), true, true);
+                        for (var i = 0; i <= 18; i++)
+                        {
+                            var a = i / 18.0 * Math.PI / 2;
+                            ctx.LineTo(new Point(-hw + Math.Cos(a) * s.Width, -hd + Math.Sin(a) * reach), true, false);
+                        }
+                    }
+                    dc.DrawGeometry(DoorFill, new Pen(DoorBrush, line) { DashStyle = new DashStyle([5, 3], 0) }, swing);
+                    dc.DrawLine(new Pen(DoorBrush, Math.Max(3 / z, 30)), new Point(-hw, -hd), new Point(-hw, -hd + reach));
+                    break;
+                }
+                case ObstacleType.Fenster:
+                    dc.DrawRectangle(WindowFill, new Pen(WaterStroke, line), rect);
+                    dc.DrawLine(new Pen(WaterStroke, line), new Point(-hw, 0), new Point(hw, 0));
+                    break;
+                case ObstacleType.Saeule:
+                    dc.DrawRectangle(ColumnFill, new Pen(WallBrush, line), rect);
+                    dc.DrawLine(new Pen(WallBrush, line), new Point(-hw, -hd), new Point(hw, hd));
+                    dc.DrawLine(new Pen(WallBrush, line), new Point(-hw, hd), new Point(hw, -hd));
+                    break;
+                case ObstacleType.Heizkoerper:
+                    dc.DrawRectangle(HeaterFill, new Pen(HeaterStroke, line), rect);
+                    var ribs = Math.Max(2, (int)(s.Width / 60));
+                    for (var i = 1; i < ribs; i++)
+                    {
+                        var x = -hw + s.Width * i / ribs;
+                        dc.DrawLine(new Pen(HeaterStroke, line * 0.7), new Point(x, -hd), new Point(x, hd));
+                    }
+                    break;
+                case ObstacleType.Moebel:
+                    dc.DrawRectangle(FurnitureFill, new Pen(FurnitureStroke, line), rect);
+                    break;
+                default:
+                    dc.DrawRectangle(OtherFill, new Pen(WallBrush, line) { DashStyle = new DashStyle([5, 3], 0) }, rect);
+                    break;
+            }
+            if (s.Id == o.SelectedObject) dc.DrawRectangle(null, selPen, rect);
+            dc.Pop();
+            dc.Pop();
+        }
+    }
+
+    private void DrawLocks(DrawingContext dc, double z)
+    {
+        var s = 4.5 / z;
+        foreach (var p in _plan.Pieces.Where(p => p.Locked))
+        {
+            var m = p.Middle();
+            dc.DrawEllipse(null, new Pen(LockBrush, s * 0.32), new Point(m.X, m.Y - s * 0.35), s * 0.6, s * 0.6);
+            dc.DrawRectangle(LockBrush, null, new Rect(m.X - s, m.Y - s * 0.2, s * 2, s * 1.3));
+            dc.DrawEllipse(Brushes.White, null, new Point(m.X, m.Y + s * 0.4), s * 0.22, s * 0.22);
+        }
     }
 
     private static readonly Brush DimensionBrush = Frozen(Color.FromRgb(0x1F, 0x4E, 0x79));
@@ -342,6 +478,17 @@ public sealed class PlanScene
                 ctx.LineTo(new Point(center.X - r * 0.15, center.Y + r * 0.65), true, false);
             }
             dc.DrawGeometry(null, new Pen(Brushes.White, r * 0.18) { LineJoin = PenLineJoin.Round }, bolt);
+        }
+        foreach (var det in plan.Detectors)
+        {
+            if (plan.Find(det.PieceId) is not { } p) continue;
+            var m = p.Middle();
+            var (cx, cy) = Electrics.DetectorPoint(p, g);
+            var r = Math.Max(g * 0.85, 4.5 / z);
+            dc.DrawLine(new Pen(DetectorBrush, Math.Max(g * 0.15, 1 / z)), new Point(m.X, m.Y), new Point(cx, cy));
+            dc.DrawRectangle(DetectorBrush, det.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), new Rect(cx - r, cy - r, 2 * r, 2 * r));
+            if (det.Type == DetectorType.Strom) dc.DrawEllipse(null, new Pen(Brushes.White, r * 0.22), new Point(cx, cy), r * 0.42, r * 0.42);
+            else dc.DrawEllipse(Brushes.White, null, new Point(cx, cy), r * 0.42, r * 0.42);
         }
         foreach (var s in plan.Signals)
         {

@@ -3,7 +3,7 @@ namespace TrackMaster.Web.Graphics;
 /// <summary>Befehle des Zeichenprotokolls; JavaScript (trackmaster.js) und <see cref="SvgWriter"/> lesen sie.</summary>
 public enum Op
 {
-    Save = 1, Restore, Translate, Rotate, Scale, Concat, ClipPath, DefinePath, Path, Line, Circle, Rect, RoundRect, Text, Tag, FillAll, ClipRect,
+    Save = 1, Restore, Translate, Rotate, Scale, Concat, ClipPath, DefinePath, Path, Line, Circle, Rect, RoundRect, Text, Tag, FillAll, ClipRect, Image,
 }
 
 /// <summary>
@@ -119,4 +119,15 @@ public sealed class Canvas
         => Add(Op.Tag, Text(s), cx, cy, size, color.Packed, back.Packed, pad);
 
     public void DrawColor(Color c) => Add(Op.FillAll, c.Packed);
+
+    /// <summary>Bilder dieses Protokolls nach Kennung (für SVG; im Browser hält JavaScript die entpackten Bilder).</summary>
+    public Dictionary<string, Core.PlanBackground> Images { get; } = [];
+
+    /// <summary>Hintergrundbild in das Rechteck (l, t, r, b) mit Deckkraft <paramref name="alpha"/>.</summary>
+    public void DrawImage(Core.PlanBackground image, float l, float t, float r, float b, float alpha)
+    {
+        var key = image.Key;
+        Images[key] = image;
+        Add(Op.Image, Text(key), l, t, r, b, alpha);
+    }
 }

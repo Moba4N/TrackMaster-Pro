@@ -431,6 +431,13 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
 }
 .input:focus { border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
 .input.narrow { width: 80px; flex: none; }
+.input.tiny { width: 72px; min-width: 0; padding: 4px 6px; }
+.table.bom td { vertical-align: middle; }
+.table.bom td.money { text-align: right; white-space: nowrap; }
+.table.bom td.ok { color: var(--text-secondary); font-weight: normal; }
+.rows.totals { margin-top: 8px; }
+.chart { overflow-x: auto; }
+.chart svg { display: block; max-width: 100%; height: auto; }
 select.input { padding-right: 4px; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cols.three { grid-template-columns: 1fr 1fr 1fr; }

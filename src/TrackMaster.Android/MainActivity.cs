@@ -26,7 +26,7 @@ namespace TrackMaster.Mobile;
 [IntentFilter([Intent.ActionView], Categories = [Intent.CategoryDefault], DataMimeType = "application/json")]
 public sealed class MainActivity : Activity
 {
-    private const int RequestOpen = 1, RequestSave = 2, RequestLicense = 3, RequestExport = 4, RequestModule = 5;
+    private const int RequestOpen = 1, RequestSave = 2, RequestLicense = 3, RequestExport = 4, RequestModule = 5, RequestBackground = 6, RequestPrices = 7;
 
     private readonly PlanSession _session = new();
     private LicenseManager _license = null!;
@@ -181,7 +181,7 @@ public sealed class MainActivity : Activity
         Add("selectNone", Lang.T("Auswahl aufheben"), _session.ClearSelection);
         Add("nextEnd", Lang.T("Nächstes Gleisende"), () => { if (_session.NextOpenEnd() is { } p) _canvas.Reveal(p.X, p.Y); });
         Add("props", Lang.T("Eigenschaften"), () => Dialogs.ShowProperties(this, _session, Run));
-        Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, _session.Plan, _license.IsPro, () => Run("csv")));
+        Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, _session, _license.IsPro, () => Run("csv"), () => Pick(RequestPrices, "text/*")));
         Add("check", Lang.T("Planprüfung"), ShowCheck);
         Add("fit", Lang.T("Einpassen"), _canvas_Fit);
         Add("zoomIn", Lang.T("Vergrößern"), () => _canvas.ZoomBy(1.3f));
@@ -244,6 +244,124 @@ public sealed class MainActivity : Activity
         Pro("csv", Lang.T("Export als CSV"), () => Export(BillOfMaterials.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Stückliste.csv")));
         Pro("pdf", Lang.T("Drucken als PDF"), () => Export(PlanPdf.Build(_session.Plan, _license.IsPro), "application/pdf", $"{SafeName}.pdf"));
         Pro("svg", Lang.T("Export als SVG"), () => Export(SvgExport.Build(_session.Plan), "image/svg+xml", $"{SafeName}.svg"));
+        Pro("dxf", Lang.T("Export als DXF"), () => Export(DxfExport.Build(_session.Plan), "application/dxf", $"{SafeName}.dxf"));
+        Pro("png", Lang.T("Export als PNG"), ExportPng);
+
+        // Raum, Hintergrundbild, Anordnen, Parallelgleis, Höhenprofil, Rückmelder
+        bool Several() => _session.Selection.Count > 1;
+        bool HasBackground() => _session.Plan.Background is not null;
+        Add("lock", Lang.T("Sperren"), _session.ToggleLock, HasSelection);
+        Add("group", Lang.T("Gruppieren"), _session.GroupSelection, Several);
+        Add("ungroup", Lang.T("Gruppe auflösen"), _session.Ungroup, HasSelection);
+        Add("alignL", Lang.T("Links ausrichten"), () => _session.Align(AlignMode.Left), Several);
+        Add("alignR", Lang.T("Rechts ausrichten"), () => _session.Align(AlignMode.Right), Several);
+        Add("alignT", Lang.T("Oben ausrichten"), () => _session.Align(AlignMode.Top), Several);
+        Add("alignB", Lang.T("Unten ausrichten"), () => _session.Align(AlignMode.Bottom), Several);
+        Add("alignCX", Lang.T("Mittig waagrecht"), () => _session.Align(AlignMode.CenterX), Several);
+        Add("alignCY", Lang.T("Mittig senkrecht"), () => _session.Align(AlignMode.CenterY), Several);
+        Add("parallel", Lang.T("Parallelgleis"), () => Dialogs.AskParallel(this, _session.Plan.Gauge, _session.AddParallel), HasSelection);
+        Add("profile", Lang.T("Höhenprofil"), () => { if (_session.Profile() is { } profile) Dialogs.ShowProfile(this, profile); });
+        Add("roomRect", Lang.T("Raum"), () => Dialogs.AskRoom(this, _session.Plan, (x, y, w, d, wall) => { _session.AddRoom(x, y, w, d, wall); _canvas.Fit(); }));
+        Add("toolRoom", Lang.T("Raum zeichnen"), () => SetTool(CanvasTool.Room));
+        Add("toolDoor", Lang.T("Tür"), () => SetObstacleTool(ObstacleType.Tuer));
+        Add("toolWindow", Lang.T("Fenster"), () => SetObstacleTool(ObstacleType.Fenster));
+        Add("toolColumn", Lang.T("Säule"), () => SetObstacleTool(ObstacleType.Saeule));
+        Add("toolHeater", Lang.T("Heizkörper"), () => SetObstacleTool(ObstacleType.Heizkoerper));
+        Add("toolFurniture", Lang.T("Möbel"), () => SetObstacleTool(ObstacleType.Moebel));
+        Add("bgLoad", Lang.T("Hintergrundbild laden"), () => Pick(RequestBackground, "image/*"));
+        Add("bgEdit", Lang.T("Hintergrundbild"), AskBackground, HasBackground);
+        Add("bgScale", Lang.T("Bild nach Maß skalieren"), AskScaleBackground, HasBackground);
+        Add("bgToggle", Lang.T("Hintergrundbild zeigen"), () => _session.EditBackground(b => b.Visible = !b.Visible), HasBackground);
+        Add("toolDetector", Lang.T("Rückmelder"), () =>
+        {
+            if (_session.Tool == CanvasTool.Detector) { SetTool(CanvasTool.Select); return; }
+            Dialogs.AskDetectorType(this, _session.DetectorType, t => { _session.DetectorType = t; SetTool(CanvasTool.Detector); });
+        });
+    }
+
+    private void SetObstacleTool(ObstacleType type)
+    {
+        if (_session.Tool == CanvasTool.Obstacle && _session.ObstacleType == type) { SetTool(CanvasTool.Select); return; }
+        _session.ObstacleType = type;
+        if (_session.Tool == CanvasTool.Obstacle) { UpdateToolBar(); RefreshActions(); return; }
+        SetTool(CanvasTool.Obstacle);
+    }
+
+    private void AskBackground()
+    {
+        if (_session.Plan.Background is not { } bg) return;
+        Dialogs.AskBackground(this, bg,
+            (x, y, w, opacity, visible) => _session.EditBackground(b => { b.X = x; b.Y = y; b.Width = w; b.Opacity = opacity; b.Visible = visible; }),
+            () => _session.SetBackground(null), () => Pick(RequestBackground, "image/*"));
+    }
+
+    private void AskScaleBackground()
+    {
+        var dim = _session.SelectedObject is { } id ? _session.Plan.Scenery.FirstOrDefault(s => s.Id == id && s.Kind == SceneryKind.Dimension) : null;
+        if (dim is null || dim.Points.Count != 2)
+        {
+            Dialogs.Message(this, Lang.T("Nach Maß skalieren"), Lang.T("So geht’s: Mit dem Werkzeug „Maß“ (Start › Beschriften) eine Linie über eine Strecke im Bild ziehen, deren echte Länge du kennst – z. B. eine Wand oder ein Gleis. Die Maßlinie anklicken und dann hier die echte Länge eingeben."));
+            return;
+        }
+        var measured = Math.Sqrt(Math.Pow(dim.Points[1].X - dim.Points[0].X, 2) + Math.Pow(dim.Points[1].Y - dim.Points[0].Y, 2));
+        Dialogs.AskScaleBackground(this, measured, len => _session.ScaleBackground(len));
+    }
+
+    /// <summary>Plan als PNG: alles im Blick, längste Seite etwa 4000 Pixel.</summary>
+    private void ExportPng()
+    {
+        var plan = _session.Plan;
+        var (x0, y0, x1, y1) = plan.Bounds();
+        const double margin = 40;
+        double w = x1 - x0 + 2 * margin, h = y1 - y0 + 2 * margin;
+        var scale = (float)Math.Min(4, 4000 / Math.Max(w, h));
+        int pw = (int)Math.Ceiling(w * scale), ph = (int)Math.Ceiling(h * scale);
+        using var bitmap = Bitmap.CreateBitmap(pw, ph, Bitmap.Config.Argb8888!)!;
+        using (var c = new Canvas(bitmap))
+        {
+            c.DrawColor(Color.White);
+            c.Scale(scale, scale);
+            c.Translate((float)(margin - x0), (float)(margin - y0));
+            new PlanPainter(plan, new HashSet<int>(), false).Draw(c, scale, _session.ShowScenery, new HashSet<int>(), null);
+        }
+        using var stream = new MemoryStream();
+        bitmap.Compress(Bitmap.CompressFormat.Png!, 100, stream);
+        Export(stream.ToArray(), "image/png", $"{SafeName}.png");
+    }
+
+    /// <summary>Bild als Hintergrund übernehmen; große Bilder werden auf 2400 Pixel verkleinert und als JPEG gespeichert.</summary>
+    private void LoadBackground(byte[] bytes)
+    {
+        if (ImageInfo.Read(bytes) is not { Width: > 0, Height: > 0 } info)
+        {
+            Dialogs.Message(this, Lang.T("Hintergrundbild"), Lang.T("Das Bild ließ sich nicht lesen (PNG, JPEG, GIF oder WebP)."));
+            return;
+        }
+        const int max = 2400;
+        var mime = info.Mime;
+        int pw = info.Width, ph = info.Height;
+        if (Math.Max(pw, ph) > max || bytes.Length > 3_000_000)
+        {
+            var sample = 1;
+            while (Math.Max(pw, ph) / (sample * 2) >= max) sample *= 2;
+            using var decoded = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length, new BitmapFactory.Options { InSampleSize = sample });
+            if (decoded is null) { Dialogs.Message(this, Lang.T("Hintergrundbild"), Lang.T("Das Bild ließ sich nicht lesen (PNG, JPEG, GIF oder WebP).")); return; }
+            var f = Math.Min(1, (double)max / Math.Max(decoded.Width, decoded.Height));
+            using var scaled = Bitmap.CreateScaledBitmap(decoded, Math.Max(1, (int)(decoded.Width * f)), Math.Max(1, (int)(decoded.Height * f)), true)!;
+            using var ms = new MemoryStream();
+            scaled.Compress(Bitmap.CompressFormat.Jpeg!, 85, ms);
+            bytes = ms.ToArray();
+            mime = "image/jpeg";
+            pw = scaled.Width;
+            ph = scaled.Height;
+        }
+        var old = _session.Plan.Background;
+        _session.SetBackground(new PlanBackground
+        {
+            Data = Convert.ToBase64String(bytes), Mime = mime, PixelWidth = pw, PixelHeight = ph,
+            X = old?.X ?? 0, Y = old?.Y ?? 0, Width = old?.Width ?? _session.Plan.BoardWidth, Opacity = old?.Opacity ?? 0.5,
+        });
+        _canvas.Fit();
     }
 
     private void _canvas_Fit() => _canvas.Fit();
@@ -366,21 +484,27 @@ public sealed class MainActivity : Activity
     [
         (Lang.T("Start"), [(Lang.T("Eigenschaften"), "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), (Lang.T("Frei drehen…"), "rotFree", false), (Lang.T("Spiegeln"), "flip", false), (Lang.T("Anschluss wechseln"), "swap", false),
                    (Lang.T("Duplizieren"), "duplicate", false), (Lang.T("Kopieren"), "copy", false), (Lang.T("Einfügen"), "paste", false), (Lang.T("Löschen"), "delete", false), (Lang.T("Alles wählen"), "selectAll", false), (Lang.T("Auswahl aufheben"), "selectNone", false),
-                   (Lang.T("Nächstes Gleisende"), "nextEnd", false), ("Text", "toolLabel", true), (Lang.T("Maß"), "toolDimension", true), (Lang.T("Stückliste"), "bom", false), (Lang.T("Planprüfung"), "check", false)]),
+                   (Lang.T("Nächstes Gleisende"), "nextEnd", false), (Lang.T("Sperren"), "lock", false), (Lang.T("Gruppieren"), "group", false), (Lang.T("Gruppe auflösen"), "ungroup", false),
+                   (Lang.T("Links ausrichten"), "alignL", false), (Lang.T("Rechts ausrichten"), "alignR", false), (Lang.T("Oben ausrichten"), "alignT", false), (Lang.T("Unten ausrichten"), "alignB", false),
+                   (Lang.T("Mittig waagrecht"), "alignCX", false), (Lang.T("Mittig senkrecht"), "alignCY", false),
+                   ("Text", "toolLabel", true), (Lang.T("Maß"), "toolDimension", true), (Lang.T("Stückliste"), "bom", false), (Lang.T("Planprüfung"), "check", false)]),
         (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
-                    (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Ebenen…"), "levels", false),
-                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
+                    (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
+                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
         (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true),
+        (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
+                  (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
+                  (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
+        (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
                      (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), (Lang.T("Ebenen…"), "levels", false), (Lang.T("Ansicht ↺ 15°"), "viewRotL", false), (Lang.T("Ansicht ↻ 15°"), "viewRotR", false),
                      (Lang.T("Gerade ausrichten"), "viewReset", false), (Lang.T("Ansicht drehen…"), "viewAngle", false), (Lang.T("Design und Schrift…"), "appearance", false)]),
         ("3D", [(Lang.T("3D-Ansicht"), "view3d", false), (Lang.T("Mitfahren"), "ride", false), (Lang.T("Abendstimmung"), "daytime", false)]),
         (Lang.T("Datei"), [(Lang.T("Neu…"), "new", false), (Lang.T("Öffnen…"), "open", false), (Lang.T("Speichern…"), "save", false), (Lang.T("Beispielanlage"), "sample", false),
-                   (Lang.T("Stückliste als CSV"), "csv", false), (Lang.T("Plan als SVG"), "svg", false), (Lang.T("Drucken (PDF, auch 1:1)…"), "pdf", false), (Lang.T("Lizenz…"), "license", false), (Lang.T("Darstellung…"), "appearance", false), ("Sprache / Language", "language", false), (Lang.T("Bedienung"), "help", false), (Lang.T("Updates…"), "update", false), (Lang.T("Über…"), "about", false)]),
+                   (Lang.T("Stückliste als CSV"), "csv", false), (Lang.T("Plan als SVG"), "svg", false), (Lang.T("Plan als PNG"), "png", false), (Lang.T("Plan als DXF"), "dxf", false), (Lang.T("Drucken (PDF, auch 1:1)…"), "pdf", false), (Lang.T("Lizenz…"), "license", false), (Lang.T("Darstellung…"), "appearance", false), ("Sprache / Language", "language", false), (Lang.T("Bedienung"), "help", false), (Lang.T("Updates…"), "update", false), (Lang.T("Über…"), "about", false)]),
     ];
 
     private void BuildUi()
@@ -570,6 +694,14 @@ public sealed class MainActivity : Activity
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
+        "toolRoom" => _session.Tool == CanvasTool.Room,
+        "toolDetector" => _session.Tool == CanvasTool.Detector,
+        "toolDoor" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Tuer,
+        "toolWindow" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Fenster,
+        "toolColumn" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Saeule,
+        "toolHeater" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Heizkoerper,
+        "toolFurniture" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Moebel,
+        "bgToggle" => _session.Plan.Background is { Visible: true },
         _ => false,
     };
 
@@ -638,7 +770,7 @@ public sealed class MainActivity : Activity
     {
         var tool = _session.Tool;
         _toolBar.Visibility = tool == CanvasTool.Select ? ViewStates.Gone : ViewStates.Visible;
-        var polygon = tool is CanvasTool.Terrain or CanvasTool.Water;
+        var polygon = tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room;
         _toolFinish.Visibility = _toolBack.Visibility = polygon ? ViewStates.Visible : ViewStates.Gone;
         _toolFinish.Enabled = _canvas.PolygonPoints >= 3;
         _toolBack.Enabled = _canvas.PolygonPoints > 0;
@@ -655,6 +787,9 @@ public sealed class MainActivity : Activity
             CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis tippen."),
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),
+            CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
+            CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: antippen oder Rechteck aufziehen."),
+            CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis tippen (Tippen auf einen Rückmelder entfernt ihn)."),
             _ => "",
         };
     }
@@ -830,11 +965,11 @@ public sealed class MainActivity : Activity
 
     // ---------- Dateien ----------
 
-    private void Pick(int request)
+    private void Pick(int request, string type = "*/*")
     {
         var intent = new Intent(Intent.ActionOpenDocument);
         intent.AddCategory(Intent.CategoryOpenable);
-        intent.SetType("*/*");
+        intent.SetType(type);
         StartActivityForResult(intent, request);
     }
 
@@ -879,6 +1014,12 @@ public sealed class MainActivity : Activity
                     break;
                 case RequestLicense:
                     InstallLicense(ReadText(uri));
+                    break;
+                case RequestBackground:
+                    LoadBackground(ReadBytes(uri));
+                    break;
+                case RequestPrices:
+                    if (_session.ImportPrices(ReadText(uri)) > 0) Run("bom");
                     break;
                 case RequestExport when _pendingExport is { } export:
                     WriteBytes(uri, export.Data);
@@ -929,6 +1070,14 @@ public sealed class MainActivity : Activity
         using var stream = ContentResolver!.OpenInputStream(uri) ?? throw new IOException(Lang.T("Datei nicht lesbar."));
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    private byte[] ReadBytes(Android.Net.Uri uri)
+    {
+        using var stream = ContentResolver!.OpenInputStream(uri) ?? throw new IOException(Lang.T("Datei nicht lesbar."));
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
     }
 
     private void WriteBytes(Android.Net.Uri uri, byte[] data)

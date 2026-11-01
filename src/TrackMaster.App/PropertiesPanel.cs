@@ -181,7 +181,19 @@ public sealed class PropertiesPanel : DockPanel
             plan.VehicleLength = Math.Abs(v - VehicleDefaults.Length(gauge)) < 0.5 ? 0 : Math.Clamp(v, 20, 5000), 0);
         vehicle.ToolTip = Lang.T("Länge über Puffer des längsten Wagens oder der längsten Lok. Die Planprüfung meldet damit zu enge Bögen, ") +
                           Lang.T("S-Bögen ohne Zwischengerade und wie weit die Wagen im Bogen ausschwenken.");
-        _body.Children.Add(Theme.Field(Lang.T("Längstes Fahrzeug (mm)"), vehicle));
+        var train = new TextBox { Text = plan.TrainLength > 0 ? Fmt.Num(plan.TrainLength, 0) : "" };
+        void CommitTrain()
+        {
+            var t = train.Text.Trim();
+            double? v = t.Length == 0 ? 0 : Fmt.Parse(t);
+            if (v is null || v < 0) { _session.Say(Lang.T("Bitte eine Zahl eingeben.")); train.Text = plan.TrainLength > 0 ? Fmt.Num(plan.TrainLength, 0) : ""; return; }
+            var value = Math.Min(v.Value, 100000);
+            if (Math.Abs(value - plan.TrainLength) > 0.01) _session.Edit(() => plan.TrainLength = value);
+        }
+        train.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitTrain(); Keyboard.ClearFocus(); e.Handled = true; } };
+        train.LostKeyboardFocus += (_, _) => { CommitTrain(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
+        train.ToolTip = Lang.T("Für die Nutzlänge der Gleise; leer = nicht prüfen");
+        _body.Children.Add(Columns(2, Theme.Field(Lang.T("Längstes Fahrzeug (mm)"), vehicle), Theme.Field(Lang.T("Längster Zug (mm)"), train)));
 
         Section(Lang.T("Übersicht"));
         Rows((Lang.T("Spur"), $"{gauge.Id} · {gauge.Scale} · {Fmt.Num(gauge.TrackWidth)} mm", null),
@@ -191,7 +203,7 @@ public sealed class PropertiesPanel : DockPanel
              (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
              (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Theme.DangerBrush : null),
              (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Signale"), null),
+             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
              (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Theme.OpenEndBrush : Theme.SuccessBrush));
         _body.Children.Add(Buttons(Cmd(Lang.T("Stückliste"), "List", "bom"), Cmd(Lang.T("Planprüfung"), "Shield", "check")));
         _body.Children.Add(new Border
@@ -264,6 +276,13 @@ public sealed class PropertiesPanel : DockPanel
         var tunnel = new CheckBox { Content = Lang.T("liegt im Tunnel"), IsChecked = p.Tunnel, Margin = new Thickness(0, 0, 0, 8) };
         tunnel.Click += (_, _) => _session.Edit(() => p.Tunnel = tunnel.IsChecked == true);
         _body.Children.Add(tunnel);
+        var locked = new CheckBox { Content = Lang.T("gesperrt (nicht verschieben, drehen oder löschen)"), IsChecked = p.Locked, Margin = new Thickness(0, 0, 0, 8) };
+        locked.Click += (_, _) => _session.Edit(() => p.Locked = locked.IsChecked == true);
+        _body.Children.Add(locked);
+        if (UsableLength.For(_session.Plan, p.Id, _session.Connections) is { } run)
+            Rows((Lang.T("Nutzlänge"), UsableLength.Describe(_session.Plan, run), _session.Plan.TrainLength > 0 && !run.Closed && run.Length < _session.Plan.TrainLength ? Theme.DangerBrush : null));
+        if (p.Group > 0)
+            Rows((Lang.T("Gruppe"), Lang.F($"{_session.Plan.Pieces.Count(x => x.Group == p.Group)} Gleise"), null));
         if (d.Drives > 0)
         {
             Section(Lang.T("Digital"));
@@ -288,6 +307,16 @@ public sealed class PropertiesPanel : DockPanel
         Rows((Lang.T("Gleisstücke"), sel.Count.ToString(), null), (Lang.T("Gleislänge"), $"{Fmt.Num(sel.Sum(p => p.Def.TrackLength) / 1000, 2)} m", null));
         _body.Children.Add(Buttons(Cmd(Lang.T("15° links"), "RotateLeft", "rotL"), Cmd(Lang.T("15° rechts"), "RotateRight", "rotR"), Cmd(Lang.T("Duplizieren"), "Copy", "duplicate"), Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
         _body.Children.Add(Buttons(Cmd(Lang.T("Steigung…"), "Slope", "gradient"), Cmd(sel.All(p => p.Tunnel) ? Lang.T("Tunnel aufheben") : Lang.T("Als Tunnel"), "Tunnel", "tunnel")));
+        var grouped = sel.All(p => p.Group > 0 && p.Group == sel[0].Group);
+        _body.Children.Add(Buttons(Cmd(sel.All(p => p.Locked) ? Lang.T("Entsperren") : Lang.T("Sperren"), "Lock", "lock"),
+            Cmd(grouped ? Lang.T("Gruppe auflösen") : Lang.T("Gruppieren"), grouped ? "Ungroup" : "Group", grouped ? "ungroup" : "group"),
+            Cmd(Lang.T("Parallelgleis…"), "Parallel", "parallel"), Cmd(Lang.T("Höhenprofil"), "Profile", "profile")));
+        if (sel.Any(p => p.Locked))
+            _body.Children.Add(new Border
+            {
+                Background = Theme.WarningBackBrush, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 6, 6, 0),
+                Child = Theme.Label(Lang.F($"{sel.Count(p => p.Locked)} der gewählten Gleise sind gesperrt."), 11, false, Theme.WarningTextBrush),
+            });
         _body.Children.Add(new Border
         {
             Background = Theme.TipBackBrush, CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 8, 6, 0),
@@ -340,6 +369,24 @@ public sealed class PropertiesPanel : DockPanel
                             Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 5, 2000), 0))));
                         _body.Children.Add(Columns(3, Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
                         break;
+                    case SceneryKind.Room:
+                        _body.Children.Add(Columns(2, Theme.Field(Lang.T("Wandstärke (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 0, 1000), 0))));
+                        Rows((Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Grundfläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
+                        break;
+                    case SceneryKind.Obstacle:
+                        var kind = new ComboBox { Height = 28 };
+                        foreach (var t in Enum.GetValues<ObstacleType>()) kind.Items.Add(new ComboBoxItem { Content = SceneryItem.ObstacleName(t), Tag = t, IsSelected = t == s.Obstacle });
+                        kind.SelectionChanged += (_, _) => { if (kind.SelectedItem is ComboBoxItem { Tag: ObstacleType t } && t != s.Obstacle) _session.Edit(() => s.Variant = (int)t); };
+                        _body.Children.Add(Theme.Field(Lang.T("Art"), kind));
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 5, 20000), 0)),
+                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 5, 20000), 0))));
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0, 5000), 0)),
+                            Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        if (s.Obstacle == ObstacleType.Tuer)
+                            _body.Children.Add(Tip(Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")));
+                        break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Durchmesser (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
@@ -369,6 +416,31 @@ public sealed class PropertiesPanel : DockPanel
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
                 Rows((Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
                      (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null));
+                _body.Children.Add(Buttons(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
+                break;
+
+            case Detector det:
+                _headerRight.Text = Lang.T("Rückmelder");
+                var dname = new TextBox { Text = det.Name };
+                void CommitDetectorName()
+                {
+                    var n = dname.Text.Trim();
+                    if (n == det.Name) return;
+                    _session.Edit(() => det.Name = n);
+                }
+                dname.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitDetectorName(); Keyboard.ClearFocus(); } };
+                dname.LostKeyboardFocus += (_, _) => { CommitDetectorName(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
+                _body.Children.Add(Theme.Field(Lang.T("Name"), dname));
+                var dtype = new ComboBox { Height = 28 };
+                foreach (var t in Enum.GetValues<DetectorType>()) dtype.Items.Add(new ComboBoxItem { Content = Detector.TypeName(t), Tag = t, IsSelected = t == det.Type });
+                dtype.SelectionChanged += (_, _) => { if (dtype.SelectedItem is ComboBoxItem { Tag: DetectorType t } && t != det.Type) _session.Edit(() => det.Type = t); };
+                _body.Children.Add(Theme.Field(Lang.T("Art"), dtype));
+                _body.Children.Add(Theme.Field(Lang.T("Kontakt am Rückmeldemodul (0 = keiner)"), NumberBox(det.Address ?? 0, v => det.Address = v >= 1 ? (int)Math.Round(Math.Min(v, 4096)) : null, 0)));
+                var drows = new List<(string, string, System.Windows.Media.Brush?)>();
+                if (det.Address is { } da) drows.Add((Lang.T("Modul / Eingang"), Lang.F($"{(da - 1) / Detector.InputsPerModule + 1} / {(da - 1) % Detector.InputsPerModule + 1}"), null));
+                drows.Add((Lang.T("Gleis"), $"{plan.Find(det.PieceId)?.Def.Number} (Nr. {det.PieceId})", null));
+                if (UsableLength.For(plan, det.PieceId, _session.Connections) is { } drun) drows.Add((Lang.T("Meldeabschnitt"), $"{Fmt.Num(drun.Length, 0)} mm", null));
+                Rows([.. drows]);
                 _body.Children.Add(Buttons(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
                 break;
 

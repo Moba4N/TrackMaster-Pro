@@ -69,7 +69,7 @@
             </div>
             @if (_session.Tool is not (CanvasTool.Select))
             {
-                var polygon = _session.Tool is CanvasTool.Terrain or CanvasTool.Water;
+                var polygon = _session.Tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room;
                 <div class="toolbar">
                     <span class="tool-text">@ToolText</span>
                     @if (polygon)
@@ -161,11 +161,11 @@
 
     @if (_dialog is { } dialog)
     {
-        <div class="modal-back" @onclick="CloseDialog"></div>
+        <div class="modal-back" @onclick="DismissDialog"></div>
         <div class="modal @(dialog.Wide ? "wide" : "")" role="dialog" aria-modal="true" aria-label="@dialog.Title">
             <div class="modal-head">
                 <span class="modal-title">@dialog.Title</span>
-                <button class="icon-btn" title="@Lang.T("Schließen")" @onclick="CloseDialog">@((MarkupString)Icons.Svg("Close", 18))</button>
+                <button class="icon-btn" title="@Lang.T("Schließen")" @onclick="DismissDialog">@((MarkupString)Icons.Svg("Close", 18))</button>
             </div>
             <div class="modal-body">
                 @dialog.Body
@@ -198,7 +198,9 @@
             new(Lang.T("Plan"), [new(Lang.T("Neu…"), "New", "new", true), new(Lang.T("Öffnen…"), "Open", "open", true, Lang.T("Plan aus einer Datei laden (Strg+O).")),
                 new(Lang.T("Speichern"), "Save", "save", true, Lang.T("Plan als Datei herunterladen (Strg+S). In der Basisversion bis 50 Gleise.")), new(Lang.T("Beispielanlage"), "Template", "sample", false)]),
             new(Lang.T("Ausgeben"), [new(Lang.T("Drucken…"), "Print", "print", true, Lang.T("Übersicht oder Bauvorlage 1:1 drucken bzw. als PDF speichern (Strg+P).")),
-                new(Lang.T("Stückliste…"), "List", "bom", false), new(Lang.T("Stückliste als CSV"), "Csv", "csv", false), new(Lang.T("Plan als SVG (1:1)"), "Image", "svg", false)]),
+                new(Lang.T("Stückliste…"), "List", "bom", false), new(Lang.T("Stückliste als CSV"), "Csv", "csv", false), new(Lang.T("Plan als SVG (1:1)"), "Image", "svg", false),
+                new(Lang.T("Plan als PNG"), "Image", "png", false, Lang.T("Bild des ganzen Plans, z. B. für Foren und E-Mails.")),
+                new(Lang.T("Plan als DXF (CAD)"), "Dxf", "dxf", false, Lang.T("Für CAD-Programme, Fräse und Laser: Platte, Gleisachsen, Schienen und Raum im Maßstab 1:1."))]),
             new(Lang.T("Programm"), [new(Lang.T("Lizenz…"), "Shield", "license", true, Lang.T("Basis oder Pro, Lizenz einspielen.")), new(Lang.T("Darstellung…"), "Palette", "appearance", false),
                 new("Sprache / Language…", "Language", "language", false), new(Lang.T("Bedienung"), "Help", "help", false, "F1"), new(Lang.T("Über…"), "Info", "about", false)]),
         ]),
@@ -210,6 +212,13 @@
                 new(Lang.T("Frei drehen…"), "RotateFree", "rotFree", false), new(Lang.T("Spiegeln"), "Mirror", "flip", false, "F"),
                 new(Lang.T("Anschluss wechseln"), "Swap", "swap", false, "A"), new(Lang.T("Duplizieren"), "Copy", "duplicate", false, Lang.T("Strg+D")),
                 new(Lang.T("Kopieren"), "Copy", "copy", false, Lang.T("Strg+C")), new(Lang.T("Einfügen"), "Paste", "paste", false, Lang.T("Strg+V")), new(Lang.T("Löschen"), "Delete", "delete", false, Lang.T("Entf"))]),
+            new(Lang.T("Anordnen"), [new(Lang.T("Sperren"), "Lock", "lock", true, Lang.T("Gewählte Gleise sperren bzw. entsperren: Gesperrte Gleise lassen sich nicht verschieben, drehen oder löschen.")),
+                new(Lang.T("Gruppieren"), "Group", "group", false, Lang.T("Gewählte Gleise zu einer Gruppe zusammenfassen; ein Klick wählt dann die ganze Gruppe.")),
+                new(Lang.T("Gruppe auflösen"), "Ungroup", "ungroup", false),
+                new(Lang.T("Links ausrichten"), "AlignLeft", "alignL", false, Lang.T("Getrennte Gleisgruppen an der linken Kante ausrichten; verbundene Gleise bleiben zusammen.")),
+                new(Lang.T("Rechts ausrichten"), "AlignRight", "alignR", false), new(Lang.T("Oben ausrichten"), "AlignTop", "alignT", false),
+                new(Lang.T("Unten ausrichten"), "AlignBottom", "alignB", false), new(Lang.T("Mittig waagrecht"), "AlignCenterH", "alignCX", false),
+                new(Lang.T("Mittig senkrecht"), "AlignCenterV", "alignCY", false)]),
             new(Lang.T("Beschriften"), [new("Text", "Text", "toolLabel", true), new(Lang.T("Maß"), "Ruler", "toolDimension", true)]),
             new(Lang.T("Auswahl"), [new(Lang.T("Alles auswählen"), "SelectAll", "selectAll", false, Lang.T("Strg+A")), new(Lang.T("Auswahl aufheben"), "SelectNone", "selectNone", false, Lang.T("Esc")),
                 new(Lang.T("Nächstes Gleisende"), "Connector", "nextEnd", false, "E")]),
@@ -221,14 +230,16 @@
             new(Lang.T("Bibliothek"), [new(Lang.T("Gleis suchen"), "Search", "search", true, Lang.T("Springt in das Suchfeld der Gleisbibliothek (Strg+F)."))]),
             new(Lang.T("Verlegen"), [new(Lang.T("Gerade"), "Straight", "straight", true, Lang.T("Gerade des gewählten Systems am aktiven Gleisende ansetzen.")), new(Lang.T("Bogen"), "Curve", "curve", true),
                 new(Lang.T("Weiche links"), "SwitchLeft", "switchL", true), new(Lang.T("Weiche rechts"), "SwitchRight", "switchR", true),
-                new(Lang.T("Prellbock"), "Buffer", "buffer", false), new(Lang.T("Kreuzung"), "Crossing", "crossing", false), new(Lang.T("Flexgleis…"), "Flex", "flex", false)]),
+                new(Lang.T("Prellbock"), "Buffer", "buffer", false), new(Lang.T("Kreuzung"), "Crossing", "crossing", false), new(Lang.T("Flexgleis…"), "Flex", "flex", false),
+                new(Lang.T("Parallelgleis…"), "Parallel", "parallel", false, Lang.T("Flexgleis im festen Abstand neben die gewählten Gleise legen, z. B. für eine zweigleisige Strecke."))]),
             new(Lang.T("Flexgleis"), [new(Lang.T("Flexgleis ziehen"), "Flex", "toolFlex", true, Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit.")),
                 new(Lang.T("Lücke schließen"), "Connector", "flexConnect", true, Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))]),
             new(Lang.T("Ebenen"), [new(Lang.T("Ebenen…"), "Layers", "levels", true, Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))]),
             new(Lang.T("Höhe"), [new(Lang.T("Steigung…"), "Slope", "gradient", true, Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
                 new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
-                new(Lang.T("Trasse…"), "Ramp", "rampCut", true, Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")), new("Tunnel", "Tunnel", "tunnel", false)]),
+                new(Lang.T("Trasse…"), "Ramp", "rampCut", true, Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")), new("Tunnel", "Tunnel", "tunnel", false),
+                new(Lang.T("Höhenprofil"), "Profile", "profile", false, Lang.T("Höhenverlauf der gewählten Gleise als Diagramm, mit Steigung je Gleis."))]),
         ]),
         new(Lang.T("Gelände"),
         [
@@ -241,12 +252,25 @@
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Gelände zeigen"), "Terrain", "scenery", false)]),
         ]),
+        new(Lang.T("Raum"),
+        [
+            new(Lang.T("Raum"), [new(Lang.T("Raum…"), "Room", "roomRect", true, Lang.T("Rechteckigen Raum um die Anlage anlegen: Innenmaße, Lage und Wandstärke.")),
+                new(Lang.T("Raum zeichnen"), "Room", "toolRoom", true, Lang.T("Raum mit beliebigem Grundriss: Ecken der Wand-Innenkante anklicken."))]),
+            new(Lang.T("Raumelemente"), [new(Lang.T("Tür"), "Door", "toolDoor", true, Lang.T("Tür mit Schwenkbereich – die Planprüfung meldet, wenn die Platte im Weg ist.")),
+                new(Lang.T("Fenster"), "Window", "toolWindow", false), new(Lang.T("Säule"), "Column", "toolColumn", false),
+                new(Lang.T("Heizkörper"), "Heater", "toolHeater", false), new(Lang.T("Möbel"), "Furniture", "toolFurniture", false)]),
+            new(Lang.T("Hintergrundbild"), [new(Lang.T("Bild laden…"), "Image", "bgLoad", true, Lang.T("Eingescannten Gleisplan, Raumskizze oder Foto unter den Plan legen.")),
+                new(Lang.T("Bild einstellen…"), "Resize", "bgEdit", false, Lang.T("Lage, Breite und Deckkraft des Bildes.")),
+                new(Lang.T("Nach Maß skalieren…"), "Ruler", "bgScale", false, Lang.T("Erst eine Maßlinie über eine bekannte Strecke im Bild ziehen und wählen, dann die echte Länge eingeben.")),
+                new(Lang.T("Bild zeigen"), "Image", "bgToggle", false)]),
+        ]),
         new(Lang.T("Elektrik"),
         [
             new(Lang.T("Stromversorgung"), [new(Lang.T("Einspeisung"), "Bolt", "toolFeeder", true, Lang.T("Gleis an einen Stromkreis/Booster anschließen.")),
                 new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false), new(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", false)]),
             new(Lang.T("Digital"), [new(Lang.T("Decoder"), "Chip", "addresses", true, Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
+                new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),
         ]),
         new(Lang.T("Ansicht"),
@@ -1463,36 +1487,107 @@
 
     private void ShowBillOfMaterials()
     {
-        var plan = _session.Plan;
-        var rows = BillOfMaterials.Build(plan);
-        var extras = BillOfMaterials.Accessories(plan);
-        var stats = plan.Statistics();
-        var d = Show(Lang.T("Stückliste"), @<div class="list">
-            <div class="secondary">@Lang.F($"{plan.Name} · Spur {plan.GaugeId} · {stats.Pieces} Teile · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m Gleis")</div>
-            @if (rows.Count == 0)
-            {
-                <div>@Lang.T("Der Plan enthält noch keine Gleise.")</div>
-            }
-            <table class="table">
+        _d.Clear();
+        foreach (var r in BillOfMaterials.Costs(_session.Plan))
+        {
+            _d["p|" + r.Key] = r.Price is { } p ? Fmt.Num(p, 2).Replace(Lang.IsEnglish ? "," : ".", "") : "";
+            _d["s|" + r.Key] = r.Stock > 0 ? r.Stock.ToString() : "";
+        }
+        var d = Show(Lang.T("Stückliste"), BomBody, wide: true, keepFields: true);
+        d.Buttons.Add(new(_license.IsPro ? Lang.T("Als CSV speichern") : Lang.T("CSV (Pro)"), () => { if (ApplyCosts(false)) Run("csv"); return false; }));
+        d.Buttons.Add(new(Lang.T("Preisliste einlesen…"), () => { if (ApplyCosts(false)) _ = ImportPriceList(); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => ApplyCosts(true), true));
+        d.OnDismiss = () => ApplyCosts(true);
+    }
+
+    /// <summary>Preise und Bestand aus den Feldern übernehmen (nur wenn sich etwas geändert hat).</summary>
+    private bool ApplyCosts(bool closing)
+    {
+        var rows = BillOfMaterials.Costs(_session.Plan);
+        var changes = new List<(string Key, double? Price, int Stock)>();
+        var errors = new List<string>();
+        foreach (var r in rows)
+        {
+            var pt = D("p|" + r.Key).Trim();
+            double? price = pt.Length == 0 ? null : BillOfMaterials.ParseMoney(pt);
+            if (pt.Length > 0 && price is null) errors.Add(Lang.F($"{r.Name}: Preis bitte als Zahl eingeben."));
+            var st = D("s|" + r.Key).Trim();
+            var stock = st.Length == 0 ? 0 : int.TryParse(st, out var n) && n >= 0 ? n : -1;
+            if (stock < 0) { errors.Add(Lang.F($"{r.Name}: Bestand bitte als ganze Zahl eingeben.")); stock = r.Stock; }
+            if (price != r.Price || stock != r.Stock) changes.Add((r.Key, price, stock));
+        }
+        if (!Fail(errors)) return false;
+        if (changes.Count > 0)
+        {
+            // Unveränderte Zeilen behalten ihre Werte
+            var all = rows.Select(r => changes.FirstOrDefault(c => c.Key == r.Key) is { Key: not null } c ? c : (r.Key, r.Price, r.Stock)).ToList();
+            _session.SetCosts(all);
+        }
+        return true;
+    }
+
+    private async Task ImportPriceList()
+    {
+        var result = await Js.PickFile(".csv,.txt,text/csv,text/plain");
+        if (string.IsNullOrEmpty(result)) return;
+        var cut = result.IndexOf('\0');
+        var text = cut >= 0 ? result[(cut + 1)..] : result;
+        if (_session.ImportPrices(text) > 0)
+        {
+            CloseDialog();
+            ShowBillOfMaterials();
+        }
+        StateHasChanged();
+    }
+
+    private RenderFragment BomBody => @<div class="list">
+        @{
+            var plan = _session.Plan;
+            var rows = BillOfMaterials.Costs(plan);
+            var stats = plan.Statistics();
+            var withPrice = rows.Where(r => BillOfMaterials.ParseMoney(D("p|" + r.Key)) is not null).ToList();
+            double Price(CostRow r) => BillOfMaterials.ParseMoney(D("p|" + r.Key)) ?? 0;
+            int Stock(CostRow r) => int.TryParse(D("s|" + r.Key), out var n) && n > 0 ? n : 0;
+            var all = rows.Sum(r => Price(r) * r.Count);
+            var buy = rows.Sum(r => Price(r) * Math.Max(0, r.Count - Stock(r)));
+        }
+        <div class="secondary">@Lang.F($"{plan.Name} · Spur {plan.GaugeId} · {stats.Pieces} Teile · {Fmt.Num(stats.TrackLengthMm / 1000, 2)} m Gleis")</div>
+        @if (rows.Count == 0)
+        {
+            <div>@Lang.T("Der Plan enthält noch keine Gleise.")</div>
+        }
+        else
+        {
+            @Hint(Lang.T("Preise und eigenen Bestand eintragen: Die Liste zeigt dann, was noch zu kaufen ist und was es kostet. Die Werte werden mit dem Plan gespeichert."))
+            <table class="table bom">
+                <tr><th>@Lang.T("Anzahl")</th><th>@Lang.T("Artikel")</th><th>@Lang.T("Bestand")</th><th>@Lang.T("Zu kaufen")</th><th>@Lang.T("Preis")</th><th>@Lang.T("Summe")</th></tr>
                 @foreach (var r in rows)
                 {
-                    <tr><td class="count">@($"{r.Count}×")</td><td><div>@($"{r.Def.Number} · {r.Def.Name}")</div><div class="secondary">@($"{r.Def.Spec} · {r.Def.SystemName}")</div></td></tr>
+                    var key = r.Key;
+                    var toBuy = Math.Max(0, r.Count - Stock(r));
+                    <tr>
+                        <td class="count">@($"{r.Count}×")</td>
+                        <td><div>@(r.Article.Length > 0 ? $"{r.Article} · {r.Name}" : r.Name)</div><div class="secondary">@($"{r.Detail} · {r.System}")</div></td>
+                        <td><input class="input tiny" inputmode="numeric" placeholder="0" @bind='_d["s|" + key]' @bind:event="oninput" /></td>
+                        <td class="count @(toBuy > 0 ? "" : "ok")">@toBuy</td>
+                        <td><input class="input tiny" inputmode="decimal" placeholder="–" @bind='_d["p|" + key]' @bind:event="oninput" /></td>
+                        <td class="money">@(BillOfMaterials.ParseMoney(D("p|" + key)) is { } p ? BillOfMaterials.Money(p * toBuy) : "")</td>
+                    </tr>
                 }
             </table>
-            @if (extras.Count > 0)
+            @if (withPrice.Count > 0)
             {
-                <div class="section">@Lang.T("Zubehör")</div>
-                <table class="table">
-                    @foreach (var a in extras)
+                <dl class="rows totals">
+                    <dt>@Lang.T("Noch zu kaufen")</dt><dd class="strong">@BillOfMaterials.Money(buy)</dd>
+                    <dt>@Lang.T("Alles neu gekauft")</dt><dd>@BillOfMaterials.Money(all)</dd>
+                    @if (withPrice.Count < rows.Count)
                     {
-                        <tr><td class="count">@($"{a.Count}×")</td><td>@($"{a.Name} – {a.Detail}")</td></tr>
+                        <dt>@Lang.T("Ohne Preis")</dt><dd>@Lang.F($"{rows.Count - withPrice.Count} Artikel")</dd>
                     }
-                </table>
+                </dl>
             }
-        </div>, wide: true);
-        d.Buttons.Add(new(_license.IsPro ? Lang.T("Als CSV speichern") : Lang.T("CSV (Pro)"), () => { Run("csv"); return false; }));
-        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
-    }
+        }
+    </div>;
 
     private void ShowAddresses()
     {
@@ -1763,5 +1858,215 @@
             <div class="secondary small">@Catalog.DataNotice</div>
         </div>);
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    // ---------- Paket 1 und 2: Raum, Hintergrundbild, Parallelgleis, Höhenprofil, Rückmelder ----------
+
+    private void AskRoom()
+    {
+        var plan = _session.Plan;
+        var room = plan.Scenery.FirstOrDefault(s => s.Kind == SceneryKind.Room);
+        _d.Clear();
+        _d["w"] = N(Math.Round((plan.BoardWidth + 1200) / 100) * 100);
+        _d["d"] = N(Math.Round((plan.BoardHeight + 1200) / 100) * 100);
+        _d["x"] = N(-600);
+        _d["y"] = N(-600);
+        _d["wall"] = N(RoomPlan.DefaultWall);
+        var d = Show(Lang.T("Raum"), @<div class="form">
+            @Hint(Lang.T("Innenmaße des Raums (von Wand zu Wand). Die Lage gibt an, wo die linke obere Innenecke relativ zur Anlagenplatte liegt – negativ heißt: links bzw. oberhalb der Platte."))
+            @if (room is not null)
+            {
+                <div class="warn-box">@Lang.T("Der Plan hat schon einen Raum; es kommt ein weiterer dazu. Den alten bei Bedarf wählen und löschen.")</div>
+            }
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Breite innen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["w"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Tiefe innen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["d"]' @bind:event="oninput" /></div>
+            </div>
+            <div class="cols">
+                <div><label class="field-label">@Lang.T("Innenecke X (mm)")</label><input class="input" inputmode="decimal" @bind='_d["x"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Innenecke Y (mm)")</label><input class="input" inputmode="decimal" @bind='_d["y"]' @bind:event="oninput" /></div>
+            </div>
+            <label class="field-label">@Lang.T("Wandstärke (mm)")</label>
+            <input class="input" inputmode="decimal" @bind='_d["wall"]' @bind:event="oninput" />
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Anlegen"), () =>
+        {
+            var errors = new List<string>();
+            Read("w", Lang.T("Breite"), 300, 100000, errors, out var w);
+            Read("d", Lang.T("Tiefe"), 300, 100000, errors, out var dd);
+            Read("x", "X", -100000, 100000, errors, out var x);
+            Read("y", "Y", -100000, 100000, errors, out var y);
+            Read("wall", Lang.T("Wandstärke"), 0, 1000, errors, out var wall);
+            if (!Fail(errors)) return false;
+            _session.AddRoom(x, y, w, dd, wall);
+            _view.Fit();
+            return true;
+        }, true));
+    }
+
+    private void AskBackground()
+    {
+        if (_session.Plan.Background is not { } bg) return;
+        _d.Clear();
+        _d["x"] = N(bg.X, 1);
+        _d["y"] = N(bg.Y, 1);
+        _d["w"] = N(bg.Width, 1);
+        _d["o"] = N(bg.Opacity * 100);
+        _d["v"] = bg.Visible ? "1" : "";
+        var d = Show(Lang.T("Hintergrundbild"), @<div class="form">
+            <dl class="rows"><dt>@Lang.T("Bild")</dt><dd>@Lang.F($"{bg.PixelWidth} × {bg.PixelHeight} Pixel, {Fmt.Num(bg.Width, 0)} × {Fmt.Num(bg.Height, 0)} mm")</dd></dl>
+            <div class="cols three">
+                <div><label class="field-label">@Lang.T("Links (mm)")</label><input class="input" inputmode="decimal" @bind='_d["x"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Oben (mm)")</label><input class="input" inputmode="decimal" @bind='_d["y"]' @bind:event="oninput" /></div>
+                <div><label class="field-label">@Lang.T("Breite (mm)")</label><input class="input" inputmode="decimal" @bind='_d["w"]' @bind:event="oninput" /></div>
+            </div>
+            <label class="field-label">@Lang.T("Deckkraft (%)")</label>
+            <input class="input" inputmode="decimal" @bind='_d["o"]' @bind:event="oninput" />
+            <label class="check"><input type="checkbox" checked="@(D("v") == "1")" @onchange="@(e => _d["v"] = e.Value is true ? "1" : "")" /> @Lang.T("Bild zeigen")</label>
+            @Hint(Lang.T("Maßstab genau einstellen: Mit dem Werkzeug „Maß“ eine Linie über eine bekannte Strecke im Bild ziehen, die Linie wählen und „Nach Maß skalieren“ aufrufen."))
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Entfernen"), () => { _session.SetBackground(null); return true; }));
+        d.Buttons.Add(new(Lang.T("Anderes Bild…"), () => { CloseDialog(); _ = LoadBackground(); return false; }));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+        {
+            var errors = new List<string>();
+            Read("x", Lang.T("Links"), -100000, 100000, errors, out var x);
+            Read("y", Lang.T("Oben"), -100000, 100000, errors, out var y);
+            Read("w", Lang.T("Breite"), 10, 200000, errors, out var w);
+            Read("o", Lang.T("Deckkraft"), 5, 100, errors, out var o);
+            if (!Fail(errors)) return false;
+            var visible = D("v") == "1";
+            _session.EditBackground(b => { b.X = x; b.Y = y; b.Width = w; b.Opacity = o / 100; b.Visible = visible; });
+            return true;
+        }, true));
+    }
+
+    private void AskScaleBackground()
+    {
+        var dim = _session.SelectedObject is { } id ? _session.Plan.Scenery.FirstOrDefault(s => s.Id == id && s.Kind == SceneryKind.Dimension) : null;
+        if (dim is null || dim.Points.Count != 2)
+        {
+            Message(Lang.T("Nach Maß skalieren"), Lang.T("So geht’s: Mit dem Werkzeug „Maß“ (Start › Beschriften) eine Linie über eine Strecke im Bild ziehen, deren echte Länge du kennst – z. B. eine Wand oder ein Gleis. Die Maßlinie anklicken und dann hier die echte Länge eingeben."));
+            return;
+        }
+        var measured = Math.Sqrt(Math.Pow(dim.Points[1].X - dim.Points[0].X, 2) + Math.Pow(dim.Points[1].Y - dim.Points[0].Y, 2));
+        _d.Clear();
+        _d["len"] = N(measured);
+        var d = Show(Lang.T("Nach Maß skalieren"), @<div class="form">
+            @Hint(Lang.F($"Die gewählte Maßlinie misst im Bild jetzt {Fmt.Num(measured, 0)} mm. Wie lang ist diese Strecke in Wirklichkeit? Das Bild wird passend vergrößert oder verkleinert."))
+            <label class="field-label">@Lang.T("Echte Länge (mm)")</label>
+            <input class="input" inputmode="decimal" @bind='_d["len"]' @bind:event="oninput" />
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Skalieren"), () =>
+        {
+            var errors = new List<string>();
+            Read("len", Lang.T("Länge"), 1, 1000000, errors, out var len);
+            if (!Fail(errors)) return false;
+            _session.ScaleBackground(len);
+            return true;
+        }, true));
+    }
+
+    private void AskParallel()
+    {
+        var gauge = _session.Plan.Gauge;
+        _d.Clear();
+        _d["spacing"] = N(Helix.DefaultSpacing(gauge));
+        _d["left"] = "1";
+        var d = Show(Lang.T("Parallelgleis"), @<div class="form">
+            @Hint(Lang.T("Legt ein Flexgleis im festen Abstand neben die gewählten Gleise – Bögen bekommen den passenden größeren bzw. kleineren Radius. Die Seite gilt in Fahrtrichtung, die Kette läuft möglichst von links nach rechts."))
+            <label class="field-label">@Lang.T("Gleisabstand Mitte zu Mitte (mm)")</label>
+            <input class="input" inputmode="decimal" @bind='_d["spacing"]' @bind:event="oninput" />
+            <div class="button-row">
+                <label class="check"><input type="radio" name="side" checked="@(D("left") == "1")" @onchange="@(() => _d["left"] = "1")" /> @Lang.T("links (meist oben)")</label>
+                <label class="check"><input type="radio" name="side" checked="@(D("left") != "1")" @onchange="@(() => _d["left"] = "")" /> @Lang.T("rechts (meist unten)")</label>
+            </div>
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Anlegen"), () =>
+        {
+            var errors = new List<string>();
+            Read("spacing", Lang.T("Gleisabstand"), gauge.TrackWidth * 1.5, 2000, errors, out var spacing);
+            if (!Fail(errors)) return false;
+            return _session.AddParallel(spacing, D("left") == "1");
+        }, true));
+    }
+
+    private void ShowProfile()
+    {
+        if (_session.Profile() is not { } profile) return;
+        const int w = 640, h = 260;
+        var chart = profile.Chart(w, h);
+        var c = new Graphics.Canvas(w, h);
+        using var p = new Graphics.Paint { AntiAlias = true };
+        p.SetStyle(Graphics.Paint.Style.Stroke);
+        p.StrokeWidth = 1;
+        p.Color = Graphics.Color.Argb(0x30, 0x80, 0x80, 0x80);
+        foreach (var (y, _) in chart.HeightTicks) c.DrawLine((float)chart.Left, (float)y, (float)chart.Right, (float)y, p);
+        p.Color = Ui.TextSecondary;
+        c.DrawLine((float)chart.Left, (float)chart.Top, (float)chart.Left, (float)chart.Bottom, p);
+        c.DrawLine((float)chart.Left, (float)chart.Bottom, (float)chart.Right, (float)chart.Bottom, p);
+        var line = new Graphics.Path();
+        var fill = new Graphics.Path();
+        fill.MoveTo((float)chart.Line[0].X, (float)chart.Bottom);
+        for (var i = 0; i < chart.Line.Count; i++)
+        {
+            var (x, y) = chart.Line[i];
+            if (i == 0) line.MoveTo((float)x, (float)y); else line.LineTo((float)x, (float)y);
+            fill.LineTo((float)x, (float)y);
+        }
+        fill.LineTo((float)chart.Line[^1].X, (float)chart.Bottom);
+        fill.Close();
+        p.SetStyle(Graphics.Paint.Style.Fill);
+        p.Color = Graphics.Color.Argb(0x30, Ui.Accent.R, Ui.Accent.G, Ui.Accent.B);
+        c.DrawPath(fill, p);
+        p.SetStyle(Graphics.Paint.Style.Stroke);
+        p.Color = Ui.Accent;
+        p.StrokeWidth = 2.5f;
+        p.StrokeJoin = Graphics.Paint.Join.Round;
+        c.DrawPath(line, p);
+        p.SetStyle(Graphics.Paint.Style.Fill);
+        foreach (var (x, y) in chart.Line) c.DrawCircle((float)x, (float)y, 3, p);
+        using var t = new Graphics.Paint { AntiAlias = true, TextSize = 11, Color = Ui.TextSecondary, TextAlign = Graphics.Paint.Align.Right };
+        foreach (var (y, text) in chart.HeightTicks) c.DrawText(text, (float)chart.Left - 6, (float)y + 4, t);
+        t.TextAlign = Graphics.Paint.Align.Center;
+        foreach (var (x, text) in chart.DistanceTicks) c.DrawText(text, (float)x, (float)chart.Bottom + 16, t);
+        foreach (var g in chart.Grades)
+        {
+            t.Color = g.Steep ? Ui.Danger : Ui.Text;
+            c.DrawText(g.Text, (float)g.X, (float)g.Y, t);
+        }
+        var svg = Graphics.SvgWriter.Image(c, "profile-chart");
+        var d = Show(Lang.T("Höhenprofil"), @<div class="form">
+            <div class="secondary">@profile.Summary()</div>
+            <div class="chart">@((MarkupString)svg)</div>
+            <div class="secondary small">@Lang.T("Höhe der Schienenoberkante in mm über der Platte, entlang der gewählten Gleise. Rote Werte liegen über der empfohlenen Steigung.")</div>
+        </div>, wide: true);
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    private void AskDetectorType(Action<DetectorType> pick)
+    {
+        var d = Show(Lang.T("Rückmelder setzen"), @<div class="list">
+            @Hint(Lang.T("Art wählen, dann auf die Gleise klicken. Die Kontakte werden fortlaufend nummeriert (16 je Rückmeldemodul, z. B. s88)."))
+            @foreach (var t in Enum.GetValues<DetectorType>())
+            {
+                var type = t;
+                <button class="list-item @(t == _session.DetectorType ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(type); })">
+                    <span class="texts">
+                        <span class="strong">@Detector.TypeName(t)</span>
+                        <span class="secondary">@(t switch
+                        {
+                            DetectorType.Strom => Lang.T("Meldet ein besetztes Gleis über den Stromverbrauch (Zweileiter: eine Schiene getrennt)."),
+                            DetectorType.Kontakt => Lang.T("Meldet, wenn ein Zug über das Schaltgleis fährt (Märklin: Kontaktgleis bzw. Schaltgleis)."),
+                            _ => Lang.T("Reedkontakt im Gleis, ausgelöst durch einen Magneten unter dem Fahrzeug."),
+                        })</span>
+                    </span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
 }

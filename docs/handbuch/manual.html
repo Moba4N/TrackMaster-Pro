@@ -83,7 +83,8 @@
     <h1>TrackMaster Pro</h1>
     <div class="sub">User Manual · Version 1.4.7</div>
     <div class="what">Track planning for model railway layouts in all common gauges – with height planning, helix and
-      timber list, modules, levels and benchwork, scenery, wiring and signals, plan check and 3D view. For Windows, Android and the browser.</div>
+      timber list, modules, levels and benchwork, scenery, room planning, wiring and signals, plan check, costs and 3D view. For Windows, Android and the browser –
+with a step-by-step introduction for everyone planning for the first time.</div>
   </div>
   <div class="foot"><span>TrackMaster Pro 1.4.7 · Basic and Pro</span><span>As of November 2026</span></div>
 </section>
@@ -113,11 +114,14 @@ layout and look at the result in 3D – before you buy the first piece of rail.<
   <li><b>Timber list for the helix:</b> all cut pieces with edge allowance and saw allowance, supports, fixings and sheet requirement.</li>
   <li><b>Scenery:</b> hills and mountains, water, buildings, trees and tunnels.</li>
   <li><b>Wiring and digital:</b> feeders, isolating joints, power sections, reverse loop detection, light signals with
-    prototypical aspects, decoder addresses, routes and a wiring plan.</li>
-  <li><b>Plan check:</b> track spacing, clearance heights, baseboard edge, gradients, scenery, open track ends and checks for long vehicles.</li>
+    prototypical aspects, detectors, decoder addresses, routes and a wiring plan.</li>
+  <li><b>Room:</b> the room with walls, doors, windows, radiators and furniture around the layout – the check reports aisles that are too narrow and blocked doors.</li>
+  <li><b>Background image:</b> put a floor plan, sketch or old track plan under the plan and scale it exactly with a dimension line.</li>
+  <li><b>Help with laying track:</b> parallel track at a fixed spacing, height profile as a chart, locking, grouping and aligning tracks, usable length of sidings.</li>
+  <li><b>Plan check:</b> track spacing, clearance heights, baseboard edge, gradients, scenery, room, usable lengths, open track ends and checks for long vehicles.</li>
   <li><b>3D view:</b> the layout from every side and from below, with benchwork and embankments, a cab ride, a running train and light according to the time of day.</li>
   <li><b>Your way of working:</b> view rotatable to any angle, five designs, seven fonts in four sizes, German or English interface.</li>
-  <li><b>Results</b> <span class="badge">PRO</span> saving large plans (more than 50 tracks), parts list, helix timber list, rib construction, roadbeds, printing and exports.</li>
+  <li><b>Results</b> <span class="badge">PRO</span> saving large plans (more than 50 tracks), parts list with prices and your own stock, helix timber list, rib construction, roadbeds, printing and exports (SVG, PNG, DXF).</li>
 </ul>
 
 <h2 id="k1-2">Basic and Pro</h2>
@@ -132,16 +136,20 @@ layout and look at the result in 3D – before you buy the first piece of rail.<
   <tr><td>Terrain, water, buildings, vegetation, tunnels</td><td>Helix timber list with all cut pieces, also as SVG</td></tr>
   <tr><td>Wiring: feeders, isolating joints, signals, decoders, routes, wiring plan</td><td>Printing the track plan, also as a 1:1 building template</td></tr>
   <tr><td>3D view with cab ride, train and time of day, plan and wiring check</td><td>Export as SVG at 1:1, wiring plan as text, export for control software</td></tr>
+  <tr><td>Room with doors, windows and furniture, background image</td><td>Parts list with prices, stock, “to buy” and price list import</td></tr>
+  <tr><td>Parallel track, height profile, lock, group, align, detectors</td><td>Export as PNG image and as DXF drawing for CAD programs</td></tr>
   <tr><td>Opening track plans, saving plans with up to 50 tracks</td><td></td></tr>
 </table>
 <p>Pro features are marked in the program: in the tooltip as “Pro feature”, in the Android app with a padlock.
 If you choose a Pro feature in the Basic edition, a note explains what Pro offers and takes you straight to the licence dialog if you wish.</p>
 
 <h2 id="k1-3">About this manual</h2>
+<div class="tip"><b>New to this?</b>Then start with chapter <a href="#ke">4</a> “First steps for beginners”. It explains the basic terms
+and leads you in ten steps to your first layout. You can look up the other chapters afterwards whenever you need a feature.</div>
 <p>This manual describes the Windows version. The Android app and the web version work the same way; what is different there – mainly
-touch operation – is described in chapter <a href="#k13">14</a>, the web version in chapter <a href="#k2">2</a>. Ribbon commands are written as
+touch operation – is described in chapter <a href="#k13">16</a>, the web version in chapter <a href="#k2">2</a>. Ribbon commands are written as
 <span class="ui">Tab › Command</span>, for example <span class="ui">Tracks › Helix</span>. Keys look like this: <kbd>Ctrl</kbd>+<kbd>S</kbd>.
-The manual shows the English interface; how to switch the language is described in chapter <a href="#k4">4</a>.</p>
+The manual shows the English interface; how to switch the language is described in chapter <a href="#k4">5</a>.</p>
 <div class="tip"><b>Tip</b>Notes like this show shortcuts and proven ways of working.</div>
 <div class="warn"><b>Caution</b>Notes marked like this should be observed before building.</div>
 </section>
@@ -253,16 +261,143 @@ new plan or open another one, TrackMaster Pro asks whether the changes should be
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k4"><span class="no">4</span>The workspace</h1>
+<h1 id="ke"><span class="no">4</span>First steps for beginners</h1>
+<p class="lead">Have you never planned a model railway on a computer before? Then this chapter is for you. It explains the most important terms,
+how to use the mouse and keyboard, and leads you step by step to your first small layout. You need no previous knowledge
+and no licence – everything works in the Basic edition.</p>
+
+<h2 id="ke-1">The most important terms</h2>
+<p>A track plan is a drawing of your layout seen from above, at the correct scale. It is put together from individual <b>track pieces</b> –
+just like the real layout is built from the track you buy. You will meet these words all the time:</p>
+<figure class="half">
+<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
+  <rect x="10" y="10" width="500" height="230" rx="8" fill="#F4F0E6" stroke="#C9BFA7"/>
+  <g stroke="#3B4148" stroke-width="7" fill="none" stroke-linecap="butt">
+    <line x1="40" y1="170" x2="160" y2="170"/>
+    <line x1="164" y1="170" x2="284" y2="170"/>
+    <path d="M288 170 A 150 150 0 0 0 418 95"/>
+    <path d="M164 170 Q 224 168 280 120"/>
+  </g>
+  <g stroke="#fff" stroke-width="1" fill="none"><line x1="160" y1="163" x2="160" y2="177"/><line x1="284" y1="163" x2="284" y2="177"/></g>
+  <rect x="276" y="104" width="10" height="20" fill="#A33" transform="rotate(-48 281 114)"/>
+  <circle cx="40" cy="170" r="7" fill="#F08A00"/><circle cx="418" cy="95" r="7" fill="#F08A00"/>
+  <g fill="#1F2328">
+    <text x="62" y="200">Straight</text>
+    <text x="170" y="200">Turnout (3 ends)</text>
+    <text x="330" y="190">Curve</text>
+    <text x="240" y="98">Buffer stop</text>
+    <text x="22" y="150">open track end</text>
+    <text x="380" y="72">open track end</text>
+    <text x="300" y="232" fill="#5B6470">Baseboard (top view)</text>
+  </g>
+</svg>
+<figcaption>Straight, turnout, curve and buffer stop; orange dots are open track ends.</figcaption>
+</figure>
+<table>
+  <tr><th style="width:26%">Term</th><th>What it means</th></tr>
+  <tr><td><b>Gauge</b></td><td>The size of the model railway, for example H0 (scale 1:87, the most common), N (1:160, smaller) or Z (1:220, very small).
+    You choose the gauge at the start; it determines which tracks are available.</td></tr>
+  <tr><td><b>Track system</b></td><td>A track range from one manufacturer. Pieces of one system fit together exactly. Choose the system you want to buy
+    or already own.</td></tr>
+  <tr><td><b>Track piece</b></td><td>A single part: <b>straight</b>, <b>curve</b> (curved track), <b>turnout</b> (where the track divides),
+    <b>crossing</b> or <b>buffer stop</b> (the end of a siding).</td></tr>
+  <tr><td><b>Track end</b></td><td>Every track piece has ends where the next one connects – a straight has two, a turnout three. An end without a connection
+    is called an <b>open track end</b> and is marked orange in the plan.</td></tr>
+  <tr><td><b>Radius</b></td><td>How tight a curve is, measured from the centre of the circle to the middle of the track. Small radii save space; large ones look better and
+    long coaches run more reliably.</td></tr>
+  <tr><td><b>Baseboard</b></td><td>The surface the layout is built on – often a wooden board, for example 2 × 1 m.</td></tr>
+  <tr><td><b>Millimetres</b></td><td>All dimensions in the program are in millimetres: 1 m = 1000 mm, 1 cm = 10 mm. A board of 2 × 1 m is therefore 2000 × 1000 mm.</td></tr>
+</table>
+<p>More terms are explained in the <a href="#k16">Glossary</a> at the end of the manual.</p>
+
+<h2 id="ke-2">Mouse and keyboard – what you need</h2>
+<table>
+  <tr><th style="width:30%">Action</th><th>How to do it</th></tr>
+  <tr><td><b>Click</b></td><td>Press the <b>left</b> mouse button once briefly. This selects tracks and presses buttons.</td></tr>
+  <tr><td><b>Drag</b></td><td>Hold down the left mouse button, move the mouse, then let go. This is how you move tracks.</td></tr>
+  <tr><td><b>Move the view</b></td><td>Hold down the <b>right</b> mouse button and move the mouse – the plan moves with it.</td></tr>
+  <tr><td><b>Zoom in and out</b></td><td>Turn the <b>mouse wheel</b>. The <kbd>0</kbd> (zero) key shows the whole layout again.</td></tr>
+  <tr><td><b>Undo</b></td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> – hold down <kbd>Ctrl</kbd> and press <kbd>Z</kbd> – takes back the last step. As often as you like.</td></tr>
+  <tr><td><b>Cancel</b></td><td><kbd>Esc</kbd> (top left on the keyboard) ends a tool or closes a dialog without changes.</td></tr>
+  <tr><td><b>Delete</b></td><td>Click a track and press <kbd>Del</kbd>.</td></tr>
+</table>
+<div class="tip"><b>Don't be afraid of mistakes</b>You cannot break anything. Every step can be undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>,
+and <span class="ui">Home › History…</span> even jumps back 20 steps at once. Feel free to try everything.</div>
+
+<h2 id="ke-3">Where do I find what?</h2>
+<p>All commands are in the <b>ribbon</b> at the top. It is divided into <b>tabs</b>: <span class="ui">Home</span>, <span class="ui">Tracks</span>,
+<span class="ui">Scenery</span>, <span class="ui">Room</span>, <span class="ui">Wiring</span>, <span class="ui">View</span> and <span class="ui">3D</span>. Clicking a tab shows
+its buttons. On the far left is the <span class="ui">File</span> button with New, Open, Save and Print. When the manual says
+<span class="ui">Tracks › Gradient…</span>, it means: click the <span class="ui">Tracks</span> tab, then the <span class="ui">Gradient…</span> button.</p>
+<p>On the left is the <b>track library</b> with all track pieces, in the middle the <b>drawing area</b> with your plan and on the right the <b>properties</b>:
+they show everything about what you have just clicked. Move the mouse over a button and wait a moment – a small note
+(tooltip) explains what it does. More about the window is in chapter <a href="#k4">5</a>.</p>
+
+<h2 id="ke-4">Your first layout in 10 steps</h2>
+<p>We build a simple <b>oval</b> with a <b>siding</b> on a 2 × 1 m board in H0 gauge. It takes about a quarter of an hour.</p>
+<ol class="steps">
+  <li><b>Create a new plan.</b> Click <span class="ui">File</span> and then <span class="ui">New</span> (or press <kbd>Ctrl</kbd>+<kbd>N</kbd>).
+    The <span class="ui">New plan</span> window opens.</li>
+  <li><b>Choose gauge and baseboard.</b> Under <span class="ui">Gauge</span> choose <b>H0</b>, as the shape <b>Rectangle</b>.
+    Enter <b>2000</b> as the width and <b>1000</b> as the depth (millimetres!). Click <span class="ui">Create plan</span>.
+    An empty baseboard now lies on the drawing area.</li>
+  <li><b>Choose the track system.</b> At the top of the track library on the left, choose the track system. The list below now shows all track pieces with number and size.
+    With the buttons <span class="ui">Straight</span>, <span class="ui">Curves</span>, <span class="ui">Turnouts</span> etc. above it you see only that type.</li>
+  <li><b>Place the first curve.</b> Click <span class="ui">Curves</span> and then once on a curve with a small radius. It appears on the board.
+    Its free end is <b>orange</b>: that is where the next track goes.</li>
+  <li><b>Complete the semicircle.</b> Keep clicking the <b>same curve</b>. Each click attaches a piece to the orange end until a semicircle is formed
+    (with 30° curves that is six pieces; the angle is shown with the track in the library).</li>
+  <li><b>Attach straights.</b> Click <span class="ui">Straight</span> and two or three times on a straight. The line now continues straight ahead.</li>
+  <li><b>Build the second half.</b> Place six curves again and then as many straights as before. When the oval closes, the program connects
+    the two ends by itself. The status bar at the bottom then shows <b>Open ends: 0</b>.</li>
+  <li><b>Add a siding.</b> Click a straight in the oval and delete it with <kbd>Del</kbd>. Two orange ends appear.
+    Click one of them, then a turnout under <span class="ui">Turnouts</span> – it is inserted there. Close the gap with a straight; if it does not fit exactly, click <span class="ui">Tracks › Close gap</span>.
+    Now click the free end at the branch of the turnout, place two straights and finally a <b>buffer stop</b> under <span class="ui">Other</span>.</li>
+  <li><b>Check.</b> Press <kbd>F7</kbd> (or <span class="ui">Home › Collision check</span>). The list reports whether tracks touch, project over the edge
+    or ends are open. A click on an entry shows the spot. If the list is empty, everything is fine.</li>
+  <li><b>Look and save.</b> Click <span class="ui">3D › 3D view</span> and turn the layout with the left mouse button held down. Close the window
+    and save with <kbd>Ctrl</kbd>+<kbd>S</kbd>; enter a file name. Done – your first layout!</li>
+</ol>
+<div class="tip"><b>Tip</b>If the turnout faces the wrong way, press <kbd>A</kbd> (change connector) or <kbd>F</kbd> (mirror) –
+this turns the last track placed. If a track lies off to one side, drag it with the mouse to an orange end: it snaps on by itself.</div>
+
+<h2 id="ke-5">When something doesn't work</h2>
+<table>
+  <tr><th style="width:38%">What happens</th><th>What helps</th></tr>
+  <tr><td>The track appears in the wrong place.</td><td>First click the orange end where you want to continue, then click the track in the library.</td></tr>
+  <tr><td>I can't see my plan any more.</td><td>Press <kbd>0</kbd> – the whole layout is shown again.</td></tr>
+  <tr><td>A wrong track was placed.</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd>, or click the track and press <kbd>Del</kbd>.</td></tr>
+  <tr><td>The oval does not quite close.</td><td>Try a different straight or bridge the gap with <span class="ui">Tracks › Close gap</span> (chapter <a href="#k6">8</a>).</td></tr>
+  <tr><td>A tool “sticks”, every click places something.</td><td>Press <kbd>Esc</kbd> – after that a click only selects again.</td></tr>
+  <tr><td>A track cannot be moved.</td><td>It is locked. Untick <span class="ui">locked</span> in the properties.</td></tr>
+</table>
+
+<h2 id="ke-6">Where next?</h2>
+<p>Simply read the other chapters when you need a feature:</p>
+<ul>
+  <li>Plan an L- or U-shaped board, modules or timber benchwork: chapter <a href="#kp">7</a>.</li>
+  <li>More about tracks, flexible track, parallel tracks and aligning: chapter <a href="#k6">8</a>.</li>
+  <li>Let lines climb, build a second level or a helix: chapter <a href="#k7">9</a>.</li>
+  <li>Mountains, lakes, houses and trees: chapter <a href="#k8">10</a>. Fit the layout into your room: chapter <a href="#kr">11</a>.</li>
+  <li>Power, signals and digital control: chapter <a href="#k9">12</a>.</li>
+  <li>Shopping list with prices, printing at full size: chapter <a href="#k12">15</a>.</li>
+</ul>
+<p>The <b>sample plan</b> (<span class="ui">File › Load sample plan</span>) shows a finished layout with station, scenery and signals. Have a look at it
+and click on individual parts – the properties on the right reveal how everything is done.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k4"><span class="no">5</span>The workspace</h1>
 <figure><img src="img-en/start.png" alt=""><figcaption>The main window with the sample plan “Newtown station”.</figcaption></figure>
 <p>The main window is divided into six areas:</p>
 <table>
   <tr><th style="width:26%">Area</th><th>Purpose</th></tr>
-  <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo, Redo and History.</td></tr>
+  <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Room, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo, Redo and History.</td></tr>
   <tr><td><b>Track library</b> (left)</td><td>Choose gauge and track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
   <tr><td><b>Drawing area</b> (centre)</td><td>The track plan on the baseboard, with dimension chains, grid and the open track ends. The zoom can be set at the bottom right.</td></tr>
   <tr><td><b>Properties</b> (right)</td><td>Shows what is currently selected: the plan with baseboard dimensions and overview, a track with position, height and digital address, or an object such as a building, signal or feeder. Values can be entered directly.</td></tr>
-  <tr><td><b>Level bar</b> (bottom)</td><td>All levels of the plan with name and base height: the tick shows or hides a level, a click makes it the active level, <span class="ui">+</span> adds a new one above, <span class="ui">…</span> opens the Levels dialog (chapter <a href="#k7">8</a>).</td></tr>
+  <tr><td><b>Level bar</b> (bottom)</td><td>All levels of the plan with name and base height: the tick shows or hides a level, a click makes it the active level, <span class="ui">+</span> adds a new one above, <span class="ui">…</span> opens the Levels dialog (chapter <a href="#k7">9</a>).</td></tr>
   <tr><td><b>Status bar</b> (bottom)</td><td>Edition, gauge, number of tracks and turnouts, track length, open ends, zoom and mouse position in millimetres; plus the switches for snapping and grid.</td></tr>
 </table>
 
@@ -322,8 +457,8 @@ There are also the groups <b>Rotate</b> and <b>Appearance</b> (see above) and <s
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k5"><span class="no">5</span>Your first plan</h1>
-<p class="lead">A simple oval with a passing loop in a few steps – this is how you learn the most important moves.</p>
+<h1 id="k5"><span class="no">6</span>Creating a plan and attaching tracks</h1>
+<p class="lead">This chapter summarises the basic moves and shows all baseboard shapes. A detailed guide for getting started is in chapter <a href="#ke">4</a>.</p>
 
 <h2 id="k5-1">Creating a new plan</h2>
 <ol class="steps">
@@ -342,10 +477,10 @@ There are also the groups <b>Rotate</b> and <b>Appearance</b> (see above) and <s
   <tr><td>T and Z shape</td><td>outer dimensions, leg depth and orientation</td></tr>
   <tr><td>E and G shape</td><td>outer dimensions, leg depth and orientation; the E shape has three legs, the G shape an inward hook</td></tr>
   <tr><td>Ring</td><td>layout all round with an open centre, for example for an access hatch in the middle</td></tr>
-  <tr><td>Modules</td><td>layout made of individual rectangular modules (chapter <a href="#kp">6</a>)</td></tr>
+  <tr><td>Modules</td><td>layout made of individual rectangular modules (chapter <a href="#kp">7</a>)</td></tr>
 </table>
 <p>Shape and dimensions can be changed at any time later: click a free spot of the drawing area or choose
-<span class="ui">Scenery › Baseboard</span>; the properties then show the baseboard dimensions. More about the baseboard, modules and benchwork is in chapter <a href="#kp">6</a>.</p>
+<span class="ui">Scenery › Baseboard</span>; the properties then show the baseboard dimensions. More about the baseboard, modules and benchwork is in chapter <a href="#kp">7</a>.</p>
 
 <h2 id="k5-2">Choosing a track system</h2>
 <p>In the track library, choose the track system you want to build with under <span class="ui">Manufacturer / track system</span>.
@@ -365,7 +500,7 @@ this quickly turns a right-hand turnout in the direction of travel into one that
 
 <h2 id="k5-4">Checking the plan</h2>
 <p>Click <span class="ui">Home › Collision check</span> (<kbd>F7</kbd>). The list shows overlaps, spacing that is too tight
-and open ends; a click on an entry shows the spot in the plan (chapter <a href="#k10">11</a>).</p>
+and open ends; a click on an entry shows the spot in the plan (chapter <a href="#k10">13</a>).</p>
 
 <h2 id="k5-5">Sample plan</h2>
 <p>Under <span class="ui">File › Load sample plan</span> the layout “Newtown station” opens, with scenery, wiring and signals.
@@ -374,7 +509,7 @@ It is well suited for trying out all features.</p>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="kp"><span class="no">6</span>Baseboard, modules and benchwork</h1>
+<h1 id="kp"><span class="no">7</span>Baseboard, modules and benchwork</h1>
 <p class="lead">The baseboard can be dragged with the mouse or typed in to the millimetre, divided into modules, rotated and given a timber benchwork.</p>
 
 <h2 id="kp-1">Drag baseboard and type in dimensions</h2>
@@ -396,7 +531,7 @@ Empty fields take the common leg depth or the full length; <span class="ui">Rese
 <h2 id="kp-3">Rotate layout</h2>
 <p><span class="ui">Scenery › Rotate layout 90°</span> rotates the baseboard together with tracks, terrain and objects by 90° clockwise; rotating four times
 gives the initial state again. In the dimensions dialog of a module, <span class="ui">Rotate 90°</span> rotates only that module with its content.
-To rotate only the view, see chapter <a href="#k4">4</a>; free rotation in all directions is available in the 3D view (chapter <a href="#k11">12</a>).</p>
+To rotate only the view, see chapter <a href="#k4">5</a>; free rotation in all directions is available in the 3D view (chapter <a href="#k11">14</a>).</p>
 
 <h2 id="kp-4">Layout made of modules</h2>
 <p>Under <span class="ui">Scenery › Modules…</span> the layout is assembled from rectangular modules. An existing baseboard is split into modules,
@@ -433,7 +568,7 @@ The 3D view shows the benchwork under the baseboard. <span class="ui">Remove</sp
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k6"><span class="no">7</span>Laying and editing track</h1>
+<h1 id="k6"><span class="no">8</span>Laying and editing track</h1>
 <figure><img src="img-en/gleise.png" alt=""><figcaption>Tracks tab with a selected turnout; the properties show its dimensions, height and digital address.</figcaption></figure>
 
 <h2 id="k6-1">Track library</h2>
@@ -460,6 +595,10 @@ provisional dimensions and marked in the library; check these against the real p
   <li><b>Arrow keys</b> move by 1 mm, with <kbd>Shift</kbd> by 10 mm.</li>
   <li>Snapping can be switched off in the status bar with <span class="ui">Snap</span>.</li>
 </ul>
+<p>When a track is selected, the properties show its <b>usable length</b> as well as position, rotation and height: the length of the track section up to the next
+turnout, crossing or track end – in other words, how long a train standing there may be. If a <b>longest train</b> is entered in the plan properties,
+the usable length turns red when the train does not fit.</p>
+<figure><img src="img-en/start-anordnen.png" alt=""><figcaption>Home tab with the Arrange group; the properties show usable length and the “locked” tick box.</figcaption></figure>
 
 <h2 id="k6-3">Editing</h2>
 <table>
@@ -480,6 +619,31 @@ provisional dimensions and marked in the library; check these against the real p
 <p>In the group <span class="ui">Home › Annotate</span> you place <b>text</b> (click the spot and enter the text) and <b>dimension lines</b>
 (click two points; track ends and baseboard corners snap on). The program calculates the length itself. Change text height, rotation and text in the properties;
 labels and dimensions also appear in the printout.</p>
+
+<h2 id="k6-5">Arrange: lock, group, align</h2>
+<p>The <span class="ui">Home › Arrange</span> group helps when the plan gets larger:</p>
+<table>
+  <tr><th style="width:26%">Command</th><th>Effect</th></tr>
+  <tr><td><b>Lock</b></td><td>Selected tracks can no longer be moved, rotated or deleted – ideal for finished areas that must not slip by accident.
+    A second click unlocks them. You can also lock single tracks with the <span class="ui">locked</span> tick box in the properties.</td></tr>
+  <tr><td><b>Group</b></td><td>Combines the selected tracks into a group: a click on one of them then selects them all, and they move together –
+    for example a whole station. <span class="ui">Ungroup</span> separates them again.</td></tr>
+  <tr><td><b>Align</b></td><td>Aligns several separate groups of track flush: <span class="ui">left</span>, <span class="ui">right</span>, <span class="ui">top</span>,
+    <span class="ui">bottom</span> or <span class="ui">centred</span> horizontally or vertically. Select at least two groups that are not connected to each other.</td></tr>
+</table>
+<p>When several tracks are selected, the same commands are also available as buttons in the properties. If the selection contains locked tracks, a note points this out.</p>
+
+<h2 id="k6-6">Parallel track</h2>
+<p>For a double-track line or a passing loop, TrackMaster Pro lays a second track at a fixed spacing next to existing tracks:</p>
+<ol class="steps">
+  <li>Select the tracks of the line (drag a rectangle or <kbd>Shift</kbd>+click). They should be connected.</li>
+  <li>Click <span class="ui">Tracks › Parallel track…</span>.</li>
+  <li>Enter the <b>track spacing</b> centre to centre – the usual spacing for the gauge is preset – and choose the <b>side</b>:
+    left or right in the direction of travel.</li>
+</ol>
+<figure class="third"><img src="img-en/parallel.png" alt=""><figcaption>Parallel track dialog.</figcaption></figure>
+<p>The new track is laid as <b>flexible track</b> of the selected system; curves automatically get the matching larger or smaller radius.
+If it ends up on the wrong side, undo it with <kbd>Ctrl</kbd>+<kbd>Z</kbd> and choose the other side.</p>
 
 <h2 id="k6-4">Flexible track</h2>
 <p>Flexible track can be laid in three ways:</p>
@@ -506,7 +670,7 @@ curve radius your vehicles can negotiate.</div>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k7"><span class="no">8</span>Heights, levels, helixes and rib construction</h1>
+<h1 id="k7"><span class="no">9</span>Heights, levels, helixes and rib construction</h1>
 
 <h2 id="k7-1">Height of a track</h2>
 <p>Every track has a <b>top-of-rail height</b> at its start and a <b>gradient</b> in percent. You enter both in the properties;
@@ -528,6 +692,12 @@ double-track ramp or helix – the inner, shorter track gets exactly the gradien
   <tr><td>over 3 %</td><td>the plan check warns; long trains need a second locomotive</td></tr>
   <tr><td>over 5 %</td><td>the plan check reports an error</td></tr>
 </table>
+
+<h2 id="k7-9">Height profile</h2>
+<p>How high does the line lie at which point, and where is it too steep? Select connected tracks – for example a ramp or the whole line between two stations –
+and click <span class="ui">Tracks › Height profile</span>. The chart shows the height of the top of rail over the distance travelled.
+<b>Red</b> sections are steeper than recommended. This shows you at a glance where you should make changes.</p>
+<figure class="half"><img src="img-en/profil.png" alt=""><figcaption>Height profile along the selected tracks.</figcaption></figure>
 
 <h2 id="k7-6">Levels</h2>
 <p>A layout can have up to <b>10 levels</b>, for example for the fiddle yard, main level and mountain line. Each level has a name and a <b>base height</b>;
@@ -620,7 +790,7 @@ and count as permitted under terrain in the plan check.</p>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k8"><span class="no">9</span>Scenery</h1>
+<h1 id="k8"><span class="no">10</span>Scenery</h1>
 <figure><img src="img-en/gelaende.png" alt=""><figcaption>Scenery tab with hill, lake, buildings and trees.</figcaption></figure>
 <table>
   <tr><th style="width:24%">Tool</th><th>How it works</th></tr>
@@ -646,7 +816,68 @@ hides the scenery when you only want to see the tracks. The plan check reports t
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k9"><span class="no">10</span>Wiring, signals and digital</h1>
+<h1 id="kr"><span class="no">11</span>Room and background image</h1>
+<p class="lead">Will the layout actually fit into the room? Can the door still open, and can you reach every spot? In the <span class="ui">Room</span> tab
+you draw your room with doors, windows and furniture around the layout. A background image – such as a floor plan or an old track plan – helps you trace.</p>
+<figure><img src="img-en/raum.png" alt=""><figcaption>Room tab: room with door, window, radiator and column around the layout.</figcaption></figure>
+
+<h2 id="kr-1">Creating a room</h2>
+<p>For a rectangular room one dialog is enough:</p>
+<ol class="steps">
+  <li>Measure the room inside, from wall to wall, and note where the layout is to stand.</li>
+  <li>Click <span class="ui">Room › Room…</span>.</li>
+  <li>Enter the <b>inner width</b>, <b>inner depth</b> and <b>wall thickness</b> (all in mm).</li>
+  <li>Under <b>Inner corner X</b> and <b>Inner corner Y</b> state where the top left corner of the room lies – measured from the top left corner of the baseboard.
+    If the board stands 50 cm from the left wall and 30 cm from the top wall, enter <b>−500</b> and <b>−300</b>. Negative means: to the left of or above the board.</li>
+  <li>Click <span class="ui">Create</span>. The walls appear in grey around the board.</li>
+</ol>
+<figure class="third"><img src="img-en/raum-dialog.png" alt=""><figcaption>Room dialog with inner dimensions, wall thickness and position.</figcaption></figure>
+<p>If the room has alcoves or slanted walls, draw it with <span class="ui">Room › Draw room</span>: click all corners of the
+<b>inner face of the wall</b> one after the other. A double-click or <kbd>Enter</kbd> closes the room, <kbd>Esc</kbd> cancels. You select a room by clicking a wall;
+the properties show its name, wall thickness and floor area in m².</p>
+
+<h2 id="kr-2">Doors, windows and furniture</h2>
+<p>The <span class="ui">Room › Room elements</span> group contains <b>Door</b>, <b>Window</b>, <b>Column</b>, <b>Radiator</b> and <b>Furniture</b>. Choose the element,
+click the spot in the plan or drag a rectangle of the size you want. Then enter width, depth, height and rotation exactly in the
+properties; the type can also be changed there afterwards. For a door the plan shows the <b>swing area</b> – the space the door leaf needs when opening.
+<kbd>Esc</kbd> ends the tool.</p>
+
+<h2 id="kr-3">What the plan check reports in the room</h2>
+<table>
+  <tr><th style="width:30%">Finding</th><th>Meaning</th></tr>
+  <tr><td>Board over the wall</td><td><b>Error:</b> the baseboard projects beyond a wall – it will not fit into the room like this.</td></tr>
+  <tr><td>Door cannot open</td><td><b>Error:</b> the swing area of a door lies under the board.</td></tr>
+  <tr><td>Room element under the board</td><td><b>Warning:</b> a column, radiator or furniture stands under or against the board. Windows may lie under the board.</td></tr>
+  <tr><td>Aisle too narrow</td><td><b>Note:</b> less than <b>60 cm</b> remains between board and wall. That much space is comfortable for building and operating.
+    If the board stands right against the wall (up to 15 cm away), this is treated as intended and not reported.</td></tr>
+</table>
+<div class="tip"><b>Tip</b>Rooms and room elements are included in the DXF export (layer RAUM) – handy if you continue planning in a CAD program.</div>
+
+<h2 id="kr-4">Loading a background image</h2>
+<p>An image under the plan helps you rebuild an existing track plan from a book or plan the layout to a floor plan.</p>
+<ol class="steps">
+  <li>Click <span class="ui">Room › Load image…</span> and choose a photo or scan (PNG, JPEG, GIF or WebP).
+    Very large images are reduced when loading so that the plan stays manageable.</li>
+  <li>The image now lies semi-transparent under the plan. Under <span class="ui">Position and opacity…</span> you set where the top left corner lies
+    (<b>Left</b>, <b>Top</b> in mm), how <b>wide</b> the image is and how strongly it appears (<b>Opacity</b> in %). There you can also
+    replace it with another image or remove it.</li>
+  <li><span class="ui">Show image</span> hides it and shows it again. The image is saved with the plan.</li>
+</ol>
+
+<h2 id="kr-5">Scaling the image to a measurement</h2>
+<p>To give the image exactly the right scale, measure a distance on it whose real length you know – such as a wall of the room or a track:</p>
+<ol class="steps">
+  <li>Switch on <span class="ui">Home › Dimension</span> and click the start and end of the known distance in the image.</li>
+  <li>Click the new dimension line so that it is selected.</li>
+  <li>Click <span class="ui">Room › Scale to measurement…</span>. The dialog tells you how long the line currently is in the image.
+    Enter the <b>real length</b> in mm and click <span class="ui">Scale</span>.</li>
+</ol>
+<p>The image is enlarged or reduced to fit. You can then delete the dimension line and lay your tracks exactly on the image.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="k9"><span class="no">12</span>Wiring, signals and digital</h1>
 <figure><img src="img-en/elektrik.png" alt=""><figcaption>Wiring tab with feeders, isolating joints and signals.</figcaption></figure>
 
 <h2 id="k9-1">Feeders and isolating joints</h2>
@@ -679,8 +910,20 @@ Each shows its stop aspect; dark lamps can be seen in their real positions.</p>
 <p><span class="ui">Wiring › Decoders</span> lists all turnouts and signals with their digital addresses. Addresses can be entered individually
 or assigned automatically; conflicts are marked. Turnouts with two motors (three-way turnout, double slip) use two addresses.</p>
 
+<h2 id="k9-8">Detectors</h2>
+<p>Detectors tell a digital control system where a train is at the moment. Choose <span class="ui">Wiring › Detector</span> and then the type:</p>
+<ul>
+  <li><b>Occupancy detector</b> – reports an occupied track from the current drawn by the vehicles.</li>
+  <li><b>Contact track</b> – reports when a train passes a particular spot.</li>
+  <li><b>Reed contact</b> – triggered by a magnet under the vehicle.</li>
+</ul>
+<figure class="third"><img src="img-en/rueckmelder.png" alt=""><figcaption>Choosing the detector type.</figcaption></figure>
+<p>Then click the tracks. The contacts are numbered consecutively – 16 per feedback module. Clicking an existing detector removes it.
+Select a detector to change its name, type and contact number in the properties. The detectors appear in the wiring plan with module and input,
+in the parts list together with the number of feedback modules needed, and in the export for control software.</p>
+
 <h2 id="k9-5">Wiring plan</h2>
-<p><span class="ui">Wiring › Wiring plan</span> summarises the wiring: power sections with their feeders, all isolating joints and the
+<p><span class="ui">Wiring › Wiring plan</span> summarises the wiring: power sections with their feeders, all isolating joints, the detectors and the
 decoder assignment. It can be saved as a text file in the Pro edition.</p>
 <figure class="half"><img src="img-en/kabelplan.png" alt=""><figcaption>Wiring plan.</figcaption></figure>
 
@@ -697,7 +940,7 @@ without typing addresses twice.</p>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k10"><span class="no">11</span>Plan check</h1>
+<h1 id="k10"><span class="no">13</span>Plan check</h1>
 <p><span class="ui">Home › Collision check</span> (<kbd>F7</kbd>) examines the whole plan and lists all findings as error, warning or note.
 A click on an entry selects the tracks concerned and shows the spot.</p>
 <figure class="half"><img src="img-en/pruefung.png" alt=""><figcaption>Result of the plan check.</figcaption></figure>
@@ -712,14 +955,20 @@ A click on an entry selects the tracks concerned and shows the spot.</p>
   <tr><td>Radius for vehicles</td><td>curves that are too tight for the longest vehicle, with the overhang of the vehicle's centre and ends</td></tr>
   <tr><td>Gradient in curve</td><td>warning if a curve climbs more steeply than 2 % – in a curve a train pulls noticeably harder</td></tr>
   <tr><td>S-curve</td><td>reverse curves with a small radius and no straight in between, where long coaches can lock buffers</td></tr>
+  <tr><td>Room</td><td>board projects over a wall (error), door cannot open (error), column, radiator or furniture under the board (warning) – chapter <a href="#kr">11</a></td></tr>
+  <tr><td>Aisle</td><td>less than 60 cm of space between board and wall</td></tr>
+  <tr><td>Usable length</td><td>sidings with a buffer stop that are shorter than the longest train</td></tr>
 </table>
 <p>For the three vehicle checks, enter the <b>longest vehicle</b> in millimetres in the plan properties (section <span class="ui">Plan check</span>, field <span class="ui">Longest vehicle (mm)</span>).
-Without an entry the program assumes a long passenger coach at the scale of the gauge.</p>
+Without an entry the program assumes a long passenger coach at the scale of the gauge.
+Next to it is the field <span class="ui">Longest train (mm)</span>: enter the length of your longest train and TrackMaster Pro checks whether it fits on every siding. Left empty, this check is off.</p>
+<div class="tip"><b>Error, warning, note</b>An <b>error</b> must be fixed, otherwise the layout cannot be built or run like this. A <b>warning</b> should be checked.
+A <b>note</b> is advice – sometimes the spot is exactly as intended.</div>
 </section>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k11"><span class="no">12</span>3D view</h1>
+<h1 id="k11"><span class="no">14</span>3D view</h1>
 <figure><img src="img-en/3d.png" alt=""><figcaption>The layout in 3D with terrain, buildings, trees and signals.</figcaption></figure>
 <ul>
   <li><span class="ui">3D › 3D view</span>: dragging with the left mouse button rotates and tilts the layout – even below the baseboard –, <kbd>Ctrl</kbd> + left mouse button
@@ -741,7 +990,7 @@ buildings, trees, signals and the benchwork. Hidden levels are missing here too.
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k12"><span class="no">13</span>Saving, parts list, printing and export</h1>
+<h1 id="k12"><span class="no">15</span>Saving, parts list, printing and export</h1>
 <p class="lead">Saving small plans and opening work in both editions; the parts list, printing, the exports and saving large plans belong to the Pro edition.</p>
 
 <h2 id="k12-1">Saving and opening</h2>
@@ -755,9 +1004,22 @@ for example after a power cut – it offers to restore the backed-up state at th
 
 <h2 id="k12-2">Parts list <span class="badge">PRO</span></h2>
 <p><span class="ui">Home › Parts list</span> counts all tracks by article number, with description and quantity, and adds the accessories: turnout motors,
-signals, feeders, insulated rail joiners and decoders. Flexible track is counted in whole lengths. With <span class="ui">Save as CSV</span>
-you take the list into a spreadsheet or your shopping list.</p>
-<figure class="half"><img src="img-en/stueckliste.png" alt=""><figcaption>Parts list with accessories.</figcaption></figure>
+signals, feeders, insulated rail joiners, decoders, detectors and feedback modules. Flexible track is counted in whole lengths.</p>
+<figure class="half"><img src="img-en/stueckliste.png" alt=""><figcaption>Parts list with stock and prices.</figcaption></figure>
+<h3>What does the layout cost?</h3>
+<ol class="steps">
+  <li>In the <b>In stock</b> column, enter how many pieces you already own. The <b>To buy</b> column shows what is still missing.</li>
+  <li>In the <b>Price</b> column, enter the unit price. Below, the costs are updated as you type: <b>Still to buy</b> (only what is missing), <b>All bought new</b>
+    and how many articles are still <b>without price</b>.</li>
+  <li>Click <span class="ui">Close</span> – prices and stock are saved with the plan and are there again the next time you open it.</li>
+</ol>
+<p><b>Importing a price list:</b> instead of typing in all prices, use <span class="ui">Import price list…</span> to read a text or CSV file, for example from a spreadsheet.
+Each line contains the <b>article number</b> (or the description) at the front and the <b>price</b> after it, separated by semicolon, tab or comma:</p>
+<pre style="background:#F6F8FA;border:0.6pt solid var(--line);border-radius:2mm;padding:2.4mm 3.6mm;font-size:9pt;margin:0 0 3mm">10101; Straight 188 mm; 2.49
+10202; Curve R2 30°; 2.79
+Turnout motor; 19.90</pre>
+<p>Articles that do not occur in the plan are skipped. With <span class="ui">Save as CSV…</span> you take the whole list including stock
+and prices into a spreadsheet – as a shopping list for your dealer.</p>
 
 <h2 id="k12-3">Printing <span class="badge">PRO</span></h2>
 <p><span class="ui">File › Print…</span> (<kbd>Ctrl</kbd>+<kbd>P</kbd>) offers two kinds:</p>
@@ -773,24 +1035,31 @@ you take the list into a spreadsheet or your shopping list.</p>
 <ul>
   <li><b>SVG at 1:1 scale</b> (<span class="ui">File › Export as SVG (1:1)…</span>): a vector graphic at full size, for example as a
     template for a plotter or for printing on several pages.</li>
+  <li><b>PNG image</b> (<span class="ui">File › Export as PNG image…</span>): the whole plan as a picture, about 4000 pixels wide – for showing by e-mail, in a forum or for printing.</li>
+  <li><b>DXF drawing</b> (<span class="ui">File › Export as DXF (CAD)…</span>): the plan at 1:1 in millimetres for CAD programs, CNC routers and laser cutters.
+    The parts lie on separate layers: PLATTE (baseboard), GLEISACHSE (track centre line), SCHIENEN (rails), PRELLBOCK (buffer stops), GELAENDE (scenery), RAUM (room) and TEXT.</li>
   <li><b>Parts list as CSV</b> (<span class="ui">File › Parts list as CSV</span>).</li>
   <li><b>Timber list as CSV</b> from the timber list window.</li>
   <li><b>Wiring plan as a text file</b> from the wiring plan window.</li>
   <li><b>Cutting templates as SVG</b> for helixes, ribs and roadbeds: one file per part at full size, together in a ZIP file.</li>
   <li><b>Ribs as CSV</b> and the <b>material and cutting list of the benchwork</b> as CSV (the benchwork belongs to the Basic edition).</li>
-  <li><b>Export for control software</b> (chapter <a href="#k9">10</a>).</li>
+  <li><b>Export for control software</b> (chapter <a href="#k9">12</a>).</li>
 </ul>
 </section>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k13"><span class="no">14</span>The Android app</h1>
+<h1 id="k13"><span class="no">16</span>The Android app</h1>
 <p class="lead">The app offers the same features as the Windows program, adapted to touch operation.</p>
 <p>At the top is the ribbon with the tabs <b>Home, Tracks, Scenery, Wiring, View, 3D</b> and <b>File</b>, at the bottom the track library as a bar.
 Properties, plan check, helix, signals and the 3D view open as separate windows. In the Basic edition, Pro features carry a padlock.
 Choose design, font and font size under <span class="ui">View › Design and font</span> – with the same designs as on Windows.
 Copy and paste, routes, the language (<span class="ui">File › Sprache / Language</span>) as well as the train and turnouts in the 3D view are available too.
 Above the track library is the level bar; with <span class="ui">Scenery › Drag baseboard</span> you drag corners and modules with your finger, and tapping opens the dimensions.</p>
+<p>All the newer features are there too: the <span class="ui">Room</span> tab with room elements and background image (you pick the image with the file picker),
+<span class="ui">Tracks › Parallel track</span> and <span class="ui">Height profile</span>, lock, group and align in the <span class="ui">Home</span> tab,
+detectors in the <span class="ui">Wiring</span> tab, the parts list with prices and stock, and export as PNG and DXF under <span class="ui">File</span>.
+You draw a room like terrain: tap the corners and finish with <span class="ui">Done</span>.</p>
 <table>
   <tr><th style="width:38%">Gesture</th><th>Effect</th></tr>
   <tr><td>Tap a piece in the library</td><td>attach at the active track end</td></tr>
@@ -807,7 +1076,7 @@ Above the track library is the level bar; with <span class="ui">Scenery › Drag
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k14"><span class="no">15</span>Keyboard shortcuts and mouse commands</h1>
+<h1 id="k14"><span class="no">17</span>Keyboard shortcuts and mouse commands</h1>
 <div class="cols">
 <table class="keep">
   <tr><th>Key</th><th>Function</th></tr>
@@ -846,6 +1115,9 @@ Above the track library is the level bar; with <span class="ui">Scenery › Drag
   <tr><td>Click on the compass</td><td>straighten the view</td></tr>
   <tr><td>Drag baseboard: drag corner / module</td><td>resize / move module</td></tr>
   <tr><td>Drag baseboard: click</td><td>type in dimensions, rotate module or layout</td></tr>
+  <tr><td>Draw room: clicks, double-click</td><td>set corners, close the room</td></tr>
+  <tr><td>Room element: click or drag a rectangle</td><td>place door, window, column etc.</td></tr>
+  <tr><td>Click on a track of a group</td><td>select the whole group</td></tr>
   <tr><td>3D: <kbd>Ctrl</kbd> + left mouse button</td><td>rotate around the viewing axis</td></tr>
 </table>
 </div>
@@ -853,7 +1125,7 @@ Above the track library is the level bar; with <span class="ui">Scenery › Drag
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k15"><span class="no">16</span>Questions and solutions</h1>
+<h1 id="k15"><span class="no">18</span>Questions and solutions</h1>
 <h3>A track does not snap on.</h3>
 <p>Check whether <span class="ui">Snap</span> is switched on in the status bar. Tracks only snap onto <b>free</b> ends; if the end is already connected,
 choose the next open end with <kbd>E</kbd>.</p>
@@ -873,6 +1145,16 @@ older version with a different signature was already installed, uninstall it fir
 <h3>Tracks have suddenly disappeared.</h3>
 <p>Their level is probably hidden. Tick it again in the level bar at the bottom or choose <span class="ui">Show all</span> in the Levels dialog.
 If <span class="ui">Show scenery</span> is off, hills, water, buildings and trees are missing as well.</p>
+<h3>A track cannot be moved, rotated or deleted.</h3>
+<p>It is locked. Select it and click <span class="ui">Home › Lock</span>, or untick <span class="ui">locked</span> in the properties.</p>
+<h3>One click suddenly selects many tracks.</h3>
+<p>The tracks are grouped. <span class="ui">Home › Ungroup</span> separates them again.</p>
+<h3>The background image does not match my dimensions.</h3>
+<p>Draw a line over a known distance in the image with <span class="ui">Home › Dimension</span>, select it and call <span class="ui">Room › Scale to measurement…</span> (chapter <a href="#kr">11</a>).</p>
+<h3>The plan check says the door cannot open.</h3>
+<p>The swing area of the door lies under the board. Move the door, rotate it in the properties or make the board smaller at that spot.</p>
+<h3>How much does my layout cost?</h3>
+<p>Open the parts list (Pro), enter stock and prices or import a price list. The total is shown at the bottom of the list (chapter <a href="#k12">15</a>).</p>
 <h3>I have changed too much.</h3>
 <p><span class="ui">Home › History…</span> shows the last 20 steps; a click jumps to an earlier state, and forward again.</p>
 <h3>The 3D view stays black or stutters.</h3>
@@ -886,28 +1168,50 @@ The program sends no data to third parties; at start-up it only fetches the curr
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k16"><span class="no">17</span>Glossary</h1>
+<h1 id="k16"><span class="no">19</span>Glossary</h1>
 <table>
   <tr><th style="width:28%">Term</th><th>Meaning</th></tr>
   <tr><td>Active track end</td><td>The free end marked in orange, where the next track is attached.</td></tr>
-  <tr><td>Connector</td><td>One end of a track piece; a turnout has three, a crossing four connectors.</td></tr>
-  <tr><td>Level</td><td>Group of tracks and terrain objects with a common base height that can be shown and hidden together.</td></tr>
+  <tr><td>Apron, cross member</td><td>Outer frame and cross bracing of the benchwork on which the top board or the ribs rest.</td></tr>
+  <tr><td>Background image</td><td>Image under the plan, such as a floor plan or a track plan from a book, for tracing.</td></tr>
+  <tr><td>Baseboard</td><td>Surface on which the layout is built, usually a wooden board on benchwork.</td></tr>
+  <tr><td>Buffer stop</td><td>End piece of a track where the train stops.</td></tr>
+  <tr><td>Clear height</td><td>Free space between the top of rail and the underside of the track bed above.</td></tr>
   <tr><td>Clearance height</td><td>Minimum height between two tracks lying on top of each other so that vehicles fit underneath; depends on the gauge.</td></tr>
+  <tr><td>Connector</td><td>One end of a track piece; a turnout has three, a crossing four connectors.</td></tr>
+  <tr><td>CSV file</td><td>Simple table file that any spreadsheet can open.</td></tr>
+  <tr><td>Curve</td><td>Curved track piece with a fixed radius and angle, for example 30°. Twelve 30° curves make a circle.</td></tr>
+  <tr><td>Detector</td><td>Tells the digital control whether a track is occupied or a train passes a spot.</td></tr>
+  <tr><td>DXF file</td><td>Drawing format for CAD programs, CNC routers and laser cutters.</td></tr>
+  <tr><td>Edge allowance</td><td>Addition to the track bed width for fixing and a guard rail.</td></tr>
   <tr><td>Feeder</td><td>Power connection of a track section to a transformer, command station or booster.</td></tr>
   <tr><td>Flexible track</td><td>Track supplied in lengths that can be bent to any radius and cut to length.</td></tr>
+  <tr><td>Gauge</td><td>Size of the model railway, for example H0, N or Z; sets track width and scale.</td></tr>
+  <tr><td>Gradient</td><td>How steeply a track climbs, in per cent: 2 % means 2 cm of height over 1 m of track.</td></tr>
+  <tr><td>Group</td><td>Tracks that are combined and are selected and moved together with one click.</td></tr>
   <tr><td>Helix</td><td>Spiral climbing line for overcoming large differences in height on a small area.</td></tr>
-  <tr><td>Stop aspect</td><td>Signal indication that means “stop” (Hp 0, Hp 00, Vr 0, Sh 0).</td></tr>
-  <tr><td>Reverse loop</td><td>Track arrangement in which a train returns to the line in the opposite direction; in two-rail systems this creates a short circuit that needs a special circuit.</td></tr>
-  <tr><td>Module</td><td>Rectangular part of a layout with its own dimensions that can be combined with others into a layout.</td></tr>
-  <tr><td>Clear height</td><td>Free space between the top of rail and the underside of the track bed above.</td></tr>
-  <tr><td>Edge allowance</td><td>Addition to the track bed width for fixing and a guard rail.</td></tr>
-  <tr><td>Saw allowance</td><td>Addition to the cutting dimension for the saw cut and finishing.</td></tr>
-  <tr><td>Rib</td><td>Upright board on the frame on which the roadbed lies in open-grid benchwork.</td></tr>
-  <tr><td>Roadbed</td><td>Board under the tracks that carries them at the desired height.</td></tr>
   <tr><td>Isolating joint</td><td>Insulated rail joint that separates two power sections.</td></tr>
+  <tr><td>Level</td><td>Group of tracks and terrain objects with a common base height that can be shown and hidden together.</td></tr>
+  <tr><td>Module</td><td>Rectangular part of a layout with its own dimensions that can be combined with others into a layout.</td></tr>
+  <tr><td>Open track end</td><td>End of a track piece without a connection; marked orange in the plan. The plan check reports open ends without a buffer stop.</td></tr>
+  <tr><td>Oval</td><td>Simplest layout shape: two semicircles joined by straights. The train runs round endlessly.</td></tr>
+  <tr><td>Parallel track</td><td>Second track at a constant spacing next to a line.</td></tr>
+  <tr><td>Properties</td><td>Area on the right of the window; shows and changes the values of the selected track or object.</td></tr>
+  <tr><td>Radius</td><td>Distance from the centre of the circle to the middle of the track of a curve; the smaller, the tighter.</td></tr>
+  <tr><td>Reverse loop</td><td>Track arrangement in which a train returns to the line in the opposite direction; in two-rail systems this creates a short circuit that needs a special circuit.</td></tr>
+  <tr><td>Rib</td><td>Upright board on the frame on which the roadbed lies in open-grid benchwork.</td></tr>
+  <tr><td>Ribbon</td><td>Bar at the top of the window with all commands, arranged in tabs.</td></tr>
+  <tr><td>Roadbed</td><td>Board under the tracks that carries them at the desired height.</td></tr>
   <tr><td>Route</td><td>Path from one signal to the next with the turnout positions required.</td></tr>
+  <tr><td>Saw allowance</td><td>Addition to the cutting dimension for the saw cut and finishing.</td></tr>
+  <tr><td>Scale</td><td>Ratio between model and prototype; in H0, 1 cm on the model is 87 cm in reality (1:87).</td></tr>
+  <tr><td>Siding</td><td>Track that ends at a buffer stop, where trains or wagons are parked.</td></tr>
+  <tr><td>Stop aspect</td><td>Signal indication that means “stop” (Hp 0, Hp 00, Vr 0, Sh 0).</td></tr>
+  <tr><td>Tab</td><td>One of the headings in the ribbon (Home, Tracks, Scenery, Room …); a click shows its commands.</td></tr>
   <tr><td>Top of rail</td><td>Reference height of all height values in the plan.</td></tr>
-  <tr><td>Apron, cross member</td><td>Outer frame and cross bracing of the benchwork on which the top board or the ribs rest.</td></tr>
+  <tr><td>Track system</td><td>Track range from one manufacturer; its pieces fit together exactly.</td></tr>
+  <tr><td>Turnout</td><td>Track piece where a track divides into two (or three) directions.</td></tr>
+  <tr><td>Usable length</td><td>Length of a track section between turnouts or up to the buffer stop – the longest train that can stand there.</td></tr>
 </table>
 <p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.4.7 · User manual, as of November 2026. Subject to change.
 All dimensions without guarantee; check the dimensions against the real product before cutting and buying.</p>

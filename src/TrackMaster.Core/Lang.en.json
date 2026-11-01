@@ -936,6 +936,7 @@
  "Platzbedarf {0} × {1} mm (Außenkante Trasse).": "Footprint {0} × {1} mm (outer edge of track bed).",
  "Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu.": "Plans with up to 50 tracks can also be saved in the Basic version. A Pro licence adds saving without a size limit, the parts lists, printing and the exports.",
  "Pläne sind mit der Windows-Version austauschbar (*.trackmaster.json).": "Plans can be exchanged with the Windows version (*.trackmaster.json).",
+ "Pläne werden als *.mpr gespeichert. Windows und Android öffnen sie (dort unter „Alle Dateien“); Pläne *.trackmaster.json von dort lassen sich hier ebenso öffnen. Der aktuelle Plan wird zusätzlich laufend in diesem Browser gesichert.": "Plans are saved as *.mpr. Windows and Android open them (there under “All files”); *.trackmaster.json plans from there can be opened here too. The current plan is also saved continuously in this browser.",
  "Position, Breite und Deckkraft des Bilds einstellen oder es entfernen.": "Set the position, width and opacity of the image or remove it.",
  "Preis": "Price",
  "Preis {0}": "Price {0}",

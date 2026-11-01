@@ -547,9 +547,13 @@ public partial class App : ComponentBase, IAppHost
 
     // ---------- Dateien ----------
 
+    /// <summary>Endung, unter der die Webversion Pläne speichert. Inhalt wie *.trackmaster.json, daher öffnet sie auch diese.</summary>
+    private const string WebFileExtension = ".mpr";
+    private const string PlanFileTypes = ".mpr,.json,.trackmaster.json,application/json";
+
     private async Task OpenFile()
     {
-        var result = await Js.PickFile(".json,.trackmaster.json,application/json");
+        var result = await Js.PickFile(PlanFileTypes);
         if (string.IsNullOrEmpty(result)) return;
         var cut = result.IndexOf('\0');
         var name = cut > 0 ? result[..cut] : null;
@@ -568,7 +572,7 @@ public partial class App : ComponentBase, IAppHost
 
     private void SavePlan()
     {
-        var name = $"{SafeName}{PlanSerializer.FileExtension}";
+        var name = $"{SafeName}{WebFileExtension}";
         Js.Download(name, "application/json", PlanSerializer.ToJson(_session.Plan));
         _session.MarkSaved(name);
     }
@@ -576,7 +580,7 @@ public partial class App : ComponentBase, IAppHost
     /// <summary>Gespeicherten Plan wählen und als Modul rechts ansetzen.</summary>
     private async Task AppendModuleFile()
     {
-        var result = await Js.PickFile(".json,.trackmaster.json,application/json");
+        var result = await Js.PickFile(PlanFileTypes);
         if (string.IsNullOrEmpty(result)) return;
         var cut = result.IndexOf('\0');
         var name = cut > 0 ? result[..cut] : Lang.T("Modul");
@@ -584,7 +588,7 @@ public partial class App : ComponentBase, IAppHost
         try
         {
             var other = PlanSerializer.FromJson(text, out _);
-            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "").Replace(WebFileExtension, "");
             if (_session.AppendModule(other, title)) _view.Fit();
         }
         catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException or FormatException or NotSupportedException or ArgumentException or KeyNotFoundException)

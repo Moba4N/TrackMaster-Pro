@@ -104,6 +104,20 @@ public static class Program
                     if (window.Ribbon.Items.OfType<RibbonTab>().FirstOrDefault(t => Equals(t.Header, tab) || Equals(t.Header, Core.Lang.T(tab))) is { } ribbonTab)
                         window.Ribbon.SelectedItem = ribbonTab;
                 };
+            if (args.Contains("--room"))
+                window.Loaded += (_, _) =>
+                {
+                    // Für das Handbuch: ein Raum um die Platte mit Tür, Fenster, Heizkörper und Säule
+                    var session = window.Session;
+                    double w = session.Plan.BoardWidth, d = session.Plan.BoardHeight;
+                    session.AddRoom(-700, -600, w + 1400, d + 1600, 240);
+                    session.AddScenery(Core.RoomPlan.Element(Core.ObstacleType.Tuer, -250, d + 550));
+                    session.AddScenery(Core.RoomPlan.Element(Core.ObstacleType.Fenster, w / 2, -500));
+                    session.AddScenery(Core.RoomPlan.Element(Core.ObstacleType.Heizkoerper, w / 2, -480));
+                    session.AddScenery(Core.RoomPlan.Element(Core.ObstacleType.Saeule, w + 350, d / 2));
+                    session.ClearSelection();
+                    window.Canvas.Fit();
+                };
             if (args.Contains("--select"))
                 window.Loaded += (_, _) =>
                 {

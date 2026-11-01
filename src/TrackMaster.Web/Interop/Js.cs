@@ -51,6 +51,16 @@ public static partial class Js
     [JSImport("storageRemove", Module)]
     public static partial void StorageRemove(string key);
 
+    /// <summary>Speichern unter: Ergebnis ist der gewählte Dateiname oder leer, wenn abgebrochen.</summary>
+    [JSImport("saveAs", Module)]
+    public static partial Task<string> SaveAs(string suggested, string extension, string description, string promptText, string text);
+
+    [JSImport("saveToHandle", Module)]
+    public static partial Task<bool> SaveToHandle(string text);
+
+    [JSImport("forgetSaveHandle", Module)]
+    public static partial void ForgetSaveHandle();
+
     /// <summary>Dateiauswahl; Ergebnis „Name\0Inhalt“ oder leer, wenn abgebrochen.</summary>
     [JSImport("pickFile", Module)]
     public static partial Task<string> PickFile(string accept);

@@ -497,6 +497,50 @@ export function download(fileName, mime, text) {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+// Speichern unter: Speicherort und Namen wählen, wo der Browser das kann (Chrome, Edge); sonst Namen abfragen und herunterladen.
+// Die gewählte Datei merkt sich die Seite, damit „Speichern“ danach in dieselbe Datei schreibt.
+let saveHandle = null;
+
+export async function saveAs(suggested, extension, description, promptText, text) {
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: suggested,
+                types: [{ description, accept: { "application/octet-stream": [extension] } }],
+            });
+            await writeHandle(handle, text);
+            saveHandle = handle;
+            return handle.name;
+        } catch (e) {
+            if (e && e.name === "AbortError") return "";
+            // z. B. in einem eingebetteten Rahmen nicht erlaubt: weiter wie in anderen Browsern
+        }
+    }
+    let name = window.prompt(promptText, suggested);
+    if (name === null) return "";
+    name = name.trim().replace(/[\\\/:*?"<>|]/g, "_");
+    if (!name) return "";
+    if (!name.toLowerCase().endsWith(extension)) name += extension;
+    saveHandle = null;
+    download(name, "application/json", text);
+    return name;
+}
+
+/// In die zuletzt mit „Speichern unter“ gewählte Datei schreiben; false, wenn es keine gibt oder es scheitert.
+export async function saveToHandle(text) {
+    if (!saveHandle) return false;
+    try { await writeHandle(saveHandle, text); return true; }
+    catch (e) { saveHandle = null; return false; }
+}
+
+export function forgetSaveHandle() { saveHandle = null; }
+
+async function writeHandle(handle, text) {
+    const w = await handle.createWritable();
+    await w.write(new Blob([text], { type: "application/json" }));
+    await w.close();
+}
+
 export function pickFile(accept) {
     return new Promise(resolve => {
         const input = document.createElement("input");

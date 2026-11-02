@@ -323,6 +323,10 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
     background: var(--canvas);
 }
 .canvas-host { position: absolute; inset: 0; overflow: hidden; }
+.ctx-backdrop { position: absolute; inset: 0; z-index: 30; }
+.ctx-menu { position: absolute; z-index: 31; min-width: 200px; padding: 4px; background: var(--panel); color: inherit; border: 1px solid var(--border, #ccc); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); display: flex; flex-direction: column; }
+.ctx-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; border-radius: 5px; cursor: pointer; }
+.ctx-menu button:hover, .ctx-menu button:focus-visible { background: var(--hover, rgba(0,0,0,.06)); outline: none; }
 #plan-canvas { display: block; touch-action: none; outline: none; user-select: none; -webkit-user-select: none; }
 
 .toolbar {

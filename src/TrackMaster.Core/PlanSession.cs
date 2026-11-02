@@ -326,6 +326,43 @@ public sealed partial class PlanSession
         Commit();
     }
 
+    /// <summary>Gewählte Gleise (ohne Auswahl: alle), die über eine Modulkante laufen.</summary>
+    public List<PlacedPiece> PiecesToCutAtJoints()
+    {
+        var pool = Selection.Count > 0 ? SelectedPieces.ToList() : Plan.Pieces.ToList();
+        return pool.Where(p => ModuleLayout.JointCuts(Plan, p).Count > 0).ToList();
+    }
+
+    /// <summary>Gewählte Gleise (ohne Auswahl: alle) an den Modulkanten in Flexgleisstücke teilen.</summary>
+    public void CutAtModuleJoints()
+    {
+        if (Plan.BoardShape != BoardShape.Module || Plan.Modules.Count < 2)
+        {
+            Say(Lang.T("Gleise trennen: Die Anlage besteht nicht aus mehreren Modulen."));
+            return;
+        }
+        var across = ModuleLayout.PiecesAcrossJoints(Plan).ToHashSet();
+        var pool = Selection.Count > 0 ? SelectedPieces : Plan.Pieces;
+        var stuck = pool.Count(p => across.Contains(p) && p.Def.Kind is not (PieceKind.Straight or PieceKind.Curve));
+        var all = PiecesToCutAtJoints();
+        var pieces = all.Where(p => !p.Locked).ToList();
+        if (pieces.Count == 0)
+        {
+            Say(all.Count > 0 ? Lang.T("Die Gleise an der Modulkante sind gesperrt. Zum Trennen erst wieder entsperren (Sperren).")
+                : stuck > 0 ? Lang.T("Weichen, Kreuzungen und Drehscheiben lassen sich nicht teilen – bitte so verschieben, dass sie ganz auf einem Modul liegen.")
+                : Lang.T("Kein Gleis läuft über eine Modulkante."));
+            return;
+        }
+        Record();
+        var made = new List<int>();
+        foreach (var p in pieces) made.AddRange(ModuleLayout.CutAtJoints(Plan, p).Select(q => q.Id));
+        Selection.Clear();
+        foreach (var id in made) Selection.Add(id);
+        Commit();
+        Say(Lang.F($"{pieces.Count} Gleis(e) an der Modulkante getrennt.")
+            + (stuck > 0 ? Lang.F($" {stuck} Weiche(n)/Kreuzung(en) liegen noch über einer Kante.") : ""));
+    }
+
     public void Delete()
     {
         if (SelectedObject is { } obj)

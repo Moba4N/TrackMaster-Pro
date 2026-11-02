@@ -67,6 +67,30 @@
             <div class="canvas-host">
                 <canvas id="plan-canvas" tabindex="0" aria-label="@Lang.T("Gleisplan")"></canvas>
             </div>
+            @if (_ctx is { } cm)
+            {
+                var hasSel = _session.Selection.Count > 0;
+                <div class="ctx-backdrop" @onclick="@(() => _ctx = null)" @oncontextmenu="@(() => _ctx = null)" @oncontextmenu:preventDefault></div>
+                <div class="ctx-menu" role="menu" style="@FormattableString.Invariant($"left:{Math.Max(4, Math.Min(cm.X, _view.Width - 230)):F0}px;top:{Math.Max(4, Math.Min(cm.Y, _view.Height - 250)):F0}px")" @oncontextmenu:preventDefault>
+                    @if (IsModulePlan())
+                    {
+                        <button role="menuitem" @onclick="@(() => CtxRun("cutJoints"))">@((MarkupString)Icons.Svg("Isolate", 16))<span>@(hasSel ? Lang.T("An Modulkante trennen") : Lang.T("Alle Gleise an Modulkanten trennen"))</span></button>
+                    }
+                    @if (hasSel)
+                    {
+                        <button role="menuitem" @onclick="@(() => CtxRun("props"))">@((MarkupString)Icons.Svg("Properties", 16))<span>@Lang.T("Eigenschaften")</span></button>
+                        <button role="menuitem" @onclick="@(() => CtxRun("rotR"))">@((MarkupString)Icons.Svg("RotateRight", 16))<span>@Lang.T("Drehen")</span></button>
+                        <button role="menuitem" @onclick="@(() => CtxRun("flip"))">@((MarkupString)Icons.Svg("Mirror", 16))<span>@Lang.T("Spiegeln")</span></button>
+                        <button role="menuitem" @onclick="@(() => CtxRun("duplicate"))">@((MarkupString)Icons.Svg("Copy", 16))<span>@Lang.T("Duplizieren")</span></button>
+                        <button role="menuitem" @onclick="@(() => CtxRun("delete"))">@((MarkupString)Icons.Svg("Delete", 16))<span>@Lang.T("Löschen")</span></button>
+                    }
+                    else
+                    {
+                        <button role="menuitem" @onclick="@(() => CtxRun("paste"))">@((MarkupString)Icons.Svg("Paste", 16))<span>@Lang.T("Einfügen")</span></button>
+                        <button role="menuitem" @onclick="@(() => CtxRun("fit"))">@((MarkupString)Icons.Svg("Fit", 16))<span>@Lang.T("Einpassen")</span></button>
+                    }
+                </div>
+            }
             @if (_session.Tool is not (CanvasTool.Select))
             {
                 var polygon = _session.Tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room;
@@ -249,6 +273,7 @@
         [
             new(Lang.T("Grundplatte"), [new(Lang.T("Anlagen­platte"), "Board", "board", true, Lang.T("Form und Maße der Anlagenplatte einstellen.")),
                 new(Lang.T("Module…"), "Modules", "modules", true, Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
+                new(Lang.T("An Modulkante trennen"), "Isolate", "cutJoints", false, Lang.T("Gleise, die über eine Modulkante laufen, genau an der Kante in zwei Flexgleisstücke teilen (gewählte Gleise, ohne Auswahl alle). Auch per Rechtsklick auf das Gleis.")),
                 new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
                 new(Lang.T("Anlage 90° drehen"), "RotateRight", "boardRotate", false, Lang.T("Platte, Gleise und Gelände zusammen um 90° im Uhrzeigersinn drehen. Frei in alle Richtungen drehen geht in der 3D-Ansicht.")),
                 new(Lang.T("Unterbau…"), "Table", "benchwork", true, Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))]),

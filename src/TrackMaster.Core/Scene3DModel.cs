@@ -116,12 +116,17 @@ public sealed class Scene3DModel
         var bench = plan.Benchwork;
         var thickness = bench is null ? Math.Max(g * 1.5, 15) : Math.Max(bench.TopThickness, 3);
         if (bench is not null) Bench(Benchwork.Build(plan, bench));
-        foreach (var r in BoardGeometry.Rects(plan))
+        var rects = BoardGeometry.Rects(plan);
+        for (var ri = 0; ri < rects.Count; ri++)
         {
-            Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, -thickness), P(r.X1, r.Y1, 0), top: false);
-            if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, -thickness * 1.6), P(r.X1 + 2, r.Y1 + 2, -thickness));
-            if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1);
-            else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, 0), P(r.X0, r.Y1, 0), P(r.X1, r.Y1, 0), P(r.X1, r.Y0, 0));
+            var r = rects[ri];
+            // Module können in der Höhe versetzt sein: Oberfläche auf z, darunter ein Sockel bis zur Grundhöhe
+            var z = plan.BoardShape == BoardShape.Module && ri < plan.Modules.Count ? plan.Modules[ri].Height : 0;
+            var bottom = Math.Min(z - thickness, -thickness);
+            Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, bottom), P(r.X1, r.Y1, z), top: false);
+            if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, bottom - thickness * 0.6), P(r.X1 + 2, r.Y1 + 2, bottom));
+            if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1, z);
+            else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, z), P(r.X0, r.Y1, z), P(r.X1, r.Y1, z), P(r.X1, r.Y0, z));
         }
 
         foreach (var s in Scenery ? plan.Scenery : [])
@@ -247,7 +252,7 @@ public sealed class Scene3DModel
     private static readonly Rgb Rock = new(0x8C, 0x88, 0x80);
     private static readonly Rgb RockDark = new(0x76, 0x72, 0x6C);
 
-    private void Meadow(double x0, double y0, double x1, double y1)
+    private void Meadow(double x0, double y0, double x1, double y1, double z = 0)
     {
         var cell = Math.Max(_g * 3, 25);
         int nx = Math.Max(1, (int)Math.Ceiling((x1 - x0) / cell)), ny = Math.Max(1, (int)Math.Ceiling((y1 - y0) / cell));
@@ -258,7 +263,7 @@ public sealed class Scene3DModel
                 double a = x0 + i * cx, b = y0 + j * cy;
                 // Weiche Flecken plus feine Abwechslung
                 var color = GrassAt(a + cx / 2, b + cy / 2, Noise(i, j, 11));
-                Mesh(color).Quad(P(a, b, 0), P(a, b + cy, 0), P(a + cx, b + cy, 0), P(a + cx, b, 0));
+                Mesh(color).Quad(P(a, b, z), P(a, b + cy, z), P(a + cx, b + cy, z), P(a + cx, b, z));
             }
     }
 
@@ -267,14 +272,15 @@ public sealed class Scene3DModel
     {
         if (s.Points.Count < 3 || s.Height + _plan.Level(s.Level).Height <= 0) return;
         var f = TerrainField.For(_plan, s);
-        Vec3 V(int i, int j) => P(f.X0 + i * f.Cell, f.Y0 + j * f.Cell, f.Vertex(i, j) + (f.Vertex(i, j) > 0 ? 0.2 : 0));
+        var baseZ = ModuleLayout.HasHeights(_plan) ? ModuleLayout.BaseHeightAt(_plan, s.Points.Average(q => q.X), s.Points.Average(q => q.Y)) : 0;
+        Vec3 V(int i, int j) => P(f.X0 + i * f.Cell, f.Y0 + j * f.Cell, baseZ + f.Vertex(i, j) + (f.Vertex(i, j) > 0 ? 0.2 : 0));
         void Tri(int i, int j, Vec3 a, Vec3 b, Vec3 c, int k)
         {
-            if (a.Y < 0.01 && b.Y < 0.01 && c.Y < 0.01) return;
+            if (a.Y < baseZ + 0.01 && b.Y < baseZ + 0.01 && c.Y < baseZ + 0.01) return;
             var n = Vec3.Cross(b - a, c - a).Normalized();
             var steep = 1 - Math.Abs(n.Y);   // 0 = eben, 1 = senkrecht
             var noise = Smooth(a.X, a.Z, _g * 5, s.Id + 3) * 0.7 + Noise(i + s.Id * 31, j, k) * 0.3;
-            var top = (a.Y + b.Y + c.Y) / 3 / Math.Max(f.Height, 1);
+            var top = ((a.Y + b.Y + c.Y) / 3 - baseZ) / Math.Max(f.Height, 1);
             Rgb color;
             if (steep > 0.55 + noise * 0.1) color = noise > 0.5 ? Rock : RockDark;
             else if (steep > 0.38 + noise * 0.12) color = Earth;
@@ -296,7 +302,8 @@ public sealed class Scene3DModel
     {
         var pts = s.Points;
         if (pts.Count < 3) return;
-        Prism(pts, 0.3, 0.8, WaterColor, new Rgb(0x2E, 0x6A, 0x9A), SurfaceKind.Water);
+        var wz = ModuleLayout.HasHeights(_plan) ? ModuleLayout.BaseHeightAt(_plan, pts.Average(q => q.X), pts.Average(q => q.Y)) : 0;
+        Prism(pts, wz + 0.3, wz + 0.8, WaterColor, new Rgb(0x2E, 0x6A, 0x9A), SurfaceKind.Water);
         var bank = Mesh(new Rgb(0xA8, 0x96, 0x6E));
         var mud = Mesh(new Rgb(0x7A, 0x6A, 0x4C));
         var w = Math.Max(_g * 1.2, 6);
@@ -309,8 +316,8 @@ public sealed class Scene3DModel
             double nx = -(by - ay) / len, ny = (bx - ax) / len;
             // nach außen zeigen lassen
             if (Geometry2D.PointInPolygon(pts, (ax + bx) / 2 + nx * 0.5, (ay + by) / 2 + ny * 0.5)) { nx = -nx; ny = -ny; }
-            mud.Quad(P(ax, ay, 0.85), P(bx, by, 0.85), P(bx + nx * w * 0.4, by + ny * w * 0.4, 0.6), P(ax + nx * w * 0.4, ay + ny * w * 0.4, 0.6));
-            bank.Quad(P(ax + nx * w * 0.4, ay + ny * w * 0.4, 0.6), P(bx + nx * w * 0.4, by + ny * w * 0.4, 0.6), P(bx + nx * w, by + ny * w, 0.15), P(ax + nx * w, ay + ny * w, 0.15));
+            mud.Quad(P(ax, ay, wz + 0.85), P(bx, by, wz + 0.85), P(bx + nx * w * 0.4, by + ny * w * 0.4, wz + 0.6), P(ax + nx * w * 0.4, ay + ny * w * 0.4, wz + 0.6));
+            bank.Quad(P(ax + nx * w * 0.4, ay + ny * w * 0.4, wz + 0.6), P(bx + nx * w * 0.4, by + ny * w * 0.4, wz + 0.6), P(bx + nx * w, by + ny * w, wz + 0.15), P(ax + nx * w, ay + ny * w, wz + 0.15));
         }
     }
 

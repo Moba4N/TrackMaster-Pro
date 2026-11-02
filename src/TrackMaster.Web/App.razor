@@ -491,12 +491,13 @@
         public string Y { get; set; } = "";
         public string W { get; set; } = "";
         public string D { get; set; } = "";
+        public string Z { get; set; } = "";
         public bool Pick { get; set; }
     }
 
     private List<ModuleRow> _modules = [];
 
-    private static ModuleRow Row(ModuleEdit m) => new() { Index = m.Index, Name = m.Name, X = N(m.X), Y = N(m.Y), W = N(m.Width), D = N(m.Depth) };
+    private static ModuleRow Row(ModuleEdit m) => new() { Index = m.Index, Name = m.Name, X = N(m.X), Y = N(m.Y), W = N(m.Width), D = N(m.Depth), Z = double.IsFinite(m.Height) ? N(m.Height, 1) : "0" };
 
     private void AskModules()
     {
@@ -504,10 +505,10 @@
         _modules = ModuleLayout.Current(plan).Select(Row).ToList();
         var d = Show(Lang.T("Module"), @<div class="form">
             @Hint(plan.BoardShape == BoardShape.Module
-                ? Lang.T("Lage (X, Y = linke obere Ecke) und Größe jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Gleise über Modulgrenzen meldet die Planprüfung.")
+                ? Lang.T("Lage (X, Y = linke obere Ecke), Größe und Höhe (Z) jedes Moduls in mm. Ein verschobenes Modul nimmt seine Gleise und sein Gelände mit; Kanten rasten auf 30 mm an Nachbarmodulen ein. Z hebt bzw. senkt das Modul samt Gleisen gegenüber der Grundhöhe, z. B. für ein Modul auf höherem Niveau. Gleise über Modulgrenzen meldet die Planprüfung.")
                 : Lang.F($"Die Platte ({BoardGeometry.Name(plan.BoardShape)}) wird beim Übernehmen in Module zerlegt, je Rechteck eines. Danach lassen sich Module anhängen und verschieben."))
             <table class="table modules">
-                <tr><th title="@Lang.T("Zum Zusammenführen wählen")">✓</th><th>@Lang.T("Name")</th><th>X</th><th>Y</th><th>@Lang.T("Breite")</th><th>@Lang.T("Tiefe")</th><th></th></tr>
+                <tr><th title="@Lang.T("Zum Zusammenführen wählen")">✓</th><th>@Lang.T("Name")</th><th>X</th><th>Y</th><th>@Lang.T("Breite")</th><th>@Lang.T("Tiefe")</th><th title="@Lang.T("Höhe der Moduloberfläche über der Grundhöhe (mm), negativ = tiefer")">@Lang.T("Höhe Z")</th><th></th></tr>
                 @foreach (var m in _modules)
                 {
                     var row = m;
@@ -518,6 +519,7 @@
                         <td><input class="input" inputmode="decimal" @bind="row.Y" /></td>
                         <td><input class="input" inputmode="decimal" @bind="row.W" /></td>
                         <td><input class="input" inputmode="decimal" @bind="row.D" /></td>
+                        <td><input class="input" inputmode="decimal" @bind="row.Z" /></td>
                         <td><button class="btn" title="@Lang.T("Modul entfernen")" disabled="@(_modules.Count < 2)" @onclick="@(() => _modules.Remove(row))">✕</button></td>
                     </tr>
                 }
@@ -811,13 +813,19 @@
         foreach (var (m, i) in _modules.Select((m, i) => (m, i)))
         {
             double? x = Fmt.Parse(m.X), y = Fmt.Parse(m.Y), w = Fmt.Parse(m.W), dd = Fmt.Parse(m.D);
-            if (x is null || y is null || w is null || dd is null) { errors.Add(Lang.F($"Modul {i + 1}: bitte Zahlen eingeben.")); continue; }
+            var z = m.Z.Trim().Length == 0 ? 0 : Fmt.Parse(m.Z);
+            if (x is null || y is null || w is null || dd is null || z is null) { errors.Add(Lang.F($"Modul {i + 1}: bitte Zahlen eingeben.")); continue; }
+            if (z < ModuleLayout.MinHeight || z > ModuleLayout.MaxHeight)
+            {
+                errors.Add(Lang.F($"Modul {i + 1}: Höhe Z zwischen {Fmt.Num(ModuleLayout.MinHeight, 0)} und {Fmt.Num(ModuleLayout.MaxHeight, 0)} mm."));
+                continue;
+            }
             if (w < ModuleLayout.MinSize || dd < ModuleLayout.MinSize || w > ModuleLayout.MaxSize || dd > ModuleLayout.MaxSize)
             {
                 errors.Add(Lang.F($"Modul {i + 1}: Breite und Tiefe zwischen {Fmt.Num(ModuleLayout.MinSize, 0)} und {Fmt.Num(ModuleLayout.MaxSize, 0)} mm."));
                 continue;
             }
-            edits.Add(new ModuleEdit(m.Index, m.Name, x.Value, y.Value, w.Value, dd.Value));
+            edits.Add(new ModuleEdit(m.Index, m.Name, x.Value, y.Value, w.Value, dd.Value, z.Value));
         }
         return edits;
     }
@@ -873,15 +881,16 @@
         if (module >= 0 && plan.BoardShape == BoardShape.Module && module < plan.Modules.Count)
         {
             var m = plan.Modules[module];
-            _d["name"] = m.Name; _d["x"] = N(m.X); _d["y"] = N(m.Y); _d["w"] = N(m.Width); _d["d"] = N(m.Depth);
+            _d["name"] = m.Name; _d["x"] = N(m.X); _d["y"] = N(m.Y); _d["w"] = N(m.Width); _d["d"] = N(m.Depth); _d["z"] = N(m.Height, 1);
             var dm = Show(Lang.F($"Maße: {m.Name}"), @<div class="form">
-                @Hint(Lang.T("Lage (X, Y = linke obere Ecke) und Größe in mm. Gleise und Gelände auf dem Modul wandern mit."))
+                @Hint(Lang.T("Lage (X, Y = linke obere Ecke), Größe und Höhe Z in mm. Gleise und Gelände auf dem Modul wandern mit; mit Z hebt bzw. senkt sich das Modul samt seinen Gleisen."))
                 <label class="field-label">@Lang.T("Name")</label><input class="input" @bind='_d["name"]' />
                 <div class="cols">
                     <div><label class="field-label">X</label><input class="input" inputmode="decimal" @bind='_d["x"]' /></div>
                     <div><label class="field-label">Y</label><input class="input" inputmode="decimal" @bind='_d["y"]' /></div>
                     <div><label class="field-label">@Lang.T("Breite (mm)")</label><input class="input" inputmode="decimal" @bind='_d["w"]' /></div>
                     <div><label class="field-label">@Lang.T("Tiefe (mm)")</label><input class="input" inputmode="decimal" @bind='_d["d"]' /></div>
+                    <div><label class="field-label">@Lang.T("Höhe Z (mm)")</label><input class="input" inputmode="decimal" @bind='_d["z"]' /></div>
                 </div>
             </div>, keepFields: true);
             dm.Buttons.Add(new(Lang.T("Um 90° drehen"), () => { _session.RotateBoard(module); return true; }));
@@ -893,8 +902,9 @@
                 Read("y", "Y", -50000, 50000, errors, out var y);
                 Read("w", Lang.T("Breite"), ModuleLayout.MinSize, ModuleLayout.MaxSize, errors, out var w);
                 Read("d", Lang.T("Tiefe"), ModuleLayout.MinSize, ModuleLayout.MaxSize, errors, out var dd);
+                Read("z", Lang.T("Höhe Z"), ModuleLayout.MinHeight, ModuleLayout.MaxHeight, errors, out var z);
                 if (!Fail(errors)) return false;
-                _session.SetModule(module, D("name"), x, y, w, dd);
+                _session.SetModule(module, D("name"), x, y, w, dd, z);
                 return true;
             }, true));
             return;

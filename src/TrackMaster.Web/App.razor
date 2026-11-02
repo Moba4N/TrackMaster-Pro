@@ -234,6 +234,7 @@
                 new(Lang.T("Weiche links"), "SwitchLeft", "switchL", true), new(Lang.T("Weiche rechts"), "SwitchRight", "switchR", true),
                 new(Lang.T("Prellbock"), "Buffer", "buffer", false), new(Lang.T("Kreuzung"), "Crossing", "crossing", false), new(Lang.T("Flexgleis…"), "Flex", "flex", false),
                 new(Lang.T("Parallelgleis…"), "Parallel", "parallel", false, Lang.T("Flexgleis im festen Abstand neben die gewählten Gleise legen, z. B. für eine zweigleisige Strecke."))]),
+            new(Lang.T("Vorschlag"), [new(Lang.T("Plan­vorschlag…"), "Template", "suggest", true, Lang.T("Stückzahlen der vorhandenen Gleise eingeben – das Programm baut daraus kleine Anlagen (Oval, Abstellgleise, Ausweiche, Doppeloval, Acht), die auf die Platte passen."))]),
             new(Lang.T("Flexgleis"), [new(Lang.T("Flexgleis ziehen"), "Flex", "toolFlex", true, Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit.")),
                 new(Lang.T("Lücke schließen"), "Connector", "flexConnect", true, Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))]),
             new(Lang.T("Ebenen"), [new(Lang.T("Ebenen…"), "Layers", "levels", true, Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))]),
@@ -1995,6 +1996,148 @@
             return _session.AddParallel(spacing, D("left") == "1");
         }, true));
     }
+
+    // ---------- Planvorschlag ----------
+
+    /// <summary>Zuletzt eingegebene Stückzahlen, damit sie beim nächsten Öffnen wieder dastehen.</summary>
+    private readonly Dictionary<string, string> _suggestCounts = [];
+    private IReadOnlyList<PlanSuggestion>? _suggestions;
+
+    private void AskSuggest()
+    {
+        _d.Clear();
+        _suggestions = null;
+        foreach (var (def, stock) in _session.SuggestPieces())
+            _d["n|" + def.Key] = _suggestCounts.TryGetValue(def.Key, out var v) ? v : stock > 0 ? stock.ToString() : "";
+        _d["replace"] = "1";
+        var d = Show(Lang.T("Planvorschlag"), SuggestBody, wide: true, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true));
+        d.Buttons.Add(new(Lang.T("Vorschläge berechnen"), () =>
+        {
+            var counts = new Dictionary<string, int>();
+            var errors = new List<string>();
+            foreach (var (def, _) in _session.SuggestPieces())
+            {
+                var t = D("n|" + def.Key).Trim();
+                _suggestCounts[def.Key] = t;
+                if (t.Length == 0) continue;
+                if (int.TryParse(t, out var n) && n >= 0 && n <= 999) { if (n > 0) counts[def.Key] = n; }
+                else errors.Add(Lang.F($"{def.Number}: Anzahl bitte als ganze Zahl eingeben."));
+            }
+            if (counts.Count == 0) errors.Add(Lang.T("Bitte bei mindestens einem Gleis eine Anzahl eintragen."));
+            if (!Fail(errors)) return false;
+            _ = ComputeSuggestions(counts);
+            return false;
+        }, true));
+    }
+
+    private bool _suggestBusy;
+
+    /// <summary>Rechnet nach einem kurzen Aufschub, damit „Berechne …“ erst zu sehen ist.</summary>
+    private async Task ComputeSuggestions(Dictionary<string, int> counts)
+    {
+        _suggestBusy = true;
+        _suggestions = null;
+        StateHasChanged();
+        await Task.Delay(30);
+        try { _suggestions = PlanSuggest.Build(_session.Plan, counts); }
+        catch (Exception e) { Report(e); }
+        finally { _suggestBusy = false; }
+        if (_dialog is { } dlg) dlg.Error = null;
+        StateHasChanged();
+    }
+
+    private void ApplySuggestion(PlanSuggestion s)
+    {
+        _session.ApplySuggestion(s, D("replace") == "1");
+        CloseAllDialogs();
+        _view.Fit();
+    }
+
+    /// <summary>Kleines Vorschaubild eines Vorschlags auf der Platte.</summary>
+    private MarkupString SuggestPreview(PlanSuggestion s)
+    {
+        var plan = _session.Plan;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        string F(double v) => Math.Round(v, 1).ToString(inv);
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"<svg class=\"suggest-preview\" viewBox=\"-20 -20 {F(plan.BoardWidth + 40)} {F(plan.BoardHeight + 40)}\" preserveAspectRatio=\"xMidYMid meet\" aria-hidden=\"true\">");
+        foreach (var r in BoardGeometry.Rects(plan))
+            sb.Append($"<rect x=\"{F(r.X0)}\" y=\"{F(r.Y0)}\" width=\"{F(r.X1 - r.X0)}\" height=\"{F(r.Y1 - r.Y0)}\" class=\"board\"/>");
+        var width = Math.Max(plan.Gauge.TrackWidth * 1.6, Math.Max(plan.BoardWidth, plan.BoardHeight) / 140);
+        foreach (var p in s.Pieces)
+        {
+            var cls = p.Def.Kind switch { PieceKind.Switch or PieceKind.Crossing => "sw", PieceKind.Buffer => "buf", _ => "" };
+            foreach (var l in p.WorldLegs())
+            {
+                var pts = string.Join(" ", Enumerable.Range(0, l.IsArc ? 9 : 2).Select(i => l.At(i / (l.IsArc ? 8.0 : 1.0))).Select(q => F(q.X) + "," + F(q.Y)));
+                sb.Append($"<polyline points=\"{pts}\" class=\"{cls}\" stroke-width=\"{F(width)}\"/>");
+            }
+        }
+        sb.Append("</svg>");
+        return new MarkupString(sb.ToString());
+    }
+
+    private RenderFragment SuggestBody => @<div class="form">
+        @{
+            var pieces = _session.SuggestPieces();
+            var plan = _session.Plan;
+        }
+        @Hint(Lang.F($"Trag ein, wie viele Gleise von jeder Sorte du hast – leer oder 0 heißt keins. Das Programm baut daraus kleine Anlagen, die auf die Platte ({Fmt.Num(plan.BoardWidth, 0)} × {Fmt.Num(plan.BoardHeight, 0)} mm) passen, geschlossen sind und die Planprüfung bestehen. Gleissystem: {_session.CurrentSystem.Name} (in der Gleisbibliothek umschalten)."))
+        @if (pieces.Count == 0)
+        {
+            <div>@Lang.T("Dieses Gleissystem hat keine Gleise, aus denen sich ein Vorschlag bauen lässt.")</div>
+        }
+        else
+        {
+            <div class="suggest-stock">
+                <table class="table bom">
+                    <tr><th>@Lang.T("Anzahl")</th><th>@Lang.T("Artikel")</th></tr>
+                    @foreach (var (def, _) in pieces)
+                    {
+                        var key = def.Key;
+                        <tr>
+                            <td><input class="input tiny" inputmode="numeric" placeholder="0" @bind='_d["n|" + key]' @bind:event="oninput" /></td>
+                            <td><div>@($"{def.Number} · {def.Name}")</div><div class="secondary">@def.Spec</div></td>
+                        </tr>
+                    }
+                </table>
+            </div>
+        }
+        @if (plan.Pieces.Count > 0)
+        {
+            <label class="check"><input type="checkbox" checked="@(D("replace") == "1")" @onchange="@(e => _d["replace"] = e.Value is true ? "1" : "")" /> @Lang.T("Vorhandene Gleise dabei ersetzen")</label>
+        }
+        @if (_suggestBusy)
+        {
+            <div class="secondary">@Lang.T("Berechne Vorschläge …")</div>
+        }
+        @if (_suggestions is { } list)
+        {
+            @if (list.Count == 0)
+            {
+                <div class="error-box">@Lang.T("Damit lässt sich auf dieser Platte keine geschlossene Anlage bauen. Für ein Oval braucht es Bögen für einen ganzen Kreis eines Radius, und die Platte muss mindestens den doppelten Radius tief sein.")</div>
+            }
+            else
+            {
+                <div class="suggest-list">
+                    @foreach (var s in list)
+                    {
+                        var item = s;
+                        <div class="suggest-item">
+                            @SuggestPreview(item)
+                            <div class="suggest-text">
+                                <div class="strong">@item.Name</div>
+                                <div class="secondary">@item.Description</div>
+                                <div class="secondary">@Lang.F($"{item.Used} Gleise · {Fmt.Num(item.Width / 1000, 2)} × {Fmt.Num(item.Height / 1000, 2)} m")</div>
+                            </div>
+                            <button class="btn accent" @onclick="@(() => ApplySuggestion(item))">@Lang.T("Übernehmen")</button>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>;
 
     private void ShowProfile()
     {

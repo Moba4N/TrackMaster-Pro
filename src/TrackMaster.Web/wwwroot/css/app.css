@@ -685,3 +685,15 @@ kbd {
 .table.modules td:nth-child(2) { width: 32%; }
 .table.modules .input { min-width: 0; width: 100%; }
 .table.modules .btn { padding: 4px 8px; }
+
+/* Planvorschlag */
+.suggest-stock { max-height: 38vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.suggest-stock .table { margin: 0; }
+.suggest-list { display: flex; flex-direction: column; gap: 8px; }
+.suggest-item { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); }
+.suggest-text { flex: 1; min-width: 0; }
+.suggest-preview { width: 180px; height: 112px; flex: none; }
+.suggest-preview .board { fill: var(--accent-light); stroke: var(--border-strong); stroke-width: 6; }
+.suggest-preview polyline { fill: none; stroke: var(--text); stroke-linecap: round; }
+.suggest-preview polyline.sw { stroke: var(--accent); }
+@media (max-width: 560px) { .suggest-item { flex-wrap: wrap; } .suggest-preview { width: 100%; height: auto; } }

@@ -312,6 +312,7 @@ public partial class App : ComponentBase, IAppHost
         Add("alignCX", Lang.T("Mittig waagrecht"), () => _session.Align(AlignMode.CenterX), () => _session.Selection.Count > 1);
         Add("alignCY", Lang.T("Mittig senkrecht"), () => _session.Align(AlignMode.CenterY), () => _session.Selection.Count > 1);
         Add("parallel", Lang.T("Parallelgleis"), AskParallel, HasSelection);
+        Add("suggest", Lang.T("Planvorschlag"), AskSuggest);
         Add("profile", Lang.T("Höhenprofil"), ShowProfile);
         Add("roomRect", Lang.T("Raum"), AskRoom);
         Add("toolRoom", Lang.T("Raum zeichnen"), () => SetTool(CanvasTool.Room));

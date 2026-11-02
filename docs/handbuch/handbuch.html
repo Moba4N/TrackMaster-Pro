@@ -228,6 +228,7 @@ danach kommt sie aus dem Zwischenspeicher des Browsers.</p>
   <li><b>Lizenz:</b> unter <span class="ui">Datei › Lizenz…</span> die Lizenzdatei wählen oder ihren Inhalt einfügen. Sie gilt nur in diesem Browser;
     nach dem Löschen der Website-Daten muss sie neu eingespielt werden.</li>
   <li><b>3D-Ansicht:</b> braucht WebGL. Meldet der Browser, dass er keine 3D-Grafik anzeigen kann, schalten Sie die Hardwarebeschleunigung ein.</li>
+  <li><b>Planvorschlag:</b> Nur in der Webversion baut <span class="ui">Gleise › Planvorschlag…</span> aus Ihrem Gleisbestand kleine Anlagen (siehe <a href="#k6-7">Planvorschlag</a> in Kapitel 8).</li>
   <li><b>Drucken und Exporte</b> werden als Datei heruntergeladen bzw. über den Druckdialog des Browsers ausgegeben.</li>
 </ul>
 <p>Ist die Webversion in eine Webseite eingebunden, führt der Knopf <span class="ui">Startseite</span> oben links in der Titelleiste zurück zur Startseite dieser Webseite.</p>
@@ -650,6 +651,23 @@ Beschriftungen und Maße erscheinen auch im Ausdruck.</p>
 <figure class="third"><img src="img/parallel.png" alt=""><figcaption>Dialog Parallelgleis.</figcaption></figure>
 <p>Das neue Gleis wird als <b>Flexgleis</b> des gewählten Systems gelegt; Bögen bekommen automatisch den passenden größeren oder kleineren Radius.
 Liegt es auf der falschen Seite, nehmen Sie es mit <kbd>Strg</kbd>+<kbd>Z</kbd> zurück und wählen die andere Seite.</p>
+
+<h2 id="k6-7">Planvorschlag aus dem eigenen Gleisbestand</h2>
+<p>Sie haben eine Kiste voller Gleise, aber keine Idee für eine Anlage? Der Planvorschlag baut aus Ihren Stückzahlen kleine Anlagen –
+keine Großanlagen, sondern Ideen zum Loslegen. <i>Diese Funktion gibt es zunächst nur in der Webversion.</i></p>
+<ol class="steps">
+  <li>Stellen Sie die <b>Anlagenplatte</b> ein (Größe und Form) und wählen Sie in der Gleisbibliothek Ihr <b>Gleissystem</b>.</li>
+  <li>Klicken Sie auf <span class="ui">Gleise › Planvorschlag…</span>.</li>
+  <li>Tragen Sie bei jedem Gleis ein, <b>wie viele Stück</b> Sie haben. Leer oder 0 heißt: keins. Haben Sie in der Stückliste schon Ihren Bestand eingetragen, steht er hier bereits.</li>
+  <li>Klicken Sie auf <span class="ui">Vorschläge berechnen</span>. Nach einem Augenblick erscheinen die Vorschläge mit kleinem Vorschaubild, Gleisanzahl und Größe.</li>
+  <li>Gefällt Ihnen einer, klicken Sie auf <span class="ui">Übernehmen</span>. Mit <kbd>Strg</kbd>+<kbd>Z</kbd> ist er wieder weg.</li>
+</ol>
+<p>Je nach Bestand gibt es diese Formen: <b>Oval</b>, <b>Oval mit Abstellgleis</b> (oder zwei), <b>Oval mit Ausweiche</b>, <b>Doppeloval</b>
+(zwei Rundkurse ineinander) und die <b>Acht</b> mit einer Kreuzung in der Mitte. Jeder Vorschlag ist geschlossen, passt auf die Platte und besteht die Planprüfung;
+es werden nie mehr Gleise verwendet, als Sie eingetragen haben.</p>
+<p class="tip"><b>Kein Vorschlag?</b> Für ein Oval braucht es Bögen für einen ganzen Kreis eines Radius (z. B. 12 Bögen à 30°), und die Platte muss mindestens
+doppelt so tief sein wie der Radius plus etwas Rand. Für Abstellgleise braucht es eine Weiche, einen passenden Gegenbogen und einen Prellbock.
+Ist „Vorhandene Gleise dabei ersetzen“ angehakt, ersetzt der Vorschlag die Gleise im Plan; sonst kommt er dazu.</p>
 
 <h2 id="k6-4">Flexgleis</h2>
 <p>Flexgleis lässt sich auf drei Arten verlegen:</p>
@@ -1199,6 +1217,7 @@ Das Programm sendet keine Daten an Dritte; beim Start ruft es lediglich die aktu
   <tr><td>Nutzlänge</td><td>Länge eines Gleisabschnitts zwischen Weichen bzw. bis zum Prellbock – so lang darf ein dort stehender Zug höchstens sein.</td></tr>
   <tr><td>Oval</td><td>Einfachste Anlagenform: zwei Halbkreise, mit Geraden verbunden. Der Zug fährt endlos im Kreis.</td></tr>
   <tr><td>Parallelgleis</td><td>Zweites Gleis im gleichbleibenden Abstand neben einer Strecke.</td></tr>
+  <tr><td>Planvorschlag</td><td>Kleine Anlage, die das Programm aus den eingetragenen Stückzahlen Ihrer Gleise baut (Webversion).</td></tr>
   <tr><td>Prellbock</td><td>Abschluss am Ende eines Gleises, an dem der Zug anhält.</td></tr>
   <tr><td>Radius</td><td>Abstand vom Kreismittelpunkt zur Gleismitte eines Bogens; je kleiner, desto enger.</td></tr>
   <tr><td>Randaufmaß</td><td>Zuschlag an der Trassenbreite für Befestigung und Leitplanke.</td></tr>

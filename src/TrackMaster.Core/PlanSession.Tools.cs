@@ -180,4 +180,30 @@ public sealed partial class PlanSession
         Say(Lang.F($"{n} Preis(e) aus der Preisliste übernommen."));
         return n;
     }
+
+    // ---------- Planvorschlag ----------
+
+    /// <summary>Teile des aktuellen Gleissystems, die der Planvorschlag verwenden kann, mit dem eingetragenen Bestand (sonst 0).</summary>
+    public IReadOnlyList<(TrackPieceDef Def, int Stock)> SuggestPieces()
+        => CurrentSystem.Pieces.Where(PlanSuggest.IsUsable).Select(d => (d, Plan.Stock.GetValueOrDefault(d.Key))).ToList();
+
+    /// <summary>Übernimmt einen Vorschlag in den Plan (rückgängig machbar). <paramref name="replace"/> entfernt vorher alle Gleise.</summary>
+    public void ApplySuggestion(PlanSuggestion suggestion, bool replace)
+    {
+        Record();
+        if (replace) Plan.RemovePieces(Plan.Pieces.Select(p => p.Id).ToHashSet());
+        Selection.Clear();
+        foreach (var s in suggestion.Pieces)
+        {
+            var p = Plan.Add(s.Key);
+            p.X = s.X;
+            p.Y = s.Y;
+            p.Rotation = s.Rotation;
+            p.Flipped = s.Flipped;
+            Selection.Add(p.Id);
+        }
+        Active = null;
+        Commit();
+        Say(Lang.F($"Vorschlag „{suggestion.Name}“ übernommen: {suggestion.Pieces.Count} Gleise. Rückgängig nimmt ihn wieder heraus."));
+    }
 }

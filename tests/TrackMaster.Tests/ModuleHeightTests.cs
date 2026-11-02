@@ -73,4 +73,21 @@ public class ModuleHeightTests
         // kein Klotz bis zum Boden: nichts unter dem Modul ausser dem flachen Rahmen
         Assert.DoesNotContain(pts, v => v.X > 1003 && v.Y < 180);
     }
+
+    [Fact]
+    public void SplitAndRaiseInOneStepLiftsTracks()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Module, 2000, 500, 500, 0));
+        s.Drop("H0|mc|24188", 1500, 250, 0);
+        var right = s.Plan.Pieces[^1];
+        s.Drop("H0|mc|24188", 400, 250, 0);
+        var left = s.Plan.Pieces[^1];
+        var (rows, error) = ModuleLayout.Split(ModuleLayout.Current(s.Plan), 0, true, 1000);
+        Assert.Null(error);
+        rows![1] = rows[1] with { Height = 90 };
+        s.ApplyModules(rows);
+        Assert.Equal(90, right.Height, 3);
+        Assert.Equal(0, left.Height, 3);
+    }
 }

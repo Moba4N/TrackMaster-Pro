@@ -128,7 +128,6 @@ public static class ModuleLayout
         var sceneryOwner = plan.Scenery.ToDictionary(s => s, s => Owner(old, s.Center().X, s.Center().Y));
         var result = new List<BoardModule>();
         var moves = new Dictionary<int, (double Dx, double Dy)>();
-        var lifts = new Dictionary<int, double>();
         foreach (var e in edits)
         {
             var known = e.Index >= 0 && e.Index < old.Count;
@@ -140,8 +139,6 @@ public static class ModuleLayout
                 Height = double.IsFinite(e.Height) ? Math.Clamp(Math.Round(e.Height, 1), MinHeight, MaxHeight) : known ? old[e.Index].Height : 0,
                 Thickness = double.IsFinite(e.Thickness) ? Math.Clamp(Math.Round(e.Thickness, 1), 0, MaxThickness) : known ? old[e.Index].Thickness : 0,
             };
-            // Höhe geändert: Gleise darauf heben bzw. senken
-            if (known && Math.Abs(m.Height - old[e.Index].Height) > 0.001) lifts[e.Index] = m.Height - old[e.Index].Height;
             // Neue und verschobene Module rasten an den Kanten der übrigen ein
             if (e.Index == Merged) { result.Add(m); continue; }
             if (e.Index < 0 || e.Index >= old.Count || Math.Abs(old[e.Index].X - m.X) > 0.001 || Math.Abs(old[e.Index].Y - m.Y) > 0.001)
@@ -154,7 +151,11 @@ public static class ModuleLayout
         foreach (var (p, owner) in pieceOwner)
         {
             if (owner is { } o && moves.TryGetValue(o, out var d)) { p.X += d.Dx; p.Y += d.Dy; }
-            if (owner is { } o2 && lifts.TryGetValue(o2, out var dz)) p.Height = Math.Round(p.Height + dz, 1);
+            // Höhe des Moduls darunter geändert (auch bei geteilten oder neuen Modulen): Gleis heben bzw. senken
+            var oldBase = owner is { } o2 ? old[o2].Height : 0;
+            var mid = p.Middle();
+            var newBase = Owner(result, mid.X, mid.Y) is { } n ? result[n].Height : 0;
+            if (Math.Abs(newBase - oldBase) > 0.001) p.Height = Math.Round(p.Height + newBase - oldBase, 1);
         }
         foreach (var (s, owner) in sceneryOwner)
             if (owner is { } o && moves.TryGetValue(o, out var d)) s.MoveBy(d.Dx, d.Dy);

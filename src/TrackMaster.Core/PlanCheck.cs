@@ -101,7 +101,7 @@ public static class PlanCheck
         {
             var m0 = across[0].Middle();
             issues.Add(new PlanIssue(IssueLevel.Hinweis, Lang.T("Modulgrenze"),
-                Lang.F($"{across.Count} Gleis(e) liegen über einer Modulgrenze – dort beim Zerlegen trennen oder so verlegen, dass ein Gleisende auf der Modulkante liegt."), across.Select(p => p.Id).ToList(), m0.X, m0.Y));
+                Lang.F($"{across.Count} Gleis(e) liegen über einer Modulgrenze – mit „An Modulkante trennen“ (rechte Maustaste) teilen oder so verlegen, dass ein Gleisende auf der Modulkante liegt."), across.Select(p => p.Id).ToList(), m0.X, m0.Y));
         }
 
         // Steigungen

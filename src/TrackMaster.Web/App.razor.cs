@@ -60,6 +60,7 @@ public partial class App : ComponentBase, IAppHost
         _view = new PlanView(_session);
         _view.SpaceTapped += () => { if (_session.Tool is CanvasTool.Select or CanvasTool.Pan) { Run("repeat"); Refresh(); } };
         _view.PropertiesRequested += () => Run("props");
+        _view.ContextRequested += (x, y) => { _ctx = (x, y); Refresh(); };
         _view.PolygonChanged += Refresh;
         _view.LabelRequested += (x, y) => AskText(Lang.T("Beschriftung"), "Text", "", text => _session.AddLabel(text, x, y));
         _view.ViewChanged += UpdateZoomText;
@@ -203,6 +204,16 @@ public partial class App : ComponentBase, IAppHost
         => (item.Tip is null ? item.Label : $"{item.Label}\n{item.Tip}") + (locked ? Lang.T(" (Pro)") : "");
 
     private bool HasSelection() => _session.Selection.Count > 0;
+    private bool IsModulePlan() => _session.Plan.BoardShape == BoardShape.Module && _session.Plan.Modules.Count > 1;
+
+    /// <summary>Offenes Kontextmenü (Rechtsklick im Plan) an dieser Stelle der Zeichenfläche.</summary>
+    private (float X, float Y)? _ctx;
+
+    private void CtxRun(string id)
+    {
+        _ctx = null;
+        Run(id);
+    }
 
     private (double X, double Y) Center() => _view.CenterWorld();
 
@@ -256,6 +267,7 @@ public partial class App : ComponentBase, IAppHost
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));
         Add("board", Lang.T("Anlagenplatte"), () => { _session.ClearSelection(); _propsOpen = true; });
         Add("modules", Lang.T("Module"), AskModules);
+        Add("cutJoints", Lang.T("An Modulkante trennen"), _session.CutAtModuleJoints, IsModulePlan);
         Add("legs", Lang.T("Schenkel einzeln"), AskLegs);
         Add("levels", Lang.T("Ebenen"), AskLevels);
         Add("boardRotate", Lang.T("Anlage drehen"), () => _session.RotateBoard());

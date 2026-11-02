@@ -47,6 +47,9 @@ public sealed class PlanView
 
     /// <summary>Doppelklick auf ein Gleis oder Objekt: Eigenschaften zeigen.</summary>
     public event Action? PropertiesRequested;
+    /// <summary>Rechtsklick ohne Ziehen: Kontextmenü an der Stelle (x, y) im Plan; das Gleis darunter ist dann gewählt.</summary>
+    public event Action<float, float>? ContextRequested;
+    private bool _rightDown;
     /// <summary>Das Vieleck-Werkzeug hat Punkte gesetzt (Leiste „Fertig/Abbrechen“ zeigen).</summary>
     public event Action? PolygonChanged;
     /// <summary>Werkzeug Beschriftung: Klick auf diese Stelle; die Seite fragt den Text ab.</summary>
@@ -895,6 +898,7 @@ public sealed class PlanView
             return;
         }
         if (_spaceDown || mods.HasFlag(Mods.Space)) _spacePanned = true;
+        _rightDown = button == 2 && _session.Tool == CanvasTool.Select;
         if (button is 1 or 2 || _spaceDown || mods.HasFlag(Mods.Space) || _session.Tool == CanvasTool.Pan)
         {
             _drag = DragMode.Pan;
@@ -975,6 +979,16 @@ public sealed class PlanView
     {
         var mode = _drag;
         _drag = DragMode.None;
+        if (_rightDown)
+        {
+            _rightDown = false;
+            if (!_moved)
+            {
+                if (HitPiece(world) is { } hit && !_session.Selection.Contains(hit.Id)) _session.Select([hit.Id], add: false);
+                ContextRequested?.Invoke(x, y);
+                return;
+            }
+        }
         switch (mode)
         {
             case DragMode.Move:

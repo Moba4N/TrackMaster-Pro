@@ -426,4 +426,124 @@ public static class ModuleLayout
         }
         return result;
     }
+
+    /// <summary>
+    /// Stellen entlang des Gleises (mm ab Anschluss 0), an denen es über eine Modulkante läuft.
+    /// Leer, wenn es ganz auf einem Modul liegt oder sich nicht teilen lässt (Weichen, Kreuzungen, Drehscheiben).
+    /// </summary>
+    public static List<double> JointCuts(LayoutPlan plan, PlacedPiece p)
+    {
+        var cuts = new List<double>();
+        if (plan.BoardShape != BoardShape.Module || plan.Modules.Count < 2) return cuts;
+        var def = p.Def;
+        if (def.Kind is not (PieceKind.Straight or PieceKind.Curve) || def.IsTable) return cuts;
+        var legs = p.WorldPaths()[0];
+        var total = legs.Sum(l => l.TrackLength);
+        if (total < 2 * FlexTrack.MinLength) return cuts;
+        int? OwnerAt(double s) { var q = PointAt(legs, s); return Owner(plan.Modules, q.X, q.Y); }
+        var steps = Math.Max(8, (int)Math.Ceiling(total / 2));
+        double prevS = 0;
+        var prev = OwnerAt(0);
+        for (var i = 1; i <= steps; i++)
+        {
+            var s = total * i / steps;
+            var o = OwnerAt(s);
+            if (o is not null && prev is not null && o != prev)
+            {
+                double lo = prevS, hi = s;
+                for (var k = 0; k < 40; k++)
+                {
+                    var mid = (lo + hi) / 2;
+                    if (OwnerAt(mid) == prev) lo = mid; else hi = mid;
+                }
+                var cut = Math.Round((lo + hi) / 2, 2);
+                if (cut >= FlexTrack.MinLength && total - cut >= FlexTrack.MinLength
+                    && (cuts.Count == 0 || cut - cuts[^1] >= FlexTrack.MinLength))
+                    cuts.Add(cut);
+            }
+            if (o is not null) { prev = o; prevS = s; }
+        }
+        return cuts;
+    }
+
+    /// <summary>
+    /// Teilt ein Gleis an den Modulkanten: an seiner Stelle liegen danach Flexgleisstücke, die genau an der Kante enden
+    /// (Höhe, Steigung, Ebene, Tunnel und Gruppe bleiben; Einspeisungen, Trennstellen, Signale und Rückmelder wandern mit).
+    /// Gibt die neuen Stücke zurück, leer wenn nichts zu teilen war.
+    /// </summary>
+    public static List<PlacedPiece> CutAtJoints(LayoutPlan plan, PlacedPiece p)
+    {
+        var cuts = JointCuts(plan, p);
+        if (cuts.Count == 0) return [];
+        var def = p.Def;
+        var flexSystem = Catalog.IsFlexSystem(def.SystemId) ? def.SystemId
+            : Catalog.Flex(Catalog.GetGauge(def.GaugeId), Catalog.GetSystem(def.GaugeId, def.SystemId)).SystemId;
+        var legs = p.WorldPaths()[0];
+        var total = legs.Sum(l => l.TrackLength);
+        var bounds = new List<double> { 0 };
+        bounds.AddRange(cuts);
+        bounds.Add(total);
+        var grade = p.EffectiveGrade;
+        var parts = new List<PlacedPiece>();
+        for (var i = 0; i + 1 < bounds.Count; i++)
+        {
+            double a = bounds[i], b = bounds[i + 1];
+            var segments = Slice(legs, a, b);
+            var (key, flipped) = FlexTrack.Key(def.GaugeId, flexSystem, segments);
+            if (Catalog.Find(key) is null) return [];
+            var start = PointAt(legs, a);
+            var q = new PlacedPiece { Key = key, Flipped = flipped };
+            PlanEditing.PlaceAt(q, 0, start.X, start.Y, start.Heading);
+            q.Height = Math.Round(p.Height + grade * a, 2);
+            q.Grade = p.Grade;
+            q.Tunnel = p.Tunnel;
+            q.Level = p.Level;
+            q.Group = p.Group;
+            parts.Add(q);
+        }
+        foreach (var q in parts) { q.Id = plan.NextId++; plan.Pieces.Add(q); }
+        int Target(int index) => index == 0 ? parts[0].Id : parts[^1].Id;
+        foreach (var f in plan.Feeders.Where(f => f.PieceId == p.Id)) f.PieceId = parts[0].Id;
+        foreach (var d in plan.Detectors.Where(d => d.PieceId == p.Id)) d.PieceId = parts[0].Id;
+        foreach (var iso in plan.Isolations.Where(x => x.PieceId == p.Id)) { iso.PieceId = Target(iso.Index); iso.Index = iso.Index == 0 ? 0 : 1; }
+        foreach (var sig in plan.Signals.Where(x => x.PieceId == p.Id)) { sig.PieceId = Target(sig.Index); sig.Index = sig.Index == 0 ? 0 : 1; }
+        plan.Pieces.Remove(p);
+        return parts;
+    }
+
+    private static Pose PointAt(IReadOnlyList<Leg> legs, double s)
+    {
+        double from = 0;
+        foreach (var l in legs)
+        {
+            var len = l.TrackLength;
+            if (s <= from + len || ReferenceEquals(l, legs[^1])) return l.At(len <= 0 ? 0 : Math.Clamp((s - from) / len, 0, 1));
+            from += len;
+        }
+        return legs[^1].End;
+    }
+
+    private static List<Segment> Slice(IReadOnlyList<Leg> legs, double a, double b)
+    {
+        var result = new List<Segment>();
+        double from = 0;
+        foreach (var l in legs)
+        {
+            var len = l.TrackLength;
+            double s0 = Math.Max(a, from), s1 = Math.Min(b, from + len);
+            if (s1 - s0 > 1e-6)
+            {
+                var piece = s1 - s0;
+                if (!l.IsArc) result.Add(Segment.Line(piece));
+                else result.Add(new Segment(0, l.Radius, piece / l.Radius * 180 / Math.PI, l.Turn));
+            }
+            from += len;
+        }
+        // Gerade Stücke hintereinander zusammenfassen
+        var merged = new List<Segment>();
+        foreach (var sgm in result)
+            if (sgm.Turn == 0 && merged.Count > 0 && merged[^1].Turn == 0) merged[^1] = Segment.Line(merged[^1].Length + sgm.Length);
+            else merged.Add(sgm);
+        return merged;
+    }
 }

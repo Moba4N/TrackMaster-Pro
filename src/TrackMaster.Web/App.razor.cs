@@ -251,6 +251,7 @@ public partial class App : ComponentBase, IAppHost
         Add("switchR", Lang.T("Weiche rechts"), () => _session.Quick(PieceKind.Switch, true, Center()));
         Add("buffer", Lang.T("Prellbock"), () => _session.Quick(PieceKind.Buffer, null, Center()));
         Add("crossing", Lang.T("Kreuzung"), () => _session.Quick(PieceKind.Crossing, null, Center()));
+        Add("turntable", Lang.T("Drehscheibe"), () => _session.Quick(PieceKind.Turntable, null, Center()));
         Add("flex", Lang.T("Flexgleis"), () => AskFlex(_session.CurrentFlex));
         Add("toolFlex", Lang.T("Flexgleis ziehen"), () => SetTool(CanvasTool.Flex));
         Add("flexConnect", Lang.T("Lücke schließen"), () => _session.ConnectEnds(_session.CurrentFlex));

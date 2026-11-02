@@ -209,7 +209,8 @@ public partial class App : ComponentBase, IAppHost
     {
         Add("new", Lang.T("Neu"), AskNewPlan);
         Add("open", Lang.T("Öffnen"), () => _ = OpenFile());
-        Add("save", Lang.T("Speichern"), () => { if (_session.RequireSave()) SavePlan(); });
+        Add("save", Lang.T("Speichern"), () => { if (_session.RequireSave()) _ = SavePlan(); });
+        Add("saveAs", Lang.T("Speichern unter"), () => { if (_session.RequireSave()) _ = SavePlanAs(); });
         Add("sample", Lang.T("Beispielanlage"), () => { _session.LoadSample(); _view.Fit(); });
         Add("license", Lang.T("Lizenz"), ShowLicense);
         Add("help", Lang.T("Bedienung"), ShowHelp);
@@ -478,6 +479,7 @@ public partial class App : ComponentBase, IAppHost
             return false;
         }
         var k = key.Length == 1 ? key.ToLowerInvariant() : key;
+        if (ctrl && shift && k == "s") { Run("saveAs"); return true; }
         if (ctrl && k == "s") { Run("save"); return true; }
         if (ctrl && k == "o") { Run("open"); return true; }
         if (ctrl && k == "p") { Run("print"); return true; }
@@ -547,10 +549,16 @@ public partial class App : ComponentBase, IAppHost
 
     // ---------- Dateien ----------
 
+    /// <summary>Endung, unter der die Webversion Pläne speichert. Inhalt wie *.trackmaster.json, daher öffnet sie auch diese.</summary>
+    private const string WebFileExtension = ".mpr";
+    private const string PlanFileTypes = ".mpr,.json,.trackmaster.json,application/json";
+
     private async Task OpenFile()
     {
-        var result = await Js.PickFile(".json,.trackmaster.json,application/json");
+        var result = await Js.PickFile(PlanFileTypes);
         if (string.IsNullOrEmpty(result)) return;
+        _saveAsName = null;
+        Js.ForgetSaveHandle();
         var cut = result.IndexOf('\0');
         var name = cut > 0 ? result[..cut] : null;
         var text = cut >= 0 ? result[(cut + 1)..] : result;
@@ -566,17 +574,39 @@ public partial class App : ComponentBase, IAppHost
         Refresh();
     }
 
-    private void SavePlan()
+    /// <summary>Name der Datei, die „Speichern unter“ gewählt hat; „Speichern“ schreibt dann wieder hinein.</summary>
+    private string? _saveAsName;
+
+    private async Task SavePlan()
     {
-        var name = $"{SafeName}{PlanSerializer.FileExtension}";
-        Js.Download(name, "application/json", PlanSerializer.ToJson(_session.Plan));
+        var json = PlanSerializer.ToJson(_session.Plan);
+        if (_saveAsName is { } chosen && _session.FilePath == chosen && await Js.SaveToHandle(json))
+        {
+            _session.MarkSaved(chosen);
+            Refresh();
+            return;
+        }
+        var name = $"{SafeName}{WebFileExtension}";
+        Js.Download(name, "application/json", json);
         _session.MarkSaved(name);
+        Refresh();
+    }
+
+    private async Task SavePlanAs()
+    {
+        var current = _session.FilePath is { Length: > 0 } f ? System.IO.Path.GetFileName(f) : null;
+        var suggested = current is not null && current.EndsWith(WebFileExtension, StringComparison.OrdinalIgnoreCase) ? current : $"{SafeName}{WebFileExtension}";
+        var name = await Js.SaveAs(suggested, WebFileExtension, Lang.T("TrackMaster-Plan"), Lang.T("Dateiname für den Plan:"), PlanSerializer.ToJson(_session.Plan));
+        if (string.IsNullOrEmpty(name)) return;
+        _saveAsName = name;
+        _session.MarkSaved(name);
+        Refresh();
     }
 
     /// <summary>Gespeicherten Plan wählen und als Modul rechts ansetzen.</summary>
     private async Task AppendModuleFile()
     {
-        var result = await Js.PickFile(".json,.trackmaster.json,application/json");
+        var result = await Js.PickFile(PlanFileTypes);
         if (string.IsNullOrEmpty(result)) return;
         var cut = result.IndexOf('\0');
         var name = cut > 0 ? result[..cut] : Lang.T("Modul");
@@ -584,7 +614,7 @@ public partial class App : ComponentBase, IAppHost
         try
         {
             var other = PlanSerializer.FromJson(text, out _);
-            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "").Replace(WebFileExtension, "");
             if (_session.AppendModule(other, title)) _view.Fit();
         }
         catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException or FormatException or NotSupportedException or ArgumentException or KeyNotFoundException)

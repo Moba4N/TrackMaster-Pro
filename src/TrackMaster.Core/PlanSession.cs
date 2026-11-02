@@ -297,6 +297,8 @@ public sealed partial class PlanSession
         Record();
         var piece = Plan.Add(key);
         PlanEditing.PlaceAt(piece, 0, x, y, 0);
+        // auf einem höher oder tiefer gesetzten Modul liegt das Gleis auf dessen Oberfläche
+        piece.Height += ModuleLayout.BaseHeightAt(Plan, x, y);
         _lastAttached = (key, piece.Id);
         if (SnapEnabled) PlanEditing.Snap(Plan, new HashSet<int> { piece.Id }, snapTolerance);
         Selection.Clear();
@@ -599,11 +601,13 @@ public sealed partial class PlanSession
     }
 
     /// <summary>Lage und Größe eines Moduls von Hand.</summary>
-    public void SetModule(int index, string name, double x, double y, double width, double depth)
+    /// <param name="height">Höhe Z der Moduloberfläche; NaN lässt sie unverändert.</param>
+    public void SetModule(int index, string name, double x, double y, double width, double depth, double height = double.NaN, double thickness = double.NaN)
     {
         var rows = ModuleLayout.Current(Plan).ToList();
         if (index < 0 || index >= rows.Count) return;
-        rows[index] = rows[index] with { Name = name, X = x, Y = y, Width = width, Depth = depth };
+        rows[index] = rows[index] with { Name = name, X = x, Y = y, Width = width, Depth = depth, Height = double.IsFinite(height) ? height : rows[index].Height,
+            Thickness = double.IsFinite(thickness) ? thickness : rows[index].Thickness };
         ApplyModules(rows);
     }
 

@@ -129,6 +129,10 @@ public static class PlanSerializer
         [JsonPropertyName("y")] public double Y { get; set; }
         [JsonPropertyName("w")] public double W { get; set; }
         [JsonPropertyName("d")] public double D { get; set; }
+        /// <summary>Höhe der Moduloberfläche (z-Achse) in mm; fehlt bei 0.</summary>
+        [JsonPropertyName("z"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double Z { get; set; }
+        /// <summary>Plattenstärke in mm; fehlt bei 0 (Standard).</summary>
+        [JsonPropertyName("t"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double T { get; set; }
     }
 
     private sealed class PieceDto
@@ -197,7 +201,7 @@ public static class PlanSerializer
                     ? plan.BoardLegs.Take(BoardGeometry.LegNames(plan.BoardShape).Count).Select(l => new[] { Math.Round(l.Depth, 1), Math.Round(l.Length, 1) }).ToList()
                     : null,
                 Modules = plan.BoardShape == BoardShape.Module && plan.Modules.Count > 0
-                    ? plan.Modules.Select(m => new ModuleDto { Name = m.Name, X = Math.Round(m.X, 3), Y = Math.Round(m.Y, 3), W = Math.Round(m.Width, 3), D = Math.Round(m.Depth, 3) }).ToList()
+                    ? plan.Modules.Select(m => new ModuleDto { Name = m.Name, X = Math.Round(m.X, 3), Y = Math.Round(m.Y, 3), W = Math.Round(m.Width, 3), D = Math.Round(m.Depth, 3), Z = Math.Round(m.Height, 1), T = Math.Round(m.Thickness, 1) }).ToList()
                     : null,
             },
             Vehicle = plan.VehicleLength > 0 ? plan.VehicleLength : null,
@@ -303,7 +307,9 @@ public static class PlanSerializer
             plan.BoardLegs.Add(new BoardLeg(l.Length > 0 && double.IsFinite(l[0]) ? Math.Max(0, l[0]) : 0, l.Length > 1 && double.IsFinite(l[1]) ? Math.Max(0, l[1]) : 0));
         foreach (var m in dto.Board?.Modules ?? [])
             if (m.W > 0 && m.D > 0 && double.IsFinite(m.X) && double.IsFinite(m.Y))
-                plan.Modules.Add(new BoardModule { Name = m.Name ?? "", X = m.X, Y = m.Y, Width = m.W, Depth = m.D });
+                plan.Modules.Add(new BoardModule { Name = m.Name ?? "", X = m.X, Y = m.Y, Width = m.W, Depth = m.D,
+                    Height = double.IsFinite(m.Z) ? Math.Clamp(m.Z, ModuleLayout.MinHeight, ModuleLayout.MaxHeight) : 0,
+                    Thickness = double.IsFinite(m.T) ? Math.Clamp(m.T, 0, ModuleLayout.MaxThickness) : 0 });
         if (plan.BoardShape == BoardShape.Module)
         {
             // Modulanlage ohne Module (z. B. von Hand bearbeitet): die Plattenmaße als ein Modul

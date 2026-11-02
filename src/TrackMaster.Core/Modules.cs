@@ -8,10 +8,14 @@ public sealed class BoardModule
     public double Y { get; set; }
     public double Width { get; set; } = 1000;
     public double Depth { get; set; } = 500;
+    /// <summary>Höhe der Moduloberfläche über der Grundhöhe der Anlage in mm (z-Achse); Gleise und Gelände darauf liegen um so viel höher.</summary>
+    public double Height { get; set; }
+    /// <summary>Plattenstärke des Moduls in mm; 0 = Standard (wie die übrige Anlage).</summary>
+    public double Thickness { get; set; }
 
     public BoardRect Rect => new(X, Y, X + Width, Y + Depth);
 
-    public BoardModule Clone() => new() { Name = Name, X = X, Y = Y, Width = Width, Depth = Depth };
+    public BoardModule Clone() => new() { Name = Name, X = X, Y = Y, Width = Width, Depth = Depth, Height = Height, Thickness = Thickness };
 }
 
 /// <summary>Griff an einer Ecke: <see cref="Module"/> = −1 für die Außenecke der ganzen Platte, <see cref="Corner"/> 0…3 im Uhrzeigersinn ab links oben (−1 = Modul verschieben).</summary>
@@ -21,7 +25,8 @@ public sealed record BoardHandle(int Module, int Corner, double X, double Y);
 /// Neue Lage und Größe eines Moduls aus dem Moduldialog; <see cref="Index"/> = −1 für ein neues Modul,
 /// <see cref="ModuleLayout.Merged"/> für ein aus mehreren zusammengeführtes Modul (rastet nicht ein, bewegt keine Inhalte).
 /// </summary>
-public sealed record ModuleEdit(int Index, string Name, double X, double Y, double Width, double Depth)
+/// <see cref="Height"/> bzw. <see cref="Thickness"/> = NaN lässt Höhe bzw. Plattenstärke eines vorhandenen Moduls unverändert (neue Module: 0).
+public sealed record ModuleEdit(int Index, string Name, double X, double Y, double Width, double Depth, double Height = double.NaN, double Thickness = double.NaN)
 {
     public BoardRect Rect => new(X, Y, X + Width, Y + Depth);
 }
@@ -33,6 +38,10 @@ public sealed record ModuleEdit(int Index, string Name, double X, double Y, doub
 public static class ModuleLayout
 {
     public const double MinSize = 50, MaxSize = 20000;
+    /// <summary>Grenzen für die Modulhöhe (z-Achse) in mm.</summary>
+    public const double MinHeight = -1000, MaxHeight = 2000;
+    /// <summary>Größte Plattenstärke eines Moduls in mm (0 = Standard).</summary>
+    public const double MaxThickness = 300;
 
     /// <summary>Kennung für ein zusammengeführtes Modul in <see cref="ModuleEdit.Index"/>.</summary>
     public const int Merged = -2;
@@ -59,7 +68,7 @@ public static class ModuleLayout
     public static IReadOnlyList<ModuleEdit> Current(LayoutPlan plan)
     {
         if (plan.BoardShape == BoardShape.Module && plan.Modules.Count > 0)
-            return plan.Modules.Select((m, i) => new ModuleEdit(i, m.Name, m.X, m.Y, m.Width, m.Depth)).ToList();
+            return plan.Modules.Select((m, i) => new ModuleEdit(i, m.Name, m.X, m.Y, m.Width, m.Depth, m.Height, m.Thickness)).ToList();
         return BoardGeometry.Rects(plan).Select((r, i) => new ModuleEdit(i, Lang.F($"Modul {i + 1}"), r.X0, r.Y0, r.X1 - r.X0, r.Y1 - r.Y0)).ToList();
     }
 
@@ -121,11 +130,14 @@ public static class ModuleLayout
         var moves = new Dictionary<int, (double Dx, double Dy)>();
         foreach (var e in edits)
         {
+            var known = e.Index >= 0 && e.Index < old.Count;
             var m = new BoardModule
             {
                 Name = string.IsNullOrWhiteSpace(e.Name) ? Lang.F($"Modul {result.Count + 1}") : e.Name.Trim(),
                 X = e.X, Y = e.Y,
                 Width = Math.Clamp(e.Width, MinSize, MaxSize), Depth = Math.Clamp(e.Depth, MinSize, MaxSize),
+                Height = double.IsFinite(e.Height) ? Math.Clamp(Math.Round(e.Height, 1), MinHeight, MaxHeight) : known ? old[e.Index].Height : 0,
+                Thickness = double.IsFinite(e.Thickness) ? Math.Clamp(Math.Round(e.Thickness, 1), 0, MaxThickness) : known ? old[e.Index].Thickness : 0,
             };
             // Neue und verschobene Module rasten an den Kanten der übrigen ein
             if (e.Index == Merged) { result.Add(m); continue; }
@@ -137,7 +149,14 @@ public static class ModuleLayout
         }
         if (result.Count == 0) return;
         foreach (var (p, owner) in pieceOwner)
+        {
             if (owner is { } o && moves.TryGetValue(o, out var d)) { p.X += d.Dx; p.Y += d.Dy; }
+            // Höhe des Moduls darunter geändert (auch bei geteilten oder neuen Modulen): Gleis heben bzw. senken
+            var oldBase = owner is { } o2 ? old[o2].Height : 0;
+            var mid = p.Middle();
+            var newBase = Owner(result, mid.X, mid.Y) is { } n ? result[n].Height : 0;
+            if (Math.Abs(newBase - oldBase) > 0.001) p.Height = Math.Round(p.Height + newBase - oldBase, 1);
+        }
         foreach (var (s, owner) in sceneryOwner)
             if (owner is { } o && moves.TryGetValue(o, out var d)) s.MoveBy(d.Dx, d.Dy);
         plan.Modules.Clear();
@@ -165,7 +184,7 @@ public static class ModuleLayout
             }
         if (overlap || Math.Abs(area - (x1 - x0) * (y1 - y0)) > 1)
             return (null, Lang.T("Zusammenführen geht nur bei Modulen, die lückenlos aneinander liegen und zusammen ein Rechteck ergeben."));
-        var merged = new ModuleEdit(Merged, chosen[0].Name, x0, y0, x1 - x0, y1 - y0);
+        var merged = new ModuleEdit(Merged, chosen[0].Name, x0, y0, x1 - x0, y1 - y0, chosen[0].Height, chosen[0].Thickness);
         var result = new List<ModuleEdit>();
         for (var i = 0; i < rows.Count; i++)
             if (i == pick.Min()) result.Add(merged);
@@ -186,8 +205,8 @@ public static class ModuleLayout
             return (null, Lang.F($"Die Teilung muss mindestens {Fmt.Num(MinSize, 0)} mm von beiden Kanten entfernt sein (Modul {Fmt.Num(size, 0)} mm)."));
         var first = acrossWidth ? m with { Width = at } : m with { Depth = at };
         var second = acrossWidth
-            ? new ModuleEdit(Merged, Lang.F($"{m.Name} b"), m.X + at, m.Y, m.Width - at, m.Depth)
-            : new ModuleEdit(Merged, Lang.F($"{m.Name} b"), m.X, m.Y + at, m.Width, m.Depth - at);
+            ? new ModuleEdit(Merged, Lang.F($"{m.Name} b"), m.X + at, m.Y, m.Width - at, m.Depth, m.Height, m.Thickness)
+            : new ModuleEdit(Merged, Lang.F($"{m.Name} b"), m.X, m.Y + at, m.Width, m.Depth - at, m.Height, m.Thickness);
         var result = rows.ToList();
         result[index] = first with { Name = Lang.F($"{m.Name} a") };
         result.Insert(index + 1, second);
@@ -257,6 +276,13 @@ public static class ModuleLayout
 
     /// <summary>Ecken eines Rechtecks: 0 links oben, 1 rechts oben, 2 rechts unten, 3 links unten.</summary>
     public static (double X, double Y)[] Corners(BoardRect r) => [(r.X0, r.Y0), (r.X1, r.Y0), (r.X1, r.Y1), (r.X0, r.Y1)];
+
+    /// <summary>Höhe der Plattenoberfläche an einem Punkt: die Höhe des Moduls darunter, sonst 0.</summary>
+    public static double BaseHeightAt(LayoutPlan plan, double x, double y)
+        => ModuleAt(plan, x, y) is { } i ? plan.Modules[i].Height : 0;
+
+    /// <summary>Gibt es Module mit eigener Höhe?</summary>
+    public static bool HasHeights(LayoutPlan plan) => plan.BoardShape == BoardShape.Module && plan.Modules.Any(m => Math.Abs(m.Height) > 0.001);
 
     /// <summary>Modul unter dem Punkt (das zuletzt angelegte zuerst) oder null.</summary>
     public static int? ModuleAt(LayoutPlan plan, double x, double y)

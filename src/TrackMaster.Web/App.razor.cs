@@ -58,6 +58,7 @@ public partial class App : ComponentBase, IAppHost
         _session.BoardPartClicked += (module, leg) => { AskBoardPart(module, leg); StateHasChanged(); };
         RestoreAutosave();
         _view = new PlanView(_session);
+        _view.SpaceTapped += () => { if (_session.Tool is CanvasTool.Select or CanvasTool.Pan) { Run("repeat"); Refresh(); } };
         _view.PropertiesRequested += () => Run("props");
         _view.PolygonChanged += Refresh;
         _view.LabelRequested += (x, y) => AskText(Lang.T("Beschriftung"), "Text", "", text => _session.AddLabel(text, x, y));
@@ -229,6 +230,7 @@ public partial class App : ComponentBase, IAppHost
         Add("selectAll", Lang.T("Alles auswählen"), _session.SelectAll);
         Add("selectNone", Lang.T("Auswahl aufheben"), _session.ClearSelection);
         Add("nextEnd", Lang.T("Nächstes Gleisende"), () => { if (_session.NextOpenEnd() is { } p) _view.Reveal(p.X, p.Y); });
+        Add("repeat", Lang.T("Gleis wiederholen"), () => _session.RepeatLast(Center()));
         Add("props", Lang.T("Eigenschaften"), () => _propsOpen = true);
         Pro("bom", Lang.T("Stückliste"), ShowBillOfMaterials);
         Add("check", Lang.T("Planprüfung"), ShowCheck);
@@ -487,6 +489,7 @@ public partial class App : ComponentBase, IAppHost
         if (key == "F1") { Run("help"); return true; }
         if (key == "F7") { Run("check"); return true; }
         if (key == "Enter" && _view.IsDrawingPolygon) { _view.FinishPolygon(); return true; }
+        if (key == "Enter" && !ctrl && _session.Tool is CanvasTool.Select or CanvasTool.Pan) { Run("repeat"); return true; }
         if (key == "Escape" && _session.Tool is not (CanvasTool.Select or CanvasTool.Pan))
         {
             if (_view.IsDrawingPolygon) _view.CancelPolygon();

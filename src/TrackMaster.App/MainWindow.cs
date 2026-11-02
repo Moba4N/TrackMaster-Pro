@@ -74,6 +74,7 @@ public sealed class MainWindow : Window
         WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 34, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
 
         Canvas = new PlanCanvas(Session);
+        Canvas.SpaceTapped += () => { if (Session.Tool is CanvasTool.Select or CanvasTool.Pan) Run("repeat"); };
         _library = new LibraryPanel(Session, Canvas.CenterWorld);
         _properties = new PropertiesPanel(Session, Run);
         DefineCommands();
@@ -201,6 +202,7 @@ public sealed class MainWindow : Window
         Add("selectAll", Session.SelectAll);
         Add("selectNone", Session.ClearSelection);
         Add("nextEnd", () => { if (Session.NextOpenEnd() is { } p) Canvas.Reveal(p.X, p.Y); });
+        Add("repeat", () => Session.RepeatLast(Canvas.CenterWorld()));
         Add("qStraight", () => Session.Quick(PieceKind.Straight, null, Canvas.CenterWorld()));
         Add("qCurve", () => Session.Quick(PieceKind.Curve, null, Canvas.CenterWorld()));
         Add("qSwitchL", () => Session.Quick(PieceKind.Switch, false, Canvas.CenterWorld()));
@@ -725,7 +727,7 @@ public sealed class MainWindow : Window
                 Toggle(Lang.T("Verschieben"), "Hand", true, () => Session.Tool == CanvasTool.Pan, on => SetTool(on ? CanvasTool.Pan : CanvasTool.Select), Lang.T("Ansicht mit der linken Maustaste verschieben (auch: Leertaste halten)."))),
             Group(Lang.T("Bearbeiten"),
                 Small(Lang.T("15° links drehen"), "RotateLeft", "rotL", Lang.T("Umschalt+R")), Small(Lang.T("15° rechts drehen"), "RotateRight", "rotR", "R"), Small(Lang.T("Frei drehen…"), "RotateFree", "rotFree", Lang.T("Auswahl um einen beliebigen Winkel drehen.")), Small(Lang.T("Spiegeln"), "Mirror", "flip", Lang.T("Bögen, Weichen und Kreuzungen spiegeln (F).")),
-                Small(Lang.T("Anschluss wechseln"), "Swap", "swap", Lang.T("Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A).")), Small(Lang.T("Duplizieren"), "Copy", "duplicate", Lang.T("Strg+D")), Small(Lang.T("Löschen"), "Delete", "delete", Lang.T("Entf")),
+                Small(Lang.T("Anschluss wechseln"), "Swap", "swap", Lang.T("Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A).")), Small(Lang.T("Duplizieren"), "Copy", "duplicate", Lang.T("Strg+D")), Small(Lang.T("Gleis wiederholen"), "Redo", "repeat", Lang.T("Das zuletzt angesetzte Gleis noch einmal am aktiven Gleisende ansetzen (Eingabetaste oder Leertaste) – z. B. mehrere Flexgleise hintereinander.")), Small(Lang.T("Löschen"), "Delete", "delete", Lang.T("Entf")),
                 Small(Lang.T("Kopieren"), "Copy", "copy", Lang.T("Gewählte Gleise samt Einspeisungen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan.")),
                 Small(Lang.T("Einfügen"), "Paste", "paste", Lang.T("Kopiertes an der Mausposition einfügen (Strg+V)."))),
             Group(Lang.T("Anordnen"),
@@ -1118,6 +1120,7 @@ public sealed class MainWindow : Window
         if (e.Key == Key.F7) { Run("check"); e.Handled = true; return; }
         if (Keyboard.FocusedElement is TextBox or ComboBox or ComboBoxItem) return;
         if (e.Key == Key.Enter && Canvas.IsDrawingPolygon) { Canvas.FinishPolygon(); e.Handled = true; return; }
+        if (e.Key == Key.Enter && !ctrl && Session.Tool is CanvasTool.Select or CanvasTool.Pan) { Run("repeat"); e.Handled = true; return; }
         if (e.Key == Key.Escape && Session.Tool is not (CanvasTool.Select or CanvasTool.Pan))
         {
             if (Canvas.IsDrawingPolygon) Canvas.CancelPolygon();

@@ -424,7 +424,11 @@ function editable(t) {
 
 window.addEventListener("keydown", e => {
     if (!entry || editable(e.target)) return;
-    if (e.key === " " && !e.repeat) { spaceDown = true; entry.Space(true); }
+    if (e.key === " " && !e.target.closest?.("[role=dialog]")) {
+        // Leertaste gehört dem Plan (Verschieben bzw. kurz: Gleis wiederholen) – kein Klick auf den gerade fokussierten Knopf
+        e.preventDefault();
+        if (!e.repeat) { spaceDown = true; entry.Space(true); }
+    }
     if (entry.KeyDown(e.key, e.ctrlKey || e.metaKey, e.shiftKey, e.altKey)) e.preventDefault();
 });
 window.addEventListener("keyup", e => {

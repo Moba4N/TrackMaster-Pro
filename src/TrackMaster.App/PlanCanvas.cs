@@ -32,6 +32,11 @@ public sealed class PlanCanvas : FrameworkElement
     private bool _moved;
     private Rect? _band;
     private bool _spaceDown;
+    /// <summary>Wurde bei gehaltener Leertaste die Ansicht verschoben? Sonst gilt ein kurzer Druck als „Gleis wiederholen“.</summary>
+    private bool _spacePanned;
+
+    /// <summary>Leertaste kurz gedrückt (ohne die Ansicht zu verschieben).</summary>
+    public event Action? SpaceTapped;
     private readonly List<(double X, double Y)> _polygon = [];
     private readonly Random _random = new(7);
     // Flexgleis: neu ziehen bzw. ein Ende nachformen
@@ -592,6 +597,7 @@ public sealed class PlanCanvas : FrameworkElement
             e.Handled = true;
             return;
         }
+        if (_spaceDown) _spacePanned = true;
         if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || _spaceDown || _session.Tool == CanvasTool.Pan)
         {
             CaptureMouse();
@@ -857,13 +863,20 @@ public sealed class PlanCanvas : FrameworkElement
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         base.OnPreviewKeyDown(e);
-        if (e.Key == Key.Space && !_spaceDown) { _spaceDown = true; Cursor = Cursors.Hand; e.Handled = true; }
+        if (e.Key == Key.Space && !_spaceDown) { _spaceDown = true; _spacePanned = false; Cursor = Cursors.Hand; e.Handled = true; }
+        else if (e.Key == Key.Space) e.Handled = true;
     }
 
     protected override void OnPreviewKeyUp(KeyEventArgs e)
     {
         base.OnPreviewKeyUp(e);
-        if (e.Key == Key.Space) { _spaceDown = false; Cursor = _session.Tool == CanvasTool.Pan ? Cursors.Hand : null; }
+        if (e.Key == Key.Space)
+        {
+            var tapped = _spaceDown && !_spacePanned;
+            _spaceDown = false;
+            Cursor = _session.Tool == CanvasTool.Pan ? Cursors.Hand : null;
+            if (tapped && !IsDrawingPolygon) SpaceTapped?.Invoke();
+        }
     }
 
     // ---------- Ziehen aus der Bibliothek ----------

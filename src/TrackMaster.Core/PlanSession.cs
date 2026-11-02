@@ -251,16 +251,42 @@ public sealed partial class PlanSession
 
     // ---------- Bearbeiten ----------
 
-    public void Attach(string key, (double X, double Y) fallbackCenter)
+    public void Attach(string key, (double X, double Y) fallbackCenter) => Attach(key, fallbackCenter, false);
+
+    private void Attach(string key, (double X, double Y) fallbackCenter, bool flipped)
     {
         var def = Catalog.Get(key);
         if (def.GaugeId != Plan.GaugeId) { Say(Lang.F($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {Plan.GaugeId}.")); return; }
         Record();
-        var piece = PlanEditing.Attach(Plan, key, ActiveConnector, fallbackCenter);
+        var piece = PlanEditing.Attach(Plan, key, ActiveConnector, fallbackCenter, flipped);
+        _lastAttached = (key, piece.Id);
         Selection.Clear();
         Selection.Add(piece.Id);
         Active = TrackGeometry.LocalConnectors(def, piece.Flipped).Count > 1 ? (piece.Id, 1) : null;
         Commit();
+    }
+
+    /// <summary>Zuletzt angesetztes Gleis (Artikel und Gleis im Plan, dessen Spiegelung übernommen wird).</summary>
+    private (string Key, int PieceId)? _lastAttached;
+
+    /// <summary>
+    /// Setzt das zuletzt angesetzte Gleis noch einmal am aktiven Gleisende an (Eingabetaste bzw. Leertaste) –
+    /// z. B. mehrere Flexgleise, Geraden oder Bögen hintereinander. Ein gespiegelter Bogen bleibt gespiegelt.
+    /// </summary>
+    public bool RepeatLast((double X, double Y) fallbackCenter)
+    {
+        if (_lastAttached is not { } last || Catalog.Find(last.Key) is not { } def || def.GaugeId != Plan.GaugeId)
+        {
+            Say(Lang.T("Zum Wiederholen erst ein Gleis aus der Bibliothek ansetzen – danach setzt die Eingabetaste dasselbe Gleis noch einmal an."));
+            return false;
+        }
+        if (ActiveConnector is null)
+        {
+            Say(Lang.T("Kein aktives Gleisende: erst ein orangefarbenes Gleisende anklicken, dann wiederholen."));
+            return false;
+        }
+        Attach(last.Key, fallbackCenter, Plan.Find(last.PieceId)?.Flipped ?? false);
+        return true;
     }
 
     public void Drop(string key, double x, double y, double snapTolerance)
@@ -271,6 +297,7 @@ public sealed partial class PlanSession
         Record();
         var piece = Plan.Add(key);
         PlanEditing.PlaceAt(piece, 0, x, y, 0);
+        _lastAttached = (key, piece.Id);
         if (SnapEnabled) PlanEditing.Snap(Plan, new HashSet<int> { piece.Id }, snapTolerance);
         Selection.Clear();
         Selection.Add(piece.Id);
@@ -923,6 +950,7 @@ public sealed partial class PlanSession
         var piece = Plan.Add(key);
         piece.Flipped = flipped;
         PlanEditing.PlaceAt(piece, 0, start.X, start.Y, start.Heading);
+        _lastAttached = (key, piece.Id);
         if (from is not null)
         {
             piece.Height = from.Z;

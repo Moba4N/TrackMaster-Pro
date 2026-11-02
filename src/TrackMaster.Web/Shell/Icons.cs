@@ -10,6 +10,7 @@ public static class Icons
         ["Open"] = "M3 6h6l2 2h10v11H3z",
         ["Save"] = "M5 3h11l3 3v15H5zM8 3v5h7V3M8 21v-7h8v7",
         ["SaveAs"] = "M5 3h9l3 3v4M5 3v18h6M8 3v5h6M14 21l1-3 5-5 2 2-5 5z",
+        ["Turntable"] = "M12 4a8 8 0 1 0 0.01 0zM12 7a5 5 0 1 0 0.01 0zM6 9.5l12 5M12 1v3M12 20v3M1 12h3M20 12h3",
         ["Template"] = "M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z",
         ["Image"] = "M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15 9h.01",
         ["List"] = "M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1",

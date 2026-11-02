@@ -180,6 +180,7 @@ public sealed class MainActivity : Activity
         Add("selectAll", Lang.T("Alles auswählen"), _session.SelectAll);
         Add("selectNone", Lang.T("Auswahl aufheben"), _session.ClearSelection);
         Add("nextEnd", Lang.T("Nächstes Gleisende"), () => { if (_session.NextOpenEnd() is { } p) _canvas.Reveal(p.X, p.Y); });
+        Add("repeat", Lang.T("Gleis wiederholen"), () => _session.RepeatLast(_canvas.CenterWorld()));
         Add("props", Lang.T("Eigenschaften"), () => Dialogs.ShowProperties(this, _session, Run));
         Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, _session, _license.IsPro, () => Run("csv"), () => Pick(RequestPrices, "text/*")));
         Add("check", Lang.T("Planprüfung"), ShowCheck);
@@ -482,7 +483,7 @@ public sealed class MainActivity : Activity
 
     private static readonly (string Tab, (string Label, string Command, bool Toggle)[] Items)[] Ribbon =
     [
-        (Lang.T("Start"), [(Lang.T("Eigenschaften"), "props", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), (Lang.T("Frei drehen…"), "rotFree", false), (Lang.T("Spiegeln"), "flip", false), (Lang.T("Anschluss wechseln"), "swap", false),
+        (Lang.T("Start"), [(Lang.T("Eigenschaften"), "props", false), (Lang.T("Gleis wiederholen"), "repeat", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), (Lang.T("Frei drehen…"), "rotFree", false), (Lang.T("Spiegeln"), "flip", false), (Lang.T("Anschluss wechseln"), "swap", false),
                    (Lang.T("Duplizieren"), "duplicate", false), (Lang.T("Kopieren"), "copy", false), (Lang.T("Einfügen"), "paste", false), (Lang.T("Löschen"), "delete", false), (Lang.T("Alles wählen"), "selectAll", false), (Lang.T("Auswahl aufheben"), "selectNone", false),
                    (Lang.T("Nächstes Gleisende"), "nextEnd", false), (Lang.T("Sperren"), "lock", false), (Lang.T("Gruppieren"), "group", false), (Lang.T("Gruppe auflösen"), "ungroup", false),
                    (Lang.T("Links ausrichten"), "alignL", false), (Lang.T("Rechts ausrichten"), "alignR", false), (Lang.T("Oben ausrichten"), "alignT", false), (Lang.T("Unten ausrichten"), "alignB", false),

@@ -696,7 +696,18 @@ public sealed class PlanView
     [Flags]
     public enum Mods { None = 0, Shift = 1, Ctrl = 2, Alt = 4, Space = 8 }
 
-    public void SetSpace(bool down) => _spaceDown = down;
+    private bool _spacePanned;
+
+    /// <summary>Leertaste kurz gedrückt, ohne die Ansicht zu verschieben („Gleis wiederholen“).</summary>
+    public event Action? SpaceTapped;
+
+    public void SetSpace(bool down)
+    {
+        if (down) { _spaceDown = true; _spacePanned = false; return; }
+        var tapped = _spaceDown && !_spacePanned;
+        _spaceDown = false;
+        if (tapped && !IsDrawingPolygon) SpaceTapped?.Invoke();
+    }
 
     /// <summary>Zeiger gedrückt. <paramref name="button"/>: 0 links, 1 Mitte, 2 rechts.</summary>
     public void PointerDown(int id, float x, float y, int button, Mods mods, bool touch, double time)
@@ -883,6 +894,7 @@ public sealed class PlanView
             _session.Say(Lang.T("Ansicht wieder gerade ausgerichtet."));
             return;
         }
+        if (_spaceDown || mods.HasFlag(Mods.Space)) _spacePanned = true;
         if (button is 1 or 2 || _spaceDown || mods.HasFlag(Mods.Space) || _session.Tool == CanvasTool.Pan)
         {
             _drag = DragMode.Pan;

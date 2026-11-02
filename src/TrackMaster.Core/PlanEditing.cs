@@ -16,12 +16,13 @@ public static class PlanEditing
     /// <summary>
     /// Setzt ein neues Gleis an ein offenes Gleisende an. Ohne Gleisende wird es waagerecht um <paramref name="fallbackCenter"/> gelegt.
     /// </summary>
-    public static PlacedPiece Attach(LayoutPlan plan, string key, ConnectorRef? target, (double X, double Y) fallbackCenter)
+    public static PlacedPiece Attach(LayoutPlan plan, string key, ConnectorRef? target, (double X, double Y) fallbackCenter, bool flipped = false)
     {
         var def = Catalog.Get(key);
         if (def.GaugeId != plan.GaugeId)
             throw new InvalidOperationException(Lang.F($"Dieses Gleis ist für Spur {def.GaugeId}, der Plan für Spur {plan.GaugeId}."));
         var piece = plan.Add(key);
+        piece.Flipped = flipped;
         if (target is not null)
         {
             PlaceAt(piece, 0, target.Pose.X, target.Pose.Y, target.Pose.Heading);

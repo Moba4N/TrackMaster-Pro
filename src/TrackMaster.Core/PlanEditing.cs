@@ -34,7 +34,10 @@ public static class PlanEditing
             piece.Level = plan.Find(target.PieceId)?.Level ?? piece.Level;
         }
         else
+        {
             PlaceAt(piece, 0, fallbackCenter.X - def.TrackLength / 2, fallbackCenter.Y, 0);
+            piece.Height += ModuleLayout.BaseHeightAt(plan, fallbackCenter.X, fallbackCenter.Y);
+        }
         return piece;
     }
 

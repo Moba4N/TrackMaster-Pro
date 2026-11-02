@@ -553,6 +553,11 @@ je Rechteck der Form eines. Die Tabelle zeigt für jedes Modul Name, Lage (X, Y)
   <tr><td>✕</td><td>Modul entfernen</td></tr>
 </table>
 <p>Erst <span class="ui">Übernehmen</span> ändert den Plan. Gleise und Gelände wandern mit ihrem Modul mit. Gleise, die über eine Modulgrenze laufen, meldet die Planprüfung.</p>
+<p><b>Höhe Z (Webversion):</b> In der Spalte <span class="ui">Höhe Z</span> setzen Sie ein Modul höher oder tiefer als die übrigen, z. B. ein Bahnhofsmodul
+80 mm über der Strecke oder ein Hafenbecken 40 mm tiefer (negativer Wert). Die Gleise auf dem Modul wandern mit, neu gelegte Gleise liegen
+auf seiner Oberfläche, und die 3D-Ansicht zeigt das Modul auf seiner Höhe. Den Höhenunterschied zum Nachbarmodul überbrücken Sie mit einer
+Steigung (<span class="ui">Gleise › Steigung…</span>); bis dahin zeigt die Planprüfung den Übergang als offenes Gleisende.
+Auch der Maße-Dialog eines einzelnen Moduls (<span class="ui">Gelände › Platte ziehen</span>, Modul anklicken) hat das Feld Höhe Z. In der Spalte <span class="ui">Stärke</span> bzw. im Feld <span class="ui">Plattenstärke</span> legen Sie die Dicke der Modulplatte fest (leer = Standard); in der 3D-Ansicht erscheint ein erhöhtes Modul als Platte in dieser Stärke.</p>
 <p><b>Gleise an der Modulkante trennen (Webversion).</b> Rechtsklick auf ein Gleis, das über eine Modulkante läuft, und <span class="ui">An Modulkante trennen</span> wählen. Das Programm teilt das Gleis genau an der Kante in zwei Flexgleisstücke. Lage, Höhe und Steigung bleiben gleich, Einspeisungen und Trennstellen wandern mit. Dieselbe Funktion steht unter <span class="ui">Gelände › An Modulkante trennen</span>: Sie teilt die gewählten Gleise, ohne Auswahl alle Gleise über Modulkanten. Weichen, Kreuzungen und Drehscheiben lassen sich nicht teilen; sie müssen ganz auf einem Modul liegen.</p>
 
 <h2 id="kp-5">Unterbau aus Holz</h2>
@@ -588,8 +593,11 @@ Die 3D-Ansicht zeigt den Unterbau unter der Platte. <span class="ui">Entfernen</
 </ul>
 <p>Das Register <span class="ui">Gleise › Verlegen</span> bietet Schnellbefehle für <b>Gerade</b>, <b>Bogen</b>, <b>Weiche links</b>,
 <b>Weiche rechts</b>, <b>Prellbock</b> und <b>Kreuzung</b> des gewählten Systems.</p>
-<p>Wo der Katalog eines Gleissystems <b>Drehscheiben und Schiebebühnen</b> enthält, stehen sie in einer eigenen Gruppe der Bibliothek.
-Sie werden wie Gleise angesetzt; jeder Gleisabgang ist ein eigenes Gleisende.</p>
+<p><b>Drehscheiben</b> gibt es für jede Spur und jedes Gleissystem; sie stehen in der Bibliothek unter dem Filter <span class="ui">Drehscheiben und Schiebebühnen</span>
+(oder Suchbegriff „Drehscheibe“). Sie werden wie Gleise angesetzt; jeder Gleisabgang ist ein eigenes Gleisende. In der Webversion setzt
+<span class="ui">Gleise › Drehscheibe</span> die Drehscheibe des gewählten Systems direkt am aktiven Gleisende an.
+Wo der Hersteller keine eigene Drehscheibe anbietet, ist eine passende eines anderen Herstellers oder eine allgemeine Drehscheibe hinterlegt („allgemein“) –
+deren Maße sind vorläufig und vor dem Bau am Original zu prüfen.</p>
 <div class="note pro"><b>Hinweis zu den Maßen</b>Die Gleisgeometrie entspricht den Katalogangaben. Einige wenige Gleissysteme sind mit
 vorläufigen Maßen hinterlegt und in der Bibliothek gekennzeichnet; prüfen Sie diese vor dem Bau am Original.</div>
 

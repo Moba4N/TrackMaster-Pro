@@ -69,7 +69,8 @@ public sealed class TerrainField
         double z = 0;
         foreach (var s in plan.Scenery)
             if (s.Kind == SceneryKind.Terrain && s.Points.Count >= 3) z = Math.Max(z, For(plan, s).At(x, y));
-        return z;
+        // Grundhöhe: Oberfläche des Moduls an dieser Stelle (Module können in der Höhe versetzt sein)
+        return ModuleLayout.BaseHeightAt(plan, x, y) + z;
     }
 
     public double Vertex(int i, int j) => _h[j * (Nx + 1) + i];

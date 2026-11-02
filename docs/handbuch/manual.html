@@ -551,6 +551,11 @@ one per rectangle of the shape. The table shows each module's name, position (X,
   <tr><td>✕</td><td>removes the module</td></tr>
 </table>
 <p>Only <span class="ui">Apply</span> changes the plan. Tracks and terrain move with their module. The plan check reports tracks that run across a module joint.</p>
+<p><b>Height Z (web version):</b> In the column <span class="ui">Height Z</span> you set a module higher or lower than the others, e.g. a station module
+80 mm above the line or a harbour basin 40 mm lower (negative value). The tracks on the module move along, newly laid tracks lie
+on its surface, and the 3D view shows the module at its height. Bridge the difference to the neighbouring module with a
+gradient (<span class="ui">Tracks › Gradient…</span>); until then the plan check shows the transition as an open track end.
+The size dialog of a single module (<span class="ui">Scenery › Drag baseboard</span>, click a module) also has the Height Z field. The column <span class="ui">Thickness</span> or the field <span class="ui">Baseboard thickness</span> sets the thickness of the module board (empty = default); in the 3D view a raised module appears as a board of this thickness.</p>
 <p><b>Cutting tracks at the module edge (web version).</b> Right-click a track that runs across a module edge and choose <span class="ui">Cut at module edge</span>. The program splits the track exactly at the edge into two flex track pieces. Position, height and gradient stay the same; feeders and isolating joints move along. The same function is available under <span class="ui">Scenery › Cut at module edge</span>: it splits the selected tracks, or all tracks across module edges if nothing is selected. Turnouts, crossings and turntables cannot be split; they must lie entirely on one module.</p>
 
 <h2 id="kp-5">Timber benchwork</h2>
@@ -586,8 +591,11 @@ The 3D view shows the benchwork under the baseboard. <span class="ui">Remove</sp
 </ul>
 <p>The group <span class="ui">Tracks › Lay track</span> offers quick commands for <b>Straight</b>, <b>Curve</b>, <b>Left turnout</b>,
 <b>Right turnout</b>, <b>Buffer stop</b> and <b>Crossing</b> of the selected system.</p>
-<p>Where the catalogue of a track system contains <b>turntables and transfer tables</b>, they have a group of their own in the library.
-They are attached like tracks; every track exit is a track end of its own.</p>
+<p><b>Turntables</b> are available for every gauge and every track system; you find them in the library under the filter <span class="ui">Turntables and transfer tables</span>
+(or search for “turntable”). They are attached like tracks; every track exit is a track end of its own. In the web version
+<span class="ui">Tracks › Turntable</span> attaches the turntable of the selected system directly at the active track end.
+Where the manufacturer offers no turntable of its own, a matching one of another manufacturer or a generic turntable (“generic”) is provided –
+its dimensions are preliminary and should be checked against the real thing before building.</p>
 <div class="note pro"><b>Note on dimensions</b>The track geometry follows the catalogue data. A few track systems are stored with
 provisional dimensions and marked in the library; check these against the real product before building.</div>
 

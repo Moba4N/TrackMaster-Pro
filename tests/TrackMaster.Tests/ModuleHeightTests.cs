@@ -55,4 +55,22 @@ public class ModuleHeightTests
         var model = new Scene3DModel(s.Plan);
         Assert.Contains(model.Meshes.Values.SelectMany(m => m.Points), v => Math.Abs(v.Y - 200) < 0.01);
     }
+
+    [Fact]
+    public void RaisedModuleIsAPlateOfItsOwnThickness()
+    {
+        var s = TwoModules();
+        s.SetModule(1, "B", 1000, 0, 1000, 500, 200, 18);
+        Assert.Equal(18, s.Plan.Modules[1].Thickness);
+        // Höhe ändern lässt die Stärke stehen, Speichern und Laden behalten sie
+        s.SetModule(1, "B", 1000, 0, 1000, 500, 220);
+        Assert.Equal(18, s.Plan.Modules[1].Thickness);
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _, out _);
+        Assert.Equal(18, back.Modules[1].Thickness);
+        Assert.Equal(0, back.Modules[0].Thickness);
+        var pts = new Scene3DModel(s.Plan).Meshes.Values.SelectMany(m => m.Points).ToList();
+        Assert.Contains(pts, v => Math.Abs(v.Y - 202) < 0.01);
+        // kein Klotz bis zum Boden: nichts unter dem Modul ausser dem flachen Rahmen
+        Assert.DoesNotContain(pts, v => v.X > 1003 && v.Y < 180);
+    }
 }

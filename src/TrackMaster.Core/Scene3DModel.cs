@@ -120,11 +120,13 @@ public sealed class Scene3DModel
         for (var ri = 0; ri < rects.Count; ri++)
         {
             var r = rects[ri];
-            // Module können in der Höhe versetzt sein: Oberfläche auf z, darunter ein Sockel bis zur Grundhöhe
-            var z = plan.BoardShape == BoardShape.Module && ri < plan.Modules.Count ? plan.Modules[ri].Height : 0;
-            var bottom = Math.Min(z - thickness, -thickness);
+            // Module können in der Höhe versetzt sein und eine eigene Plattenstärke haben: Platte von z − Stärke bis z
+            var module = plan.BoardShape == BoardShape.Module && ri < plan.Modules.Count ? plan.Modules[ri] : null;
+            var z = module?.Height ?? 0;
+            var t = module is { Thickness: > 0 } ? module.Thickness : thickness;
+            var bottom = z - t;
             Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, bottom), P(r.X1, r.Y1, z), top: false);
-            if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, bottom - thickness * 0.6), P(r.X1 + 2, r.Y1 + 2, bottom));
+            if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, bottom - Math.Min(t, thickness) * 0.6), P(r.X1 + 2, r.Y1 + 2, bottom));
             if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1, z);
             else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, z), P(r.X0, r.Y1, z), P(r.X1, r.Y1, z), P(r.X1, r.Y0, z));
         }

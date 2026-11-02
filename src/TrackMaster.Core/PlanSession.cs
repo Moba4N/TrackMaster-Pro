@@ -602,11 +602,12 @@ public sealed partial class PlanSession
 
     /// <summary>Lage und Größe eines Moduls von Hand.</summary>
     /// <param name="height">Höhe Z der Moduloberfläche; NaN lässt sie unverändert.</param>
-    public void SetModule(int index, string name, double x, double y, double width, double depth, double height = double.NaN)
+    public void SetModule(int index, string name, double x, double y, double width, double depth, double height = double.NaN, double thickness = double.NaN)
     {
         var rows = ModuleLayout.Current(Plan).ToList();
         if (index < 0 || index >= rows.Count) return;
-        rows[index] = rows[index] with { Name = name, X = x, Y = y, Width = width, Depth = depth, Height = double.IsFinite(height) ? height : rows[index].Height };
+        rows[index] = rows[index] with { Name = name, X = x, Y = y, Width = width, Depth = depth, Height = double.IsFinite(height) ? height : rows[index].Height,
+            Thickness = double.IsFinite(thickness) ? thickness : rows[index].Thickness };
         ApplyModules(rows);
     }
 

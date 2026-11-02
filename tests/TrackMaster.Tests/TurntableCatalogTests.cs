@@ -15,6 +15,9 @@ public class TurntableCatalogTests
 
     [Theory]
     [InlineData("H0|mc|7286", "H0|mc|24188")]
+    [InlineData("H0|geo|6152", null)]
+    [InlineData("H0|rocoline|6154", null)]
+    [InlineData("N|rf-n|9152", null)]
     [InlineData("0|std0|DS-0", null)]
     [InlineData("G|lgb|DS-G", null)]
     public void TrackAttachesToTurntablePort(string table, string? straightKey)

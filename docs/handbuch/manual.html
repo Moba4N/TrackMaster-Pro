@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>TrackMaster Pro – User Manual</title>
-<meta name="pdf-footer" content="TrackMaster Pro 1.4.7 · User Manual">
+<meta name="pdf-footer" content="TrackMaster Pro 1.5.0 · User Manual">
 <meta name="pdf-start" content="is a planning program for model railway layouts">
 <style>
   @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
@@ -81,12 +81,12 @@
   <div class="inner">
     <div class="logocard"><img src="img/logo.png" alt=""></div>
     <h1>TrackMaster Pro</h1>
-    <div class="sub">User Manual · Version 1.4.7</div>
+    <div class="sub">User Manual · Version 1.5.0</div>
     <div class="what">Track planning for model railway layouts in all common gauges – with height planning, helix and
       timber list, modules, levels and benchwork, scenery, room planning, wiring and signals, plan check, costs and 3D view. For Windows, Android and the browser –
 with a step-by-step introduction for everyone planning for the first time.</div>
   </div>
-  <div class="foot"><span>TrackMaster Pro 1.4.7 · Basic and Pro</span><span>As of November 2026</span></div>
+  <div class="foot"><span>TrackMaster Pro 1.5.0 · Basic and Pro</span><span>As of November 2026</span></div>
 </section>
 
 <section class="toc">
@@ -170,7 +170,7 @@ The manual shows the English interface; how to switch the language is described 
 
 <h3>Installing</h3>
 <ol class="steps">
-  <li>Double-click the file <b>TrackMasterPro-1.4.7.msi</b>.</li>
+  <li>Double-click the file <b>TrackMasterPro-1.5.0.msi</b>.</li>
   <li>If Windows SmartScreen reports “Windows protected your PC”: click <span class="ui">More info</span>
       and then <span class="ui">Run anyway</span>.</li>
   <li>Follow the setup wizard: accept the licence terms and choose the destination folder (default <i>C:\Program Files\TrackMaster Pro</i>).</li>
@@ -188,9 +188,9 @@ select <b>TrackMaster Pro</b> and click <span class="ui">Uninstall</span>. Your 
 <p>The package can be deployed to several computers without prompts:</p>
 <table>
   <tr><th style="width:52%">Command</th><th>Effect</th></tr>
-  <tr><td><code>msiexec /i TrackMasterPro-1.4.7.msi /qn</code></td><td>installation without user interface</td></tr>
-  <tr><td><code>msiexec /i TrackMasterPro-1.4.7.msi INSTALLFOLDER="D:\Programs\TrackMaster Pro" /qn</code></td><td>installation into another folder</td></tr>
-  <tr><td><code>msiexec /x TrackMasterPro-1.4.7.msi /qn</code></td><td>uninstallation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.5.0.msi /qn</code></td><td>installation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.5.0.msi INSTALLFOLDER="D:\Programs\TrackMaster Pro" /qn</code></td><td>installation into another folder</td></tr>
+  <tr><td><code>msiexec /x TrackMasterPro-1.5.0.msi /qn</code></td><td>uninstallation without user interface</td></tr>
 </table>
 
 <h2 id="k2-2">Android</h2>
@@ -201,7 +201,7 @@ select <b>TrackMaster Pro</b> and click <span class="ui">Uninstall</span>. Your 
 </ul>
 <h3>Installing</h3>
 <ol class="steps">
-  <li>Copy the file <b>TrackMasterPro-1.4.7.apk</b> to the device – via USB cable, cloud storage or as an e-mail attachment.</li>
+  <li>Copy the file <b>TrackMasterPro-1.5.0.apk</b> to the device – via USB cable, cloud storage or as an e-mail attachment.</li>
   <li>Tap the file on the device, for example in the <span class="ui">Files</span> app in the <span class="ui">Downloads</span> folder.</li>
   <li>The first time, Android asks whether this app may <b>install unknown apps</b>. Tap <span class="ui">Settings</span>,
       allow it and go back.</li>
@@ -226,6 +226,7 @@ after that it comes from the browser cache.</p>
   <li><b>Licence:</b> under <span class="ui">File › Licence…</span> choose the licence file or paste its content. It applies only in this browser;
     after the site data has been deleted it has to be installed again.</li>
   <li><b>3D view:</b> needs WebGL. If the browser reports that it cannot show 3D graphics, switch on hardware acceleration.</li>
+  <li><b>Layout suggestion:</b> Only in the web version, <span class="ui">Tracks › Layout suggestion…</span> builds small layouts from your track stock (see <a href="#k6-7">Layout suggestion</a> in chapter 8).</li>
   <li><b>Printing and exports</b> are downloaded as files or output via the browser's print dialog.</li>
 </ul>
 <p>If the web version is embedded in a website, the <span class="ui">Home</span> button at the top left of the title bar leads back to that website's home page.</p>
@@ -648,6 +649,23 @@ labels and dimensions also appear in the printout.</p>
 <figure class="third"><img src="img-en/parallel.png" alt=""><figcaption>Parallel track dialog.</figcaption></figure>
 <p>The new track is laid as <b>flexible track</b> of the selected system; curves automatically get the matching larger or smaller radius.
 If it ends up on the wrong side, undo it with <kbd>Ctrl</kbd>+<kbd>Z</kbd> and choose the other side.</p>
+
+<h2 id="k6-7">Layout suggestion from your own track</h2>
+<p>You have a box full of track but no idea for a layout? The layout suggestion builds small layouts from your quantities –
+not large layouts, but ideas to get started. <i>For now this feature is only available in the web version.</i></p>
+<ol class="steps">
+  <li>Set up the <b>baseboard</b> (size and shape) and choose your <b>track system</b> in the track library.</li>
+  <li>Click <span class="ui">Tracks › Layout suggestion…</span>.</li>
+  <li>For each piece, enter <b>how many</b> you have. Empty or 0 means none. If you have already entered your stock in the bill of materials, it is filled in here.</li>
+  <li>Click <span class="ui">Calculate suggestions</span>. After a moment the suggestions appear with a small preview, the number of tracks and the size.</li>
+  <li>If you like one, click <span class="ui">Apply</span>. <kbd>Ctrl</kbd>+<kbd>Z</kbd> removes it again.</li>
+</ol>
+<p>Depending on your stock, these shapes are offered: <b>oval</b>, <b>oval with siding</b> (or two), <b>oval with passing loop</b>, <b>double oval</b>
+(two loops one inside the other) and the <b>figure eight</b> with a crossing in the middle. Every suggestion is closed, fits the baseboard and passes the plan check;
+it never uses more pieces than you entered.</p>
+<p class="tip"><b>No suggestion?</b> An oval needs curves for a full circle of one radius (e.g. 12 curves of 30°), and the baseboard must be at least
+twice the radius deep plus a little margin. Sidings need a turnout, a matching counter curve and a buffer stop.
+If “Replace existing tracks” is ticked, the suggestion replaces the tracks in the plan; otherwise it is added.</p>
 
 <h2 id="k6-4">Flexible track</h2>
 <p>Flexible track can be laid in three ways:</p>
@@ -1195,6 +1213,7 @@ The program sends no data to third parties; at start-up it only fetches the curr
   <tr><td>Group</td><td>Tracks that are combined and are selected and moved together with one click.</td></tr>
   <tr><td>Helix</td><td>Spiral climbing line for overcoming large differences in height on a small area.</td></tr>
   <tr><td>Isolating joint</td><td>Insulated rail joint that separates two power sections.</td></tr>
+  <tr><td>Layout suggestion</td><td>Small layout the program builds from the quantities of track you entered (web version).</td></tr>
   <tr><td>Level</td><td>Group of tracks and terrain objects with a common base height that can be shown and hidden together.</td></tr>
   <tr><td>Module</td><td>Rectangular part of a layout with its own dimensions that can be combined with others into a layout.</td></tr>
   <tr><td>Open track end</td><td>End of a track piece without a connection; marked orange in the plan. The plan check reports open ends without a buffer stop.</td></tr>
@@ -1217,7 +1236,7 @@ The program sends no data to third parties; at start-up it only fetches the curr
   <tr><td>Turnout</td><td>Track piece where a track divides into two (or three) directions.</td></tr>
   <tr><td>Usable length</td><td>Length of a track section between turnouts or up to the buffer stop – the longest train that can stand there.</td></tr>
 </table>
-<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.4.7 · User manual, as of November 2026. Subject to change.
+<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.5.0 · User manual, as of November 2026. Subject to change.
 All dimensions without guarantee; check the dimensions against the real product before cutting and buying.</p>
 </section>
 

@@ -63,7 +63,14 @@ public sealed class MainActivity : Activity
 #else
         const bool developer = false;
 #endif
-        _license = new LicenseManager(System.IO.Path.Combine(FilesDir!.AbsolutePath, AppFolders.LicenseFileName), LicensePublicKey.Pem, developer, machineId: AndroidDeviceId());
+        var deviceId = AndroidDeviceId();
+        LicenseActivation? activation = null;
+        if (LicenseActivation.DefaultServerUrl is { } activationUrl)
+        {
+            var (load, save) = LicenseActivation.FileStore(System.IO.Path.Combine(FilesDir!.AbsolutePath, LicenseActivation.FileName));
+            activation = new LicenseActivation(activationUrl, deviceId, "Android", $"{Build.Manufacturer} {Build.Model}".Trim(), load, save);
+        }
+        _license = new LicenseManager(System.IO.Path.Combine(FilesDir!.AbsolutePath, AppFolders.LicenseFileName), LicensePublicKey.Pem, developer, machineId: deviceId, activation: activation);
         _session.IsPro = () => _license.IsPro;
         _session.ProRequired += feature => Dialogs.ShowProRequired(this, feature, ShowLicense);
         _session.Message += ShowMessage;
@@ -80,6 +87,7 @@ public sealed class MainActivity : Activity
         Refresh();
         RegisterBack();
         _ = CheckForUpdates(manual: false);
+        if (_license.ActivationDue) _ = SyncActivation(interactive: false);
 #if DEBUG
         // Für den Build-Test: adb shell am start … --es demo 3d|ride|tab:Gelände|check
         if (Intent?.GetStringExtra("demo") is { } demo) _canvas.PostDelayed(() => Demo(demo), 1500);
@@ -948,7 +956,42 @@ public sealed class MainActivity : Activity
 
     // ---------- Lizenz ----------
 
-    private void ShowLicense() => Dialogs.ShowLicense(this, _license, () => Pick(RequestLicense));
+    private void ShowLicense() => Dialogs.ShowLicense(this, _license, () => Pick(RequestLicense),
+        () => _ = SyncActivation(interactive: true), () => _ = ReleaseActivation());
+
+    private static string AppVersion => typeof(MainActivity).Assembly.GetName().Version?.ToString(3) ?? "";
+
+    /// <summary>Beim Aktivierungsserver anmelden bzw. nachfragen. Meldet sich nur, wenn gefragt wurde oder Pro wegfällt.</summary>
+    private async Task SyncActivation(bool interactive)
+    {
+        var wasPro = _license.IsPro;
+        string? message;
+        try { message = await _license.SyncActivationAsync(AppVersion); }
+        catch (Exception e) { message = e.Message; }
+        RunOnUiThread(() =>
+        {
+            if (IsFinishing) return;
+            BuildActions();
+            Refresh();
+            _canvas.Invalidate();
+            if (message is not null && (interactive || (wasPro && !_license.IsPro))) Dialogs.Message(this, Lang.T("Lizenz"), message);
+        });
+    }
+
+    private async Task ReleaseActivation()
+    {
+        string message;
+        try { message = await _license.ReleaseActivationAsync(AppVersion); }
+        catch (Exception e) { message = e.Message; }
+        RunOnUiThread(() =>
+        {
+            if (IsFinishing) return;
+            BuildActions();
+            Refresh();
+            _canvas.Invalidate();
+            Dialogs.Message(this, Lang.T("Lizenz"), message);
+        });
+    }
 
     private void InstallLicense(string text)
     {
@@ -956,6 +999,7 @@ public sealed class MainActivity : Activity
         if (result.IsValid)
         {
             Dialogs.Message(this, Lang.T("Lizenz"), Lang.F($"Pro-Lizenz eingespielt: {_license.Summary}"));
+            if (_license.ActivationDue) _ = SyncActivation(interactive: true);
             BuildActions();
             Refresh();
             _canvas.Invalidate();

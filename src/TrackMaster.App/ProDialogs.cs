@@ -755,16 +755,26 @@ public static partial class Dialogs
     // ---------- Lizenz ----------
 
     /// <param name="install">Öffnet den Dateidialog und spielt eine Lizenz ein; liefert eine Meldung.</param>
-    public static void ShowLicense(Window owner, LicenseManager license, Func<string?> install)
+    /// <param name="activate">Meldet das Gerät beim Aktivierungsserver an; liefert eine Meldung.</param>
+    /// <param name="release">Gibt den Geräteplatz frei; liefert eine Meldung.</param>
+    public static void ShowLicense(Window owner, LicenseManager license, Func<string?> install, Func<Task<string?>> activate, Func<Task<string>> release)
     {
         var body = new StackPanel();
         var status = Theme.Label("", 14, true);
         var detail = Theme.Secondary("");
+        var activation = Theme.Secondary("");
+        Button? activateButton = null, releaseButton = null;
         void Sync()
         {
             status.Text = Lang.F($"TrackMaster Pro {license.EditionName}");
             status.Foreground = license.IsPro ? Theme.SuccessBrush : Theme.TextBrush;
             detail.Text = license.Summary;
+            activation.Text = license.ActivationText;
+            activation.Visibility = activation.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            var applies = license.Result.IsValid && license.Activation?.Applies(license.Result.License) == true;
+            var active = applies && license.Activation!.State(license.Result.License) == ActivationState.Active;
+            if (activateButton is not null) activateButton.Visibility = applies && !active ? Visibility.Visible : Visibility.Collapsed;
+            if (releaseButton is not null) releaseButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         }
         Sync();
         var head = new DockPanel();
@@ -774,6 +784,7 @@ public static partial class Dialogs
         var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         texts.Children.Add(status);
         texts.Children.Add(detail);
+        texts.Children.Add(activation);
         head.Children.Add(texts);
         body.Children.Add(head);
         var editions = new Grid { Margin = new Thickness(0, 12, 6, 8) };
@@ -804,9 +815,29 @@ public static partial class Dialogs
         var message = Theme.Label("", 12);
         body.Children.Add(message);
         var installButton = Theme.Button(Lang.T("Lizenz einspielen…"), "Open");
+        activateButton = Theme.Button(Lang.T("Jetzt aktivieren"));
+        releaseButton = Theme.Button(Lang.T("Dieses Gerät freigeben"));
         var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var window = Frame(owner, Lang.T("Lizenz"), body, installButton, close);
+        Sync();
+        var window = Frame(owner, Lang.T("Lizenz"), body, releaseButton, activateButton, installButton, close);
+        activateButton.Click += async (_, _) =>
+        {
+            activateButton.IsEnabled = false;
+            message.Text = Lang.T("Verbinde mit dem Aktivierungsserver …");
+            message.Text = await activate() ?? "";
+            activateButton.IsEnabled = true;
+            Sync();
+        };
+        releaseButton.Click += async (_, _) =>
+        {
+            if (MessageBox.Show(window, Lang.T("Dieses Gerät beim Aktivierungsserver freigeben? Danach läuft hier die Basisversion, bis es wieder aktiviert wird."),
+                    Lang.T("Lizenz"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            releaseButton.IsEnabled = false;
+            message.Text = await release();
+            releaseButton.IsEnabled = true;
+            Sync();
+        };
         window.Width = 720;
         window.Height = 560;
         installButton.Click += (_, _) =>

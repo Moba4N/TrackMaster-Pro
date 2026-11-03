@@ -86,6 +86,12 @@ public static partial class Js
     [JSImport("homeUrl", Module)]
     public static partial string HomeUrl();
 
+    [JSImport("activationUrl", Module)]
+    public static partial string ActivationUrl();
+
+    [JSImport("browserName", Module)]
+    public static partial string BrowserName();
+
     [JSImport("setImage", Module)]
     public static partial void SetImage(string key, string dataUrl, string canvasId);
 

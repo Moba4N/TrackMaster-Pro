@@ -1475,6 +1475,19 @@ public sealed class MainWindow : Window
         ShowMessage(full ? Lang.F($"Bauvorlage mit {tiles.Count} Seiten an den Drucker gesendet.") : Lang.T("An den Drucker gesendet."));
     }
 
+    private static string AppVersion => typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "";
+
+    /// <summary>Beim Aktivierungsserver anmelden bzw. nachfragen. Meldet sich nur, wenn gefragt wurde oder Pro wegfällt.</summary>
+    public async Task<string?> SyncActivation(bool interactive)
+    {
+        var wasPro = License.IsPro;
+        var message = await License.SyncActivationAsync(AppVersion);
+        ApplyEdition();
+        if (!interactive && wasPro && !License.IsPro && message is not null)
+            MessageBox.Show(this, message, Lang.T("Lizenz"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        return message;
+    }
+
     private void ShowLicense()
     {
         Dialogs.ShowLicense(this, License, () =>
@@ -1486,12 +1499,18 @@ public sealed class MainWindow : Window
                 var result = License.Install(File.ReadAllText(dlg.FileName));
                 if (!result.IsValid) return Lang.F($"Die Lizenz wurde nicht übernommen: {result.StatusText}.");
                 ApplyEdition();
+                if (License.ActivationDue) _ = SyncActivation(interactive: false);
                 return Lang.F($"Pro-Lizenz für {result.License!.Licensee} eingespielt – alle Funktionen sind frei.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 return Lang.F($"Die Datei lässt sich nicht lesen: {ex.Message}");
             }
+        }, () => SyncActivation(interactive: true), async () =>
+        {
+            var m = await License.ReleaseActivationAsync(AppVersion);
+            ApplyEdition();
+            return m;
         });
     }
 

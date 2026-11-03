@@ -11,8 +11,10 @@ public sealed class LicenseManager
     private readonly string _publicKeyPem;
     private readonly Func<DateTimeOffset> _clock;
 
-    public LicenseManager(string licensePath, string publicKeyPem, bool developerMode, Func<DateTimeOffset>? clock = null, string? machineId = null)
+    public LicenseManager(string licensePath, string publicKeyPem, bool developerMode, Func<DateTimeOffset>? clock = null, string? machineId = null,
+        LicenseActivation? activation = null)
     {
+        Activation = activation;
         MachineId = machineId ?? MachineFingerprint.Current;
         LicensePath = licensePath;
         _publicKeyPem = publicKeyPem;
@@ -32,8 +34,36 @@ public sealed class LicenseManager
     public bool IsDeveloperMode { get; private set; }
     public string LicensePath { get; }
 
-    /// <summary>Pro-Funktionen frei (gültige Lizenz oder Entwicklerversion).</summary>
-    public bool IsPro => Result.IsValid || IsDeveloperMode;
+    /// <summary>Online-Aktivierung (höchstens N Geräte je Lizenz); null = keine.</summary>
+    public LicenseActivation? Activation { get; }
+
+    /// <summary>Gültige Lizenz, die auf diesem Gerät auch laufen darf (aktiviert, Schonfrist oder keine Aktivierung nötig).</summary>
+    public bool IsLicensed => Result.IsValid && (Activation?.Allows(Result.License) ?? true);
+
+    /// <summary>Pro-Funktionen frei (gültige, aktivierte Lizenz oder Entwicklerversion).</summary>
+    public bool IsPro => IsLicensed || IsDeveloperMode;
+
+    /// <summary>Stand der Online-Aktivierung als Text (leer, wenn keine nötig).</summary>
+    public string ActivationText => Result.IsValid && Activation is { } a ? a.Describe(Result.License) : "";
+
+    /// <summary>Soll beim Start (im Hintergrund) beim Aktivierungsserver nachgefragt werden?</summary>
+    public bool ActivationDue => Result.IsValid && Activation?.DueForSync(Result.License) == true;
+
+    /// <summary>Meldet dieses Gerät beim Aktivierungsserver an bzw. prüft die Anmeldung. Liefert eine Meldung oder null.</summary>
+    public async Task<string?> SyncActivationAsync(string appVersion = "")
+    {
+        if (!Result.IsValid || Activation is not { } a || !File.Exists(LicensePath)) return null;
+        var (_, message) = await a.SyncAsync(Result.License!, await File.ReadAllTextAsync(LicensePath).ConfigureAwait(false), appVersion).ConfigureAwait(false);
+        return message;
+    }
+
+    /// <summary>Gibt den Geräteplatz dieses Geräts beim Aktivierungsserver frei.</summary>
+    public async Task<string> ReleaseActivationAsync(string appVersion = "")
+    {
+        if (!Result.IsValid || Activation is not { } a || !File.Exists(LicensePath)) return Lang.T("Für diese Lizenz gibt es keine Online-Aktivierung.");
+        var (_, message) = await a.ReleaseAsync(Result.License!, await File.ReadAllTextAsync(LicensePath).ConfigureAwait(false), appVersion).ConfigureAwait(false);
+        return message;
+    }
 
     public bool IsFeatureEnabled(string feature) => feature == Features.Basis || IsPro;
 
@@ -51,13 +81,14 @@ public sealed class LicenseManager
         return result;
     }
 
-    public string EditionName => Result.IsValid ? Lang.T("Pro") : IsDeveloperMode ? Lang.T("Pro (Entwicklerversion)") : Lang.T("Basis");
+    public string EditionName => IsLicensed ? Lang.T("Pro") : IsDeveloperMode ? Lang.T("Pro (Entwicklerversion)") : Lang.T("Basis");
 
     public string Summary
     {
         get
         {
-            if (Result.IsValid)
+            if (Result.IsValid && !IsLicensed && !IsDeveloperMode) return Lang.T("Basisversion – Lizenz auf diesem Gerät nicht aktiviert");
+            if (IsLicensed)
             {
                 var l = Result.License!;
                 return Lang.F($"Pro – lizenziert für {l.Licensee}{(l.ExpiresAt is { } e ? Lang.F($", gültig bis {e:dd.MM.yyyy}") : "")}");

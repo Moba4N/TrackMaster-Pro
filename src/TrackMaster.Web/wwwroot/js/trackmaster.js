@@ -462,6 +462,22 @@ export function homeUrl() {
     return (m && m.getAttribute("content") || "").trim();
 }
 
+/** Adresse des Aktivierungsservers aus <meta name="trackmaster-activation">, als volle Adresse; leer = keine Online-Aktivierung. */
+export function activationUrl() {
+    const m = document.querySelector('meta[name="trackmaster-activation"]');
+    const v = (m && m.getAttribute("content") || "").trim();
+    if (!v) return "";
+    try { return new URL(v, document.baseURI).href; } catch { return ""; }
+}
+
+/** Kurzer Name des Browsers für die Geräteübersicht. */
+export function browserName() {
+    const ua = navigator.userAgent || "";
+    const b = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
+    const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "";
+    return os ? `${b} (${os})` : b;
+}
+
 export function storageGet(key) {
     try { return localStorage.getItem(key); } catch { return null; }
 }

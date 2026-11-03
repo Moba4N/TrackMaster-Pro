@@ -22,8 +22,10 @@ public sealed class WebLicense
     private readonly Func<string?> _load;
     private readonly Action<string> _save;
 
-    public WebLicense(string machineId, Func<string?> load, Action<string> save, string? publicKeyPem = null, Func<DateTimeOffset>? clock = null)
+    public WebLicense(string machineId, Func<string?> load, Action<string> save, string? publicKeyPem = null, Func<DateTimeOffset>? clock = null,
+        LicenseActivation? activation = null)
     {
+        Activation = activation;
         MachineId = machineId;
         _load = load;
         _save = save;
@@ -37,14 +39,37 @@ public sealed class WebLicense
 
     public LicenseCheckResult Result { get; private set; }
 
-    public bool IsPro => Result.IsValid;
+    /// <summary>Online-Aktivierung (höchstens N Geräte je Lizenz); null = keine.</summary>
+    public LicenseActivation? Activation { get; }
 
-    public string EditionName => Result.IsValid ? Lang.T("Pro") : Lang.T("Basis");
+    public bool IsPro => Result.IsValid && (Activation?.Allows(Result.License) ?? true);
+
+    public string EditionName => IsPro ? Lang.T("Pro") : Lang.T("Basis");
+
+    /// <summary>Stand der Online-Aktivierung als Text (leer, wenn keine nötig).</summary>
+    public string ActivationText => Result.IsValid && Activation is { } a ? a.Describe(Result.License) : "";
+
+    public bool ActivationDue => Result.IsValid && Activation?.DueForSync(Result.License) == true;
+
+    public async Task<string?> SyncActivationAsync(string appVersion = "")
+    {
+        if (!Result.IsValid || Activation is not { } a || _load() is not { Length: > 0 } text) return null;
+        var (_, message) = await a.SyncAsync(Result.License!, text, appVersion);
+        return message;
+    }
+
+    public async Task<string> ReleaseActivationAsync(string appVersion = "")
+    {
+        if (!Result.IsValid || Activation is not { } a || _load() is not { Length: > 0 } text) return Lang.T("Für diese Lizenz gibt es keine Online-Aktivierung.");
+        var (_, message) = await a.ReleaseAsync(Result.License!, text, appVersion);
+        return message;
+    }
 
     public string Summary
     {
         get
         {
+            if (Result.IsValid && !IsPro) return Lang.T("Basisversion – Lizenz auf diesem Gerät nicht aktiviert");
             if (Result.IsValid)
             {
                 var l = Result.License!;

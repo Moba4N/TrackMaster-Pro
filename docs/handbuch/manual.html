@@ -712,7 +712,7 @@ higher sections are always drawn above lower ones.</p>
 <ol class="steps">
   <li>Select the tracks of the ramp (draw a rectangle or <kbd>Shift</kbd>+click).</li>
   <li>Click <span class="ui">Tracks › Gradient…</span>.</li>
-  <li>Enter the <b>start height</b> and the <b>gradient in percent</b>; reverse the direction if needed.</li>
+  <li>Enter the <b>start height</b> and choose under <span class="ui">Input</span> whether you give the <b>height at the end</b> (the gradient in percent is calculated from the length of the track sequence) or the <b>gradient in percent</b>; reverse the direction if needed. Below the fields you see the ramp length and the gradient or end height.</li>
 </ol>
 <p>The gradient is applied evenly over all selected tracks. If two parallel track sequences are selected – such as the two tracks of a
 double-track ramp or helix – the inner, shorter track gets exactly the gradient entered; the outer one rises so that it arrives at the same height.</p>
@@ -723,6 +723,8 @@ double-track ramp or helix – the inner, shorter track gets exactly the gradien
   <tr><td>over 3 %</td><td>the plan check warns; long trains need a second locomotive</td></tr>
   <tr><td>over 5 %</td><td>the plan check reports an error</td></tr>
 </table>
+
+<p><b>Height at a joint (web version).</b> For selected tracks the heights at the joints are shown in the plan (↕ in mm); for raised lines also without a selection once you have zoomed in far enough. Double-click a joint – or right-click and choose <span class="ui">Height at joint…</span> – to change the height there. Both tracks at the joint get the new height, their other ends stay in place and the gradient adjusts; turnouts and crossings are raised as a whole.</p>
 
 <h2 id="k7-9">Height profile</h2>
 <p>How high does the line lie at which point, and where is it too steep? Select connected tracks – for example a ramp or the whole line between two stations –

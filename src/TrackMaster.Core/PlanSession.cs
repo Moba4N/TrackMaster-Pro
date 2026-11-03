@@ -1126,6 +1126,54 @@ public sealed partial class PlanSession
         Say(on ? Lang.F($"{sel.Count} Gleis(e) als Tunnel markiert.") : Lang.F($"Tunnel bei {sel.Count} Gleis(en) aufgehoben."));
     }
 
+    /// <summary>
+    /// Länge der gewählten Gleisfolge, über die eine Steigung verteilt würde (ohne waagrechte Stücke wie Kreuzungen); null, wenn sie sich nicht bestimmen lässt.
+    /// Der Plan bleibt unverändert.
+    /// </summary>
+    public double? GradientLength(bool reverse)
+    {
+        if (Selection.Count == 0) return null;
+        var saved = Plan.Pieces.Where(p => Selection.Contains(p.Id)).Select(p => (p, p.Height, p.Grade)).ToList();
+        try
+        {
+            var r = PlanEditing.ApplyGradient(Plan, Selection, 0, 1, reverse);
+            return r.Pieces == 0 || r.EndHeight <= 0.001 ? null : r.EndHeight / 0.01;
+        }
+        finally
+        {
+            foreach (var (p, h, g) in saved) { p.Height = h; p.Grade = g; }
+        }
+    }
+
+    /// <summary>Steigung aus Höhe am Anfang und am Ende der gewählten Gleisfolge.</summary>
+    public void ApplyGradientHeights(double startHeight, double endHeight, bool reverse)
+    {
+        if (Selection.Count == 0) { Say(Lang.T("Bitte zuerst die Gleise der Rampe wählen.")); return; }
+        if (GradientLength(reverse) is not { } len) { Say(Lang.T("Die Länge der gewählten Gleisfolge lässt sich nicht bestimmen – bitte eine offene Gleisfolge wählen.")); return; }
+        ApplyGradient(startHeight, (endHeight - startHeight) / len * 100, reverse);
+    }
+
+    /// <summary>
+    /// Höhe an einem Verbindungspunkt: das Gleis und, falls verbunden, das Nachbargleis bekommen dort die Höhe <paramref name="z"/>.
+    /// Ihre anderen Enden bleiben liegen, die Steigung passt sich an.
+    /// </summary>
+    public void SetJointHeight(int pieceId, int index, double z)
+    {
+        if (Connections.Find(pieceId, index) is not { } c || Plan.Find(pieceId) is not { } piece) return;
+        Record();
+        PlanEditing.SetConnectorHeight(piece, index, z);
+        var touched = new List<PlacedPiece> { piece };
+        if (c.Link is { } l && Plan.Find(l.PieceId) is { } other)
+        {
+            PlanEditing.SetConnectorHeight(other, l.Index, z);
+            touched.Add(other);
+        }
+        Commit();
+        var grades = touched.Where(p => p.Def.Kind is PieceKind.Straight or PieceKind.Curve)
+            .Select(p => Fmt.Num(p.EffectiveGrade * 100, 1) + " %").ToList();
+        Say(Lang.F($"Höhe am Verbindungspunkt: {Fmt.Num(z, 0)} mm.") + (grades.Count > 0 ? Lang.F($" Steigung daneben: {string.Join(" / ", grades)}.") : ""));
+    }
+
     public void ApplyGradient(double startHeight, double percent, bool reverse)
     {
         if (Selection.Count == 0) { Say(Lang.T("Bitte zuerst die Gleise der Rampe wählen.")); return; }

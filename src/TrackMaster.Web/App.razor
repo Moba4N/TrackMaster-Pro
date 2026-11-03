@@ -76,6 +76,10 @@
                     {
                         <button role="menuitem" @onclick="@(() => CtxRun("cutJoints"))">@((MarkupString)Icons.Svg("Isolate", 16))<span>@(hasSel ? Lang.T("An Modulkante trennen") : Lang.T("Alle Gleise an Modulkanten trennen"))</span></button>
                     }
+                    @if (_view.ContextConnector is { } joint)
+                    {
+                        <button role="menuitem" @onclick="@(() => { _ctx = null; AskJointHeight(joint); })">@((MarkupString)Icons.Svg("Slope", 16))<span>@Lang.F($"Höhe am Verbindungspunkt ({Fmt.Num(joint.Z, 0)} mm)…")</span></button>
+                    }
                     @if (hasSel)
                     {
                         <button role="menuitem" @onclick="@(() => CtxRun("props"))">@((MarkupString)Icons.Svg("Properties", 16))<span>@Lang.T("Eigenschaften")</span></button>
@@ -1035,29 +1039,96 @@
         }, true));
     }
 
-    private void AskGradient(int pieces, double startHeight, Action<double, double, bool> apply)
+    private void AskGradient(int pieces, double startHeight, Func<bool, double?> length,
+        Action<double, double, bool> applyPercent, Action<double, double, bool> applyHeights)
     {
         _d.Clear();
         _d["start"] = N(startHeight);
         _d["percent"] = N(2.5, 1);
+        _d["mode"] = "end";
         _d["reverse"] = "";
+        var lenFwd = length(false);
+        var lenRev = length(true);
+        double? Len() => D("reverse") == "1" ? lenRev : lenFwd;
+        _d["end"] = Len() is { } l0 ? N(startHeight + l0 * 0.025, 0) : N(startHeight);
+        string Preview()
+        {
+            if (Len() is not { } len) return Lang.T("Länge der Gleisfolge unbekannt – bitte eine offene Gleisfolge wählen.");
+            var s0 = Fmt.Parse(D("start"));
+            if (D("mode") == "end")
+            {
+                var e = Fmt.Parse(D("end"));
+                if (s0 is null || e is null) return Lang.F($"Länge der Rampe: {Fmt.Num(len, 0)} mm");
+                var pct = (e.Value - s0.Value) / len * 100;
+                return Lang.F($"Länge der Rampe: {Fmt.Num(len, 0)} mm · Steigung {Fmt.Num(pct, 2)} %") + (Math.Abs(pct) > PlanCheck.WarnGradePercent ? Lang.T(" – steiler als empfohlen") : "");
+            }
+            var p = Fmt.Parse(D("percent"));
+            if (s0 is null || p is null) return Lang.F($"Länge der Rampe: {Fmt.Num(len, 0)} mm");
+            return Lang.F($"Länge der Rampe: {Fmt.Num(len, 0)} mm · Endhöhe {Fmt.Num(s0.Value + len * p.Value / 100, 0)} mm");
+        }
         var d = Show(Lang.T("Steigung"), @<div class="form">
             @Hint(Lang.F($"Die Steigung wird gleichmäßig über die {pieces} gewählten Gleise gelegt, vom einen Ende der Gleisfolge zum anderen. ") +
                   Lang.T("Empfohlen: höchstens 2,5–3 %, in Bögen weniger. Negative Werte ergeben ein Gefälle."))
             <label class="field-label">@Lang.T("Höhe am Anfang (mm über Platte)")</label>
             <input class="input" inputmode="decimal" @bind='_d["start"]' @bind:event="oninput" />
-            <label class="field-label">@Lang.T("Steigung (%)")</label>
-            <input class="input" inputmode="decimal" @bind='_d["percent"]' @bind:event="oninput" />
+            <label class="field-label">@Lang.T("Vorgabe")</label>
+            <select class="input" value="@D("mode")" @onchange="@(e => _d["mode"] = e.Value?.ToString() ?? "end")">
+                <option value="end">@Lang.T("Höhe am Ende – Steigung wird berechnet")</option>
+                <option value="percent">@Lang.T("Steigung in Prozent")</option>
+            </select>
+            @if (D("mode") == "end")
+            {
+                <label class="field-label">@Lang.T("Höhe am Ende (mm über Platte)")</label>
+                <input class="input" inputmode="decimal" @bind='_d["end"]' @bind:event="oninput" />
+            }
+            else
+            {
+                <label class="field-label">@Lang.T("Steigung (%)")</label>
+                <input class="input" inputmode="decimal" @bind='_d["percent"]' @bind:event="oninput" />
+            }
             <label class="check"><input type="checkbox" checked="@(D("reverse") == "1")" @onchange="@(e => _d["reverse"] = e.Value is true ? "1" : "")" /> @Lang.T("Am anderen Ende beginnen")</label>
+            <div class="gradient-preview">@Preview()</div>
         </div>, keepFields: true);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
         d.Buttons.Add(new(Lang.T("Anlegen"), () =>
         {
             var errors = new List<string>();
             Read("start", Lang.T("Höhe am Anfang"), -500, 3000, errors, out var s);
+            if (D("mode") == "end")
+            {
+                Read("end", Lang.T("Höhe am Ende"), -500, 3000, errors, out var e);
+                if (Len() is { } len && Math.Abs((e - s) / len * 100) > 15)
+                    errors.Add(Lang.F($"Die Steigung wäre {Fmt.Num((e - s) / len * 100, 1)} % – höchstens 15 % sind möglich."));
+                if (!Fail(errors)) return false;
+                applyHeights(s, e, D("reverse") == "1");
+                return true;
+            }
             Read("percent", Lang.T("Steigung"), -15, 15, errors, out var p);
             if (!Fail(errors)) return false;
-            apply(s, p, D("reverse") == "1");
+            applyPercent(s, p, D("reverse") == "1");
+            return true;
+        }, true));
+    }
+
+    private void AskJointHeight(ConnectorRef joint)
+    {
+        _d.Clear();
+        _d["z"] = N(joint.Z, 1);
+        var linked = joint.Link is not null;
+        var d = Show(Lang.T("Höhe am Verbindungspunkt"), @<div class="form">
+            @Hint(linked
+                ? Lang.T("Beide Gleise an diesem Punkt bekommen die neue Höhe. Ihre anderen Enden bleiben liegen, die Steigung der Gleise passt sich an (Weichen und Kreuzungen werden als Ganzes gehoben).")
+                : Lang.T("Das Gleisende bekommt die neue Höhe. Das andere Ende bleibt liegen, die Steigung passt sich an (Weichen und Kreuzungen werden als Ganzes gehoben)."))
+            <label class="field-label">@Lang.T("Höhe der Schienenoberkante (mm über Platte)")</label>
+            <input class="input" inputmode="decimal" @bind='_d["z"]' />
+        </div>, keepFields: true);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+        d.Buttons.Add(new(Lang.T("Übernehmen"), () =>
+        {
+            var errors = new List<string>();
+            Read("z", Lang.T("Höhe"), -500, 3000, errors, out var z);
+            if (!Fail(errors)) return false;
+            _session.SetJointHeight(joint.PieceId, joint.Index, z);
             return true;
         }, true));
     }

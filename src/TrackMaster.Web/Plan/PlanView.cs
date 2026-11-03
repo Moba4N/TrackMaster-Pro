@@ -49,6 +49,10 @@ public sealed class PlanView
     public event Action? PropertiesRequested;
     /// <summary>Rechtsklick ohne Ziehen: Kontextmenü an der Stelle (x, y) im Plan; das Gleis darunter ist dann gewählt.</summary>
     public event Action<float, float>? ContextRequested;
+    /// <summary>Verbindungspunkt unter dem letzten Rechtsklick (für „Höhe am Verbindungspunkt“), sonst null.</summary>
+    public ConnectorRef? ContextConnector { get; private set; }
+    /// <summary>Doppelklick auf einen Verbindungspunkt: Höhe dort ändern.</summary>
+    public event Action<ConnectorRef>? JointHeightRequested;
     private bool _rightDown;
     /// <summary>Das Vieleck-Werkzeug hat Punkte gesetzt (Leiste „Fertig/Abbrechen“ zeigen).</summary>
     public event Action? PolygonChanged;
@@ -488,6 +492,7 @@ public sealed class PlanView
 
     private void DrawHeights(Canvas c, LayoutPlan plan)
     {
+        DrawJointHeights(c, plan);
         foreach (var p in plan.Pieces)
         {
             var g = p.EffectiveGrade;
@@ -498,6 +503,25 @@ public sealed class PlanView
             var mid = p.HeightAt(0, 0.5);
             var text = Math.Abs(g) < 1e-6 ? $"{Fmt.Num(mid, 0)} mm" : $"{Fmt.Num(mid, 0)} mm · {(g > 0 ? "↗" : "↘")} {Fmt.Num(Math.Abs(g) * 100, 1)} %";
             DrawTag(c, text, s.X, s.Y + _gauge * 1.6f * _zoom + Ui.Dp(9), Math.Abs(g) * 100 > PlanCheck.WarnGradePercent ? Ui.Danger : Ui.Accent, 10);
+        }
+    }
+
+    /// <summary>Höhe an den Verbindungspunkten: bei gewählten Gleisen immer, sonst bei Höhe ≠ 0 und genug Vergrößerung.</summary>
+    private void DrawJointHeights(Canvas c, LayoutPlan plan)
+    {
+        var sel = _session.Selection;
+        foreach (var cn in _session.VisibleConnectors())
+        {
+            if (cn.Link is { } l && (l.PieceId < cn.PieceId || (l.PieceId == cn.PieceId && l.Index < cn.Index))) continue;
+            var selected = sel.Contains(cn.PieceId) || (cn.Link is { } l2 && sel.Contains(l2.PieceId));
+            if (!selected)
+            {
+                if (Math.Abs(cn.Z) < 0.5) continue;
+                if (plan.Find(cn.PieceId) is not { } p || p.Def.TrackLength * _zoom < Ui.Dp(110)) continue;
+            }
+            else if (_zoom * 60 < Ui.Dp(14)) continue;
+            var s = ToScreen(cn.Pose.X, cn.Pose.Y);
+            DrawTag(c, $"↕ {Fmt.Num(cn.Z, 0)}", s.X, s.Y - _gauge * 1.4f * _zoom - Ui.Dp(10), Ui.TextSecondary, 9);
         }
     }
 
@@ -875,6 +899,11 @@ public sealed class PlanView
         }
         if (_session.Tool != CanvasTool.Select) return;
         var world = ToWorld(x, y);
+        if (HitConnector(x, y, openOnly: false, radius: Reach(10, 22)) is { } joint)
+        {
+            JointHeightRequested?.Invoke(joint);
+            return;
+        }
         if (HitSmallObject(x, y, world) is not null || HitPiece(world) is not null || HitArea(world) is not null)
             PropertiesRequested?.Invoke();
         else
@@ -984,7 +1013,9 @@ public sealed class PlanView
             _rightDown = false;
             if (!_moved)
             {
-                if (HitPiece(world) is { } hit && !_session.Selection.Contains(hit.Id)) _session.Select([hit.Id], add: false);
+                ContextConnector = HitConnector(x, y, openOnly: false, radius: Reach(14, 26));
+                if (ContextConnector is { } cc && !_session.Selection.Contains(cc.PieceId)) _session.Select([cc.PieceId], add: false);
+                else if (ContextConnector is null && HitPiece(world) is { } hit && !_session.Selection.Contains(hit.Id)) _session.Select([hit.Id], add: false);
                 ContextRequested?.Invoke(x, y);
                 return;
             }

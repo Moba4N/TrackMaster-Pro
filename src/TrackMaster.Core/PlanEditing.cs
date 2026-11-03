@@ -203,6 +203,31 @@ public static class PlanEditing
         return new GradientResult(visited.Count, endZ, length, note);
     }
 
+    /// <summary>
+    /// Setzt die Höhe eines Gleises an Anschluss <paramref name="index"/> auf <paramref name="z"/>. Geraden, Bögen und Flexgleise
+    /// behalten die Höhe am anderen Ende und bekommen eine neue Steigung; Weichen, Kreuzungen, Prellböcke und Drehscheiben
+    /// werden als Ganzes gehoben bzw. gesenkt.
+    /// </summary>
+    public static void SetConnectorHeight(PlacedPiece piece, int index, double z)
+    {
+        var d = piece.Def;
+        var heights = piece.ConnectorHeights();
+        if (index < 0 || index >= heights.Count) return;
+        if (d.Kind is PieceKind.Straight or PieceKind.Curve && heights.Count == 2 && d.TrackLength > 0)
+        {
+            if (index == 0)
+            {
+                var other = heights[1];
+                piece.Height = Math.Round(z, 2);
+                piece.Grade = (other - piece.Height) / d.TrackLength;
+            }
+            else
+                piece.Grade = (z - piece.Height) / d.TrackLength;
+            return;
+        }
+        piece.Height = Math.Round(piece.Height + z - heights[index], 2);
+    }
+
     private static double Dist(ConnectorRef a, ConnectorRef b) => Math.Sqrt(Math.Pow(a.Pose.X - b.Pose.X, 2) + Math.Pow(a.Pose.Y - b.Pose.Y, 2));
 
     /// <summary>Folgt der Gleisfolge ab <paramref name="start"/> durch die gewählten Gleise; setzt Höhe und Steigung, wenn <paramref name="apply"/>.</summary>

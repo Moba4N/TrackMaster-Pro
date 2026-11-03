@@ -61,6 +61,7 @@ public partial class App : ComponentBase, IAppHost
         _view.SpaceTapped += () => { if (_session.Tool is CanvasTool.Select or CanvasTool.Pan) { Run("repeat"); Refresh(); } };
         _view.PropertiesRequested += () => Run("props");
         _view.ContextRequested += (x, y) => { _ctx = (x, y); Refresh(); };
+        _view.JointHeightRequested += c => { AskJointHeight(c); Refresh(); };
         _view.PolygonChanged += Refresh;
         _view.LabelRequested += (x, y) => AskText(Lang.T("Beschriftung"), "Text", "", text => _session.AddLabel(text, x, y));
         _view.ViewChanged += UpdateZoomText;
@@ -686,7 +687,8 @@ public partial class App : ComponentBase, IAppHost
     {
         var sel = _session.SelectedPieces;
         var start = sel.Count > 0 ? sel.Min(p => p.ConnectorHeights().Min()) : 0;
-        AskGradient(sel.Count, start, (s, p, r) => _session.ApplyGradient(s, p, r));
+        AskGradient(sel.Count, start, _session.GradientLength,
+            (s, p, r) => _session.ApplyGradient(s, p, r), (s, e, r) => _session.ApplyGradientHeights(s, e, r));
     }
 
     private void ShowWiring()

@@ -1,0 +1,11 @@
+# Lizenz-Aktivierung: kein Verzeichnis-Listing, Einstellungen und Daten nie direkt ausliefern
+Options -Indexes
+<FilesMatch "^(einstellungen\.php|gemeinsam\.php|oeffentlicher-schluessel\.pem)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

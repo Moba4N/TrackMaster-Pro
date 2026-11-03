@@ -1805,6 +1805,11 @@
         var d = Show(Lang.T("Lizenz"), @<div class="form">
             <div><span class="edition big @(_license.IsPro ? "pro" : "")">@_license.EditionName</span></div>
             <div class="strong">@_license.Summary</div>
+            @if (_license.ActivationText is { Length: > 0 } act)
+            {
+                <div class="section">@Lang.T("Aktivierung")</div>
+                <div>@act</div>
+            }
             <div class="section">@Lang.T("Basis")</div>
             <ul class="bullets">@foreach (var x in EditionInfo.Basis) { <li>@x</li> }</ul>
             <div class="section">@Lang.T("Pro")</div>
@@ -1819,7 +1824,20 @@
                   Lang.T("Die Lizenz wird nur in diesem Browser gespeichert. Die Gerätekennung gehört zu diesem Browser; nach dem Löschen der Website-Daten entsteht eine neue."))
         </div>, wide: true);
         _d["lic"] = "";
-        if (_license.IsPro) d.Buttons.Add(new(Lang.T("Lizenz entfernen"), () => { RemoveLicense(); return false; }));
+        if (_license.Result.IsValid && _license.Activation is { } act && act.Applies(_license.Result.License))
+        {
+            var state = act.State(_license.Result.License);
+            if (state == ActivationState.Active)
+                d.Buttons.Add(new(Lang.T("Dieses Gerät freigeben"), () => { _ = ReleaseActivation(); return false; }));
+            else
+                d.Buttons.Add(new(Lang.T("Jetzt aktivieren"), () =>
+                {
+                    CloseAllDialogs();
+                    _ = SyncActivation(interactive: true);
+                    return false;
+                }));
+        }
+        if (_license.Result.IsValid) d.Buttons.Add(new(Lang.T("Lizenz entfernen"), () => { RemoveLicense(); return false; }));
         d.Buttons.Add(new(Lang.T("Eingefügte Lizenz übernehmen"), PasteLicense));
         d.Buttons.Add(new(Lang.T("Lizenzdatei wählen"), () => { _ = ChooseLicenseFile(); return true; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));

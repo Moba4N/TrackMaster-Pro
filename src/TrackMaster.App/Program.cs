@@ -67,8 +67,15 @@ public static class Program
 #else
             const bool developer = false;
 #endif
+            // Online-Aktivierung (höchstens zwei Geräte je Lizenz); im Bildschirmfoto-Modus nicht
+            LicenseActivation? activation = null;
+            if (screenshot is null && LicenseActivation.DefaultServerUrl is { } activationUrl)
+            {
+                var (load, save) = LicenseActivation.FileStore(Path.Combine(AppFolders.Data, LicenseActivation.FileName));
+                activation = new LicenseActivation(activationUrl, MachineFingerprint.Current, "Windows", Environment.MachineName, load, save);
+            }
             var license = new LicenseManager(LicenseManager.DefaultLicensePath, LicensePublicKey.Pem,
-                developerMode: developer || (screenshot is not null && args.Contains("--pro")));
+                developerMode: developer || (screenshot is not null && args.Contains("--pro")), activation: activation);
             window = new MainWindow(license);
         }
         catch (Exception ex) when (screenshot is not null)
@@ -84,6 +91,7 @@ public static class Program
                 // Erst eine Sicherung aus einer abgebrochenen Sitzung anbieten; wird sie übernommen, bleibt die Datei zu
                 if (!window.OfferRecovery() && file is not null) window.OpenPath(file);
                 _ = window.CheckForUpdates(manual: false);
+                if (window.License.ActivationDue) _ = window.SyncActivation(interactive: false);
             };
         else if (file is not null) window.Loaded += (_, _) => window.OpenPath(file);
         if (ArgumentAfter(args, "--restore") is { } restore)

@@ -51,7 +51,7 @@ public partial class App : ComponentBase, IAppHost
         try { _homeUrl = Js.HomeUrl(); } catch { _homeUrl = ""; }
         _appearance = Settings.LoadAppearance();
         UseAppearance(_appearance);
-        _license = new WebLicense(WebLicense.DeviceId(Settings.DeviceSeed()), () => Js.StorageGet(Settings.LicenseKey), text => Js.StorageSet(Settings.LicenseKey, text));
+        _license = CreateLicense(WebLicense.DeviceId(Settings.DeviceSeed()));
         _session.IsPro = () => _license.IsPro;
         _session.ProRequired += feature => ShowProRequired(feature);
         _session.Message += ShowToast;
@@ -79,6 +79,7 @@ public partial class App : ComponentBase, IAppHost
             _attached = true;
             Js.AttachPlan(PlanView.ElementId);
             Js.Focus(PlanView.ElementId);
+            if (_license.ActivationDue) _ = SyncActivation(interactive: false);
         }
         if (_open3D && !_glReady) Init3D();
     }
@@ -769,6 +770,7 @@ public partial class App : ComponentBase, IAppHost
         {
             Message(Lang.T("Lizenz"), Lang.F($"Pro-Lizenz eingespielt: {_license.Summary}"));
             _view.Rebuild();
+            if (_license.ActivationDue) _ = SyncActivation(interactive: true);
         }
         else
             Message(Lang.T("Lizenz"), LicenseProblem(check));
@@ -782,10 +784,50 @@ public partial class App : ComponentBase, IAppHost
         _ => Lang.F($"Die Lizenz wurde nicht übernommen: {check.StatusText}."),
     };
 
+    private const string ActivationKey = Settings.LicenseKey + ".activation";
+
+    private static string AppVersion => typeof(App).Assembly.GetName().Version?.ToString(3) ?? "";
+
+    private static WebLicense CreateLicense(string deviceId)
+    {
+        string url;
+        try { url = Js.ActivationUrl(); } catch { url = ""; }
+        string name;
+        try { name = Js.BrowserName(); } catch { name = "Browser"; }
+        var activation = url.Length == 0 ? null : new LicenseActivation(url, deviceId, "Web", name,
+            () => Js.StorageGet(ActivationKey), json => { if (json is null) Js.StorageRemove(ActivationKey); else Js.StorageSet(ActivationKey, json); });
+        return new WebLicense(deviceId, () => Js.StorageGet(Settings.LicenseKey), text => Js.StorageSet(Settings.LicenseKey, text), activation: activation);
+    }
+
+    /// <summary>Beim Aktivierungsserver anmelden bzw. nachfragen; zeigt eine Meldung, wenn sich etwas Wichtiges ändert.</summary>
+    private async Task SyncActivation(bool interactive)
+    {
+        var wasPro = _license.IsPro;
+        string? message;
+        try { message = await _license.SyncActivationAsync(AppVersion); }
+        catch (Exception e) { message = e.Message; }
+        if (interactive && message is not null) ShowToast(message);
+        else if (wasPro && !_license.IsPro && message is not null) Message(Lang.T("Lizenz"), message);
+        _view.Rebuild();
+        StateHasChanged();
+    }
+
+    private async Task ReleaseActivation()
+    {
+        string message;
+        try { message = await _license.ReleaseActivationAsync(AppVersion); }
+        catch (Exception e) { message = e.Message; }
+        CloseAllDialogs();
+        Message(Lang.T("Lizenz"), message);
+        _view.Rebuild();
+        StateHasChanged();
+    }
+
     private void RemoveLicense()
     {
         Js.StorageRemove(Settings.LicenseKey);
-        _license = new WebLicense(_license.MachineId, () => null, text => Js.StorageSet(Settings.LicenseKey, text));
+        Js.StorageRemove(ActivationKey);
+        _license = CreateLicense(_license.MachineId);
         CloseDialog();
         ShowToast(Lang.T("Die Lizenz wurde aus diesem Browser entfernt. Es läuft wieder die Basisversion."));
     }

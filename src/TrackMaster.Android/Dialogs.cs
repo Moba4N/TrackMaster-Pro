@@ -1044,7 +1044,7 @@ public static partial class Dialogs
 
     // ---------- Lizenz ----------
 
-    public static void ShowLicense(Context c, LicenseManager license, Action chooseFile)
+    public static void ShowLicense(Context c, LicenseManager license, Action chooseFile, Action activate, Action release)
     {
         var body = Ui.Column(c, 8);
         var badge = Ui.Label(c, license.IsPro ? Lang.T("Pro") : Lang.T("Basis"), 13, true, Color.White);
@@ -1052,6 +1052,23 @@ public static partial class Dialogs
         badge.SetPadding(Ui.Dp(10), Ui.Dp(3), Ui.Dp(10), Ui.Dp(3));
         body.AddView(badge, Ui.Wrap());
         body.AddView(Ui.Label(c, license.Summary, 15, true));
+        AlertDialog? dialog = null;
+        if (license.ActivationText is { Length: > 0 } act)
+        {
+            body.AddView(Section(c, Lang.T("Aktivierung")));
+            body.AddView(Ui.Label(c, act, 13.5));
+            if (license.Result.IsValid && license.Activation is { } a && a.Applies(license.Result.License))
+            {
+                var active = a.State(license.Result.License) == ActivationState.Active;
+                body.AddView(Ui.Button(c, active ? Lang.T("Dieses Gerät freigeben") : Lang.T("Jetzt aktivieren"), () =>
+                {
+                    dialog?.Dismiss();
+                    if (!active) { activate(); return; }
+                    Show(c, Lang.T("Lizenz"), Ui.Label(c, Lang.T("Dieses Gerät beim Aktivierungsserver freigeben? Danach läuft hier die Basisversion, bis es wieder aktiviert wird."), 14),
+                        Lang.T("Freigeben"), () => { release(); return true; }, Lang.T("Abbrechen"));
+                }), Ui.Wrap());
+            }
+        }
         body.AddView(Section(c, Lang.T("Basis")));
         body.AddView(Ui.Label(c, string.Join("\n", EditionInfo.Basis.Select(x => "• " + x)), 13.5));
         body.AddView(Section(c, Lang.T("Pro")));
@@ -1062,7 +1079,7 @@ public static partial class Dialogs
         id.SetTextIsSelectable(true);
         body.AddView(id);
         body.AddView(Hint(c, Lang.T("Eine Pro-Lizenz ist eine Datei „trackmaster.lic“. Sie gilt für Windows und Android und wird hier über „Lizenzdatei wählen“ eingespielt.")));
-        Show(c, Lang.T("Lizenz"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("Lizenzdatei wählen"), chooseFile));
+        dialog = Show(c, Lang.T("Lizenz"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("Lizenzdatei wählen"), chooseFile));
     }
 
     public static void ShowProRequired(Context c, string feature, Action openLicense)

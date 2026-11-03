@@ -305,6 +305,21 @@ public sealed class PropertiesPanel : DockPanel
     {
         _headerRight.Text = Lang.F($"{sel.Count} Gleise gewählt");
         Rows((Lang.T("Gleisstücke"), sel.Count.ToString(), null), (Lang.T("Gleislänge"), $"{Fmt.Num(sel.Sum(p => p.Def.TrackLength) / 1000, 2)} m", null));
+        // Gemeinsame Höhe: leer, wenn die Gleise unterschiedlich hoch liegen; Eingabe legt alle waagrecht auf diese Höhe
+        var common = _session.SelectionHeight;
+        var heightBox = new TextBox { Text = common is { } ch ? Fmt.Num(ch, 1) : "", ToolTip = Lang.T("Legt alle gewählten Gleise waagrecht auf diese Schienenoberkante. Für eine Rampe „Steigung…“ verwenden.") };
+        void CommitHeight()
+        {
+            if (heightBox.Text.Trim().Length == 0) return;
+            if (Fmt.Parse(heightBox.Text) is not { } z || z < -500 || z > 5000) { _session.Say(Lang.T("Bitte eine Zahl eingeben.")); return; }
+            if (common is { } c0 && Math.Abs(c0 - z) < 1e-9) return;
+            _session.SetSelectionHeight(z);
+        }
+        heightBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitHeight(); Keyboard.ClearFocus(); e.Handled = true; } };
+        heightBox.LostKeyboardFocus += (_, _) => { CommitHeight(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
+        var all = sel.SelectMany(p => p.ConnectorHeights()).ToList();
+        Rows((Lang.T("Höhe"), Math.Abs(all.Max() - all.Min()) < 0.05 ? $"{Fmt.Num(all.Min(), 1)} mm" : $"{Fmt.Num(all.Min(), 1)} – {Fmt.Num(all.Max(), 1)} mm", null));
+        _body.Children.Add(Columns(2, Theme.Field(Lang.T("Höhe aller gewählten Gleise (mm)"), heightBox)));
         _body.Children.Add(Buttons(Cmd(Lang.T("15° links"), "RotateLeft", "rotL"), Cmd(Lang.T("15° rechts"), "RotateRight", "rotR"), Cmd(Lang.T("Duplizieren"), "Copy", "duplicate"), Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
         _body.Children.Add(Buttons(Cmd(Lang.T("Steigung…"), "Slope", "gradient"), Cmd(sel.All(p => p.Tunnel) ? Lang.T("Tunnel aufheben") : Lang.T("Als Tunnel"), "Tunnel", "tunnel")));
         var grouped = sel.All(p => p.Group > 0 && p.Group == sel[0].Group);

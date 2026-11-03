@@ -112,6 +112,9 @@
                 _f["type"] = g.Type.ToString();
                 _f["address"] = g.Address?.ToString() ?? "";
                 break;
+            case IReadOnlyList<PlacedPiece>:
+                _f["mheight"] = Session.SelectionHeight is { } mh ? N(mh, 1) : "";
+                break;
             case PlacedPiece p:
                 _f["x"] = N(p.X, 1);
                 _f["y"] = N(p.Y, 1);
@@ -423,7 +426,15 @@
         <dl class="rows">
             <dt>@Lang.T("Gleisstücke")</dt><dd>@sel.Count</dd>
             <dt>@Lang.T("Gleislänge")</dt><dd>@Fmt.Num(sel.Sum(p => p.Def.TrackLength) / 1000, 2) m</dd>
+            <dt>@Lang.T("Höhe")</dt><dd>@HeightRange(sel)</dd>
         </dl>
+        <div class="cols">
+            <div>
+                <label class="field-label">@Lang.T("Höhe aller gewählten Gleise (mm)")</label>
+                <input class="input" inputmode="decimal" placeholder="@Lang.T("unterschiedlich")" value="@F("mheight")" @onchange="@(e => Set("mheight", e, ApplyMultiHeight))" />
+            </div>
+        </div>
+        <div class="secondary small">@Lang.T("Legt alle gewählten Gleise waagrecht auf diese Schienenoberkante. Für eine Rampe „Steigung…“ verwenden.")</div>
         <div class="grid-buttons">
             <button class="btn" @onclick="@(() => Run("rotL"))">@Lang.T("15° links")</button>
             <button class="btn" @onclick="@(() => Run("rotR"))">@Lang.T("15° rechts")</button>
@@ -442,6 +453,22 @@
         }
         <div class="tip-box">@Lang.T("Ziehe die Auswahl an ein freies Gleisende – die ganze Gruppe rastet dort ein.")</div>
     };
+
+    private static string HeightRange(IReadOnlyList<PlacedPiece> sel)
+    {
+        var all = sel.SelectMany(p => p.ConnectorHeights()).ToList();
+        var (lo, hi) = (all.Min(), all.Max());
+        return Math.Abs(hi - lo) < 0.05 ? $"{Fmt.Num(lo, 1)} mm" : $"{Fmt.Num(lo, 1)} – {Fmt.Num(hi, 1)} mm";
+    }
+
+    private void ApplyMultiHeight()
+    {
+        if (F("mheight").Trim().Length == 0) return;
+        var errors = new List<string>();
+        Read("mheight", Lang.T("Höhe"), -500, 5000, errors, out var z);
+        if (Fail(errors)) return;
+        Session.SetSelectionHeight(z);
+    }
 
     // ---------- Objekte ----------
 

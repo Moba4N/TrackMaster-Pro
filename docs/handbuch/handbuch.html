@@ -660,6 +660,9 @@ Beschriftungen und Maße erscheinen auch im Ausdruck.</p>
     <span class="ui">Unten</span> oder <span class="ui">Mittig</span> waagrecht bzw. senkrecht. Wählen Sie dazu mindestens zwei Gruppen, die nicht miteinander verbunden sind.</td></tr>
 </table>
 <p>Sind mehrere Gleise gewählt, stehen dieselben Befehle auch als Knöpfe in den Eigenschaften. Enthält die Auswahl gesperrte Gleise, weist ein Hinweis darauf hin.</p>
+<p>Im Feld <span class="ui">Höhe aller gewählten Gleise (mm)</span> der Eigenschaften legen Sie alle gewählten Gleise auf eine gemeinsame Höhe
+(Schienenoberkante); eine Steigung wird dabei aufgehoben, gesperrte Gleise bleiben, wie sie sind. Liegen die Gleise unterschiedlich hoch, ist das Feld leer
+und darüber steht der Bereich von – bis. Für eine Rampe nehmen Sie <span class="ui">Steigung…</span>.</p>
 
 <h2 id="k6-6">Parallelgleis</h2>
 <p>Für eine zweigleisige Strecke oder ein Überholgleis legt TrackMaster Pro neben vorhandene Gleise ein zweites Gleis im festen Abstand:</p>
@@ -770,7 +773,12 @@ jedes Gleis und jedes Geländeobjekt gehört zu genau einer Ebene.</p>
   <li>Wählen Sie <i>eingleisig</i> oder <i>zweigleisig</i>. Beim zweigleisigen Bau liegt das zweite Gleis außen: als Bogengleis mit passendem
       Radius aus dem Katalog oder als Flexgleis mit frei gewähltem Gleisabstand.</li>
   <li>Wählen Sie das <b>Bogengleis</b> für das innere Gleis, die Zahl der <b>Windungen</b>, die <b>Höhe je Windung</b> und die <b>Richtung</b>.</li>
-  <li>Unter den Feldern stehen laufend Steigung, Gesamthöhe und Platzbedarf. Klicken Sie auf <span class="ui">Gleiswendel bauen</span>.</li>
+  <li>Unter <b>Höhe und Ebenen</b> geben Sie die <b>Starthöhe</b> ein (Schienenoberkante am Wendelanfang) und wählen die <b>Ebene der ersten Windung</b>.
+      Vorgegeben ist die Höhe des aktiven Gleisendes bzw. die Grundhöhe der aktiven Ebene.</li>
+  <li>Mit <i>Jede weitere Windung auf eine eigene, neue Ebene</i> (vorgegeben) beginnt die Wendel in der gewählten Ebene, und nach jeder vollen
+      Umdrehung (360°) kommen die Gleise auf eine neue Ebene „Gleiswendel – Windung 2“, „… 3“ usw. mit der Höhe am Anfang der Windung.
+      So lassen sich die Windungen später einzeln ein- und ausblenden und bearbeiten. Es gibt höchstens 10 Ebenen.</li>
+  <li>Unter den Feldern stehen laufend Steigung, Gesamthöhe, Platzbedarf, Anfangs- und Endhöhe und die Zahl der neuen Ebenen. Klicken Sie auf <span class="ui">Gleiswendel bauen</span>.</li>
 </ol>
 <p>Die Höhe je Windung muss mindestens die Durchfahrtshöhe der Spur erreichen, sonst passt kein Zug unter die nächste Windung; der Dialog
 weist darauf hin. Übereinanderliegende Windungen werden nicht miteinander verbunden.</p>
@@ -1021,10 +1029,13 @@ Ein <b>Hinweis</b> ist ein Ratschlag – manchmal ist die Stelle genau so gewoll
     dreht um die Blickachse, die rechte Maustaste verschiebt, das Mausrad zoomt. Die Knöpfe <b>X</b>, <b>Y</b> und <b>Z</b> drehen in 90°-Schritten um die
     Querachse, die Hochachse und die Blickachse; <span class="ui">Grundstellung</span> stellt die Ansicht zurück.</li>
   <li><span class="ui">Mit Gelände</span> / <span class="ui">Nur Gleisplan</span>: Landschaft, Gewässer, Gebäude und Bäume zeigen oder nur Platte, Gleise und Pfeiler.</li>
-  <li><span class="ui">3D › Mitfahren</span>: Sie fahren im Führerstand über die Gleise, beginnend am gewählten Gleis. Die Geschwindigkeit stellen Sie in km/h des Vorbilds ein.</li>
+  <li><span class="ui">3D › Mitfahren</span>: Sie fahren im Führerstand über die Gleise, beginnend am gewählten Gleis. Die Geschwindigkeit stellen Sie in km/h des Vorbilds ein.
+    Vor jeder Weiche und Kreuzungsweiche erscheinen oben die möglichen <b>Richtungen</b> (◀ <i>links</i>, ▲ <i>geradeaus</i>, ▶ <i>rechts</i>); ein Klick oder die
+    Pfeiltasten <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> legen fest, wohin der Zug an der nächsten Weiche fährt. Die Statuszeile nennt Weiche, Entfernung und gewählte Richtung.
+    Nur der Weg hinter der Weiche ändert sich, der Zug fährt ohne Sprung weiter. Einfache Kreuzungen werden immer geradeaus befahren.</li>
   <li><span class="ui">3D › Tageszeit</span>: Licht von 5 bis 23 Uhr mit Sonnenstand, Abendhimmel und beleuchteten Fenstern.</li>
-  <li><span class="ui">Zug fahren</span> im 3D-Fenster: Ein Zug aus Lok und drei Wagen fährt über die Anlage. <span class="ui">Weiche umstellen</span> (<kbd>W</kbd>)
-    stellt die nächste Weiche vor dem Zug um; die Statuszeile nennt sie.</li>
+  <li><span class="ui">Zug fahren</span> im 3D-Fenster: Ein Zug aus Lok und drei Wagen fährt über die Anlage. Auch hier wählen die Richtungsknöpfe
+    bzw. die Pfeiltasten den Weg an der nächsten Weiche; <kbd>W</kbd> schaltet sie der Reihe nach weiter.</li>
 </ul>
 <div class="cols">
   <figure><img src="img/mitfahren.png" alt=""><figcaption>Mitfahren im Führerstand.</figcaption></figure>

@@ -658,6 +658,9 @@ labels and dimensions also appear in the printout.</p>
     <span class="ui">bottom</span> or <span class="ui">centred</span> horizontally or vertically. Select at least two groups that are not connected to each other.</td></tr>
 </table>
 <p>When several tracks are selected, the same commands are also available as buttons in the properties. If the selection contains locked tracks, a note points this out.</p>
+<p>The field <span class="ui">Height of all selected tracks (mm)</span> in the properties puts all selected tracks at one common height (rail top);
+any gradient is removed and locked tracks stay as they are. If the tracks lie at different heights the field is empty and the range is shown above it.
+For a ramp use <span class="ui">Gradient…</span>.</p>
 
 <h2 id="k6-6">Parallel track</h2>
 <p>For a double-track line or a passing loop, TrackMaster Pro lays a second track at a fixed spacing next to existing tracks:</p>
@@ -768,7 +771,12 @@ every track and every terrain object belongs to exactly one level.</p>
   <li>Choose <i>single-track</i> or <i>double-track</i>. With double track the second track lies outside: as a catalogue curve with a matching
       radius or as flexible track with a freely chosen track spacing.</li>
   <li>Choose the <b>curved track</b> for the inner track, the number of <b>turns</b>, the <b>height per turn</b> and the <b>direction</b>.</li>
-  <li>Below the fields, gradient, total height and space required are shown continuously. Click <span class="ui">Build helix</span>.</li>
+  <li>Under <b>Height and levels</b> enter the <b>start height</b> (rail top at the start of the helix) and choose the <b>level of the first turn</b>.
+      The defaults are the height of the active track end or the base height of the active level.</li>
+  <li>With <i>Put each further turn on its own new level</i> (on by default) the helix starts on the chosen level, and after each full
+      revolution (360°) the tracks go onto a new level “Helix – turn 2”, “… 3” and so on, with the height at the start of that turn.
+      This lets you show, hide and edit the turns separately later. There are at most 10 levels.</li>
+  <li>Below the fields, gradient, total height, space required, start and end height and the number of new levels are shown continuously. Click <span class="ui">Build helix</span>.</li>
 </ol>
 <p>The height per turn must at least reach the clearance height of the gauge, otherwise no train fits under the next turn; the dialog
 points this out. Turns lying on top of each other are not connected to each other.</p>
@@ -1019,10 +1027,13 @@ A <b>note</b> is advice – sometimes the spot is exactly as intended.</div>
     rotates around the viewing axis, the right mouse button pans, the mouse wheel zooms. The buttons <b>X</b>, <b>Y</b> and <b>Z</b> rotate in 90° steps around the
     transverse axis, the vertical axis and the viewing axis; <span class="ui">Normal position</span> resets the view.</li>
   <li><span class="ui">With scenery</span> / <span class="ui">Track plan only</span>: show terrain, water, buildings and trees, or only baseboard, tracks and piers.</li>
-  <li><span class="ui">3D › Ride along</span>: you travel in the driver's cab over the tracks, starting at the selected track. You set the speed in prototype km/h.</li>
+  <li><span class="ui">3D › Ride along</span>: you travel in the driver's cab over the tracks, starting at the selected track. You set the speed in prototype km/h.
+    Before every turnout and double slip the possible <b>directions</b> appear at the top (◀ <i>left</i>, ▲ <i>straight ahead</i>, ▶ <i>right</i>); a click or the
+    arrow keys <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> decide where the train goes at the next turnout. The status line names the turnout, its distance and the chosen direction.
+    Only the route beyond the turnout changes, the train carries on without jumping. Plain crossings are always passed straight through.</li>
   <li><span class="ui">3D › Time of day</span>: light from 5 am to 11 pm with the position of the sun, evening sky and lit windows.</li>
-  <li><span class="ui">Run train</span> in the 3D window: a train of a locomotive and three coaches runs over the layout. <span class="ui">Switch turnout</span> (<kbd>W</kbd>)
-    switches the next turnout ahead of the train; the status line names it.</li>
+  <li><span class="ui">Run train</span> in the 3D window: a train of a locomotive and three coaches runs over the layout. Here too the direction buttons
+    or the arrow keys choose the route at the next turnout; <kbd>W</kbd> steps through the positions.</li>
 </ul>
 <div class="cols">
   <figure><img src="img-en/mitfahren.png" alt=""><figcaption>Cab ride.</figcaption></figure>

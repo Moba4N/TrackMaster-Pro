@@ -1153,6 +1153,38 @@ public sealed partial class PlanSession
         ApplyGradient(startHeight, (endHeight - startHeight) / len * 100, reverse);
     }
 
+    /// <summary>Gemeinsame Höhe der gewählten Gleise (Schienenoberkante am Anfang), falls alle gleich hoch liegen; sonst null.</summary>
+    public double? SelectionHeight
+    {
+        get
+        {
+            var sel = SelectedPieces;
+            if (sel.Count == 0) return null;
+            var h = sel[0].Height;
+            return sel.All(p => Math.Abs(p.Height - h) < 0.05 && Math.Abs(p.EffectiveGrade) < 1e-9) ? h : null;
+        }
+    }
+
+    /// <summary>
+    /// Alle gewählten Gleise auf die Höhe <paramref name="z"/> legen (Schienenoberkante, waagrecht: eine Steigung wird aufgehoben).
+    /// Gesperrte Gleise bleiben, wie sie sind.
+    /// </summary>
+    public void SetSelectionHeight(double z)
+    {
+        var movable = MovablePieces;
+        if (Selection.Count == 0) { Say(Lang.T("Bitte zuerst Gleise wählen.")); return; }
+        if (movable.Count == 0) { LockedNotice(movable); return; }
+        Record();
+        foreach (var p in movable)
+        {
+            p.Height = z;
+            p.Grade = 0;
+        }
+        Commit();
+        var locked = Selection.Count - movable.Count;
+        Say(Lang.F($"{movable.Count} Gleise auf {Fmt.Num(z, 1)} mm Höhe gelegt.") + (locked > 0 ? " " + Lang.F($"{locked} gesperrte Gleise blieben unverändert.") : ""));
+    }
+
     /// <summary>
     /// Höhe an einem Verbindungspunkt: das Gleis und, falls verbunden, das Nachbargleis bekommen dort die Höhe <paramref name="z"/>.
     /// Ihre anderen Enden bleiben liegen, die Steigung passt sich an.
@@ -1193,7 +1225,9 @@ public sealed partial class PlanSession
         Record();
         try
         {
+            var levelsBefore = Plan.Levels.Count;
             var (inner, outer) = Helix.Build(Plan, spec, ActiveConnector, center);
+            var newLevels = Plan.Levels.Count - levelsBefore;
             Selection.Clear();
             foreach (var p in inner.Concat(outer)) Selection.Add(p.Id);
             var last = inner[^1];
@@ -1202,7 +1236,8 @@ public sealed partial class PlanSession
             Commit();
             var shape = spec.Shape == HelixShape.Oval ? Lang.T("Ovale") : Lang.T("Runde");
             var tracks = spec.Tracks == 2 ? Lang.T("zweigleisige") : Lang.T("eingleisige");
-            Say(Lang.F($"{shape} {tracks} Gleiswendel mit {inner.Count + outer.Count} Gleisen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm."));
+            Say(Lang.F($"{shape} {tracks} Gleiswendel mit {inner.Count + outer.Count} Gleisen gebaut, Endhöhe {Fmt.Num(last.ConnectorHeights()[1], 0)} mm.")
+                + (newLevels > 0 ? " " + Lang.F($"Ab der 2. Windung liegt jede Windung auf einer eigenen Ebene ({newLevels} neue Ebenen).") : ""));
             return Helix.Material(spec, Plan.Gauge);
         }
         catch (InvalidOperationException e)

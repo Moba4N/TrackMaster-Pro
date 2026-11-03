@@ -891,7 +891,7 @@ public sealed class MainActivity : Activity
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
                     cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
-        });
+        }, _session.Plan, _session.ActiveConnector?.Z);
     }
 
     private void AskBenchwork() => Dialogs.AskBenchwork(this, _session, ShowBenchwork);

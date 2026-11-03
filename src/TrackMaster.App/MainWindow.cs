@@ -1395,7 +1395,7 @@ public sealed class MainWindow : Window
         }
         var straights = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
         if (straights.Count == 0) straights = gauge.Systems.SelectMany(x => x.Pieces).Where(p => p.Kind == PieceKind.Straight && p.Length >= gauge.TrackWidth * 3).ToList();
-        if (Dialogs.AskHelix(this, gauge, curves, straights, Session.ActiveConnector is not null) is { } h
+        if (Dialogs.AskHelix(this, gauge, curves, straights, Session.ActiveConnector is not null, Session.Plan, Session.ActiveConnector?.Z) is { } h
             && Session.BuildHelix(h, Canvas.CenterWorld()) is { } material)
         {
             Canvas.Fit();

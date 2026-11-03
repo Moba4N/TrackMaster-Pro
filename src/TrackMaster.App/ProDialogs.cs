@@ -127,8 +127,16 @@ public static partial class Dialogs
     }
 
     /// <summary>Gleiswendel: rund oder oval, ein- oder zweigleisig. Liefert die Angaben zum Bauen oder null.</summary>
-    public static HelixSpec? AskHelix(Window owner, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd)
+    public static HelixSpec? AskHelix(Window owner, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd,
+        LayoutPlan? plan = null, double? connectorZ = null)
     {
+        plan ??= LayoutPlan.Empty(gauge.Id);
+        var levelBox = new ComboBox { Height = 28 };
+        foreach (var lv in plan.Levels) levelBox.Items.Add(new ComboBoxItem { Content = $"{lv.Name} ({Fmt.Num(lv.Height, 0)} mm)" });
+        levelBox.SelectedIndex = Math.Clamp(plan.ActiveLevel, 0, plan.Levels.Count - 1);
+        var startBox = NumberBox(connectorZ ?? plan.Level(levelBox.SelectedIndex).Height, 1);
+        var perTurn = new CheckBox { Content = Lang.T("Jede weitere Windung auf eine eigene, neue Ebene"), IsChecked = true, Margin = new Thickness(0, 2, 0, 8) };
+        var levelInfo = Theme.Secondary("");
         var shape = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("Rund") }, new ComboBoxItem { Content = Lang.T("Oval (mit Geraden an den Längsseiten)") } }, SelectedIndex = 0 };
         var tracks = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("eingleisig") }, new ComboBoxItem { Content = Lang.T("zweigleisig") } }, SelectedIndex = 0 };
         var curveBox = new ComboBox { Height = 28 };
@@ -209,9 +217,10 @@ public static partial class Dialogs
             var outer = two && outerBox.SelectedItem is ComboBoxItem { Tag: TrackPieceDef oc } ? oc : null;
             if (two && outer is null) Read(spacing, Lang.T("Gleisabstand"), gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
             Read(edgeBox, Lang.T("Randaufmaß"), Helix.MinEdge(gauge, Construction()), gauge.TrackWidth * 10, errors, out var edge);
+            Read(startBox, Lang.T("Starthöhe"), -500, 5000, errors, out var z0);
             if (errors.Count > 0) return null;
             return new HelixSpec(inner.Key, t, r, direction.SelectedIndex == 1, Shape(), straight?.Key, (int)Math.Round(n), two ? 2 : 1,
-                outer is not null ? outer.Radius - inner.Radius : sp, outer?.Key, Construction(), edge);
+                outer is not null ? outer.Radius - inner.Radius : sp, outer?.Key, Construction(), edge, z0, Math.Max(0, levelBox.SelectedIndex), perTurn.IsChecked == true);
         }
         void Update()
         {
@@ -219,7 +228,8 @@ public static partial class Dialogs
             ovalPanel.Visibility = Shape() == HelixShape.Oval ? Visibility.Visible : Visibility.Collapsed;
             outerPanel.Visibility = tracks.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
             spacingField.Visibility = outerBox.SelectedItem is ComboBoxItem { Tag: null } ? Visibility.Visible : Visibility.Collapsed;
-            if (Spec(null) is not { } spec) { info.Text = widthInfo.Text = ""; return; }
+            if (Spec(null) is not { } spec) { info.Text = widthInfo.Text = levelInfo.Text = ""; return; }
+            levelInfo.Text = Helix.LevelText(plan, spec);
             var m = Helix.Material(spec, gauge);
             var free = spec.Construction == HelixConstruction.Spanten ? m.Edge - Helix.SlotDepth(gauge) : m.Edge - Helix.RodInset;
             widthInfo.Text = Lang.F($"Trassenbreite {Fmt.Num(m.TrackWidth, 0)} mm = {(spec.Tracks == 2 ? Lang.F($"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + ") : "")}Gleisbett {Fmt.Num(m.TrackBedWidth, 0)} mm + 2 × {Fmt.Num(m.Edge, 0)} mm Rand. Freiraum neben dem Gleisbett {Fmt.Num(free, 0)} mm (empfohlen ab {Fmt.Num(Helix.Clearance(gauge), 0)} mm).");
@@ -233,6 +243,13 @@ public static partial class Dialogs
         foreach (var box in new[] { turns, rise, straightCount }) box.TextChanged += (_, _) => Update();
         spacing.TextChanged += (_, _) => Update();
         edgeBox.TextChanged += (_, _) => Update();
+        startBox.TextChanged += (_, _) => Update();
+        perTurn.Click += (_, _) => Update();
+        levelBox.SelectionChanged += (_, _) =>
+        {
+            if (!fromEnd && levelBox.SelectedIndex >= 0) startBox.Text = Fmt.Num(plan.Level(levelBox.SelectedIndex).Height, 1);
+            Update();
+        };
         construction.SelectionChanged += (_, _) =>
         {
             updating = true;
@@ -257,6 +274,10 @@ public static partial class Dialogs
         body.Children.Add(Theme.Field(Lang.F($"Höhe je Windung (mm, mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm Durchfahrtshöhe)"), rise));
         body.Children.Add(Theme.Label(Lang.T("Richtung"), 11, false, Theme.TextSecondaryBrush));
         body.Children.Add(direction);
+        body.Children.Add(new Border { Height = 8 });
+        body.Children.Add(Columns(Theme.Field(Lang.T("Starthöhe (mm)"), startBox), Theme.Field(Lang.T("Ebene der ersten Windung"), levelBox)));
+        body.Children.Add(perTurn);
+        body.Children.Add(levelInfo);
         body.Children.Add(new Border { Height = 8 });
         body.Children.Add(Columns(Theme.Field(Lang.T("Bauweise"), construction), Theme.Field(Lang.T("Randaufmaß je Seite (mm)"), edgeBox)));
         body.Children.Add(widthInfo);

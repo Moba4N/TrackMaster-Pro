@@ -177,11 +177,22 @@ public class OpenSystemTests
         var json = PlanSerializer.ToJson(s.Plan);
         Assert.Contains($"\"system\": \"{chosen.Id}\"", json);
 
+        // gespeichert ist ein System, aus dem nichts verbaut ist: es zählt das verbaute
         var t = new PlanSession();
         t.NewPlan(BoardSetup.Default("H0"));
-        t.SelectSystem(other.Id);
+        t.SelectSystem(chosen.Id);
         t.OpenJson(json, "Test");
-        Assert.Equal(chosen.Id, t.CurrentSystem.Id);
+        Assert.Equal(other.Id, t.CurrentSystem.Id);
+
+        // beide Systeme verbaut: das gespeicherte gilt, auch wenn das letzte Gleis aus dem anderen ist
+        var both = new PlanSession();
+        both.NewPlan(BoardSetup.Default("H0"));
+        both.OpenJson(json, "Beide");
+        both.SelectSystem(chosen.Id);
+        both.Add(chosen.Pieces.First(p => p.Kind == PieceKind.Straight).Key);
+        both.SelectSystem(other.Id);
+        t.OpenJson(PlanSerializer.ToJson(both.Plan), "Beide");
+        Assert.Equal(other.Id, t.CurrentSystem.Id);
 
         // Ältere Datei ohne Angabe: System des zuletzt verlegten Gleises
         s.Add(chosen.Pieces.First(p => p.Kind == PieceKind.Straight).Key);

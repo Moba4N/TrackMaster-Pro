@@ -83,7 +83,7 @@ public sealed class LibraryPanel : DockPanel
         {
             if (_systems.SelectedItem is ComboBoxItem { Tag: string id })
             {
-                _session.SystemByGauge[_session.Plan.GaugeId] = id;
+                _session.SelectSystem(id);
                 FillSystemDependent();
             }
         };

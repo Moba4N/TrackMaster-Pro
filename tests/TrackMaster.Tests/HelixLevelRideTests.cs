@@ -163,21 +163,33 @@ public class RideChoiceTests
 public class OpenSystemTests
 {
     [Fact]
-    public void Beim_Oeffnen_wird_das_meistverbaute_Gleissystem_gewaehlt()
+    public void Beim_Oeffnen_wird_das_im_Plan_verwendete_Gleissystem_gewaehlt()
     {
         var s = Sessions.H0();
         var systems = s.Plan.Gauge.Systems.Where(x => x.Pieces.Any(p => p.Kind == PieceKind.Straight)).ToList();
         Assert.True(systems.Count >= 2);
-        var other = systems[1];
+        var (other, chosen) = (systems[1], systems[0]);
+        s.SelectSystem(other.Id);
         var straight = other.Pieces.First(p => p.Kind == PieceKind.Straight);
         s.Add(straight.Key);
         s.Add(straight.Key);
-        s.Add(systems[0].Pieces.First(p => p.Kind == PieceKind.Straight).Key);
+        s.SelectSystem(chosen.Id);
         var json = PlanSerializer.ToJson(s.Plan);
+        Assert.Contains($"\"system\": \"{chosen.Id}\"", json);
+
         var t = new PlanSession();
         t.NewPlan(BoardSetup.Default("H0"));
-        Assert.Equal(systems[0].Id, t.CurrentSystem.Id);
+        t.SelectSystem(other.Id);
         t.OpenJson(json, "Test");
-        Assert.Equal(other.Id, t.CurrentSystem.Id);
+        Assert.Equal(chosen.Id, t.CurrentSystem.Id);
+
+        // Ältere Datei ohne Angabe: System des zuletzt verlegten Gleises
+        s.Add(chosen.Pieces.First(p => p.Kind == PieceKind.Straight).Key);
+        var old = PlanSerializer.ToJson(s.Plan).Replace($"\"system\": \"{chosen.Id}\",", "");
+        Assert.DoesNotContain("\"system\"", old);
+        t.SelectSystem(other.Id);
+        t.OpenJson(old, "Alt");
+        Assert.Equal(chosen.Id, t.CurrentSystem.Id);
+        Assert.Equal(chosen.Id, t.Plan.SystemId);
     }
 }

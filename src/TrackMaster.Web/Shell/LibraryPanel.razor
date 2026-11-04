@@ -148,7 +148,7 @@
     {
         if (e.Value?.ToString() is { } id)
         {
-            Session.SystemByGauge[Session.Plan.GaugeId] = id;
+            Session.SelectSystem(id);
             if (!Categories.Contains(_category)) _category = Lang.T("Alle");
         }
     }

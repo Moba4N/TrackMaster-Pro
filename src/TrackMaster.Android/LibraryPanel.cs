@@ -44,7 +44,7 @@ public sealed class LibraryPanel : LinearLayout
             var g = _session.Plan.Gauge;
             if (e.Position < g.Systems.Count)
             {
-                _session.SystemByGauge[g.Id] = g.Systems[e.Position].Id;
+                _session.SelectSystem(g.Systems[e.Position].Id);
                 FillPieces();
             }
         };

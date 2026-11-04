@@ -117,6 +117,7 @@ public sealed partial class PlanSession
     public void Commit()
     {
         _view = null;
+        Plan.SystemId = CurrentSystem.Id;
         Connections = Connectivity.Analyze(Plan);
         Selection.RemoveWhere(id => Plan.Find(id) is null);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
@@ -207,8 +208,9 @@ public sealed partial class PlanSession
     public void Open(string path)
     {
         var plan = PlanSerializer.FromJson(File.ReadAllText(path), out var skipped, out var newer);
+        var system = plan.SystemId;
         Replace(plan, path);
-        SelectUsedSystem();
+        SelectPlanSystem(system);
         Say(OpenedMessage(plan, skipped, newer));
     }
 
@@ -216,22 +218,32 @@ public sealed partial class PlanSession
     public void OpenJson(string json, string? name)
     {
         var plan = PlanSerializer.FromJson(json, out var skipped, out var newer);
+        var system = plan.SystemId;
         Replace(plan, name);
-        SelectUsedSystem();
+        SelectPlanSystem(system);
         Say(OpenedMessage(plan, skipped, newer));
     }
 
+    /// <summary>Gleissystem der Bibliothek wählen; der Plan merkt es sich beim Speichern.</summary>
+    public void SelectSystem(string systemId)
+    {
+        SystemByGauge[Plan.GaugeId] = systemId;
+        Plan.SystemId = CurrentSystem.Id;
+    }
+
     /// <summary>
-    /// Gleissystem der Bibliothek auf das System stellen, aus dem der Plan die meisten Gleise hat (Flexgleis zählt nicht).
-    /// Liefert das gewählte System oder null, wenn der Plan keine Katalog-Gleise hat.
+    /// Nach dem Öffnen das Gleissystem wählen, mit dem im Plan gearbeitet wurde. Ältere Dateien ohne diese Angabe:
+    /// das System des zuletzt verlegten Gleises (Flexgleis zählt nicht). Liefert das gewählte System oder null.
     /// </summary>
-    public TrackSystem? SelectUsedSystem()
+    public TrackSystem? SelectPlanSystem(string? saved)
     {
         var g = Plan.Gauge;
-        var used = Plan.Pieces.Where(p => p.Def.GaugeId == g.Id && !Catalog.IsFlexSystem(p.Def.SystemId))
-            .GroupBy(p => p.Def.SystemId).OrderByDescending(x => x.Count()).Select(x => x.Key)
-            .Select(id => g.Systems.FirstOrDefault(sys => sys.Id == id)).FirstOrDefault(sys => sys is not null);
-        if (used is not null) SystemByGauge[g.Id] = used.Id;
+        var used = g.Systems.FirstOrDefault(sys => sys.Id == saved)
+            ?? Plan.Pieces.Where(p => p.Def.GaugeId == g.Id && !Catalog.IsFlexSystem(p.Def.SystemId))
+                .OrderByDescending(p => p.Id).Select(p => g.Systems.FirstOrDefault(sys => sys.Id == p.Def.SystemId))
+                .FirstOrDefault(sys => sys is not null);
+        if (used is not null) SelectSystem(used.Id);
+        else Plan.SystemId = CurrentSystem.Id;
         return used;
     }
 

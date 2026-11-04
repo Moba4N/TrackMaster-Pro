@@ -746,7 +746,9 @@ public sealed class MainWindow : Window
             Group(Lang.T("Auswahl"), Small(Lang.T("Alles auswählen"), "SelectAll", "selectAll", Lang.T("Strg+A")), Small(Lang.T("Auswahl aufheben"), "SelectNone", "selectNone", Lang.T("Esc")), Small(Lang.T("Nächstes Gleisende"), "Connector", "nextEnd", Lang.T("Springt zum nächsten offenen Gleisende (E)."))),
             Group(Lang.T("Prüfen"), ProLarge(Lang.T("Stückliste"), "List", "bom", Lang.T("Alle Gleise nach Artikel gezählt, mit Zubehör.")),
                 Large(Lang.T("Kollisions­prüfung"), "Shield", "check", Lang.T("Prüft Gleisabstände, Durchfahrtshöhen, Plattenrand, Steigungen und Gelände (F7)."))),
-            Group(Lang.T("Datei"), ProSmall(Lang.T("Drucken"), "Print", "print", Lang.T("Plan auf eine Seite drucken (Strg+P).")), Small(Lang.T("Lizenz"), "Shield", "license", Lang.T("Basis oder Pro, Lizenz einspielen.")))));
+            Group(Lang.T("Datei"), ProSmall(Lang.T("Drucken"), "Print", "print", Lang.T("Plan auf eine Seite drucken (Strg+P).")), Small(Lang.T("Lizenz"), "Shield", "license", Lang.T("Basis oder Pro, Lizenz einspielen."))),
+            // Spurweite ganz rechts im Register Start (früher oben in der Gleisbibliothek)
+            Group(Lang.T("Spurweite"), _library.GaugePicker)));
 
         Ribbon.Items.Add(Tab(Lang.T("Gleise"),
             Group(Lang.T("Bibliothek"), Large(Lang.T("Gleis suchen"), "Search", "search", Lang.T("Springt in das Suchfeld der Gleisbibliothek."))),

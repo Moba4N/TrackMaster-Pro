@@ -198,6 +198,9 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
     max-height: 74px;
     gap: 0 2px;
 }
+.ribbon-group.gauge-group { margin-left: auto; border-right: none; border-left: 1px solid var(--border); position: sticky; right: -6px; padding-right: 12px; background: var(--ribbon); z-index: 1; box-shadow: -6px 0 8px -6px rgba(0, 0, 0, .18); }
+.ribbon-gauges { flex: 1; display: grid; grid-template-columns: repeat(5, auto); gap: 4px; align-content: center; padding: 4px 0; }
+.ribbon-gauges .chip { padding: 2px 8px; }
 .ribbon-group-name {
     text-align: center;
     font-size: .74em;

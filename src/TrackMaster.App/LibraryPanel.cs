@@ -12,7 +12,10 @@ public sealed class LibraryPanel : DockPanel
 {
     private readonly PlanSession _session;
     private readonly Func<(double X, double Y)> _viewCenter;
-    private readonly UniformGrid _gauges = new() { Columns = 6, Margin = new Thickness(0, 0, 0, 6) };
+    private readonly UniformGrid _gauges = new() { Columns = 5, Margin = new Thickness(4, 4, 4, 0) };
+
+    /// <summary>Knöpfe für die Spurweite; das Hauptfenster zeigt sie rechts im Register Start.</summary>
+    public UIElement GaugePicker => _gauges;
     private readonly TextBlock _gaugeMeta = Theme.Secondary("");
     private readonly ComboBox _systems = new() { Height = 30, Margin = new Thickness(0, 3, 0, 8) };
     private readonly Border _warning;
@@ -38,9 +41,7 @@ public sealed class LibraryPanel : DockPanel
         Children.Add(header);
 
         var top = new StackPanel { Margin = new Thickness(12, 10, 12, 0) };
-        top.Children.Add(Theme.Label(Lang.T("Spurweite"), 11, true, Theme.TextSecondaryBrush));
-        top.Children.Add(new Border { Height = 4 });
-        top.Children.Add(_gauges);
+        // Die Spurweiten-Knöpfe stehen im Register Start des Menübands (siehe GaugePicker), hier nur die Angaben zur Spur
         top.Children.Add(_gaugeMeta);
         top.Children.Add(new Border { Height = 8 });
         var sysLabel = Theme.Label(Lang.T("Hersteller / Gleissystem"), 11, true, Theme.TextSecondaryBrush);
@@ -114,7 +115,8 @@ public sealed class LibraryPanel : DockPanel
             }
         };
 
-        session.Changed += () => { if (_shownGauge != _session.Plan.GaugeId) Refresh(); };
+        // Neu aufbauen, wenn Spur oder Gleissystem wechseln (z. B. beim Öffnen eines Plans)
+        session.Changed += () => { if (_shownGauge != ShownKey) Refresh(); };
         Refresh();
     }
 
@@ -142,17 +144,19 @@ public sealed class LibraryPanel : DockPanel
         _search.SelectAll();
     }
 
+    private string ShownKey => _session.Plan.GaugeId + "|" + _session.CurrentSystem.Id;
+
     private void Refresh()
     {
         var plan = _session.Plan;
-        _shownGauge = plan.GaugeId;
+        _shownGauge = ShownKey;
         _gauges.Children.Clear();
         foreach (var g in Catalog.Gauges)
         {
             var on = g.Id == plan.GaugeId;
             var b = new ToggleButton
             {
-                Content = g.Id, IsChecked = on, Height = 30, Margin = new Thickness(0, 0, 4, 0), FontWeight = FontWeights.SemiBold,
+                Content = g.Id, IsChecked = on, Height = 26, MinWidth = 38, Margin = new Thickness(0, 0, 4, 4), FontWeight = FontWeights.SemiBold,
                 Background = on ? Theme.AccentBrush : Brushes.White, Foreground = on ? Brushes.White : Theme.TextBrush,
                 BorderBrush = on ? Theme.AccentBrush : Theme.ControlBorderBrush, BorderThickness = new Thickness(1),
                 Template = Theme.RoundedTemplate(), ToolTip = Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm"),

@@ -159,3 +159,25 @@ public class RideChoiceTests
         Assert.DoesNotContain(straight.Points.Take(20), q => Math.Abs(q.X - ends[3].X) < 1 && Math.Abs(q.Y - ends[3].Y) < 1);
     }
 }
+
+public class OpenSystemTests
+{
+    [Fact]
+    public void Beim_Oeffnen_wird_das_meistverbaute_Gleissystem_gewaehlt()
+    {
+        var s = Sessions.H0();
+        var systems = s.Plan.Gauge.Systems.Where(x => x.Pieces.Any(p => p.Kind == PieceKind.Straight)).ToList();
+        Assert.True(systems.Count >= 2);
+        var other = systems[1];
+        var straight = other.Pieces.First(p => p.Kind == PieceKind.Straight);
+        s.Add(straight.Key);
+        s.Add(straight.Key);
+        s.Add(systems[0].Pieces.First(p => p.Kind == PieceKind.Straight).Key);
+        var json = PlanSerializer.ToJson(s.Plan);
+        var t = new PlanSession();
+        t.NewPlan(BoardSetup.Default("H0"));
+        Assert.Equal(systems[0].Id, t.CurrentSystem.Id);
+        t.OpenJson(json, "Test");
+        Assert.Equal(other.Id, t.CurrentSystem.Id);
+    }
+}

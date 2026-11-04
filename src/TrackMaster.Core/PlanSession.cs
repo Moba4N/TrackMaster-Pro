@@ -208,6 +208,7 @@ public sealed partial class PlanSession
     {
         var plan = PlanSerializer.FromJson(File.ReadAllText(path), out var skipped, out var newer);
         Replace(plan, path);
+        SelectUsedSystem();
         Say(OpenedMessage(plan, skipped, newer));
     }
 
@@ -216,7 +217,22 @@ public sealed partial class PlanSession
     {
         var plan = PlanSerializer.FromJson(json, out var skipped, out var newer);
         Replace(plan, name);
+        SelectUsedSystem();
         Say(OpenedMessage(plan, skipped, newer));
+    }
+
+    /// <summary>
+    /// Gleissystem der Bibliothek auf das System stellen, aus dem der Plan die meisten Gleise hat (Flexgleis zählt nicht).
+    /// Liefert das gewählte System oder null, wenn der Plan keine Katalog-Gleise hat.
+    /// </summary>
+    public TrackSystem? SelectUsedSystem()
+    {
+        var g = Plan.Gauge;
+        var used = Plan.Pieces.Where(p => p.Def.GaugeId == g.Id && !Catalog.IsFlexSystem(p.Def.SystemId))
+            .GroupBy(p => p.Def.SystemId).OrderByDescending(x => x.Count()).Select(x => x.Key)
+            .Select(id => g.Systems.FirstOrDefault(sys => sys.Id == id)).FirstOrDefault(sys => sys is not null);
+        if (used is not null) SystemByGauge[g.Id] = used.Id;
+        return used;
     }
 
     private static string OpenedMessage(LayoutPlan plan, int skipped, bool newer)

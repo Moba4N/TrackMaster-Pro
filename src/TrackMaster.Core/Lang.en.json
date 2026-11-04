@@ -1267,6 +1267,8 @@
  "Spur {0} · {1} Gleise · {2} m · offene Enden {3}": "Gauge {0} · {1} tracks · {2} m · open ends {3}",
  "Spur {0} · {1} · {2} mm": "Gauge {0} · {1} · {2} mm",
  "Spurweite": "Track gauge",
+ "Spurweite · {0} · {1} mm": "Track gauge · {0} · {1} mm",
+ "Spurweite…": "Track gauge…",
  "Später": "Later",
  "Stahlschwellen-Flexgleis": "Flex track, steel ties",
  "Stahlschwellenflexgleis": "Steel-sleeper flexible track",

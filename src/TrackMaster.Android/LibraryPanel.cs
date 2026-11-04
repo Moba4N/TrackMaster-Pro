@@ -34,6 +34,7 @@ public sealed class LibraryPanel : LinearLayout
         SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
 
         var top = Ui.Row(c, 6);
+        // Die Spurweite wählt man im Register Start (Spurweite…); hier steht nur die aktuelle Spur
         _gauges = Ui.Row(c, 4);
         top.AddView(_gauges);
         _systems = new Spinner(c, SpinnerMode.Dropdown);
@@ -77,22 +78,13 @@ public sealed class LibraryPanel : LinearLayout
     public void Refresh(bool force = false)
     {
         var gauge = _session.Plan.Gauge;
-        if (!force && gauge.Id == _shownGauge) return;
-        _shownGauge = gauge.Id;
+        // Neu aufbauen, wenn Spur oder Gleissystem wechseln (z. B. beim Öffnen eines Plans)
+        var shown = gauge.Id + "|" + _session.CurrentSystem.Id;
+        if (!force && shown == _shownGauge) return;
+        _shownGauge = shown;
 
         _gauges.RemoveAllViews();
-        foreach (var g in Catalog.Gauges)
-        {
-            var id = g.Id;
-            var b = Ui.Button(Context!, g.Id, () =>
-            {
-                if (_session.SetGauge(id)) Refresh(force: true);
-            });
-            b.SetMinimumHeight(Ui.Dp(34));
-            b.SetPadding(Ui.Dp(10), 0, Ui.Dp(10), 0);
-            Ui.SetButtonState(b, g.Id == gauge.Id, false);
-            _gauges.AddView(b);
-        }
+        _gauges.AddView(Ui.Label(Context!, Lang.F($"Spur {gauge.Id}"), 13, true));
         for (var i = 0; i < _categories.ChildCount; i++)
             if (_categories.GetChildAt(i) is Button b) Ui.SetButtonState(b, false, b.Text == _category);
 

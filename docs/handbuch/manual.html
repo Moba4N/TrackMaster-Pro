@@ -410,7 +410,7 @@ and click on individual parts – the properties on the right reveal how everyth
 <table>
   <tr><th style="width:26%">Area</th><th>Purpose</th></tr>
   <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Room, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo, Redo and History.</td></tr>
-  <tr><td><b>Track library</b> (left)</td><td>Choose gauge and track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
+  <tr><td><b>Track library</b> (left)</td><td>Choose the track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
   <tr><td><b>Drawing area</b> (centre)</td><td>The track plan on the baseboard, with dimension chains, grid and the open track ends. The zoom can be set at the bottom right.</td></tr>
   <tr><td><b>Properties</b> (right)</td><td>Shows what is currently selected: the plan with baseboard dimensions and overview, a track with position, height and digital address, or an object such as a building, signal or feeder. Values can be entered directly.</td></tr>
   <tr><td><b>Level bar</b> (bottom)</td><td>All levels of the plan with name and base height: the tick shows or hides a level, a click makes it the active level, <span class="ui">+</span> adds a new one above, <span class="ui">…</span> opens the Levels dialog (chapter <a href="#k7">9</a>).</td></tr>
@@ -595,7 +595,7 @@ The 3D view shows the benchwork under the baseboard. <span class="ui">Remove</sp
 
 <h2 id="k6-1">Track library</h2>
 <ul>
-  <li>Choose the <b>gauge</b> at the top (Z, N, TT, H0, 0, G and further gauges in the list).</li>
+  <li>Choose the <b>gauge</b> in the <span class="ui">Home</span> tab at the far right in the group <span class="ui">Track gauge</span> (Z, N, TT, H0, 0, G and more); on Android via <span class="ui">Home › Track gauge…</span>.</li>
   <li>Choose the <b>track system</b> in the drop-down list.</li>
   <li><b>Search</b> by article number or name; <span class="ui">Tracks › Search track</span> jumps straight into the search field.</li>
   <li><b>Filter</b> by All, Straight, Curves, Turnouts, Crossings and Other.</li>
@@ -1053,7 +1053,8 @@ buildings, trees, signals and the benchwork. Hidden levels are missing here too.
 <p><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span> store the plan as a file with the extension
 <b>.trackmaster.json</b>. Opening (<kbd>Ctrl</kbd>+<kbd>O</kbd>) is also possible in the Basic edition. Plan files are interchangeable between Windows and Android
 and do not depend on the interface language. A plan file can also be opened with “Open with” or as a start parameter:
-<code>TrackMasterPro.exe MyLayout.trackmaster.json</code>.</p>
+<code>TrackMasterPro.exe MyLayout.trackmaster.json</code>.
+When opening a plan, the library automatically selects the track system used most in the plan.</p>
 <p><b>Automatic backup:</b> while you work, the program regularly backs up the plan in the background. If it was not closed properly –
 for example after a power cut – it offers to restore the backed-up state at the next start. The backup does not replace saving.</p>
 

@@ -412,7 +412,7 @@ und klicken Sie auf einzelne Teile – die Eigenschaften rechts verraten, wie al
 <table>
   <tr><th style="width:26%">Bereich</th><th>Aufgabe</th></tr>
   <tr><td><b>Menüband</b> (oben)</td><td>Alle Befehle, geordnet in den Registern Start, Gleise, Gelände, Raum, Elektrik, Ansicht und 3D. Über <span class="ui">Datei</span> erreichen Sie Neu, Öffnen, Speichern, Stückliste, Export, Drucken, Beispielplan und Lizenz. Die Schnellzugriffsleiste ganz oben links enthält Speichern, Rückgängig, Wiederholen und den Verlauf.</td></tr>
-  <tr><td><b>Gleisbibliothek</b> (links)</td><td>Spur und Gleissystem wählen, Gleise suchen und nach Art filtern (Gerade, Bögen, Weichen, Kreuzungen, Sonstige). Ein Klick setzt das Gleis an, Ziehen legt es frei ab.</td></tr>
+  <tr><td><b>Gleisbibliothek</b> (links)</td><td>Gleissystem wählen, Gleise suchen und nach Art filtern (Gerade, Bögen, Weichen, Kreuzungen, Sonstige). Ein Klick setzt das Gleis an, Ziehen legt es frei ab.</td></tr>
   <tr><td><b>Zeichenfläche</b> (Mitte)</td><td>Der Gleisplan auf der Anlagenplatte, mit Maßketten, Raster und den offenen Gleisenden. Unten rechts lässt sich der Zoom einstellen.</td></tr>
   <tr><td><b>Eigenschaften</b> (rechts)</td><td>Zeigt, was gerade gewählt ist: den Plan mit Plattenmaßen und Übersicht, ein Gleis mit Position, Höhe und Digitaladresse oder ein Objekt wie Gebäude, Signal oder Einspeisung. Werte lassen sich direkt eintragen.</td></tr>
   <tr><td><b>Ebenenleiste</b> (unten)</td><td>Alle Ebenen des Plans mit Name und Grundhöhe: Häkchen blendet eine Ebene ein oder aus, ein Klick macht sie zur aktiven Ebene, <span class="ui">+</span> legt eine neue darüber an, <span class="ui">…</span> öffnet den Dialog Ebenen (Kapitel <a href="#k7">9</a>).</td></tr>
@@ -597,7 +597,7 @@ Die 3D-Ansicht zeigt den Unterbau unter der Platte. <span class="ui">Entfernen</
 
 <h2 id="k6-1">Gleisbibliothek</h2>
 <ul>
-  <li><b>Spur</b> oben wählen (Z, N, TT, H0, 0, G sowie weitere Spuren in der Liste).</li>
+  <li>Die <b>Spur</b> wählen Sie im Register <span class="ui">Start</span> ganz rechts in der Gruppe <span class="ui">Spurweite</span> (Z, N, TT, H0, 0, G und weitere); unter Android über <span class="ui">Start › Spurweite…</span>.</li>
   <li><b>Gleissystem</b> in der Auswahlliste wählen.</li>
   <li><b>Suchen</b> nach Artikelnummer oder Name; <span class="ui">Gleise › Gleis suchen</span> springt direkt ins Suchfeld.</li>
   <li><b>Filtern</b> nach Alle, Gerade, Bögen, Weichen, Kreuzungen und Sonstige.</li>
@@ -1055,7 +1055,8 @@ Gebäude, Bäume, Signale und den Unterbau. Ausgeblendete Ebenen fehlen auch hie
 <p><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span> legen den Plan als Datei mit der Endung
 <b>.trackmaster.json</b> ab. Öffnen (<kbd>Strg</kbd>+<kbd>O</kbd>) ist auch in der Basisversion möglich. Die Plandateien sind zwischen Windows und Android
 austauschbar. Eine Plandatei lässt sich auch mit „Öffnen mit“ oder als Startparameter öffnen:
-<code>TrackMasterPro.exe MeineAnlage.trackmaster.json</code>.</p>
+<code>TrackMasterPro.exe MeineAnlage.trackmaster.json</code>.
+Beim Öffnen wählt das Programm in der Gleisbibliothek automatisch das Gleissystem, das im Plan am häufigsten verbaut ist.</p>
 <p><b>Automatische Sicherung:</b> Während Sie arbeiten, sichert das Programm den Plan regelmäßig im Hintergrund. Wurde es nicht regulär beendet –
 etwa bei einem Stromausfall –, bietet es beim nächsten Start an, den gesicherten Stand wiederherzustellen. Die Sicherung ersetzt nicht das Speichern.</p>
 

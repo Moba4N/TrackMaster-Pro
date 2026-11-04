@@ -56,6 +56,21 @@
                 <div class="ribbon-group-name">@g.Name</div>
             </div>
         }
+        @if (_tab == Lang.T("Start"))
+        {
+            @* Spurweite rechts im Register Start (früher oben in der Gleisbibliothek) *@
+            <div class="ribbon-group gauge-group">
+                <div class="ribbon-gauges">
+                    @foreach (var g in Catalog.Gauges)
+                    {
+                        var gid = g.Id;
+                        <button class="chip gauge @(gid == _session.Plan.GaugeId ? "on" : "")" title="@Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm")"
+                                @onclick="() => _session.SetGauge(gid)">@g.Id</button>
+                    }
+                </div>
+                <div class="ribbon-group-name">@Lang.F($"Spurweite · {_session.Plan.Gauge.Scale} · {Fmt.Num(_session.Plan.Gauge.TrackWidth)} mm")</div>
+            </div>
+        }
     </div>
 
     <main class="work">

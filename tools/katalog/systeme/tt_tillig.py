@@ -3,6 +3,7 @@ import math
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "TT", "tillig", "Tillig Modellgleis", 0
+GLEISABSTAND = 43  # Parallelgleisabstand Mitte zu Mitte (mm)
 FLEX_NUMBER, FLEX_LENGTH = "83125", 664
 MORE_FLEX = [dict(nr="83134", len=520, label="Betonschwellenflexgleis"), dict(nr="83136", len=520, label="Stahlschwellenflexgleis")]
 QUELLEN = [

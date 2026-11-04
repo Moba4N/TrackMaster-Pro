@@ -3,6 +3,7 @@ from katalog import *
 from _roco_line import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "rocoline", "Roco Line (ohne Bettung)", 5
+GLEISABSTAND = 61.6  # Parallelgleisabstand Mitte zu Mitte (mm)
 FLEX_NUMBER, FLEX_LENGTH = "42400", 920
 MORE_FLEX = [dict(nr="42401", len=920, label="Flexgleis Betonschwellen")]
 

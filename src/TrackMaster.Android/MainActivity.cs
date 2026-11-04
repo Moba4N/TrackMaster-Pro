@@ -269,7 +269,7 @@ public sealed class MainActivity : Activity
         Add("alignB", Lang.T("Unten ausrichten"), () => _session.Align(AlignMode.Bottom), Several);
         Add("alignCX", Lang.T("Mittig waagrecht"), () => _session.Align(AlignMode.CenterX), Several);
         Add("alignCY", Lang.T("Mittig senkrecht"), () => _session.Align(AlignMode.CenterY), Several);
-        Add("parallel", Lang.T("Parallelgleis"), () => Dialogs.AskParallel(this, _session.Plan.Gauge, _session.AddParallel), HasSelection);
+        Add("parallel", Lang.T("Parallelgleis"), () => Dialogs.AskParallel(this, _session.Plan.Gauge, _session.CurrentSystem, _session.AddParallel), HasSelection);
         Add("profile", Lang.T("Höhenprofil"), () => { if (_session.Profile() is { } profile) Dialogs.ShowProfile(this, profile); });
         Add("roomRect", Lang.T("Raum"), () => Dialogs.AskRoom(this, _session.Plan, (x, y, w, d, wall) => { _session.AddRoom(x, y, w, d, wall); _canvas.Fit(); }));
         Add("toolRoom", Lang.T("Raum zeichnen"), () => SetTool(CanvasTool.Room));

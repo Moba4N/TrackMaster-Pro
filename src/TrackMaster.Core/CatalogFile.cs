@@ -45,6 +45,7 @@ public static partial class Catalog
         ThreeRail = Flag(s, "threeRail"),
         FlexNumber = Opt(s, "flexNumber"),
         FlexLength = s.TryGetProperty("flexLength", out var fl) ? fl.GetDouble() : null,
+        Spacing = s.TryGetProperty("spacing", out var sp) ? sp.GetDouble() : null,
         MoreFlex = List(s, "moreFlex", m => (Str(m, "nr"), Num(m, "len"), Lang.T(Str(m, "label")))),
         Source = Opt(s, "source") is { } src ? Lang.T(src) : null,
         Pieces = List(s, "pieces", ReadPiece),

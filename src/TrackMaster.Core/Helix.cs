@@ -112,8 +112,17 @@ public static class Helix
     /// <summary>Breite der Trasse: Gleisabstand (zweigleisig) + Gleisbett + Randaufmaß auf beiden Seiten.</summary>
     public static double TrackBoardWidth(HelixSpec spec, Gauge g) => spec.OuterRadius - spec.Curve.Radius + TrackBedWidth(g) + 2 * EdgeOf(spec, g);
 
-    /// <summary>Üblicher Gleisabstand für zweigleisige Wendeln (H0: 62 mm).</summary>
-    public static double DefaultSpacing(Gauge g) => Math.Round(g.TrackWidth * 3.75);
+    /// <summary>
+    /// Gleisabstand Mitte zu Mitte: der des Gleissystems laut Hersteller (z. B. piccolo 33,6 mm), sonst der übliche Wert der Spur
+    /// (H0: 62 mm).
+    /// </summary>
+    public static double DefaultSpacing(Gauge g, TrackSystem? system = null)
+        => system is { Spacing: { } s } && g.Systems.Contains(system) ? s : Math.Round(g.TrackWidth * 3.75);
+
+    /// <summary>Gleisabstände der Hersteller einer Spur für die Auswahlliste: Wert und die Systeme, die ihn verwenden.</summary>
+    public static IReadOnlyList<(double Spacing, string Label)> SpacingChoices(Gauge g)
+        => g.Systems.Where(s => s.Spacing is not null).GroupBy(s => s.Spacing!.Value).OrderBy(x => x.Key)
+            .Select(x => (x.Key, $"{Fmt.Num(x.Key, 2)} mm – {string.Join(", ", x.Select(s => s.Name))}")).ToList();
 
     /// <summary>Bogengleis für das äußere Gleis: Katalogradius möglichst nah an Radius + Abstand (höchstens 15 % daneben), sonst null (= Flexgleis).</summary>
     public static TrackPieceDef? OuterCurve(IEnumerable<TrackPieceDef> curves, TrackPieceDef inner, double spacing, HelixShape shape)

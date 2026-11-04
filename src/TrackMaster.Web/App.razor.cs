@@ -494,6 +494,14 @@ public partial class App : ComponentBase, IAppHost
         if (_open3D)
         {
             if (key == "Escape") { Close3D(); return true; }
+            // Richtung an der nächsten Weiche: Pfeiltasten, W schaltet weiter
+            if (key is "ArrowLeft" or "ArrowUp" or "ArrowRight" && (_riding || _trainOn))
+            {
+                ChooseDirection(key == "ArrowLeft" ? -1 : key == "ArrowRight" ? 1 : 0);
+                StateHasChanged();
+                return true;
+            }
+            if (key is "w" or "W" && (_riding || _trainOn)) { ToggleNextSwitch(); StateHasChanged(); return true; }
             return false;
         }
         var k = key.Length == 1 ? key.ToLowerInvariant() : key;

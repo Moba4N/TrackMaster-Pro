@@ -321,6 +321,8 @@ public sealed class LayoutPlan
     public const int MaxLevels = 10;
     public string Name { get; set; } = Lang.T("Neuer Plan");
     public string GaugeId { get; set; } = "H0";
+    /// <summary>Gleissystem, mit dem im Plan gearbeitet wurde (wird beim Öffnen in der Bibliothek gewählt).</summary>
+    public string? SystemId { get; set; }
     public double BoardWidth { get; set; } = 2000;
     public double BoardHeight { get; set; } = 1250;
     /// <summary>Grundform der Platte; Breite und Tiefe sind die äußeren Maße (siehe <see cref="BoardGeometry"/>).</summary>

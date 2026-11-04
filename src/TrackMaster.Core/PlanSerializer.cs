@@ -22,6 +22,7 @@ public static class PlanSerializer
         [JsonPropertyName("format")] public int Format { get; set; } = CurrentFormat;
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("gauge")] public string? Gauge { get; set; }
+        [JsonPropertyName("system"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? System { get; set; }
         [JsonPropertyName("board")] public BoardDto? Board { get; set; }
         [JsonPropertyName("vehicle"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Vehicle { get; set; }
         [JsonPropertyName("pieces")] public List<PieceDto>? Pieces { get; set; }
@@ -189,6 +190,7 @@ public static class PlanSerializer
         {
             Name = plan.Name,
             Gauge = plan.GaugeId,
+            System = plan.SystemId,
             Board = new BoardDto
             {
                 W = plan.BoardWidth, H = plan.BoardHeight,
@@ -301,6 +303,7 @@ public static class PlanSerializer
                 });
         }
         plan.ActiveLevel = Math.Clamp(dto.ActiveLevel, 0, plan.Levels.Count - 1);
+        plan.SystemId = string.IsNullOrWhiteSpace(dto.System) ? null : dto.System;
         if (dto.Benchwork is { } bench && Enum.IsDefined(bench.LegStyle) && Core.Benchwork.Validate(bench).Count == 0) plan.Benchwork = bench;
         int LevelOf(int level) => Math.Clamp(level, 0, plan.Levels.Count - 1);
         foreach (var l in dto.Board?.Legs ?? [])

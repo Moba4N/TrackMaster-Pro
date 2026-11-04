@@ -332,6 +332,14 @@ public static partial class Dialogs
     {
         var body = Ui.Column(c, 8);
         body.AddView(Rows(c, (Lang.T("Gleisstücke"), sel.Count.ToString(), null), (Lang.T("Gleislänge"), $"{Fmt.Num(sel.Sum(p => p.Def.TrackLength) / 1000, 2)} m", null)));
+        // Gemeinsame Höhe: leer, wenn die Gleise unterschiedlich hoch liegen; „Übernehmen“ legt alle waagrecht auf diese Höhe
+        var all = sel.SelectMany(p => p.ConnectorHeights()).ToList();
+        body.AddView(Rows(c, (Lang.T("Höhe"), Math.Abs(all.Max() - all.Min()) < 0.05 ? $"{Fmt.Num(all.Min(), 1)} mm" : $"{Fmt.Num(all.Min(), 1)} – {Fmt.Num(all.Max(), 1)} mm", null)));
+        var common = session.SelectionHeight;
+        var height = Ui.Number(c, common ?? 0, 1, true);
+        if (common is null) { height.Text = ""; height.Hint = Lang.T("unterschiedlich"); }
+        body.AddView(Ui.Field(c, Lang.T("Höhe aller gewählten Gleise (mm)"), height));
+        body.AddView(Ui.Label(c, Lang.T("Legt alle gewählten Gleise waagrecht auf diese Schienenoberkante. Für eine Rampe „Steigung…“ verwenden."), 12, color: Ui.TextSecondary));
         AlertDialog? dialog = null;
         var grid = Ui.Column(c, 6);
         void Line(params (string Text, string Command)[] items)
@@ -357,7 +365,15 @@ public static partial class Dialogs
             body.AddView(warn);
         }
         body.AddView(Hint(c, Lang.T("Ziehe die Auswahl an ein freies Gleisende – die ganze Gruppe rastet dort ein.")));
-        dialog = Show(c, Lang.F($"{sel.Count} Gleise gewählt"), body, Lang.T("Schließen"), cancelText: null);
+        dialog = Show(c, Lang.F($"{sel.Count} Gleise gewählt"), body, Lang.T("Übernehmen"), () =>
+        {
+            if ((height.Text ?? "").Trim().Length == 0) return true;
+            var errors = new List<string>();
+            Read(height, Lang.T("Höhe"), -500, 5000, errors, out var z);
+            if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
+            if (common is not { } c0 || Math.Abs(c0 - z) > 1e-9) session.SetSelectionHeight(z);
+            return true;
+        }, cancelText: Lang.T("Schließen"));
     }
 
     private static void ObjectProperties(Context c, PlanSession session, object o, Action<string> run)
@@ -613,8 +629,10 @@ public static partial class Dialogs
     }
 
     /// <summary>Gleiswendel rund oder oval, ein- oder zweigleisig. <paramref name="build"/> bekommt die Angaben.</summary>
-    public static void AskHelix(Context c, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd, Action<HelixSpec> build)
+    public static void AskHelix(Context c, Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd, Action<HelixSpec> build,
+        LayoutPlan? plan = null, double? connectorZ = null)
     {
+        plan ??= LayoutPlan.Empty(gauge.Id);
         var body = Ui.Column(c, 8);
         body.AddView(Hint(c, (fromEnd
             ? Lang.T("Die Wendel beginnt am aktiven Gleisende und steigt gleichmäßig an.")
@@ -643,6 +661,13 @@ public static partial class Dialogs
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Windungen"), turns), Ui.Field(c, Lang.T("Höhe je Windung (mm)"), rise)));
         var direction = Choice(c, [Lang.T("links herum (gegen den Uhrzeigersinn)"), Lang.T("rechts herum (im Uhrzeigersinn)")], 0);
         body.AddView(Ui.Field(c, Lang.T("Richtung"), direction));
+        var levelBox = Choice(c, plan.Levels.Select(l => $"{l.Name} ({Fmt.Num(l.Height, 0)} mm)").ToList(), Math.Clamp(plan.ActiveLevel, 0, plan.Levels.Count - 1));
+        var startBox = Ui.Number(c, connectorZ ?? plan.Level(plan.ActiveLevel).Height, 1);
+        body.AddView(Columns(c, Ui.Field(c, Lang.T("Starthöhe (mm)"), startBox), Ui.Field(c, Lang.T("Ebene der ersten Windung"), levelBox)));
+        var perTurn = new CheckBox(c) { Text = Lang.T("Jede weitere Windung auf eine eigene, neue Ebene"), Checked = true };
+        body.AddView(perTurn);
+        var levelInfo = Ui.Label(c, "", 12.5, color: Ui.TextSecondary);
+        body.AddView(levelInfo);
         var construction = Choice(c, [Lang.T("Gewindestangen"), Lang.T("Spantenbau (geschlitzte Spanten)")], 0);
         var edgeBox = Ui.Number(c, Helix.DefaultEdge(gauge, HelixConstruction.Gewindestangen));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Bauweise"), construction), Ui.Field(c, Lang.T("Randaufmaß je Seite (mm)"), edgeBox)));
@@ -698,16 +723,18 @@ public static partial class Dialogs
             var oc = two && outers.Count > 0 ? outers[Math.Clamp(outer.SelectedItemPosition, 0, outers.Count - 1)] : null;
             if (two && oc is null) Read(spacing, Lang.T("Gleisabstand"), gauge.TrackWidth * PlanCheck.MinSpacingFactor, gauge.TrackWidth * 20, errors, out sp);
             Read(edgeBox, Lang.T("Randaufmaß"), Helix.MinEdge(gauge, Construction()), gauge.TrackWidth * 10, errors, out var edge);
+            Read(startBox, Lang.T("Starthöhe"), -500, 5000, errors, out var z0);
             if (errors.Count > 0) return null;
             return new HelixSpec(inner.Key, t, r, direction.SelectedItemPosition == 1, Shape(), st?.Key, (int)Math.Round(n), two ? 2 : 1,
-                oc is not null ? oc.Radius - inner.Radius : sp, oc?.Key, Construction(), edge);
+                oc is not null ? oc.Radius - inner.Radius : sp, oc?.Key, Construction(), edge, z0, Math.Max(0, levelBox.SelectedItemPosition), perTurn.Checked);
         }
         void Update()
         {
             oval.Visibility = Shape() == HelixShape.Oval ? ViewStates.Visible : ViewStates.Gone;
             outerPanel.Visibility = tracks.SelectedItemPosition == 1 ? ViewStates.Visible : ViewStates.Gone;
             spacingField.Visibility = outer.SelectedItemPosition <= 0 ? ViewStates.Visible : ViewStates.Gone;
-            if (Spec([]) is not { } spec) { info.Text = widthInfo.Text = ""; return; }
+            if (Spec([]) is not { } spec) { info.Text = widthInfo.Text = levelInfo.Text = ""; return; }
+            levelInfo.Text = Helix.LevelText(plan, spec);
             var m = Helix.Material(spec, gauge);
             var free = spec.Construction == HelixConstruction.Spanten ? m.Edge - Helix.SlotDepth(gauge) : m.Edge - Helix.RodInset;
             widthInfo.Text = Lang.F($"Trassenbreite {Fmt.Num(m.TrackWidth, 0)} mm = {(spec.Tracks == 2 ? Lang.F($"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + ") : "")}Gleisbett {Fmt.Num(m.TrackBedWidth, 0)} mm + 2 × {Fmt.Num(m.Edge, 0)} mm Rand. Freiraum neben dem Gleisbett {Fmt.Num(free, 0)} mm (empfohlen ab {Fmt.Num(Helix.Clearance(gauge), 0)} mm).");
@@ -716,7 +743,16 @@ public static partial class Dialogs
         shape.ItemSelected += (_, _) => FillCurves();
         curve.ItemSelected += (_, _) => FillOuter();
         foreach (var sp in new[] { tracks, outer, straight, direction }) sp.ItemSelected += (_, _) => Update();
-        foreach (var box in new[] { turns, rise, straightCount, spacing, edgeBox }) box.TextChanged += (_, _) => Update();
+        foreach (var box in new[] { turns, rise, straightCount, spacing, edgeBox, startBox }) box.TextChanged += (_, _) => Update();
+        perTurn.CheckedChange += (_, _) => Update();
+        var firstLevel = true;
+        levelBox.ItemSelected += (_, _) =>
+        {
+            // Spinner melden die erste Auswahl beim Anzeigen; dann die Starthöhe (z. B. vom Gleisende) nicht überschreiben
+            if (firstLevel) { firstLevel = false; return; }
+            if (!fromEnd) startBox.Text = Fmt.Num(plan.Level(levelBox.SelectedItemPosition).Height, 1);
+            Update();
+        };
         var firstConstruction = true;
         construction.ItemSelected += (_, _) =>
         {

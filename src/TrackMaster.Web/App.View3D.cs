@@ -219,26 +219,33 @@ public partial class App
         StartMoving();
     }
 
-    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug um; der Weg dahinter wird neu bestimmt.</summary>
+    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug weiter; nur der Weg dahinter wird neu bestimmt.</summary>
     private void ToggleNextSwitch()
     {
-        if (_path?.NextSwitch(_position) is not { } next || _plan3D!.Find(next.PieceId) is not { } piece) return;
-        _routes[piece.Id] = ((_routes.TryGetValue(piece.Id, out var r) ? r : 0) + 1) % RidePath.RouteCount(piece);
-        _path = RidePath.Build(_plan3D, _startPiece, _routes);
+        if (_path is null || !(_riding || _trainOn)) return;
+        _path = _path.CycleNextRoute(_position, _routes);
         UpdateStatus3D();
+    }
+
+    /// <summary>Richtung an der nächsten Weiche wählen: −1 links, 0 geradeaus, +1 rechts.</summary>
+    private void ChooseDirection(int side)
+    {
+        if (_path is null || !(_riding || _trainOn)) return;
+        _path = _path.ChooseNext(_position, side, _routes);
+        UpdateStatus3D();
+    }
+
+    /// <summary>Richtungen an der nächsten Weiche vor dem Zug und die gewählte Stellung.</summary>
+    private (IReadOnlyList<RideChoice> Choices, int Route) NextChoices()
+    {
+        if (!(_riding || _trainOn) || _path?.NextStop(_position) is not { } next || _plan3D?.Find(next.PieceId) is not { } piece) return ([], -1);
+        return (_path.Choices(next), RidePath.RouteOf(piece, _routes));
     }
 
     private void UpdateStatus3D()
     {
         if (_path is not { } path) return;
-        var text = path.Closed ? Lang.T("Rundkurs") : Lang.T("Wendet an Prellböcken");
-        if (path.NextSwitch(_position) is { } next && _plan3D!.Find(next.PieceId) is { } piece)
-        {
-            var route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
-            var setting = RidePath.RouteCount(piece) > 2 ? Lang.F($"Stellung {route + 1}") : route == 0 ? Lang.T("gerade") : Lang.T("abzweigend");
-            text += Lang.F($" · Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting}");
-        }
-        _status3D = text;
+        _status3D = path.Describe(_position, _routes);
     }
 
     /// <summary>Vor jedem Bild, solange etwas fährt.</summary>
@@ -246,6 +253,7 @@ public partial class App
     {
         if (!_open3D || _path is not { IsEmpty: false } path || _plan3D is null) return;
         _position += RidePath.ModelSpeed(Speed, _plan3D.Gauge.Scale) * dt;
+        path.EnsureAhead(_position, _routes);
         if (_position >= path.Length) _position = path.Closed ? _position % path.Length : Math.Min(_train?.Length ?? 0, path.Length);
         if (_riding)
         {

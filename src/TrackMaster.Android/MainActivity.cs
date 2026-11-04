@@ -229,6 +229,7 @@ public sealed class MainActivity : Activity
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Add("gauge", Lang.T("Spurweite"), AskGauge);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -405,6 +406,17 @@ public sealed class MainActivity : Activity
             .Show();
     }
 
+    /// <summary>Spurweite wählen (früher als Knöpfe in der Gleisbibliothek).</summary>
+    private void AskGauge()
+    {
+        var gauges = Catalog.Gauges.ToList();
+        var items = gauges.Select(g => (g.Id == _session.Plan.GaugeId ? "● " : "   ") + Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm")).ToArray();
+        new AlertDialog.Builder(this).SetTitle(Lang.T("Spurweite"))!
+            .SetItems(items, (_, e) => { if (_session.SetGauge(gauges[e.Which].Id)) _library.Refresh(force: true); })!
+            .SetNegativeButton(Lang.T("Schließen"), (_, _) => { })!
+            .Show();
+    }
+
     private void ChangeLanguage()
     {
         var langs = new[] { Language.Deutsch, Language.English };
@@ -491,7 +503,7 @@ public sealed class MainActivity : Activity
 
     private static readonly (string Tab, (string Label, string Command, bool Toggle)[] Items)[] Ribbon =
     [
-        (Lang.T("Start"), [(Lang.T("Eigenschaften"), "props", false), (Lang.T("Gleis wiederholen"), "repeat", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), (Lang.T("Frei drehen…"), "rotFree", false), (Lang.T("Spiegeln"), "flip", false), (Lang.T("Anschluss wechseln"), "swap", false),
+        (Lang.T("Start"), [(Lang.T("Spurweite…"), "gauge", false), (Lang.T("Eigenschaften"), "props", false), (Lang.T("Gleis wiederholen"), "repeat", false), ("↺ 15°", "rotL", false), ("↻ 15°", "rotR", false), (Lang.T("Frei drehen…"), "rotFree", false), (Lang.T("Spiegeln"), "flip", false), (Lang.T("Anschluss wechseln"), "swap", false),
                    (Lang.T("Duplizieren"), "duplicate", false), (Lang.T("Kopieren"), "copy", false), (Lang.T("Einfügen"), "paste", false), (Lang.T("Löschen"), "delete", false), (Lang.T("Alles wählen"), "selectAll", false), (Lang.T("Auswahl aufheben"), "selectNone", false),
                    (Lang.T("Nächstes Gleisende"), "nextEnd", false), (Lang.T("Sperren"), "lock", false), (Lang.T("Gruppieren"), "group", false), (Lang.T("Gruppe auflösen"), "ungroup", false),
                    (Lang.T("Links ausrichten"), "alignL", false), (Lang.T("Rechts ausrichten"), "alignR", false), (Lang.T("Oben ausrichten"), "alignT", false), (Lang.T("Unten ausrichten"), "alignB", false),
@@ -891,7 +903,7 @@ public sealed class MainActivity : Activity
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
                     cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
-        });
+        }, _session.Plan, _session.ActiveConnector?.Z);
     }
 
     private void AskBenchwork() => Dialogs.AskBenchwork(this, _session, ShowBenchwork);

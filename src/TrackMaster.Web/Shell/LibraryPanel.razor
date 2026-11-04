@@ -12,15 +12,6 @@
     }
 </div>
 <div class="pane-body library">
-    <div class="field-label">@Lang.T("Spurweite")</div>
-    <div class="gauges">
-        @foreach (var g in Catalog.Gauges)
-        {
-            var id = g.Id;
-            <button class="chip gauge @(id == Session.Plan.GaugeId ? "on" : "")" title="@Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm")"
-                    @onclick="() => SetGauge(id)">@g.Id</button>
-        }
-    </div>
     <div class="secondary">@Lang.F($"Spur {Gauge.Id} · Maßstab {Gauge.Scale} · Spurweite {Fmt.Num(Gauge.TrackWidth)} mm")</div>
 
     <label class="field-label" for="lib-system">@Lang.T("Hersteller / Gleissystem")</label>
@@ -152,13 +143,12 @@
         return ThumbCache[def.Key] = SvgWriter.Image(c);
     }
 
-    private void SetGauge(string id) => Session.SetGauge(id);
 
     private void SetSystem(ChangeEventArgs e)
     {
         if (e.Value?.ToString() is { } id)
         {
-            Session.SystemByGauge[Session.Plan.GaugeId] = id;
+            Session.SelectSystem(id);
             if (!Categories.Contains(_category)) _category = Lang.T("Alle");
         }
     }

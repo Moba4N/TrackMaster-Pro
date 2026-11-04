@@ -56,6 +56,21 @@
                 <div class="ribbon-group-name">@g.Name</div>
             </div>
         }
+        @if (_tab == Lang.T("Start"))
+        {
+            @* Spurweite rechts im Register Start (früher oben in der Gleisbibliothek) *@
+            <div class="ribbon-group gauge-group">
+                <div class="ribbon-gauges">
+                    @foreach (var g in Catalog.Gauges)
+                    {
+                        var gid = g.Id;
+                        <button class="chip gauge @(gid == _session.Plan.GaugeId ? "on" : "")" title="@Lang.F($"Spur {g.Id} · {g.Scale} · {Fmt.Num(g.TrackWidth)} mm")"
+                                @onclick="() => _session.SetGauge(gid)">@g.Id</button>
+                    }
+                </div>
+                <div class="ribbon-group-name">@Lang.F($"Spurweite · {_session.Plan.Gauge.Scale} · {Fmt.Num(_session.Plan.Gauge.TrackWidth)} mm")</div>
+            </div>
+        }
     </div>
 
     <main class="work">
@@ -164,7 +179,15 @@
                     <button class="btn @(!_riding ? "on" : "")" @onclick="Orbit3D">@Lang.T("Rundumsicht")</button>
                     <button class="btn @(_riding ? "on" : "")" @onclick="ToggleRide">@Lang.T("Mitfahren")</button>
                     <button class="btn @(_trainOn ? "on" : "")" @onclick="ToggleTrain">@Lang.T("Zug")</button>
-                    <button class="btn" disabled="@(!(_riding || _trainOn))" title="@Lang.T("Nächste Weiche vor dem Zug umstellen")" @onclick="ToggleNextSwitch">@Lang.T("Weiche")</button>
+                    @{ var (choices, chosen) = NextChoices(); }
+                    @if (choices.Count > 0)
+                    {
+                        <span class="secondary small">@Lang.T("Richtung:")</span>
+                        @foreach (var c in choices)
+                        {
+                            <button class="btn @(c.Route == chosen ? "on" : "")" title="@Lang.T("An der nächsten Weiche in diese Richtung fahren (Pfeiltasten)")" @onclick="@(() => ChooseDirection(c.Side))">@($"{c.Arrow} {c.Label}")</button>
+                        }
+                    }
                     <span class="status3d">@_status3D</span>
                     <button class="btn accent" @onclick="Close3D">@Lang.T("Schließen")</button>
                 </div>
@@ -1148,15 +1171,21 @@
         public int Straight { get; set; }
         public bool RightHand { get; set; }
         public HelixConstruction Construction { get; set; }
+        public int Level { get; set; }
+        public bool LevelPerTurn { get; set; } = true;
     }
 
     private HelixForm? _helix;
+
+    /// <summary>Vorgeschlagene Starthöhe: am aktiven Gleisende dessen Höhe, sonst die Grundhöhe der gewählten Ebene.</summary>
+    private double HelixDefaultStart(int level) => _session.ActiveConnector?.Z ?? _session.Plan.Level(level).Height;
 
     private void AskHelix(Gauge gauge, IReadOnlyList<TrackPieceDef> curves, IReadOnlyList<TrackPieceDef> straights, bool fromEnd, Action<HelixSpec> build)
     {
         _d.Clear();
         var list = straights.OrderBy(x => x.Length).ToList();
-        _helix = new HelixForm { Gauge = gauge, Curves = curves, Straights = list, FromEnd = fromEnd };
+        _helix = new HelixForm { Gauge = gauge, Curves = curves, Straights = list, FromEnd = fromEnd, Level = Math.Clamp(_session.Plan.ActiveLevel, 0, _session.Plan.Levels.Count - 1) };
+        _d["start"] = N(HelixDefaultStart(_helix.Level), 1);
         _helix.Straight = list.Count == 0 ? 0 : list.IndexOf(list.MinBy(x => Math.Abs(x.Length - gauge.TrackWidth * 11))!);
         _d["count"] = "2";
         _d["spacing"] = N(Helix.DefaultSpacing(gauge));
@@ -1218,9 +1247,10 @@
         var oc = h.Two && h.Outers.Count > 0 ? h.Outers[Math.Clamp(h.Outer, 0, h.Outers.Count - 1)] : null;
         if (h.Two && oc is null) Read("spacing", Lang.T("Gleisabstand"), h.Gauge.TrackWidth * PlanCheck.MinSpacingFactor, h.Gauge.TrackWidth * 20, errors, out sp);
         Read("edge", Lang.T("Randaufmaß"), Helix.MinEdge(h.Gauge, h.Construction), h.Gauge.TrackWidth * 10, errors, out var edge);
+        Read("start", Lang.T("Starthöhe"), -500, 5000, errors, out var z0);
         if (errors.Count > 0) return null;
         return new HelixSpec(inner.Key, t, r, h.RightHand, h.Shape, st?.Key, (int)Math.Round(n), h.Two ? 2 : 1, oc is not null ? oc.Radius - inner.Radius : sp, oc?.Key,
-            h.Construction, edge);
+            h.Construction, edge, z0, h.Level, h.LevelPerTurn);
     }
 
     private static int Index(ChangeEventArgs e) => int.TryParse(e.Value?.ToString(), out var i) ? i : 0;
@@ -1298,6 +1328,21 @@
             <option value="0">@Lang.T("links herum (gegen den Uhrzeigersinn)")</option>
             <option value="1">@Lang.T("rechts herum (im Uhrzeigersinn)")</option>
         </select>
+        <div class="section">@Lang.T("Höhe und Ebenen")</div>
+        <div class="cols">
+            <div><label class="field-label">@Lang.T("Starthöhe (mm)")</label><input class="input" inputmode="decimal" @bind='_d["start"]' @bind:event="oninput" /></div>
+            <div>
+                <label class="field-label">@Lang.T("Ebene der ersten Windung")</label>
+                <select class="input" value="@h.Level" @onchange="@(e => { h.Level = Index(e); if (!h.FromEnd) _d["start"] = N(HelixDefaultStart(h.Level), 1); })">
+                    @for (var i = 0; i < _session.Plan.Levels.Count; i++)
+                    {
+                        var lv = _session.Plan.Levels[i];
+                        <option value="@i">@($"{lv.Name} ({Fmt.Num(lv.Height, 0)} mm)")</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <label class="field-label"><input type="checkbox" checked="@h.LevelPerTurn" @onchange="@(e => h.LevelPerTurn = e.Value is true)" /> @Lang.T("Jede weitere Windung auf eine eigene, neue Ebene")</label>
         <div class="section">@Lang.T("Bauweise und Trasse")</div>
         <div class="cols">
             <div>
@@ -1315,8 +1360,10 @@
             var free = h.Construction == HelixConstruction.Spanten ? m.Edge - Helix.SlotDepth(h.Gauge) : m.Edge - Helix.RodInset;
             <div class="secondary">@Lang.F($"Trassenbreite {Fmt.Num(m.TrackWidth, 0)} mm = {(spec.Tracks == 2 ? Lang.F($"Gleisabstand {Fmt.Num(spec.OuterRadius - spec.Curve.Radius, 0)} mm + ") : "")}Gleisbett {Fmt.Num(m.TrackBedWidth, 0)} mm + 2 × {Fmt.Num(m.Edge, 0)} mm Rand. Freiraum neben dem Gleisbett {Fmt.Num(free, 0)} mm (empfohlen ab {Fmt.Num(Helix.Clearance(h.Gauge), 0)} mm).")</div>
             <div class="secondary">@Lang.F($"Steigung {Fmt.Num(Helix.GradePercent(spec), 1)} % · Gesamthöhe {Fmt.Num(spec.TotalHeight, 0)} mm · Platzbedarf {Fmt.Num(2 * m.OuterBoardRadius + spec.StraightLength, 0)} × {Fmt.Num(2 * m.OuterBoardRadius, 0)} mm")</div>
+            <div class="secondary">@Helix.LevelText(_session.Plan, spec)</div>
         }
     </div>;
+
 
     private void ShowHelixMaterial(HelixMaterial m, Action saveCsv)
     {

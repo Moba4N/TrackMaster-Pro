@@ -410,7 +410,7 @@ and click on individual parts – the properties on the right reveal how everyth
 <table>
   <tr><th style="width:26%">Area</th><th>Purpose</th></tr>
   <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Room, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo, Redo and History.</td></tr>
-  <tr><td><b>Track library</b> (left)</td><td>Choose gauge and track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
+  <tr><td><b>Track library</b> (left)</td><td>Choose the track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
   <tr><td><b>Drawing area</b> (centre)</td><td>The track plan on the baseboard, with dimension chains, grid and the open track ends. The zoom can be set at the bottom right.</td></tr>
   <tr><td><b>Properties</b> (right)</td><td>Shows what is currently selected: the plan with baseboard dimensions and overview, a track with position, height and digital address, or an object such as a building, signal or feeder. Values can be entered directly.</td></tr>
   <tr><td><b>Level bar</b> (bottom)</td><td>All levels of the plan with name and base height: the tick shows or hides a level, a click makes it the active level, <span class="ui">+</span> adds a new one above, <span class="ui">…</span> opens the Levels dialog (chapter <a href="#k7">9</a>).</td></tr>
@@ -595,7 +595,7 @@ The 3D view shows the benchwork under the baseboard. <span class="ui">Remove</sp
 
 <h2 id="k6-1">Track library</h2>
 <ul>
-  <li>Choose the <b>gauge</b> at the top (Z, N, TT, H0, 0, G and further gauges in the list).</li>
+  <li>Choose the <b>gauge</b> in the <span class="ui">Home</span> tab at the far right in the group <span class="ui">Track gauge</span> (Z, N, TT, H0, 0, G and more); on Android via <span class="ui">Home › Track gauge…</span>.</li>
   <li>Choose the <b>track system</b> in the drop-down list.</li>
   <li><b>Search</b> by article number or name; <span class="ui">Tracks › Search track</span> jumps straight into the search field.</li>
   <li><b>Filter</b> by All, Straight, Curves, Turnouts, Crossings and Other.</li>
@@ -658,6 +658,9 @@ labels and dimensions also appear in the printout.</p>
     <span class="ui">bottom</span> or <span class="ui">centred</span> horizontally or vertically. Select at least two groups that are not connected to each other.</td></tr>
 </table>
 <p>When several tracks are selected, the same commands are also available as buttons in the properties. If the selection contains locked tracks, a note points this out.</p>
+<p>The field <span class="ui">Height of all selected tracks (mm)</span> in the properties puts all selected tracks at one common height (rail top);
+any gradient is removed and locked tracks stay as they are. If the tracks lie at different heights the field is empty and the range is shown above it.
+For a ramp use <span class="ui">Gradient…</span>.</p>
 
 <h2 id="k6-6">Parallel track</h2>
 <p>For a double-track line or a passing loop, TrackMaster Pro lays a second track at a fixed spacing next to existing tracks:</p>
@@ -768,7 +771,12 @@ every track and every terrain object belongs to exactly one level.</p>
   <li>Choose <i>single-track</i> or <i>double-track</i>. With double track the second track lies outside: as a catalogue curve with a matching
       radius or as flexible track with a freely chosen track spacing.</li>
   <li>Choose the <b>curved track</b> for the inner track, the number of <b>turns</b>, the <b>height per turn</b> and the <b>direction</b>.</li>
-  <li>Below the fields, gradient, total height and space required are shown continuously. Click <span class="ui">Build helix</span>.</li>
+  <li>Under <b>Height and levels</b> enter the <b>start height</b> (rail top at the start of the helix) and choose the <b>level of the first turn</b>.
+      The defaults are the height of the active track end or the base height of the active level.</li>
+  <li>With <i>Put each further turn on its own new level</i> (on by default) the helix starts on the chosen level, and after each full
+      revolution (360°) the tracks go onto a new level “Helix – turn 2”, “… 3” and so on, with the height at the start of that turn.
+      This lets you show, hide and edit the turns separately later. There are at most 10 levels.</li>
+  <li>Below the fields, gradient, total height, space required, start and end height and the number of new levels are shown continuously. Click <span class="ui">Build helix</span>.</li>
 </ol>
 <p>The height per turn must at least reach the clearance height of the gauge, otherwise no train fits under the next turn; the dialog
 points this out. Turns lying on top of each other are not connected to each other.</p>
@@ -1019,10 +1027,13 @@ A <b>note</b> is advice – sometimes the spot is exactly as intended.</div>
     rotates around the viewing axis, the right mouse button pans, the mouse wheel zooms. The buttons <b>X</b>, <b>Y</b> and <b>Z</b> rotate in 90° steps around the
     transverse axis, the vertical axis and the viewing axis; <span class="ui">Normal position</span> resets the view.</li>
   <li><span class="ui">With scenery</span> / <span class="ui">Track plan only</span>: show terrain, water, buildings and trees, or only baseboard, tracks and piers.</li>
-  <li><span class="ui">3D › Ride along</span>: you travel in the driver's cab over the tracks, starting at the selected track. You set the speed in prototype km/h.</li>
+  <li><span class="ui">3D › Ride along</span>: you travel in the driver's cab over the tracks, starting at the selected track. You set the speed in prototype km/h.
+    Before every turnout and double slip the possible <b>directions</b> appear at the top (◀ <i>left</i>, ▲ <i>straight ahead</i>, ▶ <i>right</i>); a click or the
+    arrow keys <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> decide where the train goes at the next turnout. The status line names the turnout, its distance and the chosen direction.
+    Only the route beyond the turnout changes, the train carries on without jumping. Plain crossings are always passed straight through.</li>
   <li><span class="ui">3D › Time of day</span>: light from 5 am to 11 pm with the position of the sun, evening sky and lit windows.</li>
-  <li><span class="ui">Run train</span> in the 3D window: a train of a locomotive and three coaches runs over the layout. <span class="ui">Switch turnout</span> (<kbd>W</kbd>)
-    switches the next turnout ahead of the train; the status line names it.</li>
+  <li><span class="ui">Run train</span> in the 3D window: a train of a locomotive and three coaches runs over the layout. Here too the direction buttons
+    or the arrow keys choose the route at the next turnout; <kbd>W</kbd> steps through the positions.</li>
 </ul>
 <div class="cols">
   <figure><img src="img-en/mitfahren.png" alt=""><figcaption>Cab ride.</figcaption></figure>
@@ -1042,7 +1053,8 @@ buildings, trees, signals and the benchwork. Hidden levels are missing here too.
 <p><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span> store the plan as a file with the extension
 <b>.trackmaster.json</b>. Opening (<kbd>Ctrl</kbd>+<kbd>O</kbd>) is also possible in the Basic edition. Plan files are interchangeable between Windows and Android
 and do not depend on the interface language. A plan file can also be opened with “Open with” or as a start parameter:
-<code>TrackMasterPro.exe MyLayout.trackmaster.json</code>.</p>
+<code>TrackMasterPro.exe MyLayout.trackmaster.json</code>.
+The plan remembers the selected track system; when it is opened, the library selects exactly this system again.</p>
 <p><b>Automatic backup:</b> while you work, the program regularly backs up the plan in the background. If it was not closed properly –
 for example after a power cut – it offers to restore the backed-up state at the next start. The backup does not replace saving.</p>
 

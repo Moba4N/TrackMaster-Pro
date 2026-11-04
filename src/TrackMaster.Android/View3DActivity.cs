@@ -29,7 +29,10 @@ public sealed class View3DActivity : Activity
     private LayoutPlan _plan = null!;
     private GLSurfaceView _view = null!;
     private SceneRenderer _renderer = null!;
-    private Button _ride = null!, _trainButton = null!, _switch = null!;
+    private Button _ride = null!, _trainButton = null!;
+    /// <summary>Richtungen an der nächsten Weiche: links, geradeaus, rechts.</summary>
+    private readonly Button[] _choiceButtons = new Button[3];
+    private LinearLayout _choiceRow = null!;
     private bool _riding, _trainOn;
     private Train3D _train = null!;
     private readonly Dictionary<int, int> _routes = [];
@@ -84,13 +87,21 @@ public sealed class View3DActivity : Activity
         row1.AddView(_ride);
         _trainButton = Ui.Button(this, Lang.T("Zug"), () => { if (_trainOn) StopTrain(); else StartTrain(); });
         row1.AddView(_trainButton);
-        _switch = Ui.Button(this, Lang.T("Weiche"), ToggleNextSwitch);
-        _switch.Enabled = false;
-        row1.AddView(_switch);
         _status = Ui.Label(this, "", 12.5, color: Ui.TextSecondary);
         row1.AddView(_status, Ui.Weight(1, vertical: false));
         row1.AddView(Ui.Button(this, Lang.T("Schließen"), Finish));
         bar.AddView(row1, Ui.Fill());
+        _choiceRow = Ui.Row(this, 6);
+        _choiceRow.AddView(Ui.Label(this, Lang.T("Richtung:"), 12.5, color: Ui.TextSecondary));
+        for (var i = 0; i < 3; i++)
+        {
+            var side = i - 1;
+            var choice = new RideChoice(0, side);
+            _choiceButtons[i] = Ui.Button(this, $"{choice.Arrow} {choice.Label}", () => ChooseDirection(side));
+            _choiceRow.AddView(_choiceButtons[i]);
+        }
+        _choiceRow.Visibility = ViewStates.Gone;
+        bar.AddView(_choiceRow, Ui.Fill());
         var row2 = Ui.Row(this, 6);
         row2.AddView(Ui.Label(this, Lang.T("Tageszeit"), 12.5, color: Ui.TextSecondary));
         _time = new SeekBar(this) { Max = 72, Progress = 32 };
@@ -296,7 +307,6 @@ public sealed class View3DActivity : Activity
         _lastFrame = 0;
         _renderer.Frame = OnFrame;
         _view.RenderMode = Rendermode.Continuously;
-        _switch.Enabled = true;
         UpdateStatus();
     }
 
@@ -305,8 +315,8 @@ public sealed class View3DActivity : Activity
         if (_riding || _trainOn) return;
         _renderer.Frame = null;
         _view.RenderMode = Rendermode.WhenDirty;
-        _switch.Enabled = false;
         _status.Text = "";
+        _choiceRow.Visibility = ViewStates.Gone;
     }
 
     private void StartRide()
@@ -343,30 +353,35 @@ public sealed class View3DActivity : Activity
         _view.RequestRender();
     }
 
-    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug um; der Weg dahinter wird neu bestimmt.</summary>
-    private void ToggleNextSwitch()
+    /// <summary>Richtung an der nächsten Weiche wählen: −1 links, 0 geradeaus, +1 rechts; nur der Weg dahinter wird neu bestimmt.</summary>
+    private void ChooseDirection(int side)
     {
-        if (_path?.NextSwitch(_position) is not { } next || _plan.Find(next.PieceId) is not { } piece) return;
-        lock (_routes)
-        {
-            _routes[piece.Id] = ((_routes.TryGetValue(piece.Id, out var r) ? r : 0) + 1) % RidePath.RouteCount(piece);
-            _path = RidePath.Build(_plan, _startPiece, _routes);
-        }
+        if (_path is null || !(_riding || _trainOn)) return;
+        lock (_routes) _path = _path.ChooseNext(_position, side, _routes);
         UpdateStatus();
     }
 
     private void UpdateStatus()
     {
         if (_path is not { } path) return;
-        var text = path.Closed ? Lang.T("Rundkurs") : Lang.T("Wendet an Prellböcken");
-        if (path.NextSwitch(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
+        IReadOnlyList<RideChoice> choices = [];
+        var route = -1;
+        lock (_routes)
         {
-            int route;
-            lock (_routes) route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
-            var setting = RidePath.RouteCount(piece) > 2 ? Lang.F($"Stellung {route + 1}") : route == 0 ? Lang.T("gerade") : Lang.T("abzweigend");
-            text += Lang.F($" · Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting}");
+            _status.Text = path.Describe(_position, _routes);
+            if ((_riding || _trainOn) && path.NextStop(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
+            {
+                choices = path.Choices(next);
+                route = RidePath.RouteOf(piece, _routes);
+            }
         }
-        _status.Text = text;
+        _choiceRow.Visibility = choices.Count > 0 ? ViewStates.Visible : ViewStates.Gone;
+        for (var i = 0; i < 3; i++)
+        {
+            var c = choices.FirstOrDefault(x => x.Side == i - 1);
+            _choiceButtons[i].Visibility = c is null ? ViewStates.Gone : ViewStates.Visible;
+            if (c is not null) Ui.SetButtonState(_choiceButtons[i], false, c.Route == route);
+        }
     }
 
     /// <summary>Läuft im Zeichen-Thread vor jedem Bild.</summary>
@@ -377,6 +392,7 @@ public sealed class View3DActivity : Activity
         var dt = _lastFrame == 0 ? 0 : Math.Min((now - _lastFrame) / 1000.0, 0.1);
         _lastFrame = now;
         _position += RidePath.ModelSpeed(_speedKmh, _plan.Gauge.Scale) * dt;
+        lock (_routes) path.EnsureAhead(_position, _routes);
         if (_position >= path.Length) _position = path.Closed ? _position % path.Length : Math.Min(_train.Length, path.Length);
         if (now - _lastStatus > 400) { _lastStatus = now; RunOnUiThread(UpdateStatus); }
         if (_riding)

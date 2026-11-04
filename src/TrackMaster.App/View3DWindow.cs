@@ -30,7 +30,9 @@ public sealed class View3DWindow : Window
     private readonly TextBlock _speedText = new() { Width = 70, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 16, 0) };
     private readonly ToggleButton _rideButton = new();
     private readonly ToggleButton _trainButton = new();
-    private readonly Button _switchButton;
+    /// <summary>Richtungen an der nächsten Weiche (links, geradeaus, rechts).</summary>
+    private readonly StackPanel _choices = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) };
+    private string _choiceKey = "";
     private readonly Model3DGroup _trainModel = new();
     private readonly Train3D _train;
     private readonly Dictionary<int, int> _routes = [];
@@ -99,11 +101,7 @@ public sealed class View3DWindow : Window
         _trainButton.ToolTip = Lang.T("Ein Zug fährt über die Anlage, die Ansicht bleibt frei drehbar.");
         _trainButton.Click += (_, _) => { if (_trainButton.IsChecked == true) StartTrain(); else StopTrain(); };
         toolbar.Children.Add(_trainButton);
-        _switchButton = Theme.Button(Lang.T("Weiche umstellen"), "Swap");
-        _switchButton.ToolTip = Lang.T("Stellt die nächste Weiche vor dem Zug um (W).");
-        _switchButton.Click += (_, _) => ToggleNextSwitch();
-        _switchButton.IsEnabled = false;
-        toolbar.Children.Add(_switchButton);
+        toolbar.Children.Add(_choices);
         toolbar.Children.Add(Theme.Label(Lang.T("Tageszeit"), 12, false, Theme.TextSecondaryBrush));
         toolbar.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         toolbar.Children.Add(new Border { Width = 8 });
@@ -174,6 +172,13 @@ public sealed class View3DWindow : Window
         {
             if (e.Key == Key.Escape) Close();
             if (e.Key == Key.W) ToggleNextSwitch();
+        };
+        // Richtung an der nächsten Weiche mit den Pfeiltasten (auch wenn gerade ein Regler den Fokus hat)
+        PreviewKeyDown += (_, e) =>
+        {
+            if (!Moving || e.Key is not (Key.Left or Key.Right or Key.Up)) return;
+            ChooseDirection(e.Key == Key.Left ? -1 : e.Key == Key.Right ? 1 : 0);
+            e.Handled = true;
         };
     }
 
@@ -281,7 +286,6 @@ public sealed class View3DWindow : Window
         _lastFrame = TimeSpan.Zero;
         CompositionTarget.Rendering -= OnFrame;
         CompositionTarget.Rendering += OnFrame;
-        _switchButton.IsEnabled = true;
         UpdateStatus();
     }
 
@@ -289,8 +293,8 @@ public sealed class View3DWindow : Window
     {
         if (Moving) return;
         CompositionTarget.Rendering -= OnFrame;
-        _switchButton.IsEnabled = false;
         _status.Text = "";
+        UpdateChoices();
     }
 
     private void StartRide()
@@ -325,26 +329,54 @@ public sealed class View3DWindow : Window
         StopMovingIfIdle();
     }
 
-    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug um; der Weg dahinter wird neu bestimmt.</summary>
+    /// <summary>Stellt die nächste spitz befahrene Weiche vor dem Zug weiter; nur der Weg dahinter wird neu bestimmt.</summary>
     private void ToggleNextSwitch()
     {
-        if (!Moving || _path?.NextSwitch(_position) is not { } next || _plan.Find(next.PieceId) is not { } piece) return;
-        _routes[piece.Id] = ((_routes.TryGetValue(piece.Id, out var r) ? r : 0) + 1) % RidePath.RouteCount(piece);
-        _path = RidePath.Build(_plan, _startPiece, _routes);
+        if (!Moving || _path is null) return;
+        _path = _path.CycleNextRoute(_position, _routes);
+        UpdateStatus();
+    }
+
+    /// <summary>Richtung an der nächsten Weiche wählen: −1 links, 0 geradeaus, +1 rechts.</summary>
+    private void ChooseDirection(int side)
+    {
+        if (!Moving || _path is null) return;
+        _path = _path.ChooseNext(_position, side, _routes);
         UpdateStatus();
     }
 
     private void UpdateStatus()
     {
         if (_path is null) return;
-        var text = _path.Closed ? Lang.T("Rundkurs") : Lang.T("Wendet an Prellböcken und Gleisenden");
-        if (_path.NextSwitch(_position) is { } next && _plan.Find(next.PieceId) is { } piece)
+        _status.Text = _path.Describe(_position, _routes) + (_path.NextStop(_position) is null ? "" : Lang.T(" · Pfeiltasten wählen die Richtung"));
+        UpdateChoices();
+    }
+
+    /// <summary>Knöpfe für die Richtungen an der nächsten Weiche; nur neu aufbauen, wenn sich Weiche oder Stellung ändern.</summary>
+    private void UpdateChoices()
+    {
+        var next = Moving ? _path?.NextStop(_position) : null;
+        var piece = next is { } n ? _plan.Find(n.PieceId) : null;
+        var route = piece is null ? -1 : RidePath.RouteOf(piece, _routes);
+        var key = $"{next?.PieceId}|{next?.Distance:0}|{route}";
+        if (key == _choiceKey) return;
+        _choiceKey = key;
+        _choices.Children.Clear();
+        if (next is not { } stop || piece is null) return;
+        _choices.Children.Add(Theme.Label(Lang.T("Richtung:"), 12, false, Theme.TextSecondaryBrush));
+        _choices.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        foreach (var c in _path!.Choices(stop))
         {
-            var route = _routes.TryGetValue(piece.Id, out var r) ? r : 0;
-            var setting = RidePath.RouteCount(piece) > 2 ? Lang.F($"Stellung {route + 1}") : route == 0 ? Lang.T("Grundstellung") : Lang.T("abzweigend");
-            text += Lang.F($" · Nächste Weiche Nr. {piece.Id} in {Fmt.Num((next.Distance - _position) / 10, 0)} cm: {setting} (W stellt um)");
+            var b = new ToggleButton
+            {
+                Content = $"{c.Arrow} {c.Label}", IsChecked = c.Route == route, Height = 30, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0),
+                Template = Theme.RoundedTemplate(), BorderThickness = new Thickness(1), Focusable = false,
+                ToolTip = Lang.T("An der nächsten Weiche in diese Richtung fahren (Pfeiltasten)"),
+            };
+            var side = c.Side;
+            b.Click += (_, _) => ChooseDirection(side);
+            _choices.Children.Add(b);
         }
-        _status.Text = text;
     }
 
     private void OnFrame(object? sender, EventArgs e)
@@ -356,6 +388,7 @@ public sealed class View3DWindow : Window
         // Vorbildgeschwindigkeit im Maßstab
         var before = _path?.NextSwitch(_position);
         _position += RidePath.ModelSpeed(_speed.Value, _plan.Gauge.Scale) * dt;
+        _path?.EnsureAhead(_position, _routes);
         if (_path is { } path && _position >= path.Length) _position = path.Closed ? _position % path.Length : Math.Min(_train.Length, path.Length);
         if (!Equals(before, _path?.NextSwitch(_position)) || (now.TotalMilliseconds % 500) < 20) UpdateStatus();
         if (_rideButton.IsChecked == true) PlaceRideCamera();

@@ -9,12 +9,16 @@ public enum HelixConstruction { Gewindestangen, Spanten }
 /// Angaben für eine Gleiswendel: rund oder oval (zwei Halbkreise mit geraden Stücken dazwischen), ein- oder zweigleisig.
 /// Beim zweigleisigen Bau liegt das zweite Gleis außen, im Abstand <see cref="Spacing"/>; ohne passendes Katalog-Bogengleis
 /// (<see cref="OuterCurveKey"/> = null) wird es aus Flexgleis mit genau diesem Radius gebaut.
+/// <see cref="StartHeight"/>: Höhe am Wendelanfang (sonst Höhe des Anschlussgleises bzw. Grundhöhe der Ebene);
+/// <see cref="Level"/>: Ebene der ersten Windung (sonst die aktive Ebene). Mit <see cref="LevelPerTurn"/> kommt jede weitere
+/// volle Windung auf eine eigene, neu angelegte Ebene, damit sich die Windungen später einzeln bearbeiten lassen.
 /// </summary>
 public sealed record HelixSpec(
     string CurveKey, double Turns, double Rise, bool RightHand,
     HelixShape Shape = HelixShape.Rund, string? StraightKey = null, int StraightCount = 0,
     int Tracks = 1, double Spacing = 0, string? OuterCurveKey = null,
-    HelixConstruction Construction = HelixConstruction.Gewindestangen, double? Edge = null)
+    HelixConstruction Construction = HelixConstruction.Gewindestangen, double? Edge = null,
+    double? StartHeight = null, int? Level = null, bool LevelPerTurn = false)
 {
     public TrackPieceDef Curve => Catalog.Get(CurveKey);
     public TrackPieceDef? Straight => Shape == HelixShape.Oval && StraightKey is not null && StraightCount > 0 ? Catalog.Get(StraightKey) : null;
@@ -146,18 +150,20 @@ public static class Helix
 
         Pose at;
         double z;
+        var baseLevel = Math.Clamp(spec.Level ?? plan.ActiveLevel, 0, plan.Levels.Count - 1);
         if (start is not null)
         {
             at = start.Pose;
-            z = start.Z;
+            z = spec.StartHeight ?? start.Z;
         }
         else
         {
             // Unterer Halbkreis beginnt unten in der Mitte, Fahrtrichtung nach rechts (bei Linksbögen gegen den Uhrzeigersinn)
             at = new Pose(center.X - spec.StraightLength / 2, center.Y + (spec.RightHand ? -inner.Radius : inner.Radius), 0);
-            z = 0;
+            z = spec.StartHeight ?? plan.Levels[baseLevel].Height;
         }
-        var pieces = Track(plan, spec, spec.CurveKey, at, z);
+        var levels = TurnLevels(plan, spec, baseLevel, z);
+        var pieces = Track(plan, spec, spec.CurveKey, at, z, levels);
         var outer = new List<PlacedPiece>();
         if (spec.Tracks == 2)
         {
@@ -167,7 +173,7 @@ public static class Helix
             var side = spec.RightHand ? -1 : 1;
             var outerStart = new Pose(at.X - Math.Sin(h) * d * side, at.Y + Math.Cos(h) * d * side, at.Heading);
             var outerKey = spec.OuterCurveKey ?? OuterFlexKey(plan, spec);
-            outer = Track(plan, spec with { CurveKey = outerKey }, outerKey, outerStart, z);
+            outer = Track(plan, spec with { CurveKey = outerKey }, outerKey, outerStart, z, levels);
         }
         return (pieces, outer);
     }
@@ -180,7 +186,51 @@ public static class Helix
         return Catalog.FlexCurveKey(plan.GaugeId, inner.Radius + spec.Spacing, inner.Angle, stock.SystemId);
     }
 
-    private static List<PlacedPiece> Track(LayoutPlan plan, HelixSpec spec, string curveKey, Pose at, double z)
+    /// <summary>Anzahl der (auch angefangenen) Windungen.</summary>
+    public static int TurnCount(HelixSpec spec) => Math.Max(1, (int)Math.Ceiling(spec.Turns - 0.01));
+
+    /// <summary>
+    /// Ebene je Windung: die erste auf <paramref name="baseLevel"/>, mit <see cref="HelixSpec.LevelPerTurn"/> jede weitere auf einer neuen Ebene
+    /// mit der Höhe am Anfang der Windung (angelegt, sobald die Windung ein Gleis bekommt). Sind schon <see cref="LayoutPlan.MaxLevels"/> Ebenen da,
+    /// bleiben die restlichen Windungen auf der letzten.
+    /// </summary>
+    private static Func<int, int> TurnLevels(LayoutPlan plan, HelixSpec spec, int baseLevel, double z)
+    {
+        var levels = new List<int> { baseLevel };
+        return k =>
+        {
+            while (levels.Count <= k)
+            {
+                var n = levels.Count;
+                if (!spec.LevelPerTurn || plan.Levels.Count >= LayoutPlan.MaxLevels) levels.Add(levels[^1]);
+                else
+                {
+                    plan.Levels.Add(new PlanLevel { Name = Lang.F($"Gleiswendel – Windung {n + 1}"), Height = Math.Round(z + n * spec.Rise) });
+                    levels.Add(plan.Levels.Count - 1);
+                }
+            }
+            return levels[k];
+        };
+    }
+
+    /// <summary>Wie viele neue Ebenen die Wendel anlegen würde (für den Hinweis im Dialog).</summary>
+    public static int NewLevels(LayoutPlan plan, HelixSpec spec)
+        => spec.LevelPerTurn ? Math.Max(0, Math.Min(TurnCount(spec) - 1, LayoutPlan.MaxLevels - plan.Levels.Count)) : 0;
+
+    /// <summary>Hinweis im Wendel-Dialog: Anfangs- und Endhöhe, neue Ebenen.</summary>
+    public static string LevelText(LayoutPlan plan, HelixSpec spec)
+    {
+        var z0 = spec.StartHeight ?? 0;
+        var levels = NewLevels(plan, spec);
+        var text = Lang.F($"Von {Fmt.Num(z0, 0)} mm auf {Fmt.Num(z0 + spec.TotalHeight, 0)} mm.");
+        if (spec.LevelPerTurn && TurnCount(spec) > 1)
+            text += " " + (levels >= TurnCount(spec) - 1
+                ? Lang.F($"Dazu {levels} neue Ebenen, je Windung eine.")
+                : Lang.F($"Es passen nur noch {levels} neue Ebenen (höchstens {LayoutPlan.MaxLevels}); die übrigen Windungen bleiben auf der letzten."));
+        return text;
+    }
+
+    private static List<PlacedPiece> Track(LayoutPlan plan, HelixSpec spec, string curveKey, Pose at, double z, Func<int, int> levels)
     {
         var curve = Catalog.Get(curveKey);
         var half = (int)Math.Round(180 / curve.Angle);
@@ -209,6 +259,7 @@ public static class Helix
             PlanEditing.PlaceAt(p, 0, at.X, at.Y, at.Heading);
             p.Height = z;
             p.Grade = grade;
+            p.Level = levels(i / turn.Count);
             z = p.ConnectorHeights()[1];
             at = p.WorldConnectors()[1];
             pieces.Add(p);

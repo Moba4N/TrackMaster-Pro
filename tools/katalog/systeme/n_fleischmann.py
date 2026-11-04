@@ -6,8 +6,8 @@ SPUR, ID, NAME, REIHENFOLGE = "N", "rf-n", "Roco/Fleischmann ohne Bettung", 1
 QUELLEN = [
     "FLEISCHMANN Zubehör-Katalog (deutsche Ausgabe): N-Gleissystem ohne Schotterbett, Artikelangaben und Gleisgeometrie (S. 36–41)",
 ]
-FLEX_NUMBER, FLEX_LENGTH = "22200", 730
-MORE_FLEX = [dict(nr="22201", len=730, label="Flexgleis, weniger flexibel")]
+FLEX_NUMBER, FLEX_LENGTH = "22200", 730.6  # Flexgleis, elastisch
+MORE_FLEX = [dict(nr="22201", len=730.6, label="Flexgleis, eingespritzt")]
 
 # Gleisabstand 33,6 mm. Weiche 15°: Abzweig R 362,6 mm (R5); das gerade Stück nach dem Bogen folgt aus dem
 # Gleisabstand (zwei Weichen ergeben eine Gleisverbindung). Weiche 24°: Abzweig R1 ohne Verlängerung.
@@ -15,7 +15,7 @@ ABSTAND = 33.6
 NACHLAUF15 = round((ABSTAND / 2 - 362.6 * (1 - math.cos(math.radians(15)))) / math.sin(math.radians(15)), 2)
 
 TEILE = [
-    S(22202, 312.6), S(22203, 104.2), S(22204, 54.2), S(22205, 50), S(22206, 33.6), S(22207, 17.2),
+    S(22202, 312.6), S(22203, 104.2), S(22204, 54.2), S(22205, 50), S(22206, 33.6), S(22207, 12.2),
     S(22210, 104.2, "Aufgleisgleis"), S(22212, 104.2, "Entkupplungsgleis"), S(22220, 104.2, "Anschlussgleis"),
     C(22221, 194.6, 30, "R1"), C(22231, 194.6, 24, "R1"), C(22232, 194.6, 6, "R1"),
     C(22222, 228.2, 30, "R2"), C(22233, 228.2, 24, "R2"), C(22234, 228.2, 6, "R2"),

@@ -93,8 +93,8 @@ public class FlexTrackTests
     {
         var gauge = Catalog.GetGauge("N");
         var flex = Catalog.Flexes(gauge, Catalog.GetSystem("N", "rf-n"));
-        Assert.Contains(flex, f => f.Number == "22200" && f.Length == 730);
-        Assert.Contains(flex, f => f.Number == "22201" && f.Length == 730);
+        Assert.Contains(flex, f => f.Number == "22200" && f.Length == 730.6);
+        Assert.Contains(flex, f => f.Number == "22201" && f.Length == 730.6);
         var stock = flex.Single(f => f.Number == "22201");
         Assert.Equal("22201", Catalog.Get(Catalog.FlexStraightKey("N", 300, stock.SystemId)).Number);
     }

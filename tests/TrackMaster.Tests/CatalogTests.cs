@@ -195,3 +195,86 @@ public class FlexTests
         Assert.Equal(2, k.Count); // 1050 mm mit Verschnitt → 2 Stücke zu 900 mm
     }
 }
+
+public class FleischmannNTests
+{
+    [Fact]
+    public void Gleise_ohne_Bettung_haben_die_Laengen_aus_dem_Herstellerkatalog()
+    {
+        var sys = Catalog.GetSystem("N", "rf-n");
+        double Len(string nr) => sys.Pieces.First(p => p.Number == nr).Length;
+        Assert.Equal(12.2, Len("22207"));
+        Assert.Equal(33.6, Len("22206"));
+        Assert.Equal(50, Len("22205"));
+        Assert.Equal(54.2, Len("22204"));
+        Assert.Equal(104.2, Len("22203"));
+        Assert.Equal(312.6, Len("22202"));
+        Assert.Equal(730.6, sys.FlexLength);
+        Assert.Equal(730.6, sys.MoreFlex.Single(f => f.Number == "22201").Length);
+        // Bögen: Winkel laut Tabelle
+        foreach (var (nr, a) in new[] { ("22232", 6.0), ("22231", 24), ("22221", 30), ("22234", 6), ("22233", 24), ("22222", 30), ("22223", 30),
+                     ("22235", 15), ("22224", 30), ("22225", 15), ("22226", 15), ("22227", 15), ("22228", 12) })
+            Assert.Equal(a, sys.Pieces.First(p => p.Number == nr).Angle);
+    }
+}
+
+public class MinitrixTests
+{
+    [Fact]
+    public void Gleise_haben_die_Masse_aus_dem_Minitrix_Prospekt()
+    {
+        var sys = Catalog.GetSystem("N", "minitrix");
+        TrackPieceDef P(string nr) => sys.Pieces.First(p => p.Number == nr);
+        foreach (var (nr, len) in new[] { ("14902", 312.6), ("14904", 104.2), ("14905", 76.3), ("14906", 54.2), ("14907", 50.0),
+                     ("14909", 33.6), ("14908", 27.9), ("14903", 17.2), ("14999", 59.0), ("14975", 120.0) })
+            Assert.Equal(len, P(nr).Length);
+        Assert.Equal(730, sys.FlexLength);
+        foreach (var (nr, r, a) in new[] { ("14912", 194.6, 30.0), ("14914", 194.6, 24), ("14916", 194.6, 6), ("14922", 228.2, 30), ("14924", 228.2, 24),
+                     ("14926", 228.2, 6), ("14917", 329.0, 15), ("14927", 362.6, 15), ("14918", 492.6, 15), ("14928", 526.2, 15) })
+        {
+            Assert.Equal(r, P(nr).Radius);
+            Assert.Equal(a, P(nr).Angle);
+        }
+    }
+
+    [Fact]
+    public void Zwei_Weichen_15_Grad_ergeben_den_Gleisabstand()
+    {
+        var w = Catalog.GetSystem("N", "minitrix").Pieces.First(p => p.Number == "14938");
+        var branch = w.Paths![1];
+        var (r, a, tail) = (branch[0].Radius, branch[0].Angle * Math.PI / 180, branch[1].Length);
+        var offset = r * (1 - Math.Cos(a)) + tail * Math.Sin(a);
+        Assert.Equal(33.6, 2 * offset, 1);
+    }
+}
+
+public class PiccoloTests
+{
+    [Fact]
+    public void Elektromagnetische_Weichen_stehen_mit_eigener_Nummer_in_der_Bibliothek()
+    {
+        var sys = Catalog.GetSystem("N", "picc");
+        TrackPieceDef P(string nr) => sys.Pieces.First(p => p.Number == nr);
+        foreach (var (hand, elektro) in new[] { ("9170", "9172"), ("9171", "9173"), ("9178", "9180"), ("9179", "9181"), ("9157", "9158"),
+                     ("9174", "9176"), ("9175", "9177"), ("9168", "9182"), ("9169", "9183"), ("9184", "9186"), ("9185", "9187") })
+        {
+            var (h, e) = (P(hand), P(elektro));
+            Assert.Equal(h.Kind, e.Kind);
+            Assert.Equal(h.Length, e.Length);
+            Assert.Equal(h.Radius, e.Radius);
+            Assert.Equal(h.Angle, e.Angle);
+            Assert.Equal(h.RightHand, e.RightHand);
+            Assert.Contains("elektromagnetisch", e.Name);
+        }
+        // Gleise aus der Übersicht
+        foreach (var (nr, len) in new[] { ("9100", 222.0), ("9101", 111), ("9102", 57.5), ("9103", 55.5), ("9108", 111), ("9112", 111), ("9114", 111), ("9115", 55.5) })
+            Assert.Equal(len, P(nr).Length);
+        foreach (var (nr, r, a) in new[] { ("9120", 192.0, 45.0), ("9122", 192, 15), ("9123", 192, 7.5), ("9125", 225.6, 45), ("9127", 225.6, 15),
+                     ("9128", 225.6, 7.5), ("9130", 396.4, 30), ("9131", 396.4, 15), ("9135", 430, 30), ("9136", 430, 15) })
+            Assert.Equal((r, a), (P(nr).Radius, P(nr).Angle));
+        Assert.Equal(777, sys.FlexLength);
+        // DKW 9164–9167 öffnen als gleiche Form
+        Assert.Equal("9184", Catalog.Get("N|picc|9164").Number);
+        Assert.Equal("9187", Catalog.Get("N|picc|9167").Number);
+    }
+}

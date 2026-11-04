@@ -5,6 +5,7 @@ unverändert übernommen.
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "TT", "piko-tt", "Piko TT", 4
+GLEISABSTAND = 43  # Parallelgleisabstand Mitte zu Mitte (mm); aus den Radien (Abstand 43 mm)
 VERIFIED = False
 QUELLEN = ["TrackMaster Pro (eigene Maße)"]
 

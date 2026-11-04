@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "mk", "Märklin K-Gleis", 2
+GLEISABSTAND = 64.6  # Parallelgleisabstand Mitte zu Mitte (mm)
 THREE_RAIL = True
 FLEX_NUMBER, FLEX_LENGTH = "2205", 900
 QUELLEN = [

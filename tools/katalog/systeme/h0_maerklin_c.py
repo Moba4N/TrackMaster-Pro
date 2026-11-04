@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "mc", "Märklin C-Gleis", 0
+GLEISABSTAND = 77.5  # Parallelgleisabstand Mitte zu Mitte (mm)
 THREE_RAIL = True
 QUELLEN = [
     "https://www.maerklinshop.de/en/maerklin/gauge-h0/railtracks/c-gauge/ (Produktseiten der Artikel, Stand 10/2026)",

@@ -2159,12 +2159,26 @@
     {
         var gauge = _session.Plan.Gauge;
         _d.Clear();
-        _d["spacing"] = N(Helix.DefaultSpacing(gauge));
+        _d["spacing"] = N(Helix.DefaultSpacing(gauge, _session.CurrentSystem), 2);
         _d["left"] = "1";
+        var choices = Helix.SpacingChoices(gauge);
         var d = Show(Lang.T("Parallelgleis"), @<div class="form">
             @Hint(Lang.T("Legt ein Flexgleis im festen Abstand neben die gewählten Gleise – Bögen bekommen den passenden größeren bzw. kleineren Radius. Die Seite gilt in Fahrtrichtung, die Kette läuft möglichst von links nach rechts."))
             <label class="field-label">@Lang.T("Gleisabstand Mitte zu Mitte (mm)")</label>
             <input class="input" inputmode="decimal" @bind='_d["spacing"]' @bind:event="oninput" />
+            @if (choices.Count > 0)
+            {
+                var current = Fmt.Parse(D("spacing"));
+                <label class="field-label">@Lang.T("Gleisabstand der Hersteller")</label>
+                <select class="input" value="@(choices.Any(c => c.Spacing == current) ? N(current!.Value, 2) : "")"
+                        @onchange="@(e => { if (e.Value?.ToString() is { Length: > 0 } v) _d["spacing"] = v; })">
+                    <option value="">@Lang.T("eigener Wert")</option>
+                    @foreach (var c in choices)
+                    {
+                        <option value="@N(c.Spacing, 2)">@c.Label</option>
+                    }
+                </select>
+            }
             <div class="button-row">
                 <label class="check"><input type="radio" name="side" checked="@(D("left") == "1")" @onchange="@(() => _d["left"] = "1")" /> @Lang.T("links (meist oben)")</label>
                 <label class="check"><input type="radio" name="side" checked="@(D("left") != "1")" @onchange="@(() => _d["left"] = "")" /> @Lang.T("rechts (meist unten)")</label>

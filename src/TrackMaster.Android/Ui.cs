@@ -138,7 +138,7 @@ public static class Ui
     /// <summary>Zahlenfeld mit deutscher Schreibweise (Komma) und Minuszeichen.</summary>
     public static EditText Number(Context c, double value, int decimals = 0, bool signed = false)
     {
-        var e = new EditText(c) { Text = Core.Fmt.Num(value, decimals).Replace(".", "") };
+        var e = new EditText(c) { Text = Core.Fmt.Num(value, decimals).Replace(Core.Lang.IsEnglish ? "," : ".", "") };
         e.InputType = InputTypes.ClassNumber | InputTypes.NumberFlagDecimal | (signed ? InputTypes.NumberFlagSigned : 0);
         e.KeyListener = Android.Text.Method.DigitsKeyListener.GetInstance("0123456789,.-");
         e.SetSingleLine(true);

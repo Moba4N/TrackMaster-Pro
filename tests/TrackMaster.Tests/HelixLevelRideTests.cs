@@ -193,3 +193,24 @@ public class OpenSystemTests
         Assert.Equal(chosen.Id, t.Plan.SystemId);
     }
 }
+
+public class ParallelSpacingTests
+{
+    [Fact]
+    public void Gleisabstand_kommt_vom_Gleissystem_und_die_Auswahl_nennt_die_Hersteller()
+    {
+        var n = Catalog.GetGauge("N");
+        var piccolo = n.Systems.First(s => s.Id == "picc");
+        Assert.Equal(33.6, Helix.DefaultSpacing(n, piccolo));
+        Assert.Equal(33, Helix.DefaultSpacing(n, n.Systems.First(s => s.Id == "kato")));
+        var choices = Helix.SpacingChoices(n);
+        Assert.Equal([33, 33.6], choices.Select(c => c.Spacing));
+        Assert.Contains("Minitrix", choices[1].Label);
+        Assert.Contains(piccolo.Name, choices[1].Label);
+        // ohne Herstellerangabe: üblicher Wert der Spur
+        var h0 = Catalog.GetGauge("H0");
+        Assert.Equal(62, Helix.DefaultSpacing(h0, h0.Systems.First(s => s.Id == "weinert")));
+        Assert.Equal(77.5, Helix.DefaultSpacing(h0, h0.Systems.First(s => s.Id == "mc")));
+        Assert.Equal(62, Helix.DefaultSpacing(h0));
+    }
+}

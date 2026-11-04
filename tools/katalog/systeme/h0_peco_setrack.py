@@ -3,6 +3,7 @@ import math
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "peco-st-h0", "Peco Setrack H0", 15
+GLEISABSTAND = 67  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = [
     "PECO Gesamtkatalog (deutsche Ausgabe 2002): Setrack Code 100, S. 8–9 (Längen, Radien, Kreisteilung, Herzstückwinkel)",
 ]

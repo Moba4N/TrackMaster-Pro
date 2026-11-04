@@ -102,12 +102,24 @@ public static partial class Dialogs
 
     // ---------- Parallelgleis ----------
 
-    public static void AskParallel(Context c, Gauge gauge, Func<double, bool, bool> build)
+    public static void AskParallel(Context c, Gauge gauge, TrackSystem system, Func<double, bool, bool> build)
     {
         var body = Ui.Column(c, 8);
         body.AddView(Hint(c, Lang.T("Legt ein Flexgleis im festen Abstand neben die gewählten Gleise – Bögen bekommen den passenden größeren bzw. kleineren Radius. Die Seite gilt in Fahrtrichtung, die Kette läuft möglichst von links nach rechts.")));
-        var spacing = Ui.Number(c, Helix.DefaultSpacing(gauge));
+        var spacing = Ui.Number(c, Helix.DefaultSpacing(gauge, system), 2);
         body.AddView(Ui.Field(c, Lang.T("Gleisabstand Mitte zu Mitte (mm)"), spacing));
+        var choices = Helix.SpacingChoices(gauge);
+        if (choices.Count > 0)
+        {
+            var current = Ui.Parse(spacing, 0);
+            var makers = Choice(c, [Lang.T("eigener Wert"), .. choices.Select(x => x.Label)], choices.ToList().FindIndex(x => x.Spacing == current) + 1);
+            makers.ItemSelected += (_, e) =>
+            {
+                if (e.Position > 0 && Ui.Parse(spacing, 0) != choices[e.Position - 1].Spacing)
+                    spacing.Text = Fmt.Num(choices[e.Position - 1].Spacing, 2).Replace(Lang.IsEnglish ? "," : ".", "");
+            };
+            body.AddView(Ui.Field(c, Lang.T("Gleisabstand der Hersteller"), makers));
+        }
         var group = new RadioGroup(c) { Orientation = Orientation.Horizontal };
         var left = new RadioButton(c) { Text = Lang.T("links (meist oben)"), Id = View.GenerateViewId() };
         var right = new RadioButton(c) { Text = Lang.T("rechts (meist unten)"), Id = View.GenerateViewId() };

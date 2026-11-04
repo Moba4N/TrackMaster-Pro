@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "N", "kato", "Kato Unitrack", 0
+GLEISABSTAND = 33  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = [
     "KATO UNITRACK Katalog Spur N / H0e / H0 (deutsche Ausgabe): Artikellisten, Gleisgeometrie und Abmessungen (S. 8–28)",
     "https://unitrack.katomodels.com/products/line_single (Gleise mit Betonschwellen, Stand 10/2026)",

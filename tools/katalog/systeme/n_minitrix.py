@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "N", "minitrix", "Minitrix", 3
+GLEISABSTAND = 33.6  # Parallelgleisabstand Mitte zu Mitte (mm); aus den Radien R1 194,6, R2 228,2 mm
 FLEX_NUMBER, FLEX_LENGTH = "14901", 730
 QUELLEN = [
     "https://www.maerklinshop.de/en/trix/minitrix/railtracks/ (Produktseiten der Artikel 149xx, Stand 10/2026)",

@@ -246,7 +246,7 @@ public sealed class MainWindow : Window
         Add("alignB", () => Session.Align(AlignMode.Bottom), Several);
         Add("alignCX", () => Session.Align(AlignMode.CenterX), Several);
         Add("alignCY", () => Session.Align(AlignMode.CenterY), Several);
-        Add("parallel", () => { if (Dialogs.AskParallel(this, Session.Plan.Gauge) is { } p) Session.AddParallel(p.Spacing, p.Left); }, HasSelection);
+        Add("parallel", () => { if (Dialogs.AskParallel(this, Session.Plan.Gauge, Session.CurrentSystem) is { } p) Session.AddParallel(p.Spacing, p.Left); }, HasSelection);
         Add("profile", () => { if (Session.Profile() is { } profile) Dialogs.ShowProfile(this, profile); });
         Add("roomRect", () =>
         {

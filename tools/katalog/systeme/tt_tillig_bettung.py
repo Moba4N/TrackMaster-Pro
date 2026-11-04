@@ -3,6 +3,7 @@ import math
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "TT", "tillig-bett", "Tillig Bettungsgleis", 2
+GLEISABSTAND = 43  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = [
     "https://shop.tillig.com/de/tt-modellbahnen/bettungsgleissystem/ (Artikel mit Länge, Radius und Abzweigwinkel, Stand 10/2026)",
 ]

@@ -217,3 +217,33 @@ public class FleischmannNTests
             Assert.Equal(a, sys.Pieces.First(p => p.Number == nr).Angle);
     }
 }
+
+public class MinitrixTests
+{
+    [Fact]
+    public void Gleise_haben_die_Masse_aus_dem_Minitrix_Prospekt()
+    {
+        var sys = Catalog.GetSystem("N", "minitrix");
+        TrackPieceDef P(string nr) => sys.Pieces.First(p => p.Number == nr);
+        foreach (var (nr, len) in new[] { ("14902", 312.6), ("14904", 104.2), ("14905", 76.3), ("14906", 54.2), ("14907", 50.0),
+                     ("14909", 33.6), ("14908", 27.9), ("14903", 17.2), ("14999", 59.0), ("14975", 120.0) })
+            Assert.Equal(len, P(nr).Length);
+        Assert.Equal(730, sys.FlexLength);
+        foreach (var (nr, r, a) in new[] { ("14912", 194.6, 30.0), ("14914", 194.6, 24), ("14916", 194.6, 6), ("14922", 228.2, 30), ("14924", 228.2, 24),
+                     ("14926", 228.2, 6), ("14917", 329.0, 15), ("14927", 362.6, 15), ("14918", 492.6, 15), ("14928", 526.2, 15) })
+        {
+            Assert.Equal(r, P(nr).Radius);
+            Assert.Equal(a, P(nr).Angle);
+        }
+    }
+
+    [Fact]
+    public void Zwei_Weichen_15_Grad_ergeben_den_Gleisabstand()
+    {
+        var w = Catalog.GetSystem("N", "minitrix").Pieces.First(p => p.Number == "14938");
+        var branch = w.Paths![1];
+        var (r, a, tail) = (branch[0].Radius, branch[0].Angle * Math.PI / 180, branch[1].Length);
+        var offset = r * (1 - Math.Cos(a)) + tail * Math.Sin(a);
+        Assert.Equal(33.6, 2 * offset, 1);
+    }
+}

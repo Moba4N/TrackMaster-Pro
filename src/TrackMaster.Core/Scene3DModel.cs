@@ -89,11 +89,17 @@ public sealed class Scene3DModel
     /// <summary>Gelände zeigen (Wiese, Hügel, Gewässer, Gebäude, Bäume) oder nur Platte und Gleise.</summary>
     public bool Scenery { get; }
 
-    public Scene3DModel(LayoutPlan plan, bool scenery = true)
+    /// <summary>Stützen unter hochliegenden Gleisen zeigen (je eine rechts und links neben dem Gleis) oder weglassen.</summary>
+    public bool Piers { get; }
+
+    public static readonly Rgb PierColor = new(0xA8, 0xA4, 0x9C);
+
+    public Scene3DModel(LayoutPlan plan, bool scenery = true, bool piers = false)
     {
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
         Scenery = scenery;
+        Piers = piers;
         Build();
     }
 
@@ -542,7 +548,7 @@ public sealed class Scene3DModel
         var sleeperTones = new[] { Mesh(new Rgb(0x4E, 0x3E, 0x30)), Mesh(new Rgb(0x5C, 0x4A, 0x3A)), Mesh(new Rgb(0x46, 0x3A, 0x30)) };
         var rail = Mesh(RailColor, SurfaceKind.Rail);
         var railSide = Mesh(RailSideColor);
-        var pier = Mesh(new Rgb(0xA8, 0xA4, 0x9C));
+        var pier = Mesh(PierColor);
         var tunnel = Mesh(new Rgb(0x7A, 0x72, 0x66));
         for (var li = 0; li < legs.Count; li++)
         {
@@ -612,10 +618,28 @@ public sealed class Scene3DModel
             var zm = p.HeightAt(li, 0.5);
             var below = Scenery ? TerrainField.GroundAt(_plan, mid.X, mid.Y) : 0;
             if (Scenery && !p.Tunnel && zm - below > g * 1.5 && Embankment(p, pts, lift)) continue;
-            if (zm - below > g * 1.5 && !p.Tunnel)
+            if (Piers && zm - below > g * 1.5 && !p.Tunnel)
             {
-                var w = g * 0.6;
-                pier.Box(P(mid.X - w, mid.Y - w, below), P(mid.X + w, mid.Y + w, zm));
+                // je eine Stütze rechts und links neben dem Schotterbett, damit die Gleismitte frei bleibt
+                var w = g * 0.4;
+                double nx = -Math.Sin(mid.HeadingRad), ny = Math.Cos(mid.HeadingRad), off = 1.45 * g + w;
+                foreach (var side in new[] { -1, 1 })
+                {
+                    double cx = mid.X + nx * off * side, cy = mid.Y + ny * off * side;
+                    var foot = Scenery ? TerrainField.GroundAt(_plan, cx, cy) : 0;
+                    pier.Box(P(cx - w, cy - w, foot), P(cx + w, cy + w, zm));
+                }
+                // Querträger unter dem Gleis verbindet die beiden Stützen
+                double tx = Math.Cos(mid.HeadingRad), ty = Math.Sin(mid.HeadingRad), half = off + w, zt = zm, zb = zm - 0.35 * g;
+                Vec3 Corner(int s, int t, double z) => P(mid.X + nx * half * s + tx * w * t, mid.Y + ny * half * s + ty * w * t, z);
+                var c = new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) };
+                pier.Quad(Corner(-1, -1, zb), Corner(1, -1, zb), Corner(1, 1, zb), Corner(-1, 1, zb));
+                for (var k = 0; k < 4; k++)
+                {
+                    var (s0, t0) = c[k];
+                    var (s1, t1) = c[(k + 1) % 4];
+                    pier.Quad(Corner(s0, t0, zb), Corner(s0, t0, zt), Corner(s1, t1, zt), Corner(s1, t1, zb));
+                }
             }
         }
         if (p.Def.Kind == PieceKind.Buffer)

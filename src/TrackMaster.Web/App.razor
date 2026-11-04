@@ -193,7 +193,8 @@
                 </div>
                 <div class="row">
                     <button class="btn @(_scenery3D ? "on" : "")" title="@Lang.T("Gelände, Gewässer, Gebäude und Bäume zeigen")" @onclick="@(() => SetScenery3D(true))">@Lang.T("Mit Gelände")</button>
-                    <button class="btn @(!_scenery3D ? "on" : "")" title="@Lang.T("Nur Platte, Gleise und Pfeiler zeigen")" @onclick="@(() => SetScenery3D(false))">@Lang.T("Nur Gleisplan")</button>
+                    <button class="btn @(!_scenery3D ? "on" : "")" title="@Lang.T("Nur Platte und Gleise zeigen")" @onclick="@(() => SetScenery3D(false))">@Lang.T("Nur Gleisplan")</button>
+                    <button class="btn @(_piers3D ? "on" : "")" title="@Lang.T("Stützen unter hochliegenden Gleisen zeigen")" @onclick="TogglePiers3D">@Lang.T("Stützen")</button>
                     <span class="secondary small" style="margin-left:12px">@Lang.T("Drehen:")</span>
                     <button class="btn" disabled="@_riding" title="@Lang.T("Um die Querachse kippen (X)")" @onclick="@(() => Js.GlTurn(0, 15))">X ↻</button>
                     <button class="btn" disabled="@_riding" title="@Lang.T("Um die Hochachse drehen (Y)")" @onclick="@(() => Js.GlTurn(1, 15))">Y ↻</button>

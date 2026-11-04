@@ -115,11 +115,16 @@ public sealed class View3DWindow : Window
         toolbar.Children.Add(_status);
         var second = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 0, 12, 8) };
         var withScenery = new RadioButton { Content = Lang.T("Mit Gelände"), IsChecked = true, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Gelände, Gewässer, Gebäude und Bäume zeigen") };
-        var tracksOnly = new RadioButton { Content = Lang.T("Nur Gleisplan"), Margin = new Thickness(0, 0, 24, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Nur Platte, Gleise und Pfeiler zeigen") };
-        withScenery.Checked += (_, _) => _scene.Rebuild(_plan, true);
-        tracksOnly.Checked += (_, _) => _scene.Rebuild(_plan, false);
+        var tracksOnly = new RadioButton { Content = Lang.T("Nur Gleisplan"), Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Nur Platte und Gleise zeigen") };
+        var piers = new CheckBox { Content = Lang.T("Stützen"), Margin = new Thickness(0, 0, 24, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Stützen unter hochliegenden Gleisen zeigen") };
+        void Rebuild() => _scene.Rebuild(_plan, withScenery.IsChecked == true, piers.IsChecked == true);
+        withScenery.Checked += (_, _) => Rebuild();
+        tracksOnly.Checked += (_, _) => Rebuild();
+        piers.Checked += (_, _) => Rebuild();
+        piers.Unchecked += (_, _) => Rebuild();
         second.Children.Add(withScenery);
         second.Children.Add(tracksOnly);
+        second.Children.Add(piers);
         second.Children.Add(Theme.Label(Lang.T("Drehen:"), 12, false, Theme.TextSecondaryBrush));
         second.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         foreach (var (text, tip, axis) in new[] { ("X ↻", Lang.T("Um die Querachse kippen (X)"), 0), ("Y ↻", Lang.T("Um die Hochachse drehen (Y)"), 1), ("Z ↻", Lang.T("Um die Blickachse drehen (Z)"), 2), (Lang.T("Gerade"), "", -1) })

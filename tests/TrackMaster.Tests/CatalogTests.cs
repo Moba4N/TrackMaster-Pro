@@ -247,3 +247,34 @@ public class MinitrixTests
         Assert.Equal(33.6, 2 * offset, 1);
     }
 }
+
+public class PiccoloTests
+{
+    [Fact]
+    public void Elektromagnetische_Weichen_stehen_mit_eigener_Nummer_in_der_Bibliothek()
+    {
+        var sys = Catalog.GetSystem("N", "picc");
+        TrackPieceDef P(string nr) => sys.Pieces.First(p => p.Number == nr);
+        foreach (var (hand, elektro) in new[] { ("9170", "9172"), ("9171", "9173"), ("9178", "9180"), ("9179", "9181"), ("9157", "9158"),
+                     ("9174", "9176"), ("9175", "9177"), ("9168", "9182"), ("9169", "9183"), ("9184", "9186"), ("9185", "9187") })
+        {
+            var (h, e) = (P(hand), P(elektro));
+            Assert.Equal(h.Kind, e.Kind);
+            Assert.Equal(h.Length, e.Length);
+            Assert.Equal(h.Radius, e.Radius);
+            Assert.Equal(h.Angle, e.Angle);
+            Assert.Equal(h.RightHand, e.RightHand);
+            Assert.Contains("elektromagnetisch", e.Name);
+        }
+        // Gleise aus der Übersicht
+        foreach (var (nr, len) in new[] { ("9100", 222.0), ("9101", 111), ("9102", 57.5), ("9103", 55.5), ("9108", 111), ("9112", 111), ("9114", 111), ("9115", 55.5) })
+            Assert.Equal(len, P(nr).Length);
+        foreach (var (nr, r, a) in new[] { ("9120", 192.0, 45.0), ("9122", 192, 15), ("9123", 192, 7.5), ("9125", 225.6, 45), ("9127", 225.6, 15),
+                     ("9128", 225.6, 7.5), ("9130", 396.4, 30), ("9131", 396.4, 15), ("9135", 430, 30), ("9136", 430, 15) })
+            Assert.Equal((r, a), (P(nr).Radius, P(nr).Angle));
+        Assert.Equal(777, sys.FlexLength);
+        // DKW 9164–9167 öffnen als gleiche Form
+        Assert.Equal("9184", Catalog.Get("N|picc|9164").Number);
+        Assert.Equal("9187", Catalog.Get("N|picc|9167").Number);
+    }
+}

@@ -195,3 +195,25 @@ public class FlexTests
         Assert.Equal(2, k.Count); // 1050 mm mit Verschnitt → 2 Stücke zu 900 mm
     }
 }
+
+public class FleischmannNTests
+{
+    [Fact]
+    public void Gleise_ohne_Bettung_haben_die_Laengen_aus_dem_Herstellerkatalog()
+    {
+        var sys = Catalog.GetSystem("N", "rf-n");
+        double Len(string nr) => sys.Pieces.First(p => p.Number == nr).Length;
+        Assert.Equal(12.2, Len("22207"));
+        Assert.Equal(33.6, Len("22206"));
+        Assert.Equal(50, Len("22205"));
+        Assert.Equal(54.2, Len("22204"));
+        Assert.Equal(104.2, Len("22203"));
+        Assert.Equal(312.6, Len("22202"));
+        Assert.Equal(730.6, sys.FlexLength);
+        Assert.Equal(730.6, sys.MoreFlex.Single(f => f.Number == "22201").Length);
+        // Bögen: Winkel laut Tabelle
+        foreach (var (nr, a) in new[] { ("22232", 6.0), ("22231", 24), ("22221", 30), ("22234", 6), ("22233", 24), ("22222", 30), ("22223", 30),
+                     ("22235", 15), ("22224", 30), ("22225", 15), ("22226", 15), ("22227", 15), ("22228", 12) })
+            Assert.Equal(a, sys.Pieces.First(p => p.Number == nr).Angle);
+    }
+}

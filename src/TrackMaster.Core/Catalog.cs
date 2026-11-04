@@ -98,6 +98,8 @@ public sealed class TrackSystem
     /// <summary>Flexgleis des Herstellers: Artikelnummer (falls bekannt) und Länge eines Stücks. Ohne Angabe gilt das allgemeine Flexgleis der Spur.</summary>
     public string? FlexNumber { get; init; }
     public double? FlexLength { get; init; }
+    /// <summary>Parallelgleisabstand Mitte zu Mitte laut Hersteller (mm), null = nicht bekannt.</summary>
+    public double? Spacing { get; init; }
     /// <summary>Weitere Flexgleise des Herstellers (z. B. halbstarre Ausführung): Artikelnummer, Länge eines Stücks, Zusatz zum Namen.</summary>
     public IReadOnlyList<(string Number, double Length, string Label)> MoreFlex { get; init; } = [];
     /// <summary>Herkunft der Maße (Kataloge, Produktblätter des Herstellers), leer bei von Hand gepflegten Systemen.</summary>

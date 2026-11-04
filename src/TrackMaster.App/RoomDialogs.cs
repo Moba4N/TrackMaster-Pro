@@ -133,9 +133,25 @@ public static partial class Dialogs
 
     // ---------- Parallelgleis ----------
 
-    public static (double Spacing, bool Left)? AskParallel(Window owner, Gauge gauge)
+    public static (double Spacing, bool Left)? AskParallel(Window owner, Gauge gauge, TrackSystem system)
     {
-        var spacing = NumberBox(Helix.DefaultSpacing(gauge), 0);
+        var spacing = NumberBox(Helix.DefaultSpacing(gauge, system), 2);
+        var choices = Helix.SpacingChoices(gauge);
+        var makers = new ComboBox();
+        makers.Items.Add(new ComboBoxItem { Content = Lang.T("eigener Wert") });
+        foreach (var c in choices) makers.Items.Add(new ComboBoxItem { Content = c.Label, Tag = c.Spacing });
+        void SyncMaker()
+        {
+            var v = Fmt.Parse(spacing.Text);
+            var i = choices.ToList().FindIndex(c => c.Spacing == v);
+            if (makers.SelectedIndex != i + 1) makers.SelectedIndex = i + 1;
+        }
+        SyncMaker();
+        makers.SelectionChanged += (_, _) =>
+        {
+            if (makers.SelectedItem is ComboBoxItem { Tag: double v } && Fmt.Parse(spacing.Text) != v) spacing.Text = Fmt.Num(v, 2);
+        };
+        spacing.TextChanged += (_, _) => SyncMaker();
         var left = new RadioButton { Content = Lang.T("links (meist oben)"), IsChecked = true, GroupName = "side", Margin = new Thickness(0, 4, 16, 8) };
         var right = new RadioButton { Content = Lang.T("rechts (meist unten)"), GroupName = "side", Margin = new Thickness(0, 4, 0, 8) };
         var sides = new StackPanel { Orientation = Orientation.Horizontal };
@@ -145,6 +161,7 @@ public static partial class Dialogs
         var body = new StackPanel();
         body.Children.Add(Hint(Lang.T("Legt ein Flexgleis im festen Abstand neben die gewählten Gleise – Bögen bekommen den passenden größeren bzw. kleineren Radius. Die Seite gilt in Fahrtrichtung, die Kette läuft möglichst von links nach rechts.")));
         body.Children.Add(Theme.Field(Lang.T("Gleisabstand Mitte zu Mitte (mm)"), spacing));
+        if (choices.Count > 0) body.Children.Add(Theme.Field(Lang.T("Gleisabstand der Hersteller"), makers));
         body.Children.Add(sides);
         body.Children.Add(error);
         var ok = Theme.Button(Lang.T("Anlegen"), "Parallel", accent: true);

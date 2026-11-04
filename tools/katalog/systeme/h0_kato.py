@@ -3,6 +3,7 @@ import math
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "kato-h0", "Kato Unitrack H0", 13
+GLEISABSTAND = 60  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = ["KATO UNITRACK Katalog Spur N / H0e / H0 (deutsche Ausgabe): Artikellisten und „Gleisgeometrie und Abmessungen“ (S. 31)"]
 
 # Gleisabstand 60 mm. Weichen R867 10° laut Gleisgeometrie: EP867 + S94 + S149 = 492 mm (EP867: 249 mm), HP867 + S149 = 492 mm

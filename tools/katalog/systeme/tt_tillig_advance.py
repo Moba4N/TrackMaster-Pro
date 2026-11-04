@@ -11,6 +11,7 @@ _tillig = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_tillig)
 
 SPUR, ID, NAME, REIHENFOLGE = "TT", "tillig-adv", "Tillig Advance", 1
+GLEISABSTAND = 43  # Parallelgleisabstand Mitte zu Mitte (mm)
 FLEX_NUMBER, FLEX_LENGTH, MORE_FLEX = _tillig.FLEX_NUMBER, _tillig.FLEX_LENGTH, _tillig.MORE_FLEX
 QUELLEN = _tillig.QUELLEN
 ALIASE = {**_tillig.ALIASE, "83321/26": 83328, "83322/27": 83329, "83300/391": 83300}

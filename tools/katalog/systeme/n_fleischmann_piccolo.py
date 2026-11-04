@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "N", "picc", "Roco/Fleischmann piccolo mit Bettung", 2
+GLEISABSTAND = 33.6  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = [
     "FLEISCHMANN Zubehör-Katalog (deutsche Ausgabe): N-Gleissystem mit Schotterbett, Artikelangaben und Gleisgeometrie (S. 26–34)",
 ]

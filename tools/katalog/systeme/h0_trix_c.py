@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "tc", "Trix C-Gleis", 1
+GLEISABSTAND = 77.5  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = [
     "https://www.maerklinshop.de/en/trix/trix-h0/railtracks/railtracks/ (Produktseiten der Artikel, Stand 10/2026)",
 ]

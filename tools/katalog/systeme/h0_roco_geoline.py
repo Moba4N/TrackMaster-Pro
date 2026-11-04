@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "geo", "Roco geoLine", 4
+GLEISABSTAND = 76.5  # Parallelgleisabstand Mitte zu Mitte (mm)
 FLEX_NUMBER, FLEX_LENGTH = "61106", 785
 QUELLEN = [
     "ROCO GEOLINE-Anleitung 8051250920: Systemraster 385 × 76,5 mm aus Weiche 22,5° (200 mm), Ausgleichsgerade 185 mm und "

@@ -2,6 +2,7 @@
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "H0", "piko", "Piko A-Gleis", 6
+GLEISABSTAND = 61.88  # Parallelgleisabstand Mitte zu Mitte (mm)
 FLEX_LENGTH = 940
 QUELLEN = [
     "PIKO A-Gleis-Prospekt 99556_2023, https://www.piko-shop.de/de/medien/piko-a-gleis-prospekt,-gratis-download-3125/vw_name-download.htm",

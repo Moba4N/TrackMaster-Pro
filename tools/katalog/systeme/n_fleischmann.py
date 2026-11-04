@@ -3,6 +3,7 @@ import math
 from katalog import *
 
 SPUR, ID, NAME, REIHENFOLGE = "N", "rf-n", "Roco/Fleischmann ohne Bettung", 1
+GLEISABSTAND = 33.6  # Parallelgleisabstand Mitte zu Mitte (mm)
 QUELLEN = [
     "FLEISCHMANN Zubehör-Katalog (deutsche Ausgabe): N-Gleissystem ohne Schotterbett, Artikelangaben und Gleisgeometrie (S. 36–41)",
 ]

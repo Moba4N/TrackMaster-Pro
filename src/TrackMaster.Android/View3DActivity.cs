@@ -117,18 +117,23 @@ public sealed class View3DActivity : Activity
         row2.AddView(_speedText);
         bar.AddView(row2, Ui.Fill());
         var row3 = Ui.Row(this, 6);
-        Button? withScenery = null, tracksOnly = null;
-        void Scenery(bool on)
+        Button? withScenery = null, tracksOnly = null, piers = null;
+        bool scenery = true, showPiers = false;
+        void Rebuild()
         {
-            _renderer.Replace(new Scene3DModel(_plan, on));
-            Ui.SetButtonState(withScenery!, false, on);
-            Ui.SetButtonState(tracksOnly!, false, !on);
+            _renderer.Replace(new Scene3DModel(_plan, scenery, showPiers));
+            Ui.SetButtonState(withScenery!, false, scenery);
+            Ui.SetButtonState(tracksOnly!, false, !scenery);
+            Ui.SetButtonState(piers!, false, showPiers);
             _view.RequestRender();
         }
-        withScenery = Ui.Button(this, Lang.T("Mit Gelände"), () => Scenery(true));
-        tracksOnly = Ui.Button(this, Lang.T("Nur Gleisplan"), () => Scenery(false));
+        withScenery = Ui.Button(this, Lang.T("Mit Gelände"), () => { scenery = true; Rebuild(); });
+        tracksOnly = Ui.Button(this, Lang.T("Nur Gleisplan"), () => { scenery = false; Rebuild(); });
+        piers = Ui.Button(this, Lang.T("Stützen"), () => { showPiers = !showPiers; Rebuild(); });
         row3.AddView(withScenery);
         row3.AddView(tracksOnly);
+        row3.AddView(piers);
+        Ui.SetButtonState(piers, false, false);
         Ui.SetButtonState(withScenery, false, true);
         row3.AddView(Ui.Label(this, Lang.T("Drehen:"), 12.5, color: Ui.TextSecondary));
         foreach (var (text, axis) in new[] { ("X ↻", 0), ("Y ↻", 1), ("Z ↻", 2), (Lang.T("Gerade"), -1) })

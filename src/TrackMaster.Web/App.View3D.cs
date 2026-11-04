@@ -17,7 +17,7 @@ public partial class App
     private View3DMode _mode3D;
     private LayoutPlan? _plan3D;
     private bool _riding, _trainOn;
-    private bool _scenery3D = true;
+    private bool _scenery3D = true, _piers3D;
     private Train3D? _train;
     private readonly Dictionary<int, int> _routes = [];
     private RidePath? _path;
@@ -60,7 +60,7 @@ public partial class App
         }
         try
         {
-            var model = new Scene3DModel(plan, _scenery3D);
+            var model = new Scene3DModel(plan, _scenery3D, _piers3D);
             var (data, meta) = ToData(model.Meshes);
             Js.GlSetMeshes(data, meta, false);
             _train = new Train3D(plan);
@@ -80,9 +80,22 @@ public partial class App
     {
         if (_scenery3D == on || _plan3D is null) return;
         _scenery3D = on;
+        Rebuild3D();
+    }
+
+    /// <summary>Stützen unter hochliegenden Gleisen zeigen oder weglassen.</summary>
+    private void TogglePiers3D()
+    {
+        if (_plan3D is null) return;
+        _piers3D = !_piers3D;
+        Rebuild3D();
+    }
+
+    private void Rebuild3D()
+    {
         try
         {
-            var (data, meta) = ToData(new Scene3DModel(_plan3D, on).Meshes);
+            var (data, meta) = ToData(new Scene3DModel(_plan3D!, _scenery3D, _piers3D).Meshes);
             Js.GlSetMeshes(data, meta, false);
         }
         catch (Exception e)

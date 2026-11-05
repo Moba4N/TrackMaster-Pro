@@ -8,8 +8,7 @@ Technik: C# / .NET 8 / WPF (`System.Windows.Controls.Ribbon`), aufgebaut wie Gle
 ## Installieren
 
 Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, die Android-App
-`TrackMasterPro-<Version>.apk`, die Webversion `TrackMasterPro-Web-<Version>.zip` und das Handbuch
-`TrackMaster-Pro-Handbuch.pdf` (englisch `TrackMaster-Pro-Manual.pdf`).
+`TrackMasterPro-<Version>.apk` und das Handbuch `TrackMaster-Pro-Handbuch.pdf` (englisch `TrackMaster-Pro-Manual.pdf`).
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
@@ -55,27 +54,6 @@ falls eine Lizenz an ein Gerät gebunden werden soll (in der Lizenzverwaltung al
 Die APK wird mit `src/TrackMaster.Android/trackmaster.keystore` signiert, damit Updates sich über die installierte
 Version installieren lassen. Wer einen eigenen Schlüssel nutzen will, legt die Secrets `ANDROID_KEYSTORE_BASE64`
 und `ANDROID_KEYSTORE_PASSWORD` (Alias `trackmaster`) an; dann muss die App einmal neu installiert werden.
-
-## Webversion (selbst hosten)
-
-Die Webversion läuft ganz im Browser (Blazor WebAssembly) und braucht auf dem Server nur statische Dateien, kein PHP
-und keine Datenbank. Pläne und eigene Modelle bleiben im Browser bzw. werden als Datei gespeichert.
-
-1. `TrackMasterPro-Web-<Version>.zip` aus den **Releases** laden (oder unter **Actions** das Artefakt
-   **TrackMasterPro-Web**).
-2. Den Inhalt in einen Ordner des Webservers laden, z. B. `/planer/`. Die Seite läuft auch in einem Unterordner.
-3. Optional in `index.html` eintragen:
-   - `<meta name="trackmaster-home" content="../index.php">`: Link zurück zur Startseite der Webseite,
-   - `<meta name="trackmaster-activation" content="../lizenz/aktivierung.php">`: Online-Aktivierung der Lizenzen
-     (Ordner `website/lizenz`).
-
-Für **Apache** liegt eine `.htaccess` bei (unsichtbare Datei, beim Hochladen mitnehmen): Sie setzt die Dateitypen für
-WebAssembly, liefert die vorkomprimierten Dateien (`.br`, `.gz`) aus und sorgt dafür, dass ein neues Paket sofort gilt.
-Andere Server brauchen den Typ `application/wasm` für `.wasm`. Ein Update ist dasselbe: alte Dateien durch die neuen
-ersetzen, `_framework` dabei ganz austauschen.
-
-Selbst bauen: `dotnet publish src/TrackMaster.Web -c Release -o artifacts/web` (mit `dotnet workload install wasm-tools`
-wird das Paket kleiner); hochgeladen wird der Ordner `artifacts/web/wwwroot`.
 
 ## Basis und Pro
 
@@ -260,7 +238,7 @@ src/
   TrackMaster.App           Hauptfenster (TrackMasterPro.exe): Ribbon, Zeichenfläche, Eigenschaften, Dialoge,
                             Drucken, 3D-Ansicht
   TrackMaster.Android       Android-App (APK): Zeichenfläche, Menüband, Gesten, Dialoge, 3D mit OpenGL ES
-  TrackMaster.Web           Webversion (Blazor WebAssembly) zum selbst Hosten, mit Modell-Editor
+  TrackMaster.Web           Webversion (Blazor WebAssembly), nicht in der Projektmappe
 tools/
   TrackMaster.Lizenzverwaltung   Lizenzen ausstellen (Oberfläche)
   TrackMaster.LicenseTool        Lizenzen ausstellen und prüfen (Kommandozeile)

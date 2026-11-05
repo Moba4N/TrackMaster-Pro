@@ -353,7 +353,7 @@ jobs:
           if-no-files-found: ignore
 
   web:
-    # Webversion zum selbst Hosten: Inhalt der ZIP-Datei in einen Ordner des Webservers laden
+    # Webversion bauen und im Browser starten (nur Prüfung; das Paket für die Webseite entsteht wie bisher von Hand)
     runs-on: ubuntu-latest
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -364,15 +364,12 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Werkzeuge für WebAssembly
-        run: dotnet workload install wasm-tools --skip-manifest-update || echo "::warning::wasm-tools nicht installiert, Paket ohne Optimierung"
-
       - name: Webversion veröffentlichen
         run: |
           dotnet publish src/TrackMaster.Web -c Release -o artifacts/web
           test -f artifacts/web/wwwroot/index.html
-          test -f artifacts/web/wwwroot/.htaccess
-          test -f artifacts/web/wwwroot/_framework/blazor.boot.json
+          ls artifacts/web/wwwroot/_framework | grep -v -E '\.(br|gz)$' | grep -v -E '^(System|Microsoft)\.' || true
+          test -f artifacts/web/wwwroot/_framework/dotnet.js
           du -sh artifacts/web/wwwroot
 
       - name: Webversion im Browser starten
@@ -383,12 +380,6 @@ jobs:
           npm install --no-save --silent playwright@1.48.2
           npx playwright install --with-deps chromium >/dev/null
           node .github/scripts/web-smoke.js http://localhost:8099/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: TrackMasterPro-Web
-          path: artifacts/web/wwwroot
-          include-hidden-files: true
 
   handbuch:
     # Handbuch (Deutsch und Englisch) als PDF mit den Bildschirmfotos dieses Builds
@@ -481,10 +472,6 @@ jobs:
         with:
           name: Handbuch
           path: handbuch
-      - uses: actions/download-artifact@v4
-        with:
-          name: TrackMasterPro-Web
-          path: web
 
       - name: Release aktualisieren
         env:
@@ -496,7 +483,6 @@ jobs:
           for f in TrackMaster-Pro-Handbuch.pdf TrackMaster-Pro-Manual.pdf; do
             if [ -f handbuch/$f ]; then cp handbuch/$f out/; elif [ -f docs/$f ]; then cp docs/$f out/; fi
           done
-          (cd web && zip -qr "../out/TrackMasterPro-Web-$v.zip" .)
           mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
           # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
           # "url" ist die Release-Seite dieser Version mit MSI, APK und Handbuch
@@ -504,7 +490,7 @@ jobs:
           ls -la out
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "TrackMaster Pro $v" \
-              --notes "Windows-Installer (MSI), Android-App (APK), Webversion zum selbst Hosten (ZIP) und Handbuch. Ohne Lizenz läuft die Basisversion, mit Lizenzdatei Pro."
+              --notes "Windows-Installer (MSI), Android-App (APK) und Handbuch. Ohne Lizenz läuft die Basisversion, mit Lizenzdatei Pro."
           fi
           gh release upload "$tag" out/* --clobber
 

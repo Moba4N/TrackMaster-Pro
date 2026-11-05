@@ -10,7 +10,7 @@
   @page :first { margin: 0; }
   :root { --accent: #437E1E; --accent-soft: #EEF5E4; --logo: #76AD33; --logo-dark: #1F2428; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #437E1E; }
   * { box-sizing: border-box; }
-  html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
+  html { font-family: "Segoe UI", Inter, "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
   body { margin: 0; }
   h1, h2, h3 { color: var(--text); line-height: 1.25; font-weight: 600; }
   h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 3mm; border-bottom: 2.5pt solid var(--accent); break-before: page; }
@@ -232,8 +232,13 @@ danach kommt sie aus dem Zwischenspeicher des Browsers.</p>
   <li><b>3D-Ansicht:</b> braucht WebGL. Meldet der Browser, dass er keine 3D-Grafik anzeigen kann, schalten Sie die Hardwarebeschleunigung ein.</li>
   <li><b>Planvorschlag:</b> Nur in der Webversion baut <span class="ui">Gleise › Planvorschlag…</span> aus Ihrem Gleisbestand kleine Anlagen (siehe <a href="#k6-7">Planvorschlag</a> in Kapitel 8).</li>
   <li><b>Drucken und Exporte</b> werden als Datei heruntergeladen bzw. über den Druckdialog des Browsers ausgegeben.</li>
+  <li><b>Eigene Modelle</b> <span class="badge">PRO</span> liegen wie die Lizenz nur in diesem Browser. Sichern Sie sie ab und zu mit
+    <span class="ui">Ausstattung › Bibliothek… › Alle exportieren (ZIP)…</span> (siehe <a href="#ka-3">Kapitel 11</a>).</li>
 </ul>
 <p>Ist die Webversion in eine Webseite eingebunden, führt der Knopf <span class="ui">Startseite</span> oben links in der Titelleiste zurück zur Startseite dieser Webseite.</p>
+<p><b>Auf der eigenen Webseite anbieten:</b> Jedes Release enthält die Webversion als <b>TrackMasterPro-Web-&lt;Version&gt;.zip</b>. Den Inhalt
+in einen Ordner des Webservers laden, z. B. <code>/planer/</code>; nötig sind nur statische Dateien, kein PHP und keine Datenbank. Für Apache liegt eine
+<code>.htaccess</code> bei. Die Einzelheiten stehen in der Datei <code>README.md</code> im Abschnitt „Webversion (selbst hosten)“.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -289,7 +294,7 @@ und keine Lizenz – alles klappt in der Basisversion.</p>
 <p>Ein Gleisplan ist eine Zeichnung Ihrer Anlage von oben, im richtigen Maßstab. Er wird aus einzelnen <b>Gleisstücken</b> zusammengesetzt –
 genau wie die echte Anlage aus gekauften Gleisen. Diese Wörter begegnen Ihnen ständig:</p>
 <figure class="half">
-<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
+<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Inter, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
   <rect x="10" y="10" width="500" height="230" rx="8" fill="#F4F0E6" stroke="#C9BFA7"/>
   <g stroke="#3B4148" stroke-width="7" fill="none" stroke-linecap="butt">
     <line x1="40" y1="170" x2="160" y2="170"/>

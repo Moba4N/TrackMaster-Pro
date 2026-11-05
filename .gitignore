@@ -11,3 +11,4 @@ TestResults/
 docs/handbuch/img/
 docs/handbuch/img-en/
 __pycache__/
+node_modules/

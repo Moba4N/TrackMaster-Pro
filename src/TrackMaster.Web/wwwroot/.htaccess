@@ -1,0 +1,38 @@
+# Apache: Einstellungen für die Webversion von TrackMaster Pro (liegt neben index.html)
+
+# Dateitypen für WebAssembly und das Manifest
+AddType application/wasm .wasm
+AddType application/octet-stream .dat
+AddType application/manifest+json .webmanifest
+AddType application/json .json
+RemoveType .gz .br
+RemoveEncoding .gz .br
+
+# Vorkomprimierte Dateien (.br, .gz) aus _framework ausliefern, wenn der Browser sie annimmt
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Accept-Encoding} br
+    RewriteCond %{REQUEST_FILENAME}.br -f
+    RewriteRule ^(_framework/.*)$ $1.br [L]
+    RewriteCond %{HTTP:Accept-Encoding} gzip
+    RewriteCond %{REQUEST_FILENAME}.gz -f
+    RewriteRule ^(_framework/.*)$ $1.gz [L]
+    RewriteRule \.wasm\.(br|gz)$ - [T=application/wasm,E=no-gzip:1]
+    RewriteRule \.js\.(br|gz)$ - [T=text/javascript,E=no-gzip:1]
+    RewriteRule \.json\.(br|gz)$ - [T=application/json,E=no-gzip:1]
+    RewriteRule \.dat\.(br|gz)$ - [T=application/octet-stream,E=no-gzip:1]
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.br$">
+        Header set Content-Encoding br
+        Header append Vary Accept-Encoding
+    </FilesMatch>
+    <FilesMatch "\.gz$">
+        Header set Content-Encoding gzip
+        Header append Vary Accept-Encoding
+    </FilesMatch>
+    # Ein neues Paket auf dem Server gilt sofort; die Dateien in _framework tragen eigene Prüfsummen
+    <FilesMatch "^(index\.html|blazor\.boot\.json(\.br|\.gz)?|trackmaster\.js|app\.css)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>

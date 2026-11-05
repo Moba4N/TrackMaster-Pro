@@ -8,7 +8,7 @@ const source = path.resolve(__dirname, process.argv[3] || 'handbuch.html');
 const html = 'file://' + source;
 const out = process.argv[2] || path.resolve(__dirname, 'Handbuch.pdf');
 const meta = name => (fs.readFileSync(source, 'utf8').match(new RegExp(`<meta name="${name}" content="([^"]*)"`)) || [])[1];
-const footer = `<div style="width:100%;font-family:'Segoe UI','Noto Sans','DejaVu Sans',sans-serif;font-size:7.5pt;color:#5B6470;padding:0 20mm;display:flex;justify-content:space-between">
+const footer = `<div style="width:100%;font-family:'Segoe UI',Inter,'Noto Sans','DejaVu Sans',sans-serif;font-size:7.5pt;color:#5B6470;padding:0 20mm;display:flex;justify-content:space-between">
   <span>${meta('pdf-footer')}</span><span><span class="pageNumber"></span></span></div>`;
 async function render(page, pages, file) {
   await page.addInitScript(p => { window.PAGES = p; }, pages);

@@ -10,7 +10,7 @@
   @page :first { margin: 0; }
   :root { --accent: #437E1E; --accent-soft: #EEF5E4; --logo: #76AD33; --logo-dark: #1F2428; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #437E1E; }
   * { box-sizing: border-box; }
-  html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
+  html { font-family: "Segoe UI", Inter, "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
   body { margin: 0; }
   h1, h2, h3 { color: var(--text); line-height: 1.25; font-weight: 600; }
   h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 3mm; border-bottom: 2.5pt solid var(--accent); break-before: page; }
@@ -230,8 +230,13 @@ after that it comes from the browser cache.</p>
   <li><b>3D view:</b> needs WebGL. If the browser reports that it cannot show 3D graphics, switch on hardware acceleration.</li>
   <li><b>Layout suggestion:</b> Only in the web version, <span class="ui">Tracks › Layout suggestion…</span> builds small layouts from your track stock (see <a href="#k6-7">Layout suggestion</a> in chapter 8).</li>
   <li><b>Printing and exports</b> are downloaded as files or output via the browser's print dialog.</li>
+  <li><b>Your own models</b> <span class="badge">PRO</span> are kept only in this browser, like the licence. Back them up now and then with
+    <span class="ui">Scenery items › Library… › Export all (ZIP)…</span> (see <a href="#ka-3">chapter 11</a>).</li>
 </ul>
 <p>If the web version is embedded in a website, the <span class="ui">Home</span> button at the top left of the title bar leads back to that website's home page.</p>
+<p><b>Offering it on your own website:</b> every release contains the web version as <b>TrackMasterPro-Web-&lt;version&gt;.zip</b>. Upload its content
+to a folder on the web server, e.g. <code>/planer/</code>; only static files are needed, no PHP and no database. An <code>.htaccess</code> for Apache
+is included. The details are in the file <code>README.md</code>, section “Webversion (selbst hosten)”.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -287,7 +292,7 @@ and no licence – everything works in the Basic edition.</p>
 <p>A track plan is a drawing of your layout seen from above, at the correct scale. It is put together from individual <b>track pieces</b> –
 just like the real layout is built from the track you buy. You will meet these words all the time:</p>
 <figure class="half">
-<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
+<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Inter, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
   <rect x="10" y="10" width="500" height="230" rx="8" fill="#F4F0E6" stroke="#C9BFA7"/>
   <g stroke="#3B4148" stroke-width="7" fill="none" stroke-linecap="butt">
     <line x1="40" y1="170" x2="160" y2="170"/>

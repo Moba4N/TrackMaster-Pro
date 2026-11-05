@@ -299,7 +299,31 @@ public sealed class PropertiesPanel : DockPanel
         if (conns.Count > 1) buttons.Add(Cmd(Lang.T("Anschluss wechseln"), "Swap", "swap"));
         buttons.Add(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true));
         _body.Children.Add(Buttons([.. buttons]));
+
+        if (SwitchInsert.CanReplace(p) && SwitchInsert.Switches(_session.Plan, _session.CurrentSystem.Id) is { Count: > 0 } switches)
+        {
+            Section(Lang.T("Weiche einsetzen"));
+            _body.Children.Add(new TextBlock { Text = Lang.T("Ersetzt dieses Gleis durch eine Weiche – Höhe, Steigung und Ebene bleiben, eine Lücke schließt ein Flexgleis. Auch in der Gleiswendel; in engen Bögen eine Bogenweiche wählen."), TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Foreground = Theme.TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 6) });
+            var choice = new ComboBox { Height = 28 };
+            foreach (var w in switches)
+                choice.Items.Add(new ComboBoxItem { Content = $"{w.Number} · {w.Name}" + (w.SystemId == _session.CurrentSystem.Id ? "" : $" ({w.SystemName})"), Tag = w.Key, IsSelected = w.Key == (_insertKey ?? switches[0].Key) });
+            if (choice.SelectedItem is null) choice.SelectedIndex = 0;
+            choice.SelectionChanged += (_, _) => _insertKey = (choice.SelectedItem as ComboBoxItem)?.Tag as string;
+            _body.Children.Add(choice);
+            var reverse = new CheckBox { Content = Lang.T("in Gegenrichtung (Weichenspitze am anderen Ende)"), IsChecked = _insertReverse, Margin = new Thickness(0, 6, 0, 4) };
+            reverse.Click += (_, _) => _insertReverse = reverse.IsChecked == true;
+            var other = new CheckBox { Content = Lang.T("Abzweig auf die andere Seite"), IsChecked = _insertOther, Margin = new Thickness(0, 0, 0, 6) };
+            other.Click += (_, _) => _insertOther = other.IsChecked == true;
+            _body.Children.Add(reverse);
+            _body.Children.Add(other);
+            var insert = Theme.Button(Lang.T("Weiche einsetzen"), accent: true);
+            insert.Click += (_, _) => _session.InsertSwitch((choice.SelectedItem as ComboBoxItem)?.Tag as string ?? switches[0].Key, _insertReverse, _insertOther);
+            _body.Children.Add(Buttons(insert));
+        }
     }
+
+    private string? _insertKey;
+    private bool _insertReverse, _insertOther;
 
     private void MultiView(IReadOnlyList<PlacedPiece> sel)
     {

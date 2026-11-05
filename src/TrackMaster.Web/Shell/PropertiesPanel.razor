@@ -420,7 +420,25 @@
             }
             <button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button>
         </div>
+        @if (SwitchInsert.CanReplace(p) && SwitchInsert.Switches(Plan, Session.CurrentSystem.Id) is { Count: > 0 } switches)
+        {
+            var key = switches.Any(x => x.Key == _insertKey) ? _insertKey! : switches[0].Key;
+            <div class="section">@Lang.T("Weiche einsetzen")</div>
+            <div class="secondary small">@Lang.T("Ersetzt dieses Gleis durch eine Weiche – Höhe, Steigung und Ebene bleiben, eine Lücke schließt ein Flexgleis. Auch in der Gleiswendel; in engen Bögen eine Bogenweiche wählen.")</div>
+            <select class="input" value="@key" @onchange="@(e => _insertKey = e.Value as string)">
+                @foreach (var w in switches)
+                {
+                    <option value="@w.Key">@($"{w.Number} · {w.Name}{(w.SystemId == Session.CurrentSystem.Id ? "" : " (" + w.SystemName + ")")}")</option>
+                }
+            </select>
+            <label class="check"><input type="checkbox" checked="@_insertReverse" @onchange="@(e => _insertReverse = e.Value is true)" /> @Lang.T("in Gegenrichtung (Weichenspitze am anderen Ende)")</label>
+            <label class="check"><input type="checkbox" checked="@_insertOther" @onchange="@(e => _insertOther = e.Value is true)" /> @Lang.T("Abzweig auf die andere Seite")</label>
+            <div class="button-row"><button class="btn accent" @onclick="@(() => Session.InsertSwitch(key, _insertReverse, _insertOther))">@Lang.T("Weiche einsetzen")</button></div>
+        }
     };
+
+    private string? _insertKey;
+    private bool _insertReverse, _insertOther;
 
     private RenderFragment MultiForm(IReadOnlyList<PlacedPiece> sel) => __builder =>
     {

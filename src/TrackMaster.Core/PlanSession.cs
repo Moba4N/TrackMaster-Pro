@@ -1288,6 +1288,34 @@ public sealed partial class PlanSession
         }
     }
 
+    /// <summary>
+    /// Ersetzt das gewählte Gleis durch eine Weiche (Höhe, Steigung und Ebene bleiben) und schließt die Lücke zum nächsten Gleis
+    /// mit Flexgleis. Die neue Weiche ist danach gewählt. Null, wenn es nicht geht (Grund in der Statuszeile).
+    /// </summary>
+    public PlacedPiece? InsertSwitch(string switchKey, bool reverse = false, bool otherSide = false)
+    {
+        if (SelectedPieces is not [var piece]) { Say(Lang.T("Weiche einsetzen: genau ein Gleis wählen, an dessen Stelle die Weiche kommt.")); return null; }
+        if (piece.Locked) { Say(Lang.T("Das Gleis ist gesperrt.")); return null; }
+        Record();
+        try
+        {
+            var r = SwitchInsert.Build(Plan, piece, switchKey, CurrentFlex.SystemId, reverse, otherSide);
+            Selection.Clear();
+            Selection.Add(r.Switch.Id);
+            Active = null;
+            SelectedObject = null;
+            Commit();
+            Say(r.Message);
+            return r.Switch;
+        }
+        catch (InvalidOperationException e)
+        {
+            History.DiscardLast();
+            Say(e.Message);
+            return null;
+        }
+    }
+
     /// <summary>Beschriftung an einer Stelle des Plans.</summary>
     public SceneryItem AddLabel(string text, double x, double y)
     {

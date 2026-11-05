@@ -786,6 +786,18 @@ every track and every terrain object belongs to exactly one level.</p>
 points this out. Turns lying on top of each other are not connected to each other.</p>
 <p>Under <b>Construction</b> you choose how the track bed is supported: on <b>threaded rods</b> or by <b>rib construction</b> with slotted ribs inside and outside,
 in whose slots the track bed boards lie. The timber list then contains the ribs with the heights of all slot bottoms instead of the threaded rods.</p>
+<h3>Editing the helix afterwards, inserting a turnout</h3>
+<p>The finished helix consists of individual tracks; each keeps its own height and gradient and can be changed like any other track.
+So that the other turns are not in the way, hide all levels except the desired turn in the level bar at the bottom.</p>
+<ol>
+  <li>Select the track to be replaced by the turnout.</li>
+  <li>In the <span class="ui">Properties</span> under <span class="ui">Insert turnout</span> choose the turnout, and if needed
+      <span class="ui">in the opposite direction</span> (points at the other end) and <span class="ui">Branch on the other side</span>.</li>
+  <li>Click <span class="ui">Insert turnout</span>. The turnout replaces the track with its height, gradient and level; if it is longer, the following tracks
+      are replaced as well, and a flexible track closes any remaining gap. The status bar says how many tracks were replaced; <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes everything.</li>
+</ol>
+<div class="tip"><b>Tip</b>In tight helix radii a <b>curved turnout</b> fits best, because its inner route follows the helix curve. A straight turnout
+needs a long compensating piece there or does not fit at all – the program then says so.</div>
 
 <h2 id="k7-4">Helix timber list <span class="badge">PRO</span></h2>
 <p>After building, TrackMaster Pro shows the <b>timber list</b> – everything you need for the helix substructure, with finished cutting dimensions.

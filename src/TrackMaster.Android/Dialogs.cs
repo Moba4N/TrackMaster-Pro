@@ -300,6 +300,22 @@ public static partial class Dialogs
         var scroll = new HorizontalScrollView(c);
         scroll.AddView(buttons);
         body.AddView(scroll);
+        if (SwitchInsert.CanReplace(p) && SwitchInsert.Switches(session.Plan, session.CurrentSystem.Id) is { Count: > 0 } switches)
+        {
+            body.AddView(Section(c, Lang.T("Weiche einsetzen")));
+            body.AddView(Ui.Label(c, Lang.T("Ersetzt dieses Gleis durch eine Weiche – Höhe, Steigung und Ebene bleiben, eine Lücke schließt ein Flexgleis. Auch in der Gleiswendel; in engen Bögen eine Bogenweiche wählen."), 12, color: Ui.TextSecondary));
+            var choice = Choice(c, switches.Select(w => $"{w.Number} · {w.Name}" + (w.SystemId == session.CurrentSystem.Id ? "" : $" ({w.SystemName})")).ToList(), 0);
+            body.AddView(choice);
+            var reverse = new CheckBox(c) { Text = Lang.T("in Gegenrichtung (Weichenspitze am anderen Ende)") };
+            var other = new CheckBox(c) { Text = Lang.T("Abzweig auf die andere Seite") };
+            body.AddView(reverse);
+            body.AddView(other);
+            body.AddView(Ui.Button(c, Lang.T("Weiche einsetzen"), () =>
+            {
+                dialog?.Dismiss();
+                session.InsertSwitch(switches[Math.Max(0, choice.SelectedItemPosition)].Key, reverse.Checked, other.Checked);
+            }), Ui.Wrap());
+        }
         dialog = Show(c, Lang.T("Gleis"), body, Lang.T("Übernehmen"), () =>
         {
             var errors = new List<string>();

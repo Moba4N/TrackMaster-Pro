@@ -109,8 +109,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Form und Maße lassen sich später in den Planeigenschaften ändern. Zeichnung, Raster, 3D-Ansicht, SVG-Export und die
   Planprüfung (Gleise über dem Plattenrand bzw. in der offenen Mitte) folgen der Form.
 - Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix ·
-  TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko ·
+  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Peco Streamline Code 55 ·
+  TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko, Peco Streamline Code 55 (TT:120) ·
   H0: Märklin C, Trix C, Märklin K, Roco geoLine, Roco Line ohne und mit Bettung, Piko A,
   Tillig Elite, Peco Setrack, Kato Unitrack, Weinert mein Gleis · H0m: Tillig · H0e: Tillig, Kato, Roco ·
   0: Standard · Spur 1: Märklin · G: LGB, Piko.
@@ -118,7 +118,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Gleisdaten stehen im eigenen Katalog `src/TrackMaster.Core/Gleiskatalog.json`, erfasst nach Herstellerangaben
   (Produktseiten, Kataloge, Anleitungen; Quellen je System, Erzeuger in `tools/katalog`). Bisher so erfasst: Märklin C, K und
-  mini-club, Trix C, Minitrix, Kato Unitrack N, H0 und H0e, Roco/Fleischmann N (ohne Bettung und piccolo), Weinert mein Gleis, Peco Setrack H0, Roco Line ohne und mit Bettung, Roco geoLine, Roco H0e, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
+  mini-club, Trix C, Minitrix, Kato Unitrack N, H0 und H0e, Roco/Fleischmann N (ohne Bettung und piccolo), Weinert mein Gleis, Peco Setrack H0, Peco Streamline Code 55 (N und TT:120), Roco Line ohne und mit Bettung, Roco geoLine, Roco H0e, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
   Märklin Spur 1. Teile, die es in keinem System mehr gibt, überspringt das Programm beim Öffnen älterer Pläne und meldet
   ihre Anzahl.
   Drehscheiben und Schiebebühnen der Hersteller stehen in einer eigenen Gruppe der Bibliothek. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer.

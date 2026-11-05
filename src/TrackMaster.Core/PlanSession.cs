@@ -1326,6 +1326,35 @@ public sealed partial class PlanSession
         return item;
     }
 
+    /// <summary>
+    /// Übernimmt ein im Editor geändertes eigenes Modell in den Plan, wenn der Plan es verwendet (ein Rückgängig-Schritt).
+    /// </summary>
+    public bool UpdatePlanModel(ModelDefinition def)
+    {
+        if (def.IsBuiltin || !Plan.Models.ContainsKey(def.Id)) return false;
+        Record();
+        Plan.Models[def.Id] = def.Clone();
+        Commit();
+        Say(Lang.F($"Modell „{def.Name}“ im Plan aktualisiert."));
+        return true;
+    }
+
+    /// <summary>Gibt einem Objekt ein anderes (eigenes) Modell, z. B. die bearbeitete Kopie eines Grundmodells.</summary>
+    public bool ReplaceModel(int itemId, ModelDefinition def)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == itemId) is not { Kind: SceneryKind.Building } item) return false;
+        Record();
+        if (!def.IsBuiltin) Plan.Models[def.Id] = def.Clone();
+        item.Model = def.Id;
+        ModelLibrary.Prune(Plan);
+        Commit();
+        return true;
+    }
+
+    /// <summary>Im Plan mitgespeicherte Modelle, die (noch) nicht in der eigenen Bibliothek stehen.</summary>
+    public IReadOnlyList<ModelDefinition> PlanModelsNotInLibrary()
+        => Plan.Models.Values.Where(m => ModelLibrary.Own.All(o => o.Id != m.Id)).ToList();
+
     /// <summary>Ausstattungsmodell auf die Vorbildgröße im Maßstab der Spur zurücksetzen (bei gebogenen nur Tiefe und Höhe).</summary>
     public void ResetModelSize(int id)
     {

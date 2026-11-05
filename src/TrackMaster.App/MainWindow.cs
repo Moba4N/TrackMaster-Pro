@@ -21,7 +21,7 @@ namespace TrackMaster.App;
 /// Hauptfenster: eigene Titelleiste im Windows-11-Stil, Ribbon, Gleisbibliothek, Zeichenfläche, Eigenschaften, Statusleiste.
 /// Aufbau wie in GleisMatrix Pro, aber ohne XAML.
 /// </summary>
-public sealed class MainWindow : Window
+public sealed partial class MainWindow : Window
 {
     public PlanSession Session { get; } = new();
     public PlanCanvas Canvas { get; }
@@ -78,6 +78,8 @@ public sealed class MainWindow : Window
         _library = new LibraryPanel(Session, Canvas.CenterWorld);
         _properties = new PropertiesPanel(Session, Run);
         DefineCommands();
+        DefineEquipmentCommands();
+        LoadOwnModels();
 
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });
@@ -306,9 +308,6 @@ public sealed class MainWindow : Window
         menu.DropDownOpened += (_, _) => Fill();
         return menu;
     }
-
-    /// <summary>Gruppen für eigene Modelle (Modell-Editor, Bibliothek) – Pro-Funktionen.</summary>
-    private IEnumerable<RibbonGroup> EquipmentProGroups() => [];
 
     /// <summary>Register „Ausstattung“: Grundmodelle nach Kategorien, einfaches Gebäude, eigene Modelle.</summary>
     private RibbonTab BuildEquipmentTab()
@@ -1413,6 +1412,16 @@ public sealed class MainWindow : Window
     {
         if (name == "druckart") { Dialogs.AskPrintMode(this, 60, Lang.T("Seiten 200 × 287 mm")); return; }
         if (name == "bauvorlage") { ShowTilePreview(); return; }
+        if (name == "modelleditor")
+        {
+            // Für Prüfung und Handbuch: Kopie des Empfangsgebäudes mit gewähltem Hauptbau und einer Freiform
+            var model = ModelEditor.CopyOf(BuiltinModels.All.First(m => m.Id == "tm.bahnhof-mittel"));
+            model.Bodies.Add(ModelEditor.Freeform(new ModelBody { Shape = BodyShape.Walmdach, X = 9, Y = 4, W = 3, D = 3, H = 2.5, Material = ModelMaterial.Schiefer }));
+            var editor = new ModelEditorWindow(model, Session.Plan.Gauge, _ => true) { Owner = this };
+            editor.Loaded += (_, _) => editor.SelectBody(model.Bodies.Count - 1, 4);
+            editor.ShowDialog();
+            return;
+        }
         if (name != "holzliste") { Run(name == "helix" ? "helix" : name); return; }
         var curves = Session.CurrentSystem.Pieces.Where(p => p.Kind == PieceKind.Curve && 360 % p.Angle < 0.01).OrderBy(p => p.Radius).ToList();
         if (curves.Count == 0) return;

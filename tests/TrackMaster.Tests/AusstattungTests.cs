@@ -355,7 +355,7 @@ public class AusstattungTests
         var other = session.AddModelOtherSide(wall.Id)!;
         Assert.NotEqual(wall.Id, other.Id);
         Assert.Equal(2, plan.Scenery.Count(x => x.Model == wall.Model));
-        Assert.Equal(rise.Reverse(), ModelPlacement.TrackRise(plan, other, def)!, new Near(1.5));
+        Assert.Equal(Enumerable.Reverse(rise), ModelPlacement.TrackRise(plan, other, def)!, new Near(1.5));
         var c0 = wall.Points[wall.Points.Count / 2];
         var c1 = other.Points[other.Points.Count / 2];
         Assert.True(Math.Sqrt((c0.X - c1.X) * (c0.X - c1.X) + (c0.Y - c1.Y) * (c0.Y - c1.Y)) > plan.Gauge.TrackWidth * 2);

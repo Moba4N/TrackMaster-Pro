@@ -361,6 +361,8 @@ public partial class App : ComponentBase, IAppHost
     /// <summary>Modell für das Werkzeug „Modell einfügen“ wählen.</summary>
     private void SetModelTool(string id)
     {
+        // Gleise gewählt und Brücke, Stützmauer oder Bahnsteig: gleich entlang der Auswahl setzen
+        if (_session.Tool != CanvasTool.Model && _session.PlaceModelOnSelection(id) is not null) { _session.ModelId = id; _view.Invalidate(); Refresh(); return; }
         _session.ModelId = id;
         if (_session.Tool != CanvasTool.Model) SetTool(CanvasTool.Model);
         else { _view.Invalidate(); Refresh(); }
@@ -485,7 +487,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende ansetzen und ziehen, es rastet an Gleisenden ein."),
         CanvasTool.Building => Lang.T("Gebäude: klicken oder Rechteck aufziehen."),
         CanvasTool.Model => _session.CurrentModel is { } model
-            ? Lang.F($"{model.Name}: in den Plan klicken.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein."))
+            ? Lang.F($"{model.Name}: in den Plan klicken.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(model) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : "")
             : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis klicken."),

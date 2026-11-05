@@ -1327,6 +1327,41 @@ public sealed partial class PlanSession
     }
 
     /// <summary>
+    /// Setzt ein Modell (Brücke, Stützmauer, Bahnsteig, Halle) entlang der gewählten Gleise. Null, wenn keine Gleise gewählt sind
+    /// oder das Modell nicht am Gleis entlang liegt – dann wird es wie gewohnt per Klick gesetzt.
+    /// </summary>
+    public SceneryItem? PlaceModelOnSelection(string modelId)
+    {
+        if (Selection.Count == 0 || ModelLibrary.Find(Plan, modelId) is not { } def || !ModelPlacement.FitsSelection(def)) return null;
+        if (!def.IsBuiltin && !Plan.Models.ContainsKey(def.Id) && !RequirePro(Lang.T("Eigene Modelle"))) return null;
+        if (ModelPlacement.AlongTracks(Plan, def, Selection) is not { } result) return null;
+        Record();
+        if (!def.IsBuiltin) Plan.Models[def.Id] = def.Clone();
+        var item = result.Item;
+        item.Id = Plan.NextId++;
+        Plan.Scenery.Add(item);
+        SelectedObject = item.Id;
+        Selection.Clear();
+        Commit();
+        Say(result.Message);
+        return item;
+    }
+
+    /// <summary>Kann das gewählte Objekt auf die andere Gleisseite (Stützmauer, Bahnsteig)?</summary>
+    public bool CanFlipModelSide(int id)
+        => Plan.Scenery.FirstOrDefault(s => s.Id == id) is { IsModel: true } item && ModelLibrary.Of(Plan, item) is { Snap: ModelSnap.Neben };
+
+    /// <summary>Stützmauer oder Bahnsteig auf die andere Seite des Gleises setzen.</summary>
+    public void FlipModelSide(int id)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsModel: true } item || ModelLibrary.Of(Plan, item) is not { Snap: ModelSnap.Neben } def) return;
+        Record();
+        ModelPlacement.FlipSide(Plan, def, item);
+        Commit();
+        Say(Lang.F($"{def.Name} auf die andere Gleisseite gesetzt."));
+    }
+
+    /// <summary>
     /// Übernimmt ein im Editor geändertes eigenes Modell in den Plan, wenn der Plan es verwendet (ein Rückgängig-Schritt).
     /// </summary>
     public bool UpdatePlanModel(ModelDefinition def)

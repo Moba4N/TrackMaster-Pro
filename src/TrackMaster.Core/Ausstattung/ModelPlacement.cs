@@ -90,6 +90,12 @@ public static class ModelPlacement
                 if (Nearest(pieces, x, y, tolerance + Math.Max(item.Depth, g * 4)) is not { } hit) break;
                 item.X = Math.Round(hit.Pose.X, 2); item.Y = Math.Round(hit.Pose.Y, 2);
                 item.Rotation = Math.Round(Angles.Normalize(hit.Pose.Heading), 2);
+                if (def.Snap != ModelSnap.Quer)
+                {
+                    // längs zum Gleis: im Bogen mitbiegen
+                    var line = Follow(pieces, hit.Pose, item.Width, g).Select(p => (p.X, p.Y)).ToList();
+                    if (Curved(line)) SetPath(item, line);
+                }
                 if (def.Snap == ModelSnap.Unter)
                 {
                     var ground = TerrainField.GroundAt(plan, item.X, item.Y);
@@ -103,6 +109,108 @@ public static class ModelPlacement
         }
         return new(item, def.Snap == ModelSnap.Frei ? Lang.F($"{def.Name} gesetzt. Größe, Farbe und Drehung stehen in den Eigenschaften.")
             : Lang.F($"{def.Name} gesetzt – kein passendes Gleis in der Nähe zum Einrasten."), false);
+    }
+
+    /// <summary>Modelle, die sich an gewählte Gleise setzen lassen (Brücke, Stützmauer, Bahnsteig, Halle).</summary>
+    public static bool FitsSelection(ModelDefinition def) => def.Snap is ModelSnap.Neben or ModelSnap.Unter or ModelSnap.Auf;
+
+    /// <summary>
+    /// Setzt das Modell entlang der gewählten Gleise: so lang wie die Gleiskette, auch durch Bögen und Flexgleise.
+    /// Brücken und Hallen liegen unter bzw. über dem Gleis, Stützmauern und Bahnsteige rechts daneben (in Richtung der Kette);
+    /// <see cref="FlipSide"/> setzt sie auf die andere Seite. Null, wenn das Modell nicht passt oder kein Gleis gewählt ist.
+    /// </summary>
+    public static ModelPlacementResult? AlongTracks(LayoutPlan plan, ModelDefinition def, IReadOnlySet<int> ids)
+    {
+        if (!FitsSelection(def)) return null;
+        var chain = TrackChain.Order(plan, Connectivity.Analyze(plan), ids);
+        if (chain.Count == 0) return null;
+        var g = plan.Gauge.TrackWidth;
+        var k = ModelLibrary.MmPerMeter(plan.Gauge);
+        var total = chain.Sum(c => c.Length);
+        if (total < 1) return null;
+        var step = Math.Clamp(total / 240, 0.5, Math.Max(g, 1));
+        var line = new List<Pose>();
+        var heights = new List<double>();
+        foreach (var c in chain)
+        {
+            double done = 0;
+            foreach (var l in c.Legs)
+            {
+                var n = Math.Max(1, (int)Math.Ceiling(l.TrackLength / step));
+                for (var i = line.Count == 0 ? 0 : 1; i <= n; i++)
+                {
+                    line.Add(l.At((double)i / n));
+                    var s = c.Length > 0 ? (done + l.TrackLength * i / n) / c.Length : 0;
+                    heights.Add(c.StartHeight + (c.EndHeight - c.StartHeight) * s);
+                }
+                done += l.TrackLength;
+            }
+        }
+        var mid = line[line.Count / 2];
+        var item = Create(plan, def, mid.X, mid.Y);
+        item.Level = chain[0].Piece.Level;
+        string message;
+        List<(double X, double Y)> path;
+        if (def.Snap == ModelSnap.Neben)
+        {
+            var edge = Math.Max(PlatformEdge * k, g * 1.15);
+            path = Offset(line, edge + item.Depth / 2);
+            message = Lang.F($"{def.Name} neben {chain.Count} Gleis(en) gesetzt ({Fmt.Num(PlacedModel.PathLength(path), 0)} mm). Andere Seite: „Seite wechseln“ in den Eigenschaften.");
+        }
+        else
+        {
+            path = line.Select(p => (p.X, p.Y)).ToList();
+            message = Lang.F($"{def.Name} entlang {chain.Count} Gleis(en) gesetzt ({Fmt.Num(PlacedModel.PathLength(path), 0)} mm).");
+            if (def.Snap == ModelSnap.Unter)
+            {
+                var ground = TerrainField.GroundAt(plan, mid.X, mid.Y);
+                var top = heights.Average() - ground;
+                if (top > g * 1.5) item.Height = Math.Round(top, 1);
+                else message += " " + Lang.T("Das Gleis liegt flach – für die Brücke Gleis höher legen.");
+            }
+        }
+        SetPath(item, path);
+        return new(item, message, true);
+    }
+
+    /// <summary>Stützmauer oder Bahnsteig auf die andere Seite des Gleises setzen.</summary>
+    public static bool FlipSide(LayoutPlan plan, ModelDefinition def, SceneryItem item)
+    {
+        if (def.Snap != ModelSnap.Neben) return false;
+        var k = ModelLibrary.MmPerMeter(plan.Gauge);
+        var o = 2 * (Math.Max(PlatformEdge * k, plan.Gauge.TrackWidth * 1.15) + item.Depth / 2);
+        // Das Gleis liegt links der Modelllinie: um 2 × Abstand nach links versetzen und die Richtung umkehren
+        if (item.Points.Count >= 2)
+        {
+            var pts = item.Points;
+            var poses = pts.Select((p, i) =>
+            {
+                var a = pts[Math.Max(0, i - 1)]; var b = pts[Math.Min(pts.Count - 1, i + 1)];
+                return new Pose(p.X, p.Y, Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI);
+            }).ToList();
+            var path = Offset(poses, -o);
+            path.Reverse();
+            SetPath(item, path);
+        }
+        else
+        {
+            var h = item.Rotation * Math.PI / 180;
+            item.X = Math.Round(item.X + Math.Sin(h) * o, 2);
+            item.Y = Math.Round(item.Y - Math.Cos(h) * o, 2);
+            item.Rotation = Math.Round(Angles.Normalize(item.Rotation + 180), 2);
+        }
+        return true;
+    }
+
+    /// <summary>Objekt auf eine Linie legen: Mitte, Richtung und Länge, bei Bögen mit Stützpunkten.</summary>
+    private static void SetPath(SceneryItem item, List<(double X, double Y)> path)
+    {
+        var length = PlacedModel.PathLength(path);
+        var mid = PointAt(path, length / 2);
+        item.X = Math.Round(mid.X, 2); item.Y = Math.Round(mid.Y, 2);
+        item.Rotation = Math.Round(Angles.Normalize(mid.Heading), 2);
+        item.Width = Math.Round(length, 1);
+        item.Points = Curved(path) ? path.Select(p => (Math.Round(p.X, 2), Math.Round(p.Y, 2))).ToList() : [];
     }
 
     /// <summary>Nächster Punkt auf der Gleismitte im Umkreis.</summary>

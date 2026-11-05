@@ -596,7 +596,11 @@
                     <dt>@Lang.T("Maßstab")</dt><dd>@Session.Plan.Gauge.Scale</dd>
                 </dl>
                 <div class="button-row"><button class="btn" @onclick="@(() => Session.ResetModelSize(s.Id))">@((MarkupString)Icons.Svg("Resize", 16)) @Lang.T("Originalgröße")</button>
-                    <button class="btn" title="@(model.IsBuiltin ? Lang.T("Pro: öffnet eine Kopie des Grundmodells im Modell-Editor; dieses Objekt bekommt danach die eigene Fassung.") : Lang.T("Pro: öffnet das Modell im Modell-Editor; Änderungen gelten für alle Objekte mit diesem Modell."))" @onclick="@(() => Run("modelEditSelected"))">@((MarkupString)Icons.Svg("Palette", 16)) @Lang.T("Modell bearbeiten")</button></div>
+                    <button class="btn" title="@(model.IsBuiltin ? Lang.T("Pro: öffnet eine Kopie des Grundmodells im Modell-Editor; dieses Objekt bekommt danach die eigene Fassung.") : Lang.T("Pro: öffnet das Modell im Modell-Editor; Änderungen gelten für alle Objekte mit diesem Modell."))" @onclick="@(() => Run("modelEditSelected"))">@((MarkupString)Icons.Svg("Palette", 16)) @Lang.T("Modell bearbeiten")</button>
+                    @if (model.Snap == ModelSnap.Neben)
+                    {
+                        <button class="btn" title="@Lang.T("Setzt das Modell auf die andere Seite des Gleises.")" @onclick="@(() => Session.FlipModelSide(s.Id))">@((MarkupString)Icons.Svg("Mirror", 16)) @Lang.T("Seite wechseln")</button>
+                    }</div>
                 @if (!string.IsNullOrWhiteSpace(model.Description))
                 {
                     <div class="tip-box">@model.Description</div>

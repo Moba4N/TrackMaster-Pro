@@ -277,10 +277,12 @@ public sealed partial class MainWindow : Window
     /// <summary>Modell für das Werkzeug „Modell einfügen“ wählen; ein zweiter Klick auf dasselbe Modell beendet das Werkzeug.</summary>
     private void SetModelTool(string id)
     {
+        // Gleise gewählt und Brücke, Stützmauer oder Bahnsteig: gleich entlang der Auswahl setzen
+        if (Session.Tool != CanvasTool.Model && Session.PlaceModelOnSelection(id) is not null) { Session.ModelId = id; return; }
         if (Session.Tool == CanvasTool.Model && Session.ModelId == id) { SetTool(CanvasTool.Select); return; }
         Session.ModelId = id;
         SetTool(CanvasTool.Model);
-        if (Session.CurrentModel is { } m) Session.Say(Lang.F($"{m.Name}: in den Plan klicken.") + (m.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")));
+        if (Session.CurrentModel is { } m) Session.Say(Lang.F($"{m.Name}: in den Plan klicken.") + (m.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(m) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : ""));
     }
 
     /// <summary>Menü mit den Modellen einer Kategorie; die Einträge werden beim Öffnen neu aufgebaut (eigene Modelle ändern sich).</summary>

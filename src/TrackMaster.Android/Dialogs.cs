@@ -444,6 +444,8 @@ public static partial class Dialogs
                             (Lang.T("Vorbild"), Lang.F($"{Fmt.Num(model.Size.W, 1)} × {Fmt.Num(model.Size.D, 1)} × {Fmt.Num(model.Size.H, 1)} m"), null),
                             (Lang.T("Maßstab"), plan.Gauge.Scale, null)));
                         body.AddView(Ui.Button(c, Lang.T("Originalgröße"), () => { dialog?.Dismiss(); session.ResetModelSize(s.Id); }), Ui.Wrap());
+                        if (model.Snap == ModelSnap.Neben)
+                            body.AddView(Ui.Button(c, Lang.T("Seite wechseln"), () => { dialog?.Dismiss(); session.FlipModelSide(s.Id); }), Ui.Wrap());
                         if (!string.IsNullOrWhiteSpace(model.Description)) body.AddView(Hint(c, model.Description));
                         break;
                     }

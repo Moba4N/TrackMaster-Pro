@@ -203,6 +203,129 @@ public class AusstattungTests
         Assert.Throws<InvalidDataException>(() => ModelFile.FromJson("{\"format\":\"x\"}"));
     }
 
+    /// <summary>Bogen aus dem Beispielplan mit seinen beiden Nachbarn: eine Kette gerade/Bogen/… über drei Gleise.</summary>
+    private static (PlanSession Session, PlacedPiece Curve, HashSet<int> Ids) CurveChain()
+    {
+        var session = new PlanSession { IsPro = () => true };
+        session.Replace(SamplePlan.Build(), null);
+        var plan = session.Plan;
+        var conn = Connectivity.Analyze(plan);
+        var curve = plan.Pieces.First(p => p.Def.Kind == PieceKind.Curve && p.Level == 0
+            && conn.Of(p.Id).Count(c => c.Link is not null) == 2);
+        var ids = new HashSet<int> { curve.Id };
+        foreach (var c in conn.Of(curve.Id)) if (c.Link is { } l) ids.Add(l.PieceId);
+        return (session, curve, ids);
+    }
+
+    [Fact]
+    public void Bruecke_entlang_gewaehlter_Gleise_folgt_dem_Bogen_und_der_Hoehe()
+    {
+        var (session, curve, ids) = CurveChain();
+        var plan = session.Plan;
+        foreach (var id in ids) plan.Find(id)!.Height = 80;
+        session.Commit();
+        foreach (var id in ids) session.Selection.Add(id);
+        var length = TrackChain.Order(plan, Connectivity.Analyze(plan), ids).Sum(c => c.Length);
+
+        var item = session.PlaceModelOnSelection("tm.kastenbruecke");
+        Assert.NotNull(item);
+        Assert.True(item!.Points.Count > 5, "Brücke im Bogen soll gebogen sein");
+        Assert.Equal(length, PlacedModel.PathLength(item.Points), 0);
+        Assert.Equal(80, item.Height, 0);
+        // die Brücke liegt unter der Gleismitte des Bogens
+        var mid = curve.WorldLegs()[0].At(0.5);
+        Assert.Contains(item.Points, q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y) < 2);
+        Assert.Empty(session.Selection);
+        Assert.Equal(item.Id, session.SelectedObject);
+        Assert.True(new Scene3DModel(plan).TriangleCount > 0);
+    }
+
+    [Fact]
+    public void Stuetzmauer_entlang_gewaehlter_Gleise_und_Seite_wechseln()
+    {
+        var (session, curve, ids) = CurveChain();
+        var plan = session.Plan;
+        foreach (var id in ids) session.Selection.Add(id);
+        var item = session.PlaceModelOnSelection("tm.stuetzmauer");
+        Assert.NotNull(item);
+        Assert.True(item!.Points.Count > 5);
+        var leg = curve.WorldLegs()[0];
+        var (cx, cy) = leg.Center;
+        double R((double X, double Y) q) => Math.Sqrt((q.X - cx) * (q.X - cx) + (q.Y - cy) * (q.Y - cy));
+        // Punkte im Bereich des Bogens: alle auf einer Seite der Gleismitte, mit Abstand
+        var mid = leg.At(0.5);
+        var near = item.Points.OrderBy(q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y)).First();
+        var before = R(near) - leg.Radius;
+        Assert.True(Math.Abs(before) > plan.Gauge.TrackWidth, $"Abstand {before}");
+        // Kante (Modell −y) liegt zum Gleis hin
+        var def = ModelLibrary.Of(plan, item)!;
+        void EdgeTowardsTrack()
+        {
+            var placed = ModelLibrary.Placed(plan, item)!;
+            var b = def.Bounds();
+            var m = (b.X0 + b.X1) / 2;
+            Assert.True(Math.Abs(R(placed.Map(m, b.Y0)) - leg.Radius) < Math.Abs(R(placed.Map(m, b.Y1)) - leg.Radius));
+        }
+        EdgeTowardsTrack();
+
+        Assert.True(session.CanFlipModelSide(item.Id));
+        session.FlipModelSide(item.Id);
+        var near2 = item.Points.OrderBy(q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y)).First();
+        var after = R(near2) - leg.Radius;
+        Assert.True(Math.Sign(after) != Math.Sign(before), $"vorher {before}, nachher {after}");
+        Assert.Equal(Math.Abs(before), Math.Abs(after), 0);
+        EdgeTowardsTrack();
+        // Rückgängig stellt die alte Seite wieder her
+        session.Undo();
+        var back = session.Plan.Scenery.First(s => s.Id == item.Id);
+        var near3 = back.Points.OrderBy(q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y)).First();
+        Assert.Equal(before, R(near3) - leg.Radius, 0);
+    }
+
+    [Fact]
+    public void Gerade_Stuetzmauer_wechselt_die_Seite()
+    {
+        var plan = LayoutPlan.Empty("H0");
+        var straight = Catalog.Gauges.First(x => x.Id == "H0").Systems.SelectMany(s => s.Pieces).First(p => p.Kind == PieceKind.Straight && p.Length > 150);
+        var p = plan.Add(straight.Key);
+        p.X = 200; p.Y = 400;
+        var def = BuiltinModels.All.First(m => m.Id == "tm.stuetzmauer");
+        var r = ModelPlacement.AlongTracks(plan, def, new HashSet<int> { p.Id })!;
+        Assert.Empty(r.Item.Points);
+        Assert.Equal(straight.Length, r.Item.Width, 0);
+        var y0 = r.Item.Y - 400;
+        Assert.True(Math.Abs(y0) > plan.Gauge.TrackWidth);
+        Assert.True(ModelPlacement.FlipSide(plan, def, r.Item));
+        Assert.Equal(-y0, r.Item.Y - 400, 1);
+        plan.Scenery.Add(r.Item);
+        var placed = ModelLibrary.Placed(plan, r.Item)!;
+        var b = def.Bounds();
+        Assert.True(Math.Abs(placed.Map(0, b.Y0).Y - 400) < Math.Abs(placed.Map(0, b.Y1).Y - 400));
+    }
+
+    [Fact]
+    public void Ohne_Auswahl_oder_bei_freien_Modellen_wird_wie_gewohnt_geklickt()
+    {
+        var (session, _, ids) = CurveChain();
+        Assert.Null(session.PlaceModelOnSelection("tm.kastenbruecke"));
+        foreach (var id in ids) session.Selection.Add(id);
+        Assert.Null(session.PlaceModelOnSelection("tm.wohnhaus"));
+        Assert.Null(session.PlaceModelOnSelection("tm.tunnelportal-1"));
+        Assert.Equal(ids.Count, session.Selection.Count);
+    }
+
+    [Fact]
+    public void Bruecke_per_Klick_im_Bogen_wird_gebogen()
+    {
+        var plan = SamplePlan.Build();
+        var curve = plan.Pieces.First(p => p.Def.Kind == PieceKind.Curve && p.Level == 0);
+        var mid = curve.WorldLegs()[0].At(0.5);
+        var def = BuiltinModels.All.First(m => m.Id == "tm.kastenbruecke");
+        var r = ModelPlacement.Place(plan, def, mid.X, mid.Y, 20);
+        Assert.True(r.Snapped);
+        Assert.True(r.Item.Points.Count > 5);
+    }
+
     [Fact]
     public void Basis_darf_Grundmodelle_einfuegen_aber_keine_eigenen_aus_der_Bibliothek()
     {

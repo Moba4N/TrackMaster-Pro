@@ -303,6 +303,8 @@ public sealed class MainActivity : Activity
 
     private void SetModelTool(string id)
     {
+        // Gleise gewählt und Brücke, Stützmauer oder Bahnsteig: gleich entlang der Auswahl setzen
+        if (_session.Tool != CanvasTool.Model && _session.PlaceModelOnSelection(id) is not null) { _session.ModelId = id; UpdateToolBar(); RefreshActions(); return; }
         _session.ModelId = id;
         if (_session.Tool == CanvasTool.Model) { UpdateToolBar(); RefreshActions(); return; }
         SetTool(CanvasTool.Model);
@@ -826,7 +828,7 @@ public sealed class MainActivity : Activity
             CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein."),
             CanvasTool.Building => Lang.T("Gebäude: antippen oder Rechteck aufziehen."),
             CanvasTool.Model => _session.CurrentModel is { } model
-                ? Lang.F($"{model.Name}: in den Plan tippen.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein."))
+                ? Lang.F($"{model.Name}: in den Plan tippen.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(model) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : "")
                 : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
             CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis tippen."),

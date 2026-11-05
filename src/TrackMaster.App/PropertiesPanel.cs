@@ -411,6 +411,13 @@ public sealed class PropertiesPanel : DockPanel
                             : Lang.T("Pro: öffnet das Modell im Modell-Editor; Änderungen gelten für alle Objekte mit diesem Modell.");
                         editModel.Click += (_, _) => _run("modelEditSelected");
                         _body.Children.Add(Buttons(reset, editModel));
+                        if (model.Snap == ModelSnap.Neben)
+                        {
+                            var flip = Theme.Button(Lang.T("Seite wechseln"), "Mirror");
+                            flip.ToolTip = Lang.T("Setzt das Modell auf die andere Seite des Gleises.");
+                            flip.Click += (_, _) => _session.FlipModelSide(s.Id);
+                            _body.Children.Add(Buttons(flip));
+                        }
                         if (!string.IsNullOrWhiteSpace(model.Description)) _body.Children.Add(Tip(model.Description));
                         break;
                     case SceneryKind.Building:

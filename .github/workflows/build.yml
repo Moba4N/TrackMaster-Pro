@@ -407,8 +407,7 @@ jobs:
       - name: Werkzeuge
         run: |
           sudo apt-get update -q >/dev/null
-          sudo apt-get install -y -q fonts-inter fonts-dejavu-core >/dev/null
-          pip install -q pypdf
+          sudo apt-get install -y -q fonts-inter fonts-dejavu-core python3-pypdf >/dev/null
           cd docs/handbuch
           npm install --no-save --silent playwright@1.48.2
           npx playwright install --with-deps chromium >/dev/null

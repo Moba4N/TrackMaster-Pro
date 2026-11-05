@@ -17,6 +17,9 @@ public sealed class Scene3D
 
     public Scene3D(LayoutPlan plan) => Fill(Model, new Scene3DModel(plan).Meshes);
 
+    /// <summary>Leer, z. B. für die Vorschau im Modell-Editor (Inhalt über <see cref="Fill"/>).</summary>
+    public Scene3D() { }
+
     /// <summary>Neu aufbauen, mit oder ohne Gelände und Stützen.</summary>
     public void Rebuild(LayoutPlan plan, bool scenery, bool piers) => Fill(Model, new Scene3DModel(plan, scenery, piers).Meshes);
 

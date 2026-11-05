@@ -101,6 +101,7 @@ jobs:
           Shot $app "screenshot-gelaende" @("--pro", "--tab", "Gelände")
           Shot $app "screenshot-ausstattung" @("--pro", "--tab", "Ausstattung", "--models")
           Shot $app "screenshot-ausstattung-3d" @("--pro", "--models", "--3d", "orbit")
+          Shot $app "screenshot-modell-editor" @("--pro", "--dialog", "modelleditor")
           Shot $app "screenshot-3d" @("--pro", "--3d", "orbit")
           Shot $app "screenshot-mitfahren" @("--pro", "--3d", "ride")
           Shot "artifacts/Lizenzwerkzeuge/TrackMaster.Lizenzverwaltung.exe" "screenshot-lizenzverwaltung" @()

@@ -117,6 +117,18 @@ public sealed class ModelBody
         _ => Lang.T("Freiform"),
     };
 
+    /// <summary>Wie das Modell am Gleis einrastet, für Auswahllisten im Editor.</summary>
+    public static string SnapName(ModelSnap s) => s switch
+    {
+        ModelSnap.Tunnelportal => Lang.T("Tunnelportal: am Tunnelanfang quer zum Gleis"),
+        ModelSnap.Neben => Lang.T("Neben dem Gleis (Bahnsteig, Mauer), folgt Bögen"),
+        ModelSnap.Quer => Lang.T("Quer auf dem Gleis (Bahnübergang)"),
+        ModelSnap.Unter => Lang.T("Unter dem Gleis (Brücke)"),
+        ModelSnap.Gleisende => Lang.T("Am Gleisende (Prellbock)"),
+        ModelSnap.Auf => Lang.T("Über dem Gleis (Schuppen, Halle)"),
+        _ => Lang.T("Frei aufstellen"),
+    };
+
     public static string MaterialName(ModelMaterial m) => m switch
     {
         ModelMaterial.Putz => Lang.T("Putz"),

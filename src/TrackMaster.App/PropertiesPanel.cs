@@ -405,7 +405,12 @@ public sealed class PropertiesPanel : DockPanel
                              (Lang.T("Maßstab"), plan.Gauge.Scale, null));
                         var reset = Theme.Button(Lang.T("Originalgröße"), "Resize");
                         reset.Click += (_, _) => _session.ResetModelSize(s.Id);
-                        _body.Children.Add(Buttons(reset));
+                        var editModel = Theme.Button(Lang.T("Modell bearbeiten"), "Palette");
+                        editModel.ToolTip = model.IsBuiltin
+                            ? Lang.T("Pro: öffnet eine Kopie des Grundmodells im Modell-Editor; dieses Objekt bekommt danach die eigene Fassung.")
+                            : Lang.T("Pro: öffnet das Modell im Modell-Editor; Änderungen gelten für alle Objekte mit diesem Modell.");
+                        editModel.Click += (_, _) => _run("modelEditSelected");
+                        _body.Children.Add(Buttons(reset, editModel));
                         if (!string.IsNullOrWhiteSpace(model.Description)) _body.Children.Add(Tip(model.Description));
                         break;
                     case SceneryKind.Building:

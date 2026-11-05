@@ -236,7 +236,7 @@ public sealed class ModelEditor
             b.Heights = b.Heights.Take(b.Points.Count).Reverse().ToList();
         }
         b.Vertices = b.Vertices.Select(v => { var (x, y) = M(v.X, v.Y); return (x, y, v.Z); }).ToList();
-        b.Faces = b.Faces.Select(f => f.Reverse().ToArray()).ToList();
+        b.Faces = b.Faces.Select(f => Enumerable.Reverse(f).ToArray()).ToList();
     }
 
     /// <summary>Verschiebt die gewählten Körper (und alle Körper ihrer Gruppen).</summary>

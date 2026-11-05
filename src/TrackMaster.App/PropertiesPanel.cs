@@ -379,22 +379,23 @@ public sealed class PropertiesPanel : DockPanel
                         break;
                     case SceneryKind.Building when ModelLibrary.Of(plan, s) is { } model:
                         _headerRight.Text = model.Name;
+                        var (heightLabel, trackHeight) = ModelPlacement.HeightInfo(plan, model, s);
                         if (s.Points.Count >= 2)
                         {
                             _body.Children.Add(Columns(2,
                                 Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
-                                Theme.Field(s.FollowsTrackHeight ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                                Theme.Field(heightLabel, NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
                             Rows((Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null));
-                            if (s.FollowsTrackHeight) Rows((Lang.T("Gleishöhe"), $"{Fmt.Num(s.Rise.Min(), 0)}–{Fmt.Num(s.Rise.Max(), 0)} mm", null));
                         }
                         else
                         {
                             _body.Children.Add(Columns(3,
                                 Theme.Field(Lang.T("Länge (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 0.5, 20000), 1)),
                                 Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
-                                Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                                Theme.Field(heightLabel, NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
                             _body.Children.Add(Columns(3, Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
                         }
+                        if (trackHeight is not null) Rows((Lang.T("Gleishöhe"), trackHeight, null));
                         var colors = new ComboBox { Height = 28 };
                         foreach (var (cname, hex) in ModelLibrary.MainColors)
                             colors.Items.Add(new ComboBoxItem { Content = cname, Tag = hex ?? "", IsSelected = string.Equals(hex ?? "", s.Color ?? "", StringComparison.OrdinalIgnoreCase) });

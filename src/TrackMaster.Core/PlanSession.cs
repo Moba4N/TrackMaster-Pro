@@ -124,6 +124,8 @@ public sealed partial class PlanSession
         Plan.SystemId = CurrentSystem.Id;
         Connections = Connectivity.Analyze(Plan);
         Selection.RemoveWhere(id => Plan.Find(id) is null);
+        // Ausstattung am Gleis wechselt mit dem Gleis die Ebene (die Höhe bestimmt die 3D-Ansicht jedes Mal neu)
+        ModelPlacement.SyncLevels(Plan);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
         if (Active is { } a && Connections.Find(a.PieceId, a.Index) is not { IsOpen: true }) Active = null;
         Changed?.Invoke();
@@ -514,6 +516,8 @@ public sealed partial class PlanSession
             item.Id = Plan.NextId++;
             item.MoveBy(dx, dy);
             item.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
+            // mitkopierte Gleise: Verknüpfung übernehmen, sonst gehört das Modell zu keinem Gleis mehr
+            item.Tracks = item.Tracks.Where(map.ContainsKey).Select(id => map[id]).ToList();
             Plan.Scenery.Add(item);
             pastedObject = item.Id;
         }

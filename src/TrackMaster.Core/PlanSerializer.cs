@@ -77,7 +77,7 @@ public static class PlanSerializer
         [JsonPropertyName("kind")] public string Kind { get; set; } = "";
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("points"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<double[]>? Points { get; set; }
-        [JsonPropertyName("rise"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<double>? Rise { get; set; }
+        [JsonPropertyName("tracks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<int>? Tracks { get; set; }
         [JsonPropertyName("x")] public double X { get; set; }
         [JsonPropertyName("y")] public double Y { get; set; }
         [JsonPropertyName("w")] public double W { get; set; }
@@ -190,7 +190,8 @@ public static class PlanSerializer
     /// <param name="withIds">Für Rückgängig-Schritte: auch Kennungen von Gelände und Elektrik behalten, damit die Auswahl erhalten bleibt.</param>
     public static string ToJson(LayoutPlan plan, bool withIds = false)
     {
-        var needIds = withIds || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0;
+        var needIds = withIds || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0
+            || plan.Scenery.Any(s => s.Tracks.Count > 0);
         var dto = new FileDto
         {
             Name = plan.Name,
@@ -236,7 +237,7 @@ public static class PlanSerializer
                 Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel ? s.Model : null, Color = s.Kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
-                Rise = s.Kind == SceneryKind.Building && s.FollowsTrackHeight ? s.Rise.Select(r => Math.Round(r, 1)).ToList() : null,
+                Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit }).ToList(),
@@ -377,7 +378,7 @@ public static class PlanSerializer
                 Color = kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
             };
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
-            if (kind == SceneryKind.Building && s.Rise is { } rise && rise.Count == item.Points.Count && rise.Count >= 2) item.Rise = rise.Select(r => Math.Max(0, r)).ToList();
+            if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind == SceneryKind.Dimension && item.Points.Count != 2) continue;
             plan.Scenery.Add(item);

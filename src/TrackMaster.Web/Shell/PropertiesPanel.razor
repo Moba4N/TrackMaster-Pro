@@ -569,19 +569,20 @@
                 <dl class="rows"><dt>@Lang.T("Fläche")</dt><dd>@Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2) m²</dd></dl>
                 break;
             case SceneryKind.Building when ModelLibrary.Of(Session.Plan, s) is { } model:
+                var (heightLabel, trackHeight) = ModelPlacement.HeightInfo(Session.Plan, model, s);
                 if (s.Points.Count >= 2)
                 {
-                    <div class="cols">@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)@NumField(s.FollowsTrackHeight ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), "height", ApplyScenery)</div>
-                    <dl class="rows"><dt>@Lang.T("Länge entlang des Gleises")</dt><dd>@Fmt.Num(PlacedModel.PathLength(s.Points), 0) mm</dd>
-                        @if (s.FollowsTrackHeight)
-                        {
-                            <dt>@Lang.T("Gleishöhe")</dt><dd>@Fmt.Num(s.Rise.Min(), 0)–@Fmt.Num(s.Rise.Max(), 0) mm</dd>
-                        }</dl>
+                    <div class="cols">@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)@NumField(heightLabel, "height", ApplyScenery)</div>
+                    <dl class="rows"><dt>@Lang.T("Länge entlang des Gleises")</dt><dd>@Fmt.Num(PlacedModel.PathLength(s.Points), 0) mm</dd></dl>
                 }
                 else
                 {
                     <div class="cols">@NumField(Lang.T("Länge (mm)"), "width", ApplyScenery)@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)</div>
-                    <div class="cols">@NumField(Lang.T("Höhe (mm)"), "height", ApplyScenery)@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
+                    <div class="cols">@NumField(heightLabel, "height", ApplyScenery)@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
+                }
+                @if (trackHeight is not null)
+                {
+                    <dl class="rows"><dt>@Lang.T("Gleishöhe")</dt><dd>@trackHeight</dd></dl>
                 }
                 <label class="field-label">@Lang.F($"Hauptfarbe ({ModelBody.MaterialName(model.EffectiveMainMaterial)})")</label>
                 <select class="input" value="@F("color")" @onchange="@(e => Set("color", e, ApplyScenery))">

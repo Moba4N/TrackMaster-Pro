@@ -92,12 +92,10 @@ public sealed class SceneryItem
     public string Name { get; set; } = "";
     public List<(double X, double Y)> Points { get; set; } = [];
     /// <summary>
-    /// Nur bei Modellen entlang eines Gleises (Stützmauer, Bahnsteig): Gleishöhe über dem Boden je Stützpunkt in mm
-    /// (so viele Werte wie <see cref="Points"/>). Das Modell wächst um diesen Wert; <see cref="Height"/> zählt dann über dem Gleis.
+    /// Nur bei Ausstattungsmodellen am Gleis: die Gleise, an denen das Modell sitzt. Höhe und Ebene richten sich danach
+    /// (siehe <see cref="ModelPlacement.TrackRise"/>), auch wenn die Gleise später angehoben werden.
     /// </summary>
-    public List<double> Rise { get; set; } = [];
-    /// <summary>Folgt das Modell der Gleishöhe?</summary>
-    public bool FollowsTrackHeight => Rise.Count >= 2 && Rise.Count == Points.Count;
+    public List<int> Tracks { get; set; } = [];
     public double X { get; set; }
     public double Y { get; set; }
     public double Width { get; set; }
@@ -180,7 +178,7 @@ public sealed class SceneryItem
 
     public SceneryItem Clone() => new()
     {
-        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], Rise = [.. Rise], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color,
+        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], Tracks = [.. Tracks], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color,
     };
 
     public static string KindName(SceneryKind k) => k switch

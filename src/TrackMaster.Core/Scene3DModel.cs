@@ -331,7 +331,7 @@ public sealed class Scene3DModel
 
     private void Building(SceneryItem s)
     {
-        if (ModelLibrary.Placed(_plan, s) is { } model) { Model(s, model); return; }
+        if (ModelLibrary.Placed(_plan, s, trackHeight: true) is { } model) { Model(s, model); return; }
         var o = s.Outline();
         // Auf dem Hügel: auf die tiefste Ecke stellen, bergseitig steckt das Haus im Hang
         var ground = o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y));
@@ -382,8 +382,7 @@ public sealed class Scene3DModel
     /// <summary>Ausstattungsmodell: auf den tiefsten Punkt des Umrisses gestellt (mindestens auf die Höhe seiner Ebene).</summary>
     private void Model(SceneryItem s, PlacedModel model)
     {
-        var o = s.Outline();
-        var ground = Math.Max(o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y)), s.Level > 0 ? _plan.Level(s.Level).Height : double.MinValue);
+        var ground = ModelPlacement.BaseGround(_plan, s);
         foreach (var (color, kind, a, b, c) in model.WorldTriangles(ground))
             Mesh(color, kind).Triangle(P(a.X, a.Y, a.Z), P(b.X, b.Y, b.Z), P(c.X, c.Y, c.Z));
     }

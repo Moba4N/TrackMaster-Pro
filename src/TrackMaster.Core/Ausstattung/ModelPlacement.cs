@@ -37,7 +37,9 @@ public static class ModelPlacement
         {
             case ModelSnap.Tunnelportal:
             {
-                if (Portal(plan, pieces, x, y, tolerance + item.Depth) is not { } c) break;
+                if (Portal(plan, pieces, x, y, tolerance + item.Depth) is not { } portal) break;
+                var (c, portalPiece) = portal;
+                Link(item, portalPiece);
                 var dir = c.Heading * Math.PI / 180;
                 // Die Außenseite der Portalmauer steht am Tunnelanfang, das Modell reicht in den Tunnel hinein (+x)
                 var bounds = def.Bounds();
@@ -53,10 +55,11 @@ public static class ModelPlacement
             {
                 var conn = Connectivity.Analyze(plan);
                 var open = conn.Open.Where(o => pieces.Any(p => p.Id == o.PieceId))
-                    .Select(o => (o.Pose, D: Math.Sqrt((o.Pose.X - x) * (o.Pose.X - x) + (o.Pose.Y - y) * (o.Pose.Y - y))))
+                    .Select(o => (o.Pose, o.PieceId, D: Math.Sqrt((o.Pose.X - x) * (o.Pose.X - x) + (o.Pose.Y - y) * (o.Pose.Y - y))))
                     .Where(o => o.D <= tolerance + item.Width).OrderBy(o => o.D).ToList();
                 if (open.Count == 0) break;
                 var pose = open[0].Pose;
+                Link(item, plan.Find(open[0].PieceId));
                 var dir = pose.Heading * Math.PI / 180;
                 item.X = Math.Round(pose.X + Math.Cos(dir) * item.Width / 2, 2);
                 item.Y = Math.Round(pose.Y + Math.Sin(dir) * item.Width / 2, 2);
@@ -75,13 +78,9 @@ public static class ModelPlacement
                 var path = Offset(line, offset);
                 // Modell-y (von der Gleisseite weg) muss zur Klickseite zeigen: sonst Richtung umkehren
                 if (side < 0) path.Reverse();
-                var length = PlacedModel.PathLength(path);
-                var mid = PointAt(path, length / 2);
-                item.X = Math.Round(mid.X, 2); item.Y = Math.Round(mid.Y, 2);
-                item.Rotation = Math.Round(Angles.Normalize(mid.Heading), 2);
-                item.Width = Math.Round(length, 1);
-                if (Curved(path)) item.Points = path.Select(p => (Math.Round(p.X, 2), Math.Round(p.Y, 2))).ToList();
-                return new(item, Lang.F($"{def.Name} neben dem Gleis eingerastet ({Fmt.Num(edge, 1)} mm Kantenabstand)."), true);
+                SetPath(item, path);
+                LinkAlong(plan, def, item, pieces, line);
+                return new(item, Lang.F($"{def.Name} neben dem Gleis eingerastet ({Fmt.Num(edge, 1)} mm Kantenabstand).") + HeightNote(plan, def, item), true);
             }
             case ModelSnap.Unter:
             case ModelSnap.Auf:
@@ -90,21 +89,22 @@ public static class ModelPlacement
                 if (Nearest(pieces, x, y, tolerance + Math.Max(item.Depth, g * 4)) is not { } hit) break;
                 item.X = Math.Round(hit.Pose.X, 2); item.Y = Math.Round(hit.Pose.Y, 2);
                 item.Rotation = Math.Round(Angles.Normalize(hit.Pose.Heading), 2);
+                Link(item, hit.Piece);
                 if (def.Snap != ModelSnap.Quer)
                 {
-                    // längs zum Gleis: im Bogen mitbiegen
-                    var line = Follow(pieces, hit.Pose, item.Width, g).Select(p => (p.X, p.Y)).ToList();
-                    if (Curved(line)) SetPath(item, line);
+                    // längs zum Gleis: im Bogen und an Steigungen mitgehen
+                    var line = Follow(pieces, hit.Pose, item.Width, g);
+                    SetPath(item, line.Select(p => (p.X, p.Y)).ToList());
+                    LinkAlong(plan, def, item, pieces, line);
                 }
                 if (def.Snap == ModelSnap.Unter)
                 {
-                    var ground = TerrainField.GroundAt(plan, item.X, item.Y);
-                    var top = hit.Z - ground;
+                    var top = MaxRise(plan, def, item);
                     if (top > g * 1.5) item.Height = Math.Round(top, 1);
                     return new(item, top > g * 1.5 ? Lang.F($"{def.Name} unter dem Gleis eingerastet (Höhe {Fmt.Num(item.Height, 0)} mm).")
                         : Lang.F($"{def.Name} unter dem Gleis eingerastet. Das Gleis liegt flach – für die Brücke Gleis höher legen."), true);
                 }
-                return new(item, Lang.F($"{def.Name} am Gleis eingerastet."), true);
+                return new(item, Lang.F($"{def.Name} am Gleis eingerastet.") + HeightNote(plan, def, item), true);
             }
         }
         return new(item, def.Snap == ModelSnap.Frei ? Lang.F($"{def.Name} gesetzt. Größe, Farbe und Drehung stehen in den Eigenschaften.")
@@ -130,25 +130,16 @@ public static class ModelPlacement
         if (total < 1) return null;
         var step = Math.Clamp(total / 240, 0.5, Math.Max(g, 1));
         var line = new List<Pose>();
-        var heights = new List<double>();
         foreach (var c in chain)
-        {
-            double done = 0;
             foreach (var l in c.Legs)
             {
                 var n = Math.Max(1, (int)Math.Ceiling(l.TrackLength / step));
-                for (var i = line.Count == 0 ? 0 : 1; i <= n; i++)
-                {
-                    line.Add(l.At((double)i / n));
-                    var s = c.Length > 0 ? (done + l.TrackLength * i / n) / c.Length : 0;
-                    heights.Add(c.StartHeight + (c.EndHeight - c.StartHeight) * s);
-                }
-                done += l.TrackLength;
+                for (var i = line.Count == 0 ? 0 : 1; i <= n; i++) line.Add(l.At((double)i / n));
             }
-        }
         var mid = line[line.Count / 2];
         var item = Create(plan, def, mid.X, mid.Y);
         item.Level = chain[0].Piece.Level;
+        item.Tracks = chain.Select(c => c.Piece.Id).Distinct().ToList();
         string message;
         List<(double X, double Y)> path;
         if (def.Snap == ModelSnap.Neben)
@@ -156,29 +147,20 @@ public static class ModelPlacement
             var edge = Math.Max(PlatformEdge * k, g * 1.15);
             path = Offset(line, edge + item.Depth / 2);
             message = Lang.F($"{def.Name} neben {chain.Count} Gleis(en) gesetzt ({Fmt.Num(PlacedModel.PathLength(path), 0)} mm). Andere Seite: „Seite wechseln“ in den Eigenschaften.");
-            // Liegt das Gleis höher als der Boden, wächst das Modell mit der Gleishöhe (Boden wie in der 3D-Ansicht: tiefster Punkt)
-            var ground = Math.Max(path.Min(q => TerrainField.GroundAt(plan, q.X, q.Y)), item.Level > 0 ? plan.Level(item.Level).Height : double.MinValue);
-            var rise = heights.Select(z => Math.Round(Math.Max(0, z - ground), 1)).ToList();
-            if (rise.Max() >= 0.5)
-            {
-                SetPath(item, path, keepPoints: true);
-                item.Rise = rise;
-                return new(item, message + " " + Lang.F($"Es folgt der Gleishöhe ({Fmt.Num(rise.Min(), 0)}–{Fmt.Num(rise.Max(), 0)} mm), die Höhe zählt über dem Gleis."), true);
-            }
         }
         else
         {
             path = line.Select(p => (p.X, p.Y)).ToList();
             message = Lang.F($"{def.Name} entlang {chain.Count} Gleis(en) gesetzt ({Fmt.Num(PlacedModel.PathLength(path), 0)} mm).");
-            if (def.Snap == ModelSnap.Unter)
-            {
-                var ground = TerrainField.GroundAt(plan, mid.X, mid.Y);
-                var top = heights.Average() - ground;
-                if (top > g * 1.5) item.Height = Math.Round(top, 1);
-                else message += " " + Lang.T("Das Gleis liegt flach – für die Brücke Gleis höher legen.");
-            }
         }
         SetPath(item, path);
+        if (def.Snap == ModelSnap.Unter)
+        {
+            var top = MaxRise(plan, def, item);
+            if (top > g * 1.5) item.Height = Math.Round(top, 1);
+            else message += " " + Lang.T("Das Gleis liegt flach – für die Brücke Gleis höher legen.");
+        }
+        else message += HeightNote(plan, def, item);
         return new(item, message, true);
     }
 
@@ -199,9 +181,7 @@ public static class ModelPlacement
             }).ToList();
             var path = Offset(poses, -o);
             path.Reverse();
-            var rise = item.FollowsTrackHeight ? Enumerable.Reverse(item.Rise).ToList() : null;
-            SetPath(item, path, keepPoints: rise is not null);
-            if (rise is not null) item.Rise = rise;
+            SetPath(item, path, keepPoints: true);
         }
         else
         {
@@ -222,7 +202,105 @@ public static class ModelPlacement
         item.Rotation = Math.Round(Angles.Normalize(mid.Heading), 2);
         item.Width = Math.Round(length, 1);
         item.Points = keepPoints || Curved(path) ? path.Select(p => (Math.Round(p.X, 2), Math.Round(p.Y, 2))).ToList() : [];
-        item.Rise = [];
+    }
+
+    // ---------- Höhe und Ebene nach den Gleisen ----------
+
+    /// <summary>Wie das Modell der Gleishöhe folgt, je nach Einrastart.</summary>
+    public static TrackHeightMode ModeOf(ModelDefinition def) => def.Snap switch
+    {
+        ModelSnap.Neben or ModelSnap.Tunnelportal => TrackHeightMode.Stretch,
+        ModelSnap.Auf or ModelSnap.Quer or ModelSnap.Gleisende => TrackHeightMode.Lift,
+        ModelSnap.Unter => TrackHeightMode.Top,
+        _ => TrackHeightMode.None,
+    };
+
+    /// <summary>Boden unter dem Modell wie in der 3D-Ansicht: tiefster Punkt des Umrisses, mindestens die Höhe seiner Ebene.</summary>
+    public static double BaseGround(LayoutPlan plan, SceneryItem item)
+        => Math.Max(item.Outline().Min(c => TerrainField.GroundAt(plan, c.X, c.Y)), item.Level > 0 ? plan.Level(item.Level).Height : double.MinValue);
+
+    /// <summary>
+    /// Gleishöhe über dem Boden des Modells, aus den verknüpften Gleisen (<see cref="SceneryItem.Tracks"/>) neu bestimmt:
+    /// je Stützpunkt der Modelllinie oder ein Wert für das ganze Modell. Null, wenn das Modell keinen Gleisbezug hat
+    /// oder das Gleis auf dem Boden liegt – dann steht es wie ein freies Modell auf Gelände, Modul und Ebene.
+    /// </summary>
+    public static double[]? TrackRise(LayoutPlan plan, SceneryItem item, ModelDefinition def)
+    {
+        if (item.Tracks.Count == 0 || ModeOf(def) == TrackHeightMode.None) return null;
+        var pieces = item.Tracks.Select(plan.Find).OfType<PlacedPiece>().ToList();
+        if (pieces.Count == 0) return null;
+        var g = plan.Gauge.TrackWidth;
+        var k = ModelLibrary.MmPerMeter(plan.Gauge);
+        var tol = item.Depth + 3 * g + PlatformEdge * k + (def.Snap == ModelSnap.Gleisende ? item.Width : 0);
+        IReadOnlyList<(double X, double Y)> pts;
+        if (item.Points.Count >= 2) pts = item.Points;
+        else if (def.Snap is ModelSnap.Neben or ModelSnap.Unter or ModelSnap.Auf)
+        {
+            // gerades Modell längs zum Gleis: Gleishöhe an mehreren Stellen entlang, damit es auch Steigungen folgt
+            var placed = new PlacedModel(def, item, k);
+            var b = def.Bounds();
+            var (y, n) = ((b.Y0 + b.Y1) / 2, 9);
+            pts = Enumerable.Range(0, n).Select(i => placed.Map(b.X0 + (b.X1 - b.X0) * i / (n - 1), y)).ToList();
+        }
+        else pts = [item.Center()];
+        var ground = BaseGround(plan, item);
+        var rise = new double?[pts.Count];
+        for (var i = 0; i < pts.Count; i++)
+            if (Nearest(pieces, pts[i].X, pts[i].Y, tol) is { } hit) rise[i] = Math.Max(0, hit.Z - ground);
+        if (rise.All(r => r is null)) return null;
+        // Lücken (z. B. über das Gleisende hinaus) mit dem nächsten bekannten Wert füllen
+        var result = new double[pts.Count];
+        var last = rise.First(r => r is not null)!.Value;
+        for (var i = 0; i < pts.Count; i++) { last = rise[i] ?? last; result[i] = Math.Round(last, 1); }
+        return result.Max() < 0.5 ? null : result;
+    }
+
+    /// <summary>Höchste Gleishöhe über dem Boden des Modells (0 ohne Gleisbezug).</summary>
+    public static double MaxRise(LayoutPlan plan, ModelDefinition def, SceneryItem item)
+        => TrackRise(plan, item, def) is { } r ? r.Max() : 0;
+
+    /// <summary>Ebene der Modelle nach ihren Gleisen ausrichten und Verweise auf gelöschte Gleise entfernen.</summary>
+    public static void SyncLevels(LayoutPlan plan)
+    {
+        foreach (var s in plan.Scenery)
+        {
+            if (s.Tracks.Count == 0) continue;
+            s.Tracks.RemoveAll(id => plan.Find(id) is null);
+            if (s.Tracks.Count > 0) s.Level = Math.Clamp(plan.Find(s.Tracks[0])!.Level, 0, plan.Levels.Count - 1);
+        }
+    }
+
+    /// <summary>Für die Eigenschaften: Beschriftung des Höhenfelds und die aktuelle Gleishöhe (null ohne Gleisbezug).</summary>
+    public static (string HeightLabel, string? TrackHeight) HeightInfo(LayoutPlan plan, ModelDefinition def, SceneryItem item)
+    {
+        if (TrackRise(plan, item, def) is not { } r) return (Lang.T("Höhe (mm)"), null);
+        var (lo, hi) = (r.Min(), r.Max());
+        var text = hi - lo < 0.5 ? $"{Fmt.Num(hi, 0)} mm" : $"{Fmt.Num(lo, 0)}–{Fmt.Num(hi, 0)} mm";
+        return (ModeOf(def) == TrackHeightMode.Stretch ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), text);
+    }
+
+    private static void Link(SceneryItem item, PlacedPiece? piece)
+    {
+        if (piece is null) return;
+        item.Tracks = [piece.Id];
+        item.Level = piece.Level;
+    }
+
+    /// <summary>Alle Gleise entlang der Modelllinie verknüpfen (das Modell kann über mehrere Gleise reichen).</summary>
+    private static void LinkAlong(LayoutPlan plan, ModelDefinition def, SceneryItem item, IReadOnlyList<PlacedPiece> pieces, List<Pose> line)
+    {
+        var g = plan.Gauge.TrackWidth;
+        foreach (var p in line)
+            if (Nearest(pieces, p.X, p.Y, g) is { } hit && !item.Tracks.Contains(hit.Piece.Id)) item.Tracks.Add(hit.Piece.Id);
+        if (item.Tracks.Count > 0) item.Level = plan.Find(item.Tracks[0])!.Level;
+    }
+
+    private static string HeightNote(LayoutPlan plan, ModelDefinition def, SceneryItem item)
+    {
+        if (TrackRise(plan, item, def) is not { } r) return "";
+        return ModeOf(def) == TrackHeightMode.Stretch
+            ? " " + Lang.F($"Es folgt der Gleishöhe ({Fmt.Num(r.Min(), 0)}–{Fmt.Num(r.Max(), 0)} mm), die Höhe zählt über dem Gleis.")
+            : " " + Lang.F($"Es steht auf Gleishöhe ({Fmt.Num(r.Max(), 0)} mm).");
     }
 
     /// <summary>Nächster Punkt auf der Gleismitte im Umkreis.</summary>
@@ -342,8 +420,9 @@ public static class ModelPlacement
     /// Tunnelanfang nahe (x, y): Anschluss zwischen Tunnelgleis und offenem Gleis (oder offenes Ende eines Tunnelgleises).
     /// Ohne Tunnel: nächstes Gleisende. Die Richtung zeigt in den Tunnel hinein.
     /// </summary>
-    private static Pose? Portal(LayoutPlan plan, List<PlacedPiece> pieces, double x, double y, double tolerance)
+    private static (Pose Pose, PlacedPiece Piece)? Portal(LayoutPlan plan, List<PlacedPiece> pieces, double x, double y, double tolerance)
     {
+        PlacedPiece? bestPiece = null;
         var conn = Connectivity.Analyze(plan);
         var ids = pieces.Select(p => p.Id).ToHashSet();
         Pose? best = null;
@@ -361,8 +440,8 @@ public static class ModelPlacement
             else if (!self.Tunnel && other is { Tunnel: true }) { score = 0; pose = c.Pose; }
             else if (c.IsOpen) { score = 1; pose = c.Pose; }
             else continue;
-            if (score < bestScore || (score == bestScore && d < bestD)) { best = pose; bestD = d; bestScore = score; }
+            if (score < bestScore || (score == bestScore && d < bestD)) { best = pose; bestD = d; bestScore = score; bestPiece = self; }
         }
-        return best;
+        return best is { } b ? (b, bestPiece!) : null;
     }
 }

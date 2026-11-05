@@ -420,13 +420,13 @@ public static partial class Dialogs
                         break;
                     case SceneryKind.Building when ModelLibrary.Of(plan, s) is { } model:
                     {
+                        var (heightLabel, trackHeight) = ModelPlacement.HeightInfo(plan, model, s);
                         if (s.Points.Count >= 2)
                         {
                             body.AddView(Columns(c,
                                 Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1)),
-                                Ui.Field(c, s.FollowsTrackHeight ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
+                                Ui.Field(c, heightLabel, Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
                             body.AddView(Rows(c, (Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null)));
-                            if (s.FollowsTrackHeight) body.AddView(Rows(c, (Lang.T("Gleishöhe"), $"{Fmt.Num(s.Rise.Min(), 0)}–{Fmt.Num(s.Rise.Max(), 0)} mm", null)));
                         }
                         else
                         {
@@ -434,9 +434,10 @@ public static partial class Dialogs
                                 Ui.Field(c, Lang.T("Länge (mm)"), Num(s.Width, Lang.T("Länge"), 0.5, 20000, v => s.Width = v, 1)),
                                 Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1))));
                             body.AddView(Columns(c,
-                                Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1)),
+                                Ui.Field(c, heightLabel, Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1)),
                                 Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
                         }
+                        if (trackHeight is not null) body.AddView(Rows(c, (Lang.T("Gleishöhe"), trackHeight, null)));
                         var colors = ModelLibrary.MainColors;
                         var ci = colors.ToList().FindIndex(x => string.Equals(x.Hex ?? "", s.Color ?? "", StringComparison.OrdinalIgnoreCase));
                         modelColor = Choice(c, colors.Select(x => x.Name).ToList(), Math.Max(0, ci));

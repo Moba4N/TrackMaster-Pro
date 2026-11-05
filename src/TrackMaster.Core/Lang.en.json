@@ -575,6 +575,7 @@
  "Es folgt der Gleishöhe ({0}–{1} mm), die Höhe zählt über dem Gleis.": "It follows the track height ({0}–{1} mm); the height counts above the track.",
  "Es ist kein Hintergrundbild geladen.": "No background image is loaded.",
  "Es passen nur noch {0} neue Ebenen (höchstens {1}); die übrigen Windungen bleiben auf der letzten.": "Only {0} more levels fit (at most {1}); the remaining turns stay on the last one.",
+ "Es steht auf Gleishöhe ({0} mm).": "It stands at track height ({0} mm).",
  "Export Steuerung": "Control export",
  "Export als CSV": "Export as CSV",
  "Export als DXF": "Export as DXF",

@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -32,6 +32,10 @@ public sealed partial class PlanSession
     public SignalType SignalType { get; set; } = SignalType.Hauptsignal;
     /// <summary>Art des Raumelements für das Werkzeug „Raumelement“.</summary>
     public ObstacleType ObstacleType { get; set; } = ObstacleType.Tuer;
+    /// <summary>Ausstattungsmodell für das Werkzeug „Modell einfügen“ (<see cref="ModelLibrary"/>).</summary>
+    public string ModelId { get; set; } = BuiltinModels.All[0].Id;
+    /// <summary>Gewähltes Ausstattungsmodell (im Plan mitgespeichert, Grundmodell oder eigene Bibliothek).</summary>
+    public ModelDefinition? CurrentModel => ModelLibrary.Find(Plan, ModelId);
     /// <summary>Gewähltes Objekt (Gelände, Einspeisung, Trennstelle, Signal) – Gleise stehen in <see cref="Selection"/>.</summary>
     public int? SelectedObject { get; private set; }
     /// <summary>Ergebnis der letzten Prüfung; die Zeichenfläche markiert die Stellen.</summary>
@@ -437,7 +441,11 @@ public sealed partial class PlanSession
         temp.Isolations.AddRange(Plan.Isolations.Where(i => ids.Contains(i.PieceId)).Select(i => i.Clone()));
         temp.Signals.AddRange(Plan.Signals.Where(g => ids.Contains(g.PieceId)).Select(g => g.Clone()));
         temp.Detectors.AddRange(Plan.Detectors.Where(d => ids.Contains(d.PieceId)).Select(d => d.Clone()));
-        if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item) temp.Scenery.Add(item.Clone());
+        if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item)
+        {
+            temp.Scenery.Add(item.Clone());
+            if (item.IsModel && Plan.Models.TryGetValue(item.Model!, out var own)) temp.Models[own.Id] = own;
+        }
         if (temp.Pieces.Count == 0 && temp.Scenery.Count == 0) return null;
         var n = temp.Pieces.Count + temp.Scenery.Count;
         Say(n == 1 ? Lang.T("1 Objekt kopiert.") : Lang.F($"{n} Objekte kopiert."));
@@ -499,6 +507,7 @@ public sealed partial class PlanSession
             Plan.Detectors.Add(det);
         }
         int? pastedObject = null;
+        foreach (var (id, m) in src.Models) Plan.Models.TryAdd(id, m);
         foreach (var s in src.Scenery)
         {
             var item = s.Clone();
@@ -1294,6 +1303,49 @@ public sealed partial class PlanSession
         var len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
         Say(Lang.F($"Maß {Fmt.Num(len, 0)} mm gesetzt. Abstand der Maßlinie und Schriftgröße stehen in den Eigenschaften."));
         return item;
+    }
+
+    /// <summary>
+    /// Setzt das gewählte Ausstattungsmodell an (x, y) und rastet es am Gleis ein (Umkreis <paramref name="tolerance"/> in mm).
+    /// Eigene Modelle aus der Bibliothek brauchen Pro; im Plan mitgespeicherte Modelle gehen auch in der Basis.
+    /// </summary>
+    public SceneryItem? PlaceModel(double x, double y, double tolerance)
+    {
+        if (CurrentModel is not { } def) { Say(Lang.T("Bitte zuerst ein Modell wählen.")); return null; }
+        if (!def.IsBuiltin && !Plan.Models.ContainsKey(def.Id) && !RequirePro(Lang.T("Eigene Modelle"))) return null;
+        var result = ModelPlacement.Place(Plan, def, x, y, tolerance);
+        Record();
+        if (!def.IsBuiltin) Plan.Models[def.Id] = def.Clone();
+        var item = result.Item;
+        item.Id = Plan.NextId++;
+        Plan.Scenery.Add(item);
+        SelectedObject = item.Id;
+        Selection.Clear();
+        Commit();
+        Say(result.Message);
+        return item;
+    }
+
+    /// <summary>Ausstattungsmodell auf die Vorbildgröße im Maßstab der Spur zurücksetzen (bei gebogenen nur Tiefe und Höhe).</summary>
+    public void ResetModelSize(int id)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { } item || ModelLibrary.Of(Plan, item) is not { } def) return;
+        var k = ModelLibrary.MmPerMeter(Plan.Gauge);
+        var (w, d, h) = def.Size;
+        Record();
+        if (item.Points.Count < 2) item.Width = Math.Round(w * k, 1);
+        item.Depth = Math.Round(d * k, 1);
+        item.Height = Math.Round(h * k, 1);
+        Commit();
+    }
+
+    /// <summary>Hauptfarbe eines Ausstattungsmodells ändern (null = Farbe des Modells).</summary>
+    public void SetModelColor(int id, string? color)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { Kind: SceneryKind.Building } item) return;
+        Record();
+        item.Color = ModelBody.ParseColor(color) is { } c ? ModelBody.ToHex(c) : null;
+        Commit();
     }
 
     public SceneryItem AddScenery(SceneryItem item)

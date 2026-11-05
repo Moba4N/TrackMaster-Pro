@@ -11,10 +11,11 @@ public static class PlanSerializer
     public const string FileExtension = ".trackmaster.json";
     /// <summary>
     /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. 3: Raum, Hintergrundbild,
-    /// Rückmelder, Preise und Bestand, gesperrte und gruppierte Gleise. Ältere Programmversionen
+    /// Rückmelder, Preise und Bestand, gesperrte und gruppierte Gleise. 4: Ausstattungsmodelle (Gebäude mit Modell und Farbe,
+    /// entlang des Gleises gebogene Bahnsteige, mitgespeicherte eigene Modelle). Ältere Programmversionen
     /// überspringen, was sie nicht kennen; neuere Dateien öffnet dieses Programm mit einem Hinweis.
     /// </summary>
-    public const int CurrentFormat = 3;
+    public const int CurrentFormat = 4;
 
     private sealed class FileDto
     {
@@ -38,6 +39,7 @@ public static class PlanSerializer
         [JsonPropertyName("prices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, double>? Prices { get; set; }
         [JsonPropertyName("stock"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, int>? Stock { get; set; }
         [JsonPropertyName("background"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BackgroundDto? Background { get; set; }
+        [JsonPropertyName("models"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModelFile.ModelDto>? Models { get; set; }
     }
 
     private sealed class DetectorDto
@@ -83,6 +85,8 @@ public static class PlanSerializer
         [JsonPropertyName("h")] public double H { get; set; }
         [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Level { get; set; }
         [JsonPropertyName("var"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Variant { get; set; }
+        [JsonPropertyName("model"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Model { get; set; }
+        [JsonPropertyName("color"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Color { get; set; }
     }
 
     private sealed class FeederDto
@@ -228,9 +232,11 @@ public static class PlanSerializer
                 Id = withIds ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
+                Model = s.IsModel ? s.Model : null, Color = s.Kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
             }).ToList(),
+            Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit }).ToList(),
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
@@ -348,6 +354,15 @@ public static class PlanSerializer
         foreach (var w in (dto.Scenery ?? []).Select(x => x.Id).Concat((dto.Feeders ?? []).Select(x => x.Id))
                      .Concat((dto.Isolations ?? []).Select(x => x.Id)).Concat((dto.Signals ?? []).Select(x => x.Id)).Concat((dto.Detectors ?? []).Select(x => x.Id)))
             if (w is { } v) plan.NextId = Math.Max(plan.NextId, v + 1);
+        foreach (var md in dto.Models ?? [])
+        {
+            try
+            {
+                var m = ModelFile.FromDto(md);
+                if (!m.IsBuiltin) plan.Models[m.Id] = m;
+            }
+            catch (InvalidDataException) { }
+        }
         foreach (var s in dto.Scenery ?? [])
         {
             if (!Enum.TryParse<SceneryKind>(s.Kind, true, out var kind)) continue;
@@ -356,7 +371,10 @@ public static class PlanSerializer
                 Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
                 Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
+                Model = kind == SceneryKind.Building && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
+                Color = kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
             };
+            if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind == SceneryKind.Dimension && item.Points.Count != 2) continue;
             plan.Scenery.Add(item);

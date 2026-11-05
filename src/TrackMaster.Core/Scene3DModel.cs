@@ -331,6 +331,7 @@ public sealed class Scene3DModel
 
     private void Building(SceneryItem s)
     {
+        if (ModelLibrary.Placed(_plan, s) is { } model) { Model(s, model); return; }
         var o = s.Outline();
         // Auf dem Hügel: auf die tiefste Ecke stellen, bergseitig steckt das Haus im Hang
         var ground = o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y));
@@ -376,6 +377,15 @@ public sealed class Scene3DModel
             walls.Triangle(B(o[0].X, o[0].Y, wall), B(r0.X, r0.Y, top), B(o[1].X, o[1].Y, wall));
             walls.Triangle(B(o[3].X, o[3].Y, wall), B(r1.X, r1.Y, top), B(o[2].X, o[2].Y, wall));
         }
+    }
+
+    /// <summary>Ausstattungsmodell: auf den tiefsten Punkt des Umrisses gestellt (mindestens auf die Höhe seiner Ebene).</summary>
+    private void Model(SceneryItem s, PlacedModel model)
+    {
+        var o = s.Outline();
+        var ground = Math.Max(o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y)), s.Level > 0 ? _plan.Level(s.Level).Height : double.MinValue);
+        foreach (var (color, kind, a, b, c) in model.WorldTriangles(ground))
+            Mesh(color, kind).Triangle(P(a.X, a.Y, a.Z), P(b.X, b.Y, b.Z), P(c.X, c.Y, c.Z));
     }
 
     private static readonly Rgb[] Leaves = [new(0x3E, 0x7A, 0x32), new(0x4F, 0x8C, 0x3A), new(0x5E, 0x94, 0x3C), new(0x36, 0x6E, 0x2C)];

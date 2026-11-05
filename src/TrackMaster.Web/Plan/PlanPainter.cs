@@ -125,6 +125,19 @@ public sealed class PlanPainter
         return _p;
     }
 
+    /// <summary>Ausstattungsmodell: Grundrisse der Körper von unten nach oben und Dachlinien.</summary>
+    private void DrawModel(Canvas c, PlacedModel model, float z)
+    {
+        foreach (var shape in model.PlanShapes())
+        {
+            var color = Color.Rgb(shape.Color.R, shape.Color.G, shape.Color.B);
+            var dark = shape.Color.Scale(shape.Closed ? 0.7 : 0.6);
+            var path = Polygon(shape.Points, shape.Closed);
+            if (shape.Closed) c.DrawPath(path, Fill(color));
+            c.DrawPath(path, Stroke(Color.Rgb(dark.R, dark.G, dark.B), 1f * Ui.Density / z));
+        }
+    }
+
     private Paint Fill(Color c)
     {
         _p.Reset();
@@ -200,6 +213,12 @@ public sealed class PlanPainter
             }
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Building))
             {
+                if (ModelLibrary.Placed(plan, s) is { } model)
+                {
+                    DrawModel(c, model, z);
+                    if (s.Id == selectedObject) c.DrawPath(Polygon(s.Outline()), Stroke(Ui.Accent, selWidth));
+                    continue;
+                }
                 var o = s.Outline();
                 var path = Polygon(o);
                 c.DrawPath(path, Fill(RoofFill));

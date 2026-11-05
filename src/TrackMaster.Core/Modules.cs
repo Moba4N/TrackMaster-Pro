@@ -400,6 +400,7 @@ public static class ModuleLayout
             ids[p.Id] = q.Id;
             plan.Pieces.Add(q);
         }
+        foreach (var (mid, m) in other.Models) plan.Models.TryAdd(mid, m);
         foreach (var s in other.Scenery)
         {
             var q = s.Clone();

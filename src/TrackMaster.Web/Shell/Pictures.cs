@@ -16,6 +16,33 @@ public static class Pictures
 
     private static Color C(Rgb v) => Color.Rgb(v.R, v.G, v.B);
 
+    /// <summary>Draufsicht eines Ausstattungsmodells (für Auswahllisten und die Bibliothek).</summary>
+    public static string Model(ModelDefinition def, float size = 48)
+    {
+        var c = new Canvas(size, size);
+        var model = new PlacedModel(def, new SceneryItem { Kind = SceneryKind.Building, Model = def.Id }, 1);
+        var (w, d, _) = def.Size;
+        var scale = (float)(size * 0.92 / Math.Max(w, d));
+        c.Translate(size / 2, size / 2);
+        c.Scale(scale, scale);
+        using var p = new Paint { AntiAlias = true };
+        foreach (var shape in model.PlanShapes())
+        {
+            var path = PlanPainter.Polygon(shape.Points, shape.Closed);
+            if (shape.Closed)
+            {
+                p.SetStyle(Paint.Style.Fill);
+                p.Color = C(shape.Color);
+                c.DrawPath(path, p);
+            }
+            p.SetStyle(Paint.Style.Stroke);
+            p.StrokeWidth = 1 / scale;
+            p.Color = C(shape.Color.Scale(0.6));
+            c.DrawPath(path, p);
+        }
+        return SvgWriter.Image(c);
+    }
+
     public static string DesignPreview(Design d, float w = 96, float h = 48)
     {
         var c = new Canvas(w, h);

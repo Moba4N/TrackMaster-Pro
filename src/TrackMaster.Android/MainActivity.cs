@@ -237,6 +237,12 @@ public sealed class MainActivity : Activity
         Add("toolBoard", Lang.T("Platte ziehen"), () => SetTool(CanvasTool.Board));
         Add("toolWater", Lang.T("Gewässer"), () => SetTool(CanvasTool.Water));
         Add("toolBuilding", Lang.T("Gebäude"), () => SetTool(CanvasTool.Building));
+        foreach (var (cmd, cat) in ModelCommands)
+            Add(cmd, cat, () =>
+            {
+                if (ModelToolIn(cat)) { SetTool(CanvasTool.Select); return; }
+                Dialogs.AskModel(this, cat, ModelLibrary.All.Where(m => m.Category == cat).ToList(), _session.Tool == CanvasTool.Model ? _session.ModelId : null, SetModelTool);
+            });
         Add("toolTree", Lang.T("Vegetation"), () => SetTool(CanvasTool.Tree));
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
@@ -287,6 +293,19 @@ public sealed class MainActivity : Activity
             if (_session.Tool == CanvasTool.Detector) { SetTool(CanvasTool.Select); return; }
             Dialogs.AskDetectorType(this, _session.DetectorType, t => { _session.DetectorType = t; SetTool(CanvasTool.Detector); });
         });
+    }
+
+    /// <summary>Befehle für die Modellkategorien im Register „Ausstattung“.</summary>
+    private static IReadOnlyList<(string Command, string Category)> ModelCommands =>
+        [("modelsTunnel", BuiltinModels.CatTunnel), ("modelsStation", BuiltinModels.CatStation), ("modelsRailway", BuiltinModels.CatRailway), ("modelsHouses", BuiltinModels.CatHouses)];
+
+    private bool ModelToolIn(string category) => _session.Tool == CanvasTool.Model && _session.CurrentModel is { } m && m.Category == category;
+
+    private void SetModelTool(string id)
+    {
+        _session.ModelId = id;
+        if (_session.Tool == CanvasTool.Model) { UpdateToolBar(); RefreshActions(); return; }
+        SetTool(CanvasTool.Model);
     }
 
     private void SetObstacleTool(ObstacleType type)
@@ -515,6 +534,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
         (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
+        (Lang.T("Ausstattung"), [.. ModelCommands.Select(m => (m.Category + "…", m.Command, true)), (Lang.T("Einfaches Gebäude"), "toolBuilding", true)]),
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
@@ -723,6 +743,7 @@ public sealed class MainActivity : Activity
         "toolHeater" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Heizkoerper,
         "toolFurniture" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Moebel,
         "bgToggle" => _session.Plan.Background is { Visible: true },
+        _ when ModelCommands.FirstOrDefault(m => m.Command == id) is { Command: not null } mc => ModelToolIn(mc.Category),
         _ => false,
     };
 
@@ -804,6 +825,9 @@ public sealed class MainActivity : Activity
             CanvasTool.Water => Lang.F($"Gewässer: Eckpunkte antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
             CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein."),
             CanvasTool.Building => Lang.T("Gebäude: antippen oder Rechteck aufziehen."),
+            CanvasTool.Model => _session.CurrentModel is { } model
+                ? Lang.F($"{model.Name}: in den Plan tippen.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein."))
+                : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
             CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis tippen."),
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),

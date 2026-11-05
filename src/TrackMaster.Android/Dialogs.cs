@@ -390,9 +390,10 @@ public static partial class Dialogs
                 body.AddView(Ui.Field(c, s.Kind == SceneryKind.Label ? "Text" : Lang.T("Name"), name));
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
                 Spinner? obstacleKind = null;
-                EditText Num(double v, string label, double min, double max, Action<double> apply)
+                Spinner? modelColor = null;
+                EditText Num(double v, string label, double min, double max, Action<double> apply, int decimals = 0)
                 {
-                    var e = Ui.Number(c, v, 0, min < 0);
+                    var e = Ui.Number(c, v, decimals, min < 0);
                     fields.Add((e, label, min, max, apply));
                     return e;
                 }
@@ -417,6 +418,35 @@ public static partial class Dialogs
                         body.AddView(Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Height, Lang.T("Tiefe"), 0, 200, v => s.Height = v)));
                         body.AddView(Rows(c, (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));
                         break;
+                    case SceneryKind.Building when ModelLibrary.Of(plan, s) is { } model:
+                    {
+                        if (s.Points.Count >= 2)
+                        {
+                            body.AddView(Columns(c,
+                                Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1)),
+                                Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
+                            body.AddView(Rows(c, (Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null)));
+                        }
+                        else
+                        {
+                            body.AddView(Columns(c,
+                                Ui.Field(c, Lang.T("Länge (mm)"), Num(s.Width, Lang.T("Länge"), 0.5, 20000, v => s.Width = v, 1)),
+                                Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1))));
+                            body.AddView(Columns(c,
+                                Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1)),
+                                Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                        }
+                        var colors = ModelLibrary.MainColors;
+                        var ci = colors.ToList().FindIndex(x => string.Equals(x.Hex ?? "", s.Color ?? "", StringComparison.OrdinalIgnoreCase));
+                        modelColor = Choice(c, colors.Select(x => x.Name).ToList(), Math.Max(0, ci));
+                        body.AddView(Ui.Field(c, Lang.F($"Hauptfarbe ({ModelBody.MaterialName(model.EffectiveMainMaterial)})"), modelColor));
+                        body.AddView(Rows(c, (Lang.T("Modell"), model.Name, null),
+                            (Lang.T("Vorbild"), Lang.F($"{Fmt.Num(model.Size.W, 1)} × {Fmt.Num(model.Size.D, 1)} × {Fmt.Num(model.Size.H, 1)} m"), null),
+                            (Lang.T("Maßstab"), plan.Gauge.Scale, null)));
+                        body.AddView(Ui.Button(c, Lang.T("Originalgröße"), () => { dialog?.Dismiss(); session.ResetModelSize(s.Id); }), Ui.Wrap());
+                        if (!string.IsNullOrWhiteSpace(model.Description)) body.AddView(Hint(c, model.Description));
+                        break;
+                    }
                     case SceneryKind.Building:
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), 5, 5000, v => s.Width = v)),
@@ -463,6 +493,7 @@ public static partial class Dialogs
                         if (n.Length > 0) s.Name = n;
                         foreach (var (f, _, v) in values) f.Apply(v);
                         if (obstacleKind is not null) s.Variant = (int)Enum.GetValues<ObstacleType>()[Math.Max(0, obstacleKind.SelectedItemPosition)];
+                        if (modelColor is not null) s.Color = ModelLibrary.MainColors[Math.Clamp(modelColor.SelectedItemPosition, 0, ModelLibrary.MainColors.Count - 1)].Hex;
                     });
                     return true;
                 });
@@ -971,6 +1002,62 @@ public static partial class Dialogs
             body.AddView(row);
         }
         dialog = Show(c, Lang.T("Signal setzen"), body, okText: null);
+    }
+
+    /// <summary>Modell aus einer Liste wählen (mit Draufsicht); danach setzt ein Tipp in den Plan das Modell.</summary>
+    public static void AskModel(Context c, string title, IReadOnlyList<ModelDefinition> models, string? current, Action<string> pick)
+    {
+        var body = Ui.Column(c, 6);
+        AlertDialog? dialog = null;
+        if (models.Count == 0) body.AddView(Ui.Label(c, Lang.T("(noch keine)"), 13, color: Ui.TextSecondary));
+        foreach (var m in models)
+        {
+            var id = m.Id;
+            var row = Ui.Row(c, 12);
+            row.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
+            row.Background = Ui.Rounded(id == current ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), id == current ? Ui.Accent : Ui.Border);
+            row.Clickable = true;
+            row.AddView(new ModelIconView(c, m), new LinearLayout.LayoutParams(Ui.Dp(52), Ui.Dp(52)));
+            var texts = Ui.Column(c, 2);
+            texts.AddView(Ui.Label(c, m.Name, 15, true));
+            if (!string.IsNullOrWhiteSpace(m.Description)) texts.AddView(Ui.Label(c, m.Description, 12, color: Ui.TextSecondary));
+            row.AddView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+            row.Click += (_, _) => { pick(id); dialog?.Dismiss(); };
+            body.AddView(row);
+        }
+        dialog = Show(c, title, body, okText: null);
+    }
+
+    /// <summary>Draufsicht eines Ausstattungsmodells für Listen.</summary>
+    private sealed class ModelIconView(Context c, ModelDefinition model) : View(c)
+    {
+        protected override void OnDraw(Canvas canvas)
+        {
+            base.OnDraw(canvas);
+            var placed = new PlacedModel(model, new SceneryItem { Kind = SceneryKind.Building, Model = model.Id }, 1);
+            var (w, d, _) = model.Size;
+            var scale = (float)(Math.Min(Width, Height) * 0.92 / Math.Max(w, d));
+            canvas.Save();
+            canvas.Translate(Width / 2f, Height / 2f);
+            canvas.Scale(scale, scale);
+            using var p = new Paint(PaintFlags.AntiAlias);
+            foreach (var shape in placed.PlanShapes())
+            {
+                var path = PlanPainter.Polygon(shape.Points, shape.Closed);
+                if (shape.Closed)
+                {
+                    p.SetStyle(Paint.Style.Fill!);
+                    p.Color = Color.Rgb(shape.Color.R, shape.Color.G, shape.Color.B);
+                    canvas.DrawPath(path, p);
+                }
+                var dark = shape.Color.Scale(0.6);
+                p.SetStyle(Paint.Style.Stroke!);
+                p.StrokeWidth = 1 / scale;
+                p.Color = Color.Rgb(dark.R, dark.G, dark.B);
+                canvas.DrawPath(path, p);
+            }
+            canvas.Restore();
+        }
     }
 
     /// <summary>Kleines Signalbild (H/V-Lichtsignal) für Listen.</summary>

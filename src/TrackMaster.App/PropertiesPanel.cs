@@ -377,6 +377,37 @@ public sealed class PropertiesPanel : DockPanel
                         _body.Children.Add(Columns(2, Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0, 200), 0))));
                         Rows((Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
                         break;
+                    case SceneryKind.Building when ModelLibrary.Of(plan, s) is { } model:
+                        _headerRight.Text = model.Name;
+                        if (s.Points.Count >= 2)
+                        {
+                            _body.Children.Add(Columns(2,
+                                Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
+                                Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                            Rows((Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null));
+                        }
+                        else
+                        {
+                            _body.Children.Add(Columns(3,
+                                Theme.Field(Lang.T("Länge (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 0.5, 20000), 1)),
+                                Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
+                                Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                            _body.Children.Add(Columns(3, Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        }
+                        var colors = new ComboBox { Height = 28 };
+                        foreach (var (cname, hex) in ModelLibrary.MainColors)
+                            colors.Items.Add(new ComboBoxItem { Content = cname, Tag = hex ?? "", IsSelected = string.Equals(hex ?? "", s.Color ?? "", StringComparison.OrdinalIgnoreCase) });
+                        if (colors.SelectedItem is null && !string.IsNullOrEmpty(s.Color)) colors.Items.Add(new ComboBoxItem { Content = s.Color, Tag = s.Color, IsSelected = true });
+                        colors.SelectionChanged += (_, _) => { if (colors.SelectedItem is ComboBoxItem { Tag: string hex } && hex != (s.Color ?? "")) _session.SetModelColor(s.Id, hex); };
+                        _body.Children.Add(Theme.Field(Lang.F($"Hauptfarbe ({ModelBody.MaterialName(model.EffectiveMainMaterial)})"), colors));
+                        var dims = model.Size;
+                        Rows((Lang.T("Vorbild"), Lang.F($"{Fmt.Num(dims.W, 1)} × {Fmt.Num(dims.D, 1)} × {Fmt.Num(dims.H, 1)} m"), null),
+                             (Lang.T("Maßstab"), plan.Gauge.Scale, null));
+                        var reset = Theme.Button(Lang.T("Originalgröße"), "Resize");
+                        reset.Click += (_, _) => _session.ResetModelSize(s.Id);
+                        _body.Children.Add(Buttons(reset));
+                        if (!string.IsNullOrWhiteSpace(model.Description)) _body.Children.Add(Tip(model.Description));
+                        break;
                     case SceneryKind.Building:
                         _body.Children.Add(Columns(3,
                             Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 5, 5000), 0)),

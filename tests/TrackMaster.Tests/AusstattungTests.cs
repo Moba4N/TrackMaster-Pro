@@ -304,6 +304,58 @@ public class AusstattungTests
     }
 
     [Fact]
+    public void Stuetzmauer_folgt_der_Gleishoehe_und_laesst_sich_beidseitig_setzen()
+    {
+        var (session, _, ids) = CurveChain();
+        var plan = session.Plan;
+        // Rampe über die drei Gleise: ab 20 mm mit 3 % Steigung
+        var chain = TrackChain.Order(plan, Connectivity.Analyze(plan), ids);
+        var total = chain.Sum(c => c.Length);
+        double z = 20;
+        foreach (var c in chain)
+        {
+            c.Piece.Grade = c.Entry == 0 ? 0.03 : -0.03;
+            c.Piece.Height = c.Entry == 0 ? z : z + c.Length * 0.03;
+            z += c.Length * 0.03;
+        }
+        session.Commit();
+        foreach (var id in ids) session.Selection.Add(id);
+        var wall = session.PlaceModelOnSelection("tm.stuetzmauer")!;
+        Assert.True(wall.FollowsTrackHeight);
+        Assert.Equal(wall.Points.Count, wall.Rise.Count);
+        Assert.True(wall.Rise.Min() >= 19 && wall.Rise.Max() - wall.Rise.Min() > total * 0.03 * 0.8, $"{wall.Rise.Min()}–{wall.Rise.Max()} bei {total} mm");
+        // 3D: die Mauer reicht an jeder Stelle bis Gleishöhe + eigene Höhe, unten bleibt sie am Boden
+        var placed = ModelLibrary.Placed(plan, wall)!;
+        var tris = placed.WorldTriangles(0).SelectMany(t => new[] { t.A, t.B, t.C }).ToList();
+        Assert.Equal(0, tris.Min(q => q.Z), 3);
+        Assert.Equal(wall.Rise.Max() + wall.Height, tris.Max(q => q.Z), 0);
+
+        // gespeichert und wieder geladen
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(plan), out _);
+        var wall2 = back.Scenery.Last(x => x.Model == wall.Model);
+        Assert.Equal(wall.Rise, wall2.Rise);
+
+        // beidseitig: zweite Mauer gegenüber, Höhen in umgekehrter Reihenfolge
+        var other = session.AddModelOtherSide(wall.Id)!;
+        Assert.NotEqual(wall.Id, other.Id);
+        Assert.Equal(2, plan.Scenery.Count(x => x.Model == wall.Model));
+        Assert.Equal(Enumerable.Reverse(wall.Rise), other.Rise);
+        var c0 = wall.Points[wall.Points.Count / 2];
+        var c1 = other.Points[other.Points.Count / 2];
+        Assert.True(Math.Sqrt((c0.X - c1.X) * (c0.X - c1.X) + (c0.Y - c1.Y) * (c0.Y - c1.Y)) > plan.Gauge.TrackWidth * 2);
+    }
+
+    [Fact]
+    public void Stuetzmauer_am_ebenen_Gleis_bleibt_wie_bisher()
+    {
+        var (session, _, ids) = CurveChain();
+        foreach (var id in ids) session.Selection.Add(id);
+        var wall = session.PlaceModelOnSelection("tm.stuetzmauer")!;
+        Assert.False(wall.FollowsTrackHeight);
+        Assert.Empty(wall.Rise);
+    }
+
+    [Fact]
     public void Ohne_Auswahl_oder_bei_freien_Modellen_wird_wie_gewohnt_geklickt()
     {
         var (session, _, ids) = CurveChain();

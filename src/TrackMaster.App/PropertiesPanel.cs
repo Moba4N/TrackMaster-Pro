@@ -383,8 +383,9 @@ public sealed class PropertiesPanel : DockPanel
                         {
                             _body.Children.Add(Columns(2,
                                 Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
-                                Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                                Theme.Field(s.FollowsTrackHeight ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
                             Rows((Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null));
+                            if (s.FollowsTrackHeight) Rows((Lang.T("Gleishöhe"), $"{Fmt.Num(s.Rise.Min(), 0)}–{Fmt.Num(s.Rise.Max(), 0)} mm", null));
                         }
                         else
                         {
@@ -416,7 +417,10 @@ public sealed class PropertiesPanel : DockPanel
                             var flip = Theme.Button(Lang.T("Seite wechseln"), "Mirror");
                             flip.ToolTip = Lang.T("Setzt das Modell auf die andere Seite des Gleises.");
                             flip.Click += (_, _) => _session.FlipModelSide(s.Id);
-                            _body.Children.Add(Buttons(flip));
+                            var both = Theme.Button(Lang.T("Beidseitig"), "Copy");
+                            both.ToolTip = Lang.T("Setzt dasselbe Modell zusätzlich auf die andere Seite des Gleises.");
+                            both.Click += (_, _) => _session.AddModelOtherSide(s.Id);
+                            _body.Children.Add(Buttons(flip, both));
                         }
                         if (!string.IsNullOrWhiteSpace(model.Description)) _body.Children.Add(Tip(model.Description));
                         break;

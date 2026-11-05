@@ -156,6 +156,15 @@ public static class ModelPlacement
             var edge = Math.Max(PlatformEdge * k, g * 1.15);
             path = Offset(line, edge + item.Depth / 2);
             message = Lang.F($"{def.Name} neben {chain.Count} Gleis(en) gesetzt ({Fmt.Num(PlacedModel.PathLength(path), 0)} mm). Andere Seite: „Seite wechseln“ in den Eigenschaften.");
+            // Liegt das Gleis höher als der Boden, wächst das Modell mit der Gleishöhe (Boden wie in der 3D-Ansicht: tiefster Punkt)
+            var ground = Math.Max(path.Min(q => TerrainField.GroundAt(plan, q.X, q.Y)), item.Level > 0 ? plan.Level(item.Level).Height : double.MinValue);
+            var rise = heights.Select(z => Math.Round(Math.Max(0, z - ground), 1)).ToList();
+            if (rise.Max() >= 0.5)
+            {
+                SetPath(item, path, keepPoints: true);
+                item.Rise = rise;
+                return new(item, message + " " + Lang.F($"Es folgt der Gleishöhe ({Fmt.Num(rise.Min(), 0)}–{Fmt.Num(rise.Max(), 0)} mm), die Höhe zählt über dem Gleis."), true);
+            }
         }
         else
         {
@@ -190,7 +199,9 @@ public static class ModelPlacement
             }).ToList();
             var path = Offset(poses, -o);
             path.Reverse();
-            SetPath(item, path);
+            var rise = item.FollowsTrackHeight ? Enumerable.Reverse(item.Rise).ToList() : null;
+            SetPath(item, path, keepPoints: rise is not null);
+            if (rise is not null) item.Rise = rise;
         }
         else
         {
@@ -203,14 +214,15 @@ public static class ModelPlacement
     }
 
     /// <summary>Objekt auf eine Linie legen: Mitte, Richtung und Länge, bei Bögen mit Stützpunkten.</summary>
-    private static void SetPath(SceneryItem item, List<(double X, double Y)> path)
+    private static void SetPath(SceneryItem item, List<(double X, double Y)> path, bool keepPoints = false)
     {
         var length = PlacedModel.PathLength(path);
         var mid = PointAt(path, length / 2);
         item.X = Math.Round(mid.X, 2); item.Y = Math.Round(mid.Y, 2);
         item.Rotation = Math.Round(Angles.Normalize(mid.Heading), 2);
         item.Width = Math.Round(length, 1);
-        item.Points = Curved(path) ? path.Select(p => (Math.Round(p.X, 2), Math.Round(p.Y, 2))).ToList() : [];
+        item.Points = keepPoints || Curved(path) ? path.Select(p => (Math.Round(p.X, 2), Math.Round(p.Y, 2))).ToList() : [];
+        item.Rise = [];
     }
 
     /// <summary>Nächster Punkt auf der Gleismitte im Umkreis.</summary>

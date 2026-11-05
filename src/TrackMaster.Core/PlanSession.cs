@@ -1351,6 +1351,21 @@ public sealed partial class PlanSession
     public bool CanFlipModelSide(int id)
         => Plan.Scenery.FirstOrDefault(s => s.Id == id) is { IsModel: true } item && ModelLibrary.Of(Plan, item) is { Snap: ModelSnap.Neben };
 
+    /// <summary>Zweite Stützmauer bzw. zweiten Bahnsteig gegenüber auf die andere Gleisseite setzen (beidseitig).</summary>
+    public SceneryItem? AddModelOtherSide(int id)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsModel: true } item || ModelLibrary.Of(Plan, item) is not { Snap: ModelSnap.Neben } def) return null;
+        Record();
+        var copy = item.Clone();
+        copy.Id = Plan.NextId++;
+        ModelPlacement.FlipSide(Plan, def, copy);
+        Plan.Scenery.Add(copy);
+        SelectedObject = copy.Id;
+        Commit();
+        Say(Lang.F($"{def.Name} auch auf der anderen Gleisseite gesetzt."));
+        return copy;
+    }
+
     /// <summary>Stützmauer oder Bahnsteig auf die andere Seite des Gleises setzen.</summary>
     public void FlipModelSide(int id)
     {

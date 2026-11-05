@@ -424,8 +424,9 @@ public static partial class Dialogs
                         {
                             body.AddView(Columns(c,
                                 Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1)),
-                                Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
+                                Ui.Field(c, s.FollowsTrackHeight ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
                             body.AddView(Rows(c, (Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null)));
+                            if (s.FollowsTrackHeight) body.AddView(Rows(c, (Lang.T("Gleishöhe"), $"{Fmt.Num(s.Rise.Min(), 0)}–{Fmt.Num(s.Rise.Max(), 0)} mm", null)));
                         }
                         else
                         {
@@ -445,7 +446,10 @@ public static partial class Dialogs
                             (Lang.T("Maßstab"), plan.Gauge.Scale, null)));
                         body.AddView(Ui.Button(c, Lang.T("Originalgröße"), () => { dialog?.Dismiss(); session.ResetModelSize(s.Id); }), Ui.Wrap());
                         if (model.Snap == ModelSnap.Neben)
+                        {
                             body.AddView(Ui.Button(c, Lang.T("Seite wechseln"), () => { dialog?.Dismiss(); session.FlipModelSide(s.Id); }), Ui.Wrap());
+                            body.AddView(Ui.Button(c, Lang.T("Beidseitig"), () => { dialog?.Dismiss(); session.AddModelOtherSide(s.Id); }), Ui.Wrap());
+                        }
                         if (!string.IsNullOrWhiteSpace(model.Description)) body.AddView(Hint(c, model.Description));
                         break;
                     }

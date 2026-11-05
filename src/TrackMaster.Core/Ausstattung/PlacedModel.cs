@@ -13,6 +13,7 @@ public sealed class PlacedModel
     public ModelDefinition Def { get; }
     public SceneryItem Item { get; }
     private readonly double _x0, _x1, _cx, _cy, _sx, _sy, _sz;
+    private readonly double[] _rise = [];
     private readonly IReadOnlyList<(double X, double Y)> _path;
     private readonly double[] _along = [];
     private readonly (double X, double Y)[] _normals = [];
@@ -37,6 +38,7 @@ public sealed class PlacedModel
             if (_along[^1] < 1e-6) _path = [];
             else
             {
+                if (item.FollowsTrackHeight) _rise = [.. item.Rise];
                 _normals = new (double, double)[_path.Count];
                 for (var i = 0; i < _path.Count; i++)
                 {
@@ -78,6 +80,21 @@ public sealed class PlacedModel
 
     public double MapZ(double z) => z * _sz;
 
+    /// <summary>
+    /// Höhe eines Modellpunkts (Meter) über dem Boden in mm. Folgt das Modell der Gleishöhe, wächst es dort nach oben:
+    /// die Grundfläche bleibt am Boden, alles darüber hebt sich um die Gleishöhe an dieser Stelle.
+    /// </summary>
+    public double MapZ(double x, double z)
+    {
+        if (_rise.Length == 0 || z <= 1e-9) return z * _sz;
+        var s = Math.Clamp((x - _x0) / Math.Max(_x1 - _x0, 1e-9), 0, 1) * _along[^1];
+        var i = Array.BinarySearch(_along, s);
+        if (i < 0) i = ~i - 1;
+        i = Math.Clamp(i, 0, _path.Count - 2);
+        var t = (s - _along[i]) / Math.Max(_along[i + 1] - _along[i], 1e-9);
+        return z * _sz + _rise[i] + (_rise[i + 1] - _rise[i]) * t;
+    }
+
     /// <summary>Größte Länge eines Dreiecks entlang x, bevor es zum Biegen geteilt wird (Meter).</summary>
     private double BendStep
     {
@@ -96,7 +113,7 @@ public sealed class PlacedModel
         foreach (var (color, kind, t) in ModelMesh.Triangles(Def, main))
             foreach (var p in Bent ? Split(t, step) : [t])
             {
-                (double, double, double) W((double X, double Y, double Z) q) { var (x, y) = Map(q.X, q.Y); return (x, y, ground + MapZ(q.Z)); }
+                (double, double, double) W((double X, double Y, double Z) q) { var (x, y) = Map(q.X, q.Y); return (x, y, ground + MapZ(q.X, q.Z)); }
                 yield return (color, kind, W(p.A), W(p.B), W(p.C));
             }
     }

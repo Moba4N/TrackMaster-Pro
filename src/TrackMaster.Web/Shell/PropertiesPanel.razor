@@ -571,8 +571,12 @@
             case SceneryKind.Building when ModelLibrary.Of(Session.Plan, s) is { } model:
                 if (s.Points.Count >= 2)
                 {
-                    <div class="cols">@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)@NumField(Lang.T("Höhe (mm)"), "height", ApplyScenery)</div>
-                    <dl class="rows"><dt>@Lang.T("Länge entlang des Gleises")</dt><dd>@Fmt.Num(PlacedModel.PathLength(s.Points), 0) mm</dd></dl>
+                    <div class="cols">@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)@NumField(s.FollowsTrackHeight ? Lang.T("Höhe über Gleis (mm)") : Lang.T("Höhe (mm)"), "height", ApplyScenery)</div>
+                    <dl class="rows"><dt>@Lang.T("Länge entlang des Gleises")</dt><dd>@Fmt.Num(PlacedModel.PathLength(s.Points), 0) mm</dd>
+                        @if (s.FollowsTrackHeight)
+                        {
+                            <dt>@Lang.T("Gleishöhe")</dt><dd>@Fmt.Num(s.Rise.Min(), 0)–@Fmt.Num(s.Rise.Max(), 0) mm</dd>
+                        }</dl>
                 }
                 else
                 {
@@ -600,6 +604,7 @@
                     @if (model.Snap == ModelSnap.Neben)
                     {
                         <button class="btn" title="@Lang.T("Setzt das Modell auf die andere Seite des Gleises.")" @onclick="@(() => Session.FlipModelSide(s.Id))">@((MarkupString)Icons.Svg("Mirror", 16)) @Lang.T("Seite wechseln")</button>
+                        <button class="btn" title="@Lang.T("Setzt dasselbe Modell zusätzlich auf die andere Seite des Gleises.")" @onclick="@(() => Session.AddModelOtherSide(s.Id))">@((MarkupString)Icons.Svg("Copy", 16)) @Lang.T("Beidseitig")</button>
                     }</div>
                 @if (!string.IsNullOrWhiteSpace(model.Description))
                 {

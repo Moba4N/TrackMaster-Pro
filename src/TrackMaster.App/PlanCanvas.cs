@@ -630,6 +630,10 @@ public sealed class PlanCanvas : FrameworkElement
             case CanvasTool.Label:
                 LabelRequested?.Invoke(Math.Round(world.X), Math.Round(world.Y));
                 return;
+            case CanvasTool.Model:
+                _session.PlaceModel(world.X, world.Y, 24 / _zoom);
+                InvalidateVisual();
+                return;
             case CanvasTool.Dimension:
                 var snap = Annotation.Snap(_session.View, world.X, world.Y, 12 / _zoom);
                 if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt anklicken (Gleisenden und Plattenecken rasten ein, Esc bricht ab).")); }

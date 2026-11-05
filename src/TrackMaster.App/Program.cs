@@ -126,6 +126,34 @@ public static class Program
                     session.ClearSelection();
                     window.Canvas.Fit();
                 };
+            if (args.Contains("--models"))
+                window.Loaded += (_, _) =>
+                {
+                    // Für Prüfung und Handbuch: einige Grundmodelle am Gleis und frei (Bahnsteig, Portal, Bahnübergang, Häuser)
+                    var session = window.Session;
+                    var plan = session.Plan;
+                    var g = plan.Gauge.TrackWidth;
+                    var curve = plan.Pieces.FirstOrDefault(p => p.Def.Kind == Core.PieceKind.Curve && p.Level == 0);
+                    var straight = plan.Pieces.Where(p => p.Def.Kind == Core.PieceKind.Straight && p.Level == 0).OrderByDescending(p => p.Def.Length).FirstOrDefault();
+                    void At(string id, Core.PlacedPiece? piece, double side)
+                    {
+                        if (piece is null) return;
+                        var m = piece.WorldLegs()[0].At(0.5);
+                        session.ModelId = id;
+                        session.PlaceModel(m.X - Math.Sin(m.HeadingRad) * side * g * 4, m.Y + Math.Cos(m.HeadingRad) * side * g * 4, g * 12);
+                    }
+                    At("tm.hausbahnsteig", curve, 1);
+                    At("tm.bahnsteigdach", curve, 1);
+                    At("tm.bahnuebergang", straight, 0);
+                    var tunnel = plan.Pieces.FirstOrDefault(p => p.Tunnel);
+                    if (tunnel is not null) { var e = tunnel.WorldConnectors()[0]; session.ModelId = "tm.tunnelportal-1"; session.PlaceModel(e.X, e.Y, g * 12); }
+                    session.ModelId = "tm.bahnhof-mittel";
+                    session.PlaceModel(plan.BoardWidth * 0.5, plan.BoardHeight * 0.08, 0);
+                    session.ModelId = "tm.stellwerk";
+                    session.PlaceModel(plan.BoardWidth * 0.85, plan.BoardHeight * 0.1, 0);
+                    session.ClearSelection();
+                    window.Canvas.Fit();
+                };
             if (args.Contains("--select"))
                 window.Loaded += (_, _) =>
                 {

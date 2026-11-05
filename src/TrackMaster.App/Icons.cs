@@ -55,6 +55,7 @@ public static class Icons
         ["Tunnel"] = "M4 20v-8a8 8 0 0 1 16 0v8M8 20v-8a4 4 0 0 1 8 0v8",
         ["Water"] = "M2 10c3 0 3-2 6-2s3 2 6 2 3-2 6-2M2 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2",
         ["Building"] = "M4 21V9l8-6 8 6v12zM10 21v-6h4v6",
+        ["Platform"] = "M2 15h20M2 19h20M4 15V10h16v5M6 10V6h12v4",
         ["Tree"] = "M12 2l6 9h-4l5 7H5l5-7H6zM12 18v4",
         ["Bolt"] = "M13 2L4 14h7l-1 8 9-12h-7z",
         ["Isolate"] = "M3 12h7M14 12h7M10 7v10M14 7v10",

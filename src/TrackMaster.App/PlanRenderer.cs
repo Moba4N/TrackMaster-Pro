@@ -211,6 +211,11 @@ public sealed class PlanScene
             }
             foreach (var s in plan.Scenery.Where(s => s.Kind == SceneryKind.Building))
             {
+                if (ModelLibrary.Placed(plan, s) is { } model)
+                {
+                    DrawModel(dc, model, z, s.Id == o.SelectedObject ? selPen : null);
+                    continue;
+                }
                 var outline = s.Outline();
                 dc.DrawGeometry(RoofBrush, s.Id == o.SelectedObject ? selPen : new Pen(RoofStroke, 1.2 / z), Polygon(outline));
                 // First entlang der längeren Seite
@@ -312,6 +317,36 @@ public sealed class PlanScene
             dc.DrawGeometry(Theme.BoardBrush, null, poly);
             dc.DrawGeometry(FloorBrush, r.Id == o.SelectedObject ? selPen : null, poly);
         }
+    }
+
+    /// <summary>Ausstattungsmodell im Gleisplan: Grundrisse der Körper von unten nach oben, Dachlinien, Umriss bei Auswahl.</summary>
+    private static void DrawModel(DrawingContext dc, PlacedModel model, double z, Pen? selected)
+    {
+        foreach (var shape in model.PlanShapes())
+        {
+            var c = Color.FromRgb(shape.Color.R, shape.Color.G, shape.Color.B);
+            if (shape.Closed)
+            {
+                var fill = new SolidColorBrush(c); fill.Freeze();
+                var dark = shape.Color.Scale(0.7);
+                var stroke = new Pen(new SolidColorBrush(Color.FromRgb(dark.R, dark.G, dark.B)), 1 / z) { LineJoin = PenLineJoin.Round };
+                stroke.Freeze();
+                dc.DrawGeometry(fill, stroke, Polygon(shape.Points));
+            }
+            else
+            {
+                var geo = new StreamGeometry();
+                using (var ctx = geo.Open())
+                {
+                    ctx.BeginFigure(new Point(shape.Points[0].X, shape.Points[0].Y), false, false);
+                    for (var i = 1; i < shape.Points.Count; i++) ctx.LineTo(new Point(shape.Points[i].X, shape.Points[i].Y), true, false);
+                }
+                geo.Freeze();
+                var pen = new Pen(new SolidColorBrush(c), 1 / z); pen.Freeze();
+                dc.DrawGeometry(null, pen, geo);
+            }
+        }
+        if (selected is not null) dc.DrawGeometry(null, selected, Polygon(model.Item.Outline()));
     }
 
     private void DrawObstacles(DrawingContext dc, double z, RenderOptions o, Pen selPen)
@@ -539,6 +574,35 @@ public sealed class PlanScene
         }
         if (selection is not null)
             dc.DrawRoundedRectangle(null, selection, new Rect(shield.X - 0.12, -0.12, shield.Width + 0.24, f.TotalHeight + 0.24), f.Corner + 0.1, f.Corner + 0.1);
+    }
+
+    /// <summary>Draufsicht eines Ausstattungsmodells als Symbol für Menüs und die Bibliothek.</summary>
+    public static ImageSource ModelImage(ModelDefinition def)
+    {
+        var model = new PlacedModel(def, new SceneryItem { Kind = SceneryKind.Building, Model = def.Id }, 1);
+        var (w, d, _) = def.Size;
+        var size = Math.Max(w, d);
+        var group = new DrawingGroup();
+        using (var dc = group.Open())
+        {
+            dc.DrawRectangle(Brushes.Transparent, null, new Rect(-size / 2, -size / 2, size, size));
+            foreach (var shape in model.PlanShapes())
+            {
+                var c = Color.FromRgb(shape.Color.R, shape.Color.G, shape.Color.B);
+                var pts = shape.Points.Select(p => new Point(p.X, p.Y)).ToList();
+                var geo = new StreamGeometry();
+                using (var ctx = geo.Open())
+                {
+                    ctx.BeginFigure(pts[0], shape.Closed, shape.Closed);
+                    ctx.PolyLineTo(pts.Skip(1).ToList(), true, true);
+                }
+                var dark = shape.Color.Scale(0.6);
+                dc.DrawGeometry(shape.Closed ? new SolidColorBrush(c) : null, new Pen(new SolidColorBrush(Color.FromRgb(dark.R, dark.G, dark.B)), size / 60), geo);
+            }
+        }
+        var image = new DrawingImage(group);
+        image.Freeze();
+        return image;
     }
 
     /// <summary>Signalbild als Symbol, z. B. für Menüs und Eigenschaften.</summary>

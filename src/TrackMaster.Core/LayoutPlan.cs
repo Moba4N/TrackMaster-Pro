@@ -102,6 +102,13 @@ public sealed class SceneryItem
     public int Level { get; set; }
     /// <summary>Art des Raumelements (<see cref="ObstacleType"/>), sonst 0.</summary>
     public int Variant { get; set; }
+    /// <summary>Gebäude: Kennung des Ausstattungsmodells (<see cref="ModelLibrary"/>); leer = einfaches Gebäude mit Satteldach.</summary>
+    public string? Model { get; set; }
+    /// <summary>Gebäude: Hauptfarbe als #RRGGBB; leer = Farbe des Modells.</summary>
+    public string? Color { get; set; }
+
+    /// <summary>Ist das ein Ausstattungsmodell (kein einfaches Gebäude)?</summary>
+    public bool IsModel => Kind == SceneryKind.Building && !string.IsNullOrEmpty(Model);
 
     public ObstacleType Obstacle => Enum.IsDefined((ObstacleType)Variant) ? (ObstacleType)Variant : ObstacleType.Sonstiges;
 
@@ -125,6 +132,8 @@ public sealed class SceneryItem
                 return Annotation.LabelOutline(this);
             case SceneryKind.Dimension:
                 return Annotation.DimensionOutline(this);
+            case SceneryKind.Building when Points.Count >= 2:
+                return PlacedModel.PathOutline(Points, Depth);
             case SceneryKind.Building:
             case SceneryKind.Obstacle:
                 var r = Rotation * Math.PI / 180;
@@ -164,7 +173,7 @@ public sealed class SceneryItem
 
     public SceneryItem Clone() => new()
     {
-        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant,
+        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color,
     };
 
     public static string KindName(SceneryKind k) => k switch
@@ -344,6 +353,8 @@ public sealed class LayoutPlan
     public List<Isolation> Isolations { get; } = [];
     public List<Signal> Signals { get; } = [];
     public List<Detector> Detectors { get; } = [];
+    /// <summary>Im Plan mitgespeicherte eigene Ausstattungsmodelle (Kennung → Modell), damit der Plan überall gleich aussieht.</summary>
+    public Dictionary<string, ModelDefinition> Models { get; } = [];
     /// <summary>Hintergrundbild; null = keins.</summary>
     public PlanBackground? Background { get; set; }
     /// <summary>Preis je Artikel (Schlüssel wie in der Stückliste) in der Währung des Anwenders.</summary>
@@ -408,6 +419,7 @@ public sealed class LayoutPlan
         v.Isolations.AddRange(Isolations.Where(i => ids.Contains(i.PieceId)));
         v.Signals.AddRange(Signals.Where(s => ids.Contains(s.PieceId)));
         v.Detectors.AddRange(Detectors.Where(d => ids.Contains(d.PieceId)));
+        foreach (var kv in Models) v.Models[kv.Key] = kv.Value;
         foreach (var kv in Prices) v.Prices[kv.Key] = kv.Value;
         foreach (var kv in Stock) v.Stock[kv.Key] = kv.Value;
         return v;

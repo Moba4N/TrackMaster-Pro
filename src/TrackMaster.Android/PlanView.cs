@@ -778,7 +778,7 @@ public sealed class PlanView : View
             case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension:
+            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Model:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:
@@ -870,6 +870,10 @@ public sealed class PlanView : View
             case CanvasTool.Room:
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 PolygonChanged?.Invoke();
+                Invalidate();
+                return;
+            case CanvasTool.Model:
+                _session.PlaceModel(world.X, world.Y, Ui.Dp(40) / _zoom);
                 Invalidate();
                 return;
             case CanvasTool.Tree:

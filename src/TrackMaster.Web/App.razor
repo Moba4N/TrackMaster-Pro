@@ -309,6 +309,15 @@
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Gelände zeigen"), "Terrain", "scenery", false)]),
         ]),
+        new(Lang.T("Ausstattung"),
+        [
+            new(Lang.T("Grundmodelle"), [new(Lang.T("Tunnel und Brücken"), "Tunnel", "modelsTunnel", true, Lang.T("Tunnelportale, Brücken, Brückenköpfe und Stützmauern – sie rasten am Gleis ein.")),
+                new(Lang.T("Bahnhof"), "Platform", "modelsStation", true, Lang.T("Bahnsteige (folgen Gleisbögen), Bahnsteigdach, Wartehäuschen und Empfangsgebäude.")),
+                new(Lang.T("Bahnanlagen"), "Signal", "modelsRailway", true, Lang.T("Stellwerk, Güterschuppen, Lokschuppen, Bahnübergang und Prellbock.")),
+                new(Lang.T("Häuser"), "Building", "modelsHouses", true, Lang.T("Wohnhaus, Bauernhaus und Scheune.")),
+                new(Lang.T("Einfaches Gebäude"), "Building", "toolBuilding", false, Lang.T("Gebäude als Rechteck aufziehen."))]),
+            .. EquipmentProGroups(),
+        ]),
         new(Lang.T("Raum"),
         [
             new(Lang.T("Raum"), [new(Lang.T("Raum…"), "Room", "roomRect", true, Lang.T("Rechteckigen Raum um die Anlage anlegen: Innenmaße, Lage und Wandstärke.")),
@@ -1576,6 +1585,30 @@
     }
 
     // ---------- Signale, Prüfungen, Listen ----------
+
+    /// <summary>Modell einer Kategorie wählen; danach setzt ein Klick in den Plan das Modell.</summary>
+    private void AskModel(string title, IReadOnlyList<ModelDefinition> models)
+    {
+        var current = _session.Tool == CanvasTool.Model ? _session.ModelId : null;
+        var d = Show(title, @<div class="list">
+            @if (models.Count == 0)
+            {
+                <div class="secondary">@Lang.T("(noch keine)")</div>
+            }
+            @foreach (var m in models)
+            {
+                var id = m.Id;
+                <button class="list-item model-choice @(id == current ? "on" : "")" @onclick="@(() => { CloseDialog(); SetModelTool(id); })">
+                    <span class="model-pic">@((MarkupString)Pictures.Model(m))</span>
+                    <span class="texts">
+                        <span class="strong">@m.Name</span>
+                        <span class="secondary">@m.Description</span>
+                    </span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
 
     private void AskSignalType(SignalType current, Action<SignalType> pick)
     {

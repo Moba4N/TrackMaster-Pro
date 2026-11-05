@@ -504,6 +504,7 @@ dl.rows dd { margin: 0; text-align: right; }
 
 .signal-row { display: flex; gap: 10px; align-items: center; }
 .signal-pic { display: inline-flex; width: 32px; height: 56px; flex: none; }
+.model-pic { display: inline-flex; width: 48px; height: 48px; flex: none; }
 
 /* ---------- Dialoge ---------- */
 
@@ -565,7 +566,7 @@ button.list-item:hover { background: var(--hover); }
 .list-item.on { background: var(--tip-back); border: 2px solid var(--accent); padding: 7px 9px; }
 .list-item.static { background: transparent; border-color: transparent; border-bottom-color: var(--border); border-radius: 0; padding: 6px 2px; }
 .list-item .texts { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.signal-choice, .design-choice { flex-direction: row; align-items: center; gap: 12px; }
+.signal-choice, .design-choice, .model-choice { flex-direction: row; align-items: center; gap: 12px; }
 .design-pic { display: inline-flex; width: 96px; height: 48px; flex: none; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
 .address-row { flex-direction: row; align-items: center; gap: 10px; }
 .board-preview { height: 150px; display: flex; align-items: center; justify-content: center; background: #FAFAFA; border-radius: var(--radius); margin-top: 8px; }

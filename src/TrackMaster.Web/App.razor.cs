@@ -340,12 +340,33 @@ public partial class App : ComponentBase, IAppHost
         Add("bgEdit", Lang.T("Hintergrundbild"), AskBackground, () => _session.Plan.Background is not null);
         Add("bgScale", Lang.T("Bild nach Maß skalieren"), AskScaleBackground, () => _session.Plan.Background is not null);
         Add("bgToggle", Lang.T("Hintergrundbild zeigen"), () => _session.EditBackground(b => b.Visible = !b.Visible), () => _session.Plan.Background is not null);
+        Add("modelsTunnel", Lang.T("Tunnel und Brücken"), () => AskModelCategory(BuiltinModels.CatTunnel));
+        Add("modelsStation", Lang.T("Bahnhof"), () => AskModelCategory(BuiltinModels.CatStation));
+        Add("modelsRailway", Lang.T("Bahnanlagen"), () => AskModelCategory(BuiltinModels.CatRailway));
+        Add("modelsHouses", Lang.T("Häuser"), () => AskModelCategory(BuiltinModels.CatHouses));
+        AddEquipmentProCommands();
         Add("toolDetector", Lang.T("Rückmelder"), () =>
         {
             if (_session.Tool == CanvasTool.Detector) SetTool(CanvasTool.Select);
             else AskDetectorType(t => { _session.DetectorType = t; SetTool(CanvasTool.Detector); });
         });
     }
+
+    private void AskModelCategory(string category)
+    {
+        if (_session.Tool == CanvasTool.Model && _session.CurrentModel?.Category == category) { SetTool(CanvasTool.Select); return; }
+        AskModel(category, BuiltinModels.All.Where(m => m.Category == category).ToList());
+    }
+
+    /// <summary>Modell für das Werkzeug „Modell einfügen“ wählen.</summary>
+    private void SetModelTool(string id)
+    {
+        _session.ModelId = id;
+        if (_session.Tool != CanvasTool.Model) SetTool(CanvasTool.Model);
+        else { _view.Invalidate(); Refresh(); }
+    }
+
+    private bool ModelToolIn(string category) => _session.Tool == CanvasTool.Model && _session.CurrentModel is { } m && m.Category == category && m.IsBuiltin;
 
     private void SetObstacleTool(ObstacleType type)
     {
@@ -432,6 +453,11 @@ public partial class App : ComponentBase, IAppHost
         "toolHeater" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Heizkoerper,
         "toolFurniture" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Moebel,
         "bgToggle" => _session.Plan.Background is { Visible: true },
+        "modelsTunnel" => ModelToolIn(BuiltinModels.CatTunnel),
+        "modelsStation" => ModelToolIn(BuiltinModels.CatStation),
+        "modelsRailway" => ModelToolIn(BuiltinModels.CatRailway),
+        "modelsHouses" => ModelToolIn(BuiltinModels.CatHouses),
+        "modelsOwn" => _session.Tool == CanvasTool.Model && _session.CurrentModel is { IsBuiltin: false },
         _ => false,
     };
 
@@ -440,6 +466,7 @@ public partial class App : ComponentBase, IAppHost
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
         "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolFeeder", "toolIsolation", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
+        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn",
     ];
 
     private void SetTool(CanvasTool tool)
@@ -457,6 +484,9 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Water => Lang.F($"Gewässer: Eckpunkte setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende ansetzen und ziehen, es rastet an Gleisenden ein."),
         CanvasTool.Building => Lang.T("Gebäude: klicken oder Rechteck aufziehen."),
+        CanvasTool.Model => _session.CurrentModel is { } model
+            ? Lang.F($"{model.Name}: in den Plan klicken.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein."))
+            : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis klicken."),
         CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),

@@ -272,6 +272,58 @@ public sealed class MainWindow : Window
         });
     }
 
+    /// <summary>Modell für das Werkzeug „Modell einfügen“ wählen; ein zweiter Klick auf dasselbe Modell beendet das Werkzeug.</summary>
+    private void SetModelTool(string id)
+    {
+        if (Session.Tool == CanvasTool.Model && Session.ModelId == id) { SetTool(CanvasTool.Select); return; }
+        Session.ModelId = id;
+        SetTool(CanvasTool.Model);
+        if (Session.CurrentModel is { } m) Session.Say(Lang.F($"{m.Name}: in den Plan klicken.") + (m.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")));
+    }
+
+    /// <summary>Menü mit den Modellen einer Kategorie; die Einträge werden beim Öffnen neu aufgebaut (eigene Modelle ändern sich).</summary>
+    private RibbonMenuButton ModelMenu(string label, string icon, string description, Func<IEnumerable<ModelDefinition>> models)
+    {
+        var menu = new RibbonMenuButton
+        {
+            Label = label, LargeImageSource = Icons.Get(icon), SmallImageSource = Icons.Get(icon), ToolTipTitle = label, ToolTipDescription = description,
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        void Fill()
+        {
+            menu.Items.Clear();
+            var list = models().ToList();
+            if (list.Count == 0) menu.Items.Add(new RibbonMenuItem { Header = Lang.T("(noch keine)"), IsEnabled = false });
+            foreach (var m in list)
+            {
+                var id = m.Id;
+                var item = new RibbonMenuItem { Header = m.Name, ImageSource = PlanScene.ModelImage(m), ToolTip = string.IsNullOrWhiteSpace(m.Description) ? null : m.Description };
+                item.Click += (_, _) => SetModelTool(id);
+                menu.Items.Add(item);
+            }
+        }
+        Fill();
+        menu.DropDownOpened += (_, _) => Fill();
+        return menu;
+    }
+
+    /// <summary>Gruppen für eigene Modelle (Modell-Editor, Bibliothek) – Pro-Funktionen.</summary>
+    private IEnumerable<RibbonGroup> EquipmentProGroups() => [];
+
+    /// <summary>Register „Ausstattung“: Grundmodelle nach Kategorien, einfaches Gebäude, eigene Modelle.</summary>
+    private RibbonTab BuildEquipmentTab()
+    {
+        var builtin = Group(Lang.T("Grundmodelle"),
+            ModelMenu(Lang.T("Tunnel und Brücken"), "Tunnel", Lang.T("Tunnelportale, Brücken, Brückenköpfe und Stützmauern – sie rasten am Gleis ein."), () => BuiltinModels.All.Where(m => m.Category == BuiltinModels.CatTunnel)),
+            ModelMenu(Lang.T("Bahnhof"), "Platform", Lang.T("Bahnsteige (folgen Gleisbögen), Bahnsteigdach, Wartehäuschen und Empfangsgebäude."), () => BuiltinModels.All.Where(m => m.Category == BuiltinModels.CatStation)),
+            ModelMenu(Lang.T("Bahnanlagen"), "Signal", Lang.T("Stellwerk, Güterschuppen, Lokschuppen, Bahnübergang und Prellbock."), () => BuiltinModels.All.Where(m => m.Category == BuiltinModels.CatRailway)),
+            ModelMenu(Lang.T("Häuser"), "Building", Lang.T("Wohnhaus, Bauernhaus und Scheune."), () => BuiltinModels.All.Where(m => m.Category == BuiltinModels.CatHouses)),
+            ToolToggle(Lang.T("Einfaches Gebäude"), "Building", false, CanvasTool.Building, "toolBuilding", Lang.T("Gebäude als Rechteck aufziehen.")));
+        var tab = Tab(Lang.T("Ausstattung"), builtin);
+        foreach (var g in EquipmentProGroups()) tab.Items.Add(g);
+        return tab;
+    }
+
     private void SetObstacleTool(ObstacleType type)
     {
         Session.ObstacleType = type;
@@ -503,6 +555,7 @@ public sealed class MainWindow : Window
         CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
         CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
+        CanvasTool.Model => Lang.T("Modell einfügen: in den Plan klicken. Tunnelportale, Bahnsteige, Brücken und Bahnübergänge rasten am nächsten Gleis ein. Esc beendet das Werkzeug."),
         _ => "",
     };
 
@@ -785,6 +838,8 @@ public sealed class MainWindow : Window
                 ToolToggle(Lang.T("Vegetation"), "Tree", false, CanvasTool.Tree, "toolTree", Lang.T("Bäume mit Klicks setzen."))),
             Group(Lang.T("Anzeigen"),
                 Toggle(Lang.T("Gelände zeigen"), "Terrain", false, () => Session.ShowScenery, on => { Session.ShowScenery = on; Canvas.Rebuild(); }))));
+
+        Ribbon.Items.Add(BuildEquipmentTab());
 
         Ribbon.Items.Add(Tab(Lang.T("Raum"),
             Group(Lang.T("Raum"),

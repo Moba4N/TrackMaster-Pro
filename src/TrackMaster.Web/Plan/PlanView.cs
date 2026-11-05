@@ -955,7 +955,7 @@ public sealed class PlanView
                 _flexDraft = _session.BeginFlexDraw(world.X, world.Y, _session.FlexTarget(world.X, world.Y, Reach(12, 26) / _zoom));
                 _drag = DragMode.FlexDraw;
                 return;
-            case CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Detector:
+            case CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Detector or CanvasTool.Model:
                 ToolTap(x, y, world);
                 return;
         }
@@ -1103,6 +1103,10 @@ public sealed class PlanView
                 else if (HitPiece(world) is { } dp) _session.AddDetector(dp.Id);
                 else _session.Say(Lang.T("Für einen Rückmelder bitte direkt auf ein Gleis klicken."));
                 return;
+            case CanvasTool.Model:
+                _session.PlaceModel(world.X, world.Y, Reach(24, 40) / _zoom);
+                Invalidate();
+                return;
             case CanvasTool.Tree:
                 var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
                 _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = Lang.T("Baum") });
@@ -1149,7 +1153,7 @@ public sealed class PlanView
             case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Pan or CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Detector:
+            case CanvasTool.Pan or CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Detector or CanvasTool.Model:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:

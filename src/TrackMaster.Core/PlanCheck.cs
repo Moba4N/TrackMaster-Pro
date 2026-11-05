@@ -132,6 +132,9 @@ public static class PlanCheck
             var (cx, cy) = s.Center();
             switch (s.Kind)
             {
+                case SceneryKind.Building when ModelLibrary.Of(plan, s) is { Snap: not (ModelSnap.Frei or ModelSnap.Neben) }:
+                    // Tunnelportal, Brücke, Bahnübergang, Lokschuppen … stehen mit Absicht am oder über dem Gleis
+                    break;
                 case SceneryKind.Building when hits.Any(q => q.Z < s.Height):
                     issues.Add(new PlanIssue(IssueLevel.Warnung, Lang.T("Gebäude"), Lang.F($"Gleise führen durch das Gebäude „{s.Name}“."), ids, cx, cy));
                     break;

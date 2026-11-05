@@ -20,8 +20,8 @@ public sealed class Scene3D
     /// <summary>Leer, z. B. für die Vorschau im Modell-Editor (Inhalt über <see cref="Fill"/>).</summary>
     public Scene3D() { }
 
-    /// <summary>Neu aufbauen, mit oder ohne Gelände und Stützen.</summary>
-    public void Rebuild(LayoutPlan plan, bool scenery, bool piers) => Fill(Model, new Scene3DModel(plan, scenery, piers).Meshes);
+    /// <summary>Neu aufbauen, mit oder ohne Gelände, Stützen und Tunnelstrecken.</summary>
+    public void Rebuild(LayoutPlan plan, bool scenery, bool piers, bool tunnels = true) => Fill(Model, new Scene3DModel(plan, scenery, piers, tunnels).Meshes);
 
     /// <summary>Ersetzt den Inhalt von <paramref name="target"/> durch die Netze (auch für den fahrenden Zug).</summary>
     public void Fill(Model3DGroup target, IReadOnlyDictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> meshes)

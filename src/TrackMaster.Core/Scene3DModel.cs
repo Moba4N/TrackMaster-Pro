@@ -94,13 +94,29 @@ public sealed class Scene3DModel
 
     public static readonly Rgb PierColor = new(0xA8, 0xA4, 0x9C);
 
-    public Scene3DModel(LayoutPlan plan, bool scenery = true, bool piers = false)
+    /// <summary>Tunnelstrecken (Gleise mit Tunnelröhre) zeigen oder ausblenden, damit man die übrige Anlage frei sieht.</summary>
+    public bool Tunnels { get; }
+
+    public Scene3DModel(LayoutPlan plan, bool scenery = true, bool piers = false, bool tunnels = true)
     {
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
         Scenery = scenery;
         Piers = piers;
+        Tunnels = tunnels;
         Build();
+    }
+
+    /// <summary>
+    /// Prüft, ob ein Punkt (x, y im Plan) auf einer Tunnelstrecke liegt – damit ausgeblendete Tunnel auch den Zug darin verbergen.
+    /// Null, wenn der Plan keine Tunnel hat.
+    /// </summary>
+    public static Func<double, double, bool>? TunnelMask(LayoutPlan plan)
+    {
+        var tunnels = plan.Pieces.Where(p => p.Tunnel && !p.Def.IsTable).ToList();
+        if (tunnels.Count == 0) return null;
+        var tol = plan.Gauge.TrackWidth;
+        return (x, y) => ModelPlacement.Nearest(tunnels, x, y, tol) is not null;
     }
 
     public int TriangleCount => Meshes.Values.Sum(m => m.TriangleCount);
@@ -149,9 +165,9 @@ public sealed class Scene3DModel
         var totalLength = plan.Pieces.Sum(p => p.Def.TrackLength);
         var sleepers = totalLength / g < 8000;
         if (Scenery) IndexTracks(plan);
-        foreach (var p in plan.Pieces) Track(p, sleepers);
+        foreach (var p in plan.Pieces.Where(p => Tunnels || !p.Tunnel)) Track(p, sleepers);
         foreach (var p in plan.Pieces.Where(p => p.Def.IsTable)) Table(p);
-        foreach (var sig in plan.Signals) SignalModel(sig);
+        foreach (var sig in plan.Signals.Where(x => Tunnels || plan.Find(x.PieceId) is not { Tunnel: true })) SignalModel(sig);
     }
 
     /// <summary>Drehscheibe bzw. Schiebebühne: Grube, Ring, Bühne mit Gleis in Richtung Anschluss 0.</summary>

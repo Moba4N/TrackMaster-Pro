@@ -35,6 +35,7 @@ public sealed class View3DWindow : Window
     private string _choiceKey = "";
     private readonly Model3DGroup _trainModel = new();
     private readonly Train3D _train;
+    private Func<double, double, bool>? _tunnelMask;
     private readonly Dictionary<int, int> _routes = [];
     private readonly TextBlock _status = new() { Foreground = Theme.TextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
 
@@ -117,14 +118,23 @@ public sealed class View3DWindow : Window
         var withScenery = new RadioButton { Content = Lang.T("Mit Gelände"), IsChecked = true, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Gelände, Gewässer, Gebäude und Bäume zeigen") };
         var tracksOnly = new RadioButton { Content = Lang.T("Nur Gleisplan"), Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Nur Platte und Gleise zeigen") };
         var piers = new CheckBox { Content = Lang.T("Stützen"), Margin = new Thickness(0, 0, 24, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Stützen unter hochliegenden Gleisen zeigen") };
-        void Rebuild() => _scene.Rebuild(_plan, withScenery.IsChecked == true, piers.IsChecked == true);
+        var tunnels = new CheckBox { Content = Lang.T("Tunnel"), IsChecked = true, Margin = new Thickness(0, 0, 24, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Lang.T("Tunnelstrecken zeigen – ausgeschaltet sind Tunnelgleise, Röhren und der Zug darin ausgeblendet") };
+        void Rebuild()
+        {
+            _tunnelMask = tunnels.IsChecked == true ? null : Scene3DModel.TunnelMask(_plan);
+            _scene.Rebuild(_plan, withScenery.IsChecked == true, piers.IsChecked == true, tunnels.IsChecked == true);
+            if (_trainButton.IsChecked == true) PlaceTrain();
+        }
         withScenery.Checked += (_, _) => Rebuild();
         tracksOnly.Checked += (_, _) => Rebuild();
         piers.Checked += (_, _) => Rebuild();
         piers.Unchecked += (_, _) => Rebuild();
+        tunnels.Checked += (_, _) => Rebuild();
+        tunnels.Unchecked += (_, _) => Rebuild();
         second.Children.Add(withScenery);
         second.Children.Add(tracksOnly);
         second.Children.Add(piers);
+        second.Children.Add(tunnels);
         second.Children.Add(Theme.Label(Lang.T("Drehen:"), 12, false, Theme.TextSecondaryBrush));
         second.Children[^1].SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         foreach (var (text, tip, axis) in new[] { ("X ↻", Lang.T("Um die Querachse kippen (X)"), 0), ("Y ↻", Lang.T("Um die Hochachse drehen (Y)"), 1), ("Z ↻", Lang.T("Um die Blickachse drehen (Z)"), 2), (Lang.T("Gerade"), "", -1) })
@@ -403,7 +413,7 @@ public sealed class View3DWindow : Window
     private void PlaceTrain()
     {
         if (_path is null) return;
-        _scene.Fill(_trainModel, _train.Build(_path, _position));
+        _scene.Fill(_trainModel, _train.Build(_path, _position, _tunnelMask));
     }
 
     private void PlaceRideCamera()

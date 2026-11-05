@@ -35,6 +35,7 @@ public sealed class View3DActivity : Activity
     private LinearLayout _choiceRow = null!;
     private bool _riding, _trainOn;
     private Train3D _train = null!;
+    private Func<double, double, bool>? _tunnelMask;
     private readonly Dictionary<int, int> _routes = [];
     private long _lastStatus;
     private SeekBar _time = null!, _speed = null!;
@@ -117,23 +118,28 @@ public sealed class View3DActivity : Activity
         row2.AddView(_speedText);
         bar.AddView(row2, Ui.Fill());
         var row3 = Ui.Row(this, 6);
-        Button? withScenery = null, tracksOnly = null, piers = null;
-        bool scenery = true, showPiers = false;
+        Button? withScenery = null, tracksOnly = null, piers = null, tunnels = null;
+        bool scenery = true, showPiers = false, showTunnels = true;
         void Rebuild()
         {
-            _renderer.Replace(new Scene3DModel(_plan, scenery, showPiers));
+            _tunnelMask = showTunnels ? null : Scene3DModel.TunnelMask(_plan);
+            _renderer.Replace(new Scene3DModel(_plan, scenery, showPiers, showTunnels));
             Ui.SetButtonState(withScenery!, false, scenery);
             Ui.SetButtonState(tracksOnly!, false, !scenery);
             Ui.SetButtonState(piers!, false, showPiers);
+            Ui.SetButtonState(tunnels!, false, showTunnels);
             _view.RequestRender();
         }
         withScenery = Ui.Button(this, Lang.T("Mit Gelände"), () => { scenery = true; Rebuild(); });
         tracksOnly = Ui.Button(this, Lang.T("Nur Gleisplan"), () => { scenery = false; Rebuild(); });
         piers = Ui.Button(this, Lang.T("Stützen"), () => { showPiers = !showPiers; Rebuild(); });
+        tunnels = Ui.Button(this, Lang.T("Tunnel"), () => { showTunnels = !showTunnels; Rebuild(); });
         row3.AddView(withScenery);
         row3.AddView(tracksOnly);
         row3.AddView(piers);
+        row3.AddView(tunnels);
         Ui.SetButtonState(piers, false, false);
+        Ui.SetButtonState(tunnels, false, true);
         Ui.SetButtonState(withScenery, false, true);
         row3.AddView(Ui.Label(this, Lang.T("Drehen:"), 12.5, color: Ui.TextSecondary));
         foreach (var (text, axis) in new[] { ("X ↻", 0), ("Y ↻", 1), ("Z ↻", 2), (Lang.T("Gerade"), -1) })
@@ -406,7 +412,7 @@ public sealed class View3DActivity : Activity
             var (eye, target) = path.Camera(_position, g);
             _renderer.SetCamera(eye, target, 65, g * 0.3);
         }
-        else if (_trainOn) _renderer.Dynamic = SceneRenderer.ToData(_train.Build(path, _position));
+        else if (_trainOn) _renderer.Dynamic = SceneRenderer.ToData(_train.Build(path, _position, _tunnelMask));
     }
 }
 

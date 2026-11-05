@@ -30,7 +30,8 @@ public sealed class Train3D
     }
 
     /// <summary>Dreiecke des Zugs, dessen Spitze bei Wegstrecke <paramref name="front"/> steht.</summary>
-    public Dictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> Build(RidePath path, double front)
+    /// <param name="hidden">Optional: Stellen, an denen Wagen nicht gezeichnet werden (ausgeblendete Tunnel).</param>
+    public Dictionary<(Rgb Color, SurfaceKind Kind), SceneMesh> Build(RidePath path, double front, Func<double, double, bool>? hidden = null)
     {
         var meshes = new Dictionary<(Rgb, SurfaceKind), SceneMesh>();
         SceneMesh M(Rgb c, SurfaceKind k = SurfaceKind.Matte) => meshes.TryGetValue((c, k), out var m) ? m : meshes[(c, k)] = new SceneMesh();
@@ -50,6 +51,7 @@ public sealed class Train3D
             var r = Vec3.Cross(f, new Vec3(0, 1, 0)).Normalized();
             var u = Vec3.Cross(r, f).Normalized();
             var c = (pa + pb) * 0.5;
+            if (hidden is not null && hidden(c.X, c.Z)) { s -= len + _gap; continue; }
             var body = loco ? LocoColor : CoachColor;
             var floor = _height * 0.22;
             OrientedBox(M(UnderColor), c, f, r, u, len * 0.42, _width * 0.4, _height * 0.05, floor);

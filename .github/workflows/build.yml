@@ -146,6 +146,9 @@ jobs:
           Hb "parallel" @("--select", "--dialog", "parallel")
           Hb "rueckmelder" @("--dialog", "toolDetector")
           Hb "start-anordnen" @("--select")
+          Hb "ausstattung" @("--tab", "Ausstattung", "--models")
+          Hb "ausstattung-3d" @("--models", "--3d", "orbit")
+          Hb "modell-editor" @("--pro", "--dialog", "modelleditor")
           # Dieselben Bilder mit englischer Oberfläche für das englische Handbuch
           New-Item -ItemType Directory -Force artifacts/handbuch-en | Out-Null
           function HbEn($name, [string[]]$more) {
@@ -176,6 +179,9 @@ jobs:
           HbEn "spantenbau" @("--pro", "--dialog", "frame")
           HbEn "raum" @("--tab", "Raum", "--room")
           HbEn "raum-dialog" @("--dialog", "roomRect")
+          HbEn "ausstattung" @("--tab", "Ausstattung", "--models")
+          HbEn "ausstattung-3d" @("--models", "--3d", "orbit")
+          HbEn "modell-editor" @("--pro", "--dialog", "modelleditor")
           HbEn "parallel" @("--select", "--dialog", "parallel")
           HbEn "rueckmelder" @("--dialog", "toolDetector")
           HbEn "start-anordnen" @("--select")

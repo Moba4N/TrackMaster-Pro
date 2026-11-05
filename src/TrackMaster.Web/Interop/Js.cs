@@ -65,6 +65,22 @@ public static partial class Js
     [JSImport("pickFile", Module)]
     public static partial Task<string> PickFile(string accept);
 
+    /// <summary>Dateiauswahl für Binärdateien; Ergebnis „Name\0Base64“ oder leer, wenn abgebrochen.</summary>
+    [JSImport("pickFileBytes", Module)]
+    public static partial Task<string> PickFileBytes(string accept);
+
+    /// <summary>Bildschirmpunkt in Koordinaten eines SVG-Elements (viewBox).</summary>
+    [JSImport("svgPoint", Module)]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static partial double[] SvgPoint(string id, double x, double y);
+
+    [JSImport("elementSize", Module)]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static partial double[] ElementSize(string id);
+
+    [JSImport("capturePointer", Module)]
+    public static partial void CapturePointer(string id, int pointerId);
+
     [JSImport("copyText", Module)]
     public static partial Task<bool> CopyText(string text);
 

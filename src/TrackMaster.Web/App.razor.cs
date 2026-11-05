@@ -521,6 +521,7 @@ public partial class App : ComponentBase, IAppHost
             if (key == "Escape") { DismissDialog(); return true; }
             return false;
         }
+        if (_editModel is not null) return EditorKeyDown(key, ctrl);
         if (_open3D)
         {
             if (key == "Escape") { Close3D(); return true; }

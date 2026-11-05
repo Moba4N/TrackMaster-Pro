@@ -595,7 +595,8 @@
                     <dt>@Lang.T("Vorbild")</dt><dd>@Lang.F($"{Fmt.Num(model.Size.W, 1)} × {Fmt.Num(model.Size.D, 1)} × {Fmt.Num(model.Size.H, 1)} m")</dd>
                     <dt>@Lang.T("Maßstab")</dt><dd>@Session.Plan.Gauge.Scale</dd>
                 </dl>
-                <div class="button-row"><button class="btn" @onclick="@(() => Session.ResetModelSize(s.Id))">@((MarkupString)Icons.Svg("Resize", 16)) @Lang.T("Originalgröße")</button></div>
+                <div class="button-row"><button class="btn" @onclick="@(() => Session.ResetModelSize(s.Id))">@((MarkupString)Icons.Svg("Resize", 16)) @Lang.T("Originalgröße")</button>
+                    <button class="btn" title="@(model.IsBuiltin ? Lang.T("Pro: öffnet eine Kopie des Grundmodells im Modell-Editor; dieses Objekt bekommt danach die eigene Fassung.") : Lang.T("Pro: öffnet das Modell im Modell-Editor; Änderungen gelten für alle Objekte mit diesem Modell."))" @onclick="@(() => Run("modelEditSelected"))">@((MarkupString)Icons.Svg("Palette", 16)) @Lang.T("Modell bearbeiten")</button></div>
                 @if (!string.IsNullOrWhiteSpace(model.Description))
                 {
                     <div class="tip-box">@model.Description</div>

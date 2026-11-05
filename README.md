@@ -69,6 +69,7 @@ in der Basisversion erklärt ein Klick darauf, was Pro bietet. Öffnen funktioni
 | Gelände, Gewässer, Gebäude, Vegetation, Tunnel | Holzliste der Gleiswendel mit allen Zuschnitten |
 | Elektrik: Einspeisungen, Trennstellen, Signale, Decoder, Kabelplan | Drucken |
 | 3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung, Öffnen | Export: SVG 1:1, Kabelplan als Text |
+| Ausstattung: 20 Grundmodelle (Tunnelportale, Bahnsteige, Bahnhof, Brücken, Häuser) mit Einrasten am Gleis | Modell-Editor, eigene Modellbibliothek, Import/Export, STL/OBJ |
 
 Die Lizenz wird unter **Datei › Lizenz** eingespielt und liegt dann in `%APPDATA%\TrackMaster Pro\trackmaster.lic`.
 Dort steht auch die **Rechnerkennung**, falls eine Lizenz an einen PC gebunden werden soll.
@@ -156,6 +157,14 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 **Gelände**
 - Höhenflächen und Gewässer als Vielecke zeichnen (Klicks setzen Punkte, Enter schließt, Esc bricht ab).
 - Gebäude aufziehen, Bäume setzen; Name, Größe, Höhe und Drehung im Eigenschaftenfeld.
+
+**Ausstattung**
+- 20 **Grundmodelle** ohne Lizenz: Tunnelportale, Kastenbrücke, Brückenkopf, Stützmauer, Haus- und Mittelbahnsteig, Bahnsteigdach,
+  Wartehäuschen, Empfangsgebäude, Stellwerk, Güterschuppen, Lokschuppen, Bahnübergang, Prellbock, Wohnhaus, Bauernhaus, Scheune.
+  Sie haben Vorbildmaße, erscheinen im Maßstab der Spur und rasten am Gleis ein (Bahnsteige folgen Gleisbögen).
+- **Modell-Editor** (Pro, Windows und Web): Körper wie Quader, Dächer, Gewölbe, Fenster und Türen, freie Grundrisse als Vieleck und
+  Freiformen mit frei ziehbaren Ecken; Draufsicht, Vorder- und Seitenansicht mit 3D-Vorschau.
+- Eigene **Modellbibliothek** (`*.tmmodell`, Sammlungen als ZIP), Export als **STL** und **OBJ**; verwendete Modelle werden im Plan mitgespeichert.
 
 **Elektrik**
 - Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.

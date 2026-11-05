@@ -1,0 +1,641 @@
+@using System.Globalization
+@using System.Text
+
+@* Modell-Editor (Pro) im Browser: drei Rissansichten und eine drehbare Schrägansicht als SVG, Körperliste, Eigenschaften. *@
+<div class="model-editor" role="dialog" aria-label="@Lang.T("Modell-Editor")">
+    <div class="me-bar">
+        <div class="me-row">
+            <span class="me-title">@Lang.T("Modell-Editor") – @(string.IsNullOrWhiteSpace(Ed.Model.Name) ? Lang.T("Modell") : Ed.Model.Name)@(Ed.Dirty ? " •" : "")</span>
+            <span class="me-spacer"></span>
+            <button class="btn accent" @onclick="@(() => Save())">@((MarkupString)Icons.Svg("Save", 16)) @Lang.T("Speichern")</button>
+            <button class="btn" @onclick="AskClose">@Lang.T("Schließen")</button>
+        </div>
+        @if (_closeAsk)
+        {
+            <div class="warn-box me-row">
+                <span>@Lang.F($"Änderungen an „{Ed.Model.Name}“ speichern?")</span>
+                <button class="btn accent" @onclick="@(() => { if (Save()) OnClose(); })">@Lang.T("Speichern")</button>
+                <button class="btn" @onclick="@(() => OnClose())">@Lang.T("Verwerfen")</button>
+                <button class="btn" @onclick="@(() => _closeAsk = false)">@Lang.T("Abbrechen")</button>
+            </div>
+        }
+        <div class="me-row">
+            <span class="secondary">@Lang.T("Hinzufügen:")</span>
+            @foreach (var (shape, icon) in Shapes)
+            {
+                var s = shape;
+                <button class="btn small" title="@ShapeTip(s)" @onclick="@(() => Do(() => Ed.Add(s)))">@((MarkupString)Icons.Svg(icon, 14)) @ModelBody.ShapeName(s)</button>
+            }
+            <button class="btn small @(_polygonMode ? "on" : "")" title="@Lang.T("In der Draufsicht Ecke für Ecke klicken; Doppelklick, Eingabetaste oder rechte Maustaste schließt den Grundriss, Esc bricht ab.")"
+                    @onclick="TogglePolygon">@((MarkupString)Icons.Svg("Room", 14)) @Lang.T("Grundriss zeichnen")</button>
+        </div>
+        <div class="me-row">
+            <button class="btn small" disabled="@(!Ed.CanUndo)" title="@Lang.T("Strg+Z")" @onclick="@(() => Do(Ed.Undo))">@((MarkupString)Icons.Svg("Undo", 14)) @Lang.T("Rückgängig")</button>
+            <button class="btn small" disabled="@(!Ed.CanRedo)" title="@Lang.T("Strg+Y")" @onclick="@(() => Do(Ed.Redo))">@((MarkupString)Icons.Svg("Redo", 14)) @Lang.T("Wiederholen")</button>
+            <button class="btn small" disabled="@(Ed.Selection.Count == 0)" @onclick="@(() => Do(Ed.Duplicate))">@((MarkupString)Icons.Svg("Copy", 14)) @Lang.T("Duplizieren")</button>
+            <button class="btn small" disabled="@(Ed.Selection.Count == 0)" @onclick="@(() => Do(Ed.Delete))">@((MarkupString)Icons.Svg("Delete", 14)) @Lang.T("Löschen")</button>
+            <button class="btn small" title="@Lang.T("Spiegelt die gewählten Körper (ohne Auswahl alle) an der Mittelachse.")" @onclick="@(() => Do(() => Ed.Mirror(true)))">@((MarkupString)Icons.Svg("Mirror", 14)) @Lang.T("Spiegeln links/rechts")</button>
+            <button class="btn small" @onclick="@(() => Do(() => Ed.Mirror(false)))">@((MarkupString)Icons.Svg("Mirror", 14)) @Lang.T("Spiegeln vorn/hinten")</button>
+            <button class="btn small" disabled="@(Ed.Selection.Count < 2)" title="@Lang.T("Gruppierte Körper werden gemeinsam verschoben.")" @onclick="@(() => Do(() => Ed.Group()))">@((MarkupString)Icons.Svg("Group", 14)) @Lang.T("Gruppieren")</button>
+            <button class="btn small" disabled="@(!Ed.SelectedWithGroups().Any(b => b.Group > 0))" @onclick="@(() => Do(() => Ed.Group(true)))">@((MarkupString)Icons.Svg("Ungroup", 14)) @Lang.T("Gruppe lösen")</button>
+            <button class="btn small" disabled="@(Ed.Selected is not { Shape: not BodyShape.Freiform })" title="@Lang.T("Gleiche Gestalt, danach lässt sich jede Ecke frei ziehen.")" @onclick="@(() => Do(Ed.ToFreeform))">@((MarkupString)Icons.Svg("Cube", 14)) @Lang.T("In Freiform umwandeln")</button>
+            <button class="btn small" disabled="@(!HasVertices)" title="@Lang.T("Neue Ecke in der Mitte der Kante hinter der gewählten Ecke.")" @onclick="@(() => Do(Ed.InsertVertex))">@((MarkupString)Icons.Svg("Plus", 14)) @Lang.T("Ecke einfügen")</button>
+            <button class="btn small" disabled="@(!HasVertices || Ed.SelectedVertex < 0)" @onclick="@(() => Do(Ed.RemoveVertex))">@((MarkupString)Icons.Svg("Minus", 14)) @Lang.T("Ecke entfernen")</button>
+            <label class="secondary">@Lang.T("Raster:")
+                <select class="input tiny" @onchange="@(e => { Ed.Grid = double.Parse((string)e.Value!, CultureInfo.InvariantCulture); })">
+                    @foreach (var (label, step) in GridSteps)
+                    {
+                        <option value="@step.ToString(CultureInfo.InvariantCulture)" selected="@(Math.Abs(step - Ed.Grid) < 1e-9)">@label</option>
+                    }
+                </select>
+            </label>
+            <button class="btn small" @onclick="FitAll">@((MarkupString)Icons.Svg("Fit", 14)) @Lang.T("Einpassen")</button>
+        </div>
+    </div>
+    <div class="me-main">
+        <aside class="me-side">
+            <div class="pane-head"><span class="pane-title">@Lang.T("Modell")</span></div>
+            <div class="me-pad form">
+                <label class="field-label">@Lang.T("Name")</label>
+                <input class="input" value="@Ed.Model.Name" @onchange="@(e => { Ed.Model.Name = (string?)e.Value ?? ""; Ed.Dirty = true; })" />
+                <label class="field-label">@Lang.T("Kategorie (Menü)")</label>
+                <input class="input" list="me-categories" value="@Ed.Model.Category" @onchange="@(e => { Ed.Model.Category = ((string?)e.Value ?? "").Trim(); Ed.Dirty = true; })" />
+                <datalist id="me-categories">
+                    @foreach (var c in ModelLibrary.Categories())
+                    {
+                        <option value="@c"></option>
+                    }
+                </datalist>
+                <label class="field-label">@Lang.T("Am Gleis einrasten")</label>
+                <select class="input" @onchange="@(e => { Ed.Model.Snap = Enum.Parse<ModelSnap>((string)e.Value!); Ed.Dirty = true; })">
+                    @foreach (var s in Enum.GetValues<ModelSnap>())
+                    {
+                        <option value="@s" selected="@(s == Ed.Model.Snap)">@ModelBody.SnapName(s)</option>
+                    }
+                </select>
+                <label class="field-label" title="@Lang.T("Körper aus diesem Material bekommen im Plan die gewählte Hauptfarbe.")">@Lang.T("Hauptmaterial (Farbwahl im Plan)")</label>
+                <select class="input" @onchange="@(e => { var v = (string)e.Value!; Ed.Model.MainMaterial = v.Length == 0 ? null : Enum.Parse<ModelMaterial>(v); Ed.Dirty = true; })">
+                    <option value="" selected="@(Ed.Model.MainMaterial is null)">@Lang.T("(erster Körper)")</option>
+                    @foreach (var m in Enum.GetValues<ModelMaterial>())
+                    {
+                        <option value="@m" selected="@(m == Ed.Model.MainMaterial)">@ModelBody.MaterialName(m)</option>
+                    }
+                </select>
+                <label class="field-label">@Lang.T("Beschreibung")</label>
+                <textarea class="input me-desc" @onchange="@(e => { Ed.Model.Description = (string?)e.Value ?? ""; Ed.Dirty = true; })">@Ed.Model.Description</textarea>
+            </div>
+            <div class="pane-head"><span class="pane-title">@Lang.T("Körper")</span></div>
+            <div class="me-bodies">
+                @for (var i = 0; i < Ed.Model.Bodies.Count; i++)
+                {
+                    var index = i;
+                    var b = Ed.Model.Bodies[i];
+                    <button class="me-body @(Ed.Selection.Contains(i) ? "on" : "")" @onclick="@(e => SelectFromList(index, e.CtrlKey || e.ShiftKey))">
+                        @($"{i + 1}. {ModelBody.ShapeName(b.Shape)} · {ModelBody.MaterialName(b.Material)}")@(b.Group > 0 ? Lang.F($" · Gruppe {b.Group}") : "")
+                    </button>
+                }
+            </div>
+        </aside>
+        <div class="me-views">
+            @for (var v = 0; v < 4; v++)
+            {
+                var view = v;
+                <div class="me-view">
+                    <div class="me-view-title">@ViewTitle(view)</div>
+                    <svg id="@SvgId(view)" class="me-svg" viewBox="@ViewBox(view)" preserveAspectRatio="xMidYMid meet"
+                         @onpointerdown="@(e => Down(view, e))" @onpointermove="@(e => Move(view, e))" @onpointerup="@(e => Up(view, e))"
+                         @onwheel="@(e => Wheel(view, e))" @onwheel:preventDefault="true" @oncontextmenu:preventDefault="true" @ondblclick="@(() => DoubleClick(view))">
+                        @((MarkupString)Picture(view))
+                    </svg>
+                </div>
+            }
+        </div>
+        <aside class="me-side right">
+            <div class="pane-head"><span class="pane-title">@Lang.T("Gewählter Körper")</span></div>
+            <div class="me-pad form" @key="PropsKey">
+                @if (Ed.Selected is not { } sel)
+                {
+                    <div class="secondary">@Lang.T("Einen Körper in einer Ansicht anklicken oder oben einen hinzufügen. Mit Strg oder Umschalt mehrere wählen.")</div>
+                    <div class="secondary">@Lang.T("Ziehen verschiebt den Körper, Mausrad zoomt, rechte Maustaste verschiebt die Ansicht. Pfeiltasten verschieben um ein Rasterfeld.")</div>
+                }
+                else
+                {
+                    <div class="strong">@ModelBody.ShapeName(sel.Shape)@(Ed.Selection.Count > 1 ? Lang.F($" (und {Ed.Selection.Count - 1} weitere)") : "")</div>
+                    <div class="cols three">
+                        @Num(Lang.T("X (m)"), sel.X, x => sel.X = x)
+                        @Num(Lang.T("Y (m)"), sel.Y, x => sel.Y = x)
+                        @Num(Lang.T("über Boden (m)"), sel.Z, x => sel.Z = x)
+                    </div>
+                    @if (sel.Shape is not (BodyShape.Vieleck or BodyShape.Freiform))
+                    {
+                        <div class="cols three">
+                            @Num(Lang.T("Länge (m)"), sel.W, x => sel.W = Math.Max(0.01, x))
+                            @Num(Lang.T("Tiefe (m)"), sel.D, x => sel.D = Math.Max(0.01, x))
+                            @Num(Lang.T("Höhe (m)"), sel.H, x => sel.H = Math.Max(0.01, x))
+                        </div>
+                    }
+                    else if (sel.Shape == BodyShape.Vieleck)
+                    {
+                        <div class="cols three" title="@Lang.T("Setzt alle Ecken auf diese Höhe.")">
+                            @Num(Lang.T("Höhe (m)"), sel.H, x => { sel.H = Math.Max(0.01, x); sel.Heights.Clear(); })
+                        </div>
+                    }
+                    <div class="cols three">
+                        @Num(Lang.T("Drehung (°)"), sel.Rotation, x => sel.Rotation = Angles.Normalize(x))
+                        @if (sel.Shape is BodyShape.Quader or BodyShape.Zylinder or BodyShape.Vieleck)
+                        {
+                            <div title="@Lang.T("Größe der Oberseite: 1 = gerade, 0 = Spitze (Pyramide, Kegel), 0,5 = verjüngt.")">@Num(Lang.T("Oberseite (×)"), sel.Top, x => sel.Top = Math.Clamp(x, 0, 4))</div>
+                        }
+                    </div>
+                    @if (sel.Shape is BodyShape.Gewoelbe or BodyShape.Bogenwand)
+                    {
+                        <div class="cols">
+                            @Num(Lang.T("Öffnung breit (m)"), sel.OpeningW, x => sel.OpeningW = Math.Max(0, x))
+                            @Num(Lang.T("Öffnung hoch (m)"), sel.OpeningH, x => sel.OpeningH = Math.Max(0, x))
+                        </div>
+                    }
+                    <label class="field-label">@Lang.T("Material")</label>
+                    <select class="input" @onchange="@(e => Change(() => { var m = Enum.Parse<ModelMaterial>((string)e.Value!); foreach (var x in SelectedBodies) x.Material = m; }))">
+                        @foreach (var m in Enum.GetValues<ModelMaterial>())
+                        {
+                            <option value="@m" selected="@(m == sel.Material)">@ModelBody.MaterialName(m)</option>
+                        }
+                    </select>
+                    <label class="field-label">@Lang.T("Farbe")</label>
+                    <select class="input" @onchange="@(e => Change(() => { var v = (string)e.Value!; foreach (var x in SelectedBodies) x.Color = v.Length == 0 ? null : v; }))">
+                        <option value="" selected="@(sel.Color is null)">@Lang.T("Farbe des Materials")</option>
+                        @foreach (var (name, hex) in ModelLibrary.MainColors.Where(c => c.Hex is not null))
+                        {
+                            <option value="@hex" style="background:@hex" selected="@(string.Equals(hex, sel.Color, StringComparison.OrdinalIgnoreCase))">@name</option>
+                        }
+                        @if (sel.Color is { } own && ModelLibrary.MainColors.All(c => !string.Equals(c.Hex, own, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            <option value="@own" selected>@own</option>
+                        }
+                    </select>
+                    @if (sel.Shape is BodyShape.Vieleck or BodyShape.Freiform)
+                    {
+                        var count = sel.Shape == BodyShape.Vieleck ? sel.Points.Count : sel.Vertices.Count;
+                        var vi = Ed.SelectedVertex;
+                        <div class="strong" style="margin-top:8px">@Lang.F($"Ecken: {count}")</div>
+                        @if (vi >= 0 && vi < count)
+                        {
+                            <div class="secondary">@Lang.F($"Ecke {vi + 1} (in eigenen Achsen des Körpers):")</div>
+                            <div class="cols three">
+                                @if (sel.Shape == BodyShape.Vieleck)
+                                {
+                                    @Num(Lang.T("Ecke x"), sel.Points[vi].X, x => sel.Points[vi] = (x, sel.Points[vi].Y))
+                                    @Num(Lang.T("Ecke y"), sel.Points[vi].Y, x => sel.Points[vi] = (sel.Points[vi].X, x))
+                                    @Num(Lang.T("Höhe"), vi < sel.Heights.Count ? sel.Heights[vi] : sel.H, x => { while (sel.Heights.Count < sel.Points.Count) sel.Heights.Add(sel.H); sel.Heights[vi] = Math.Max(0.01, x); })
+                                }
+                                else
+                                {
+                                    @Num(Lang.T("Ecke x"), sel.Vertices[vi].X, x => sel.Vertices[vi] = (x, sel.Vertices[vi].Y, sel.Vertices[vi].Z))
+                                    @Num(Lang.T("Ecke y"), sel.Vertices[vi].Y, x => sel.Vertices[vi] = (sel.Vertices[vi].X, x, sel.Vertices[vi].Z))
+                                    @Num(Lang.T("Ecke z"), sel.Vertices[vi].Z, x => sel.Vertices[vi] = (sel.Vertices[vi].X, sel.Vertices[vi].Y, x))
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="secondary">@Lang.T("Eine Ecke (Quadrat) in einer Ansicht anklicken, um sie zu ziehen oder ihre Werte einzugeben.")</div>
+                        }
+                    }
+                    @if (sel.Group > 0)
+                    {
+                        <div class="secondary">@Lang.F($"Gehört zu Gruppe {sel.Group}; die Gruppe wird gemeinsam verschoben.")</div>
+                    }
+                }
+            </div>
+        </aside>
+    </div>
+    <div class="me-status">
+        <span>@SizeText</span>
+        <span class="me-spacer"></span>
+        <span class="secondary">@_status</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ModelDefinition Model { get; set; } = null!;
+    [Parameter, EditorRequired] public Gauge Gauge { get; set; } = null!;
+    /// <summary>Speichert das Modell (Bibliothek, Plan); false bei Fehler.</summary>
+    [Parameter, EditorRequired] public Func<ModelDefinition, bool> OnSave { get; set; } = null!;
+    [Parameter, EditorRequired] public Action OnClose { get; set; } = null!;
+
+    private ModelEditor _ed = null!;
+    private ModelDefinition? _loaded;
+    private ModelEditor Ed => _ed;
+    private string _status = "";
+    private bool _closeAsk;
+    private bool _polygonMode;
+    private readonly List<(double X, double Y)> _polygon = [];
+    private (double U, double V)? _mouse;
+
+    // Ansicht: sichtbarer Ausschnitt je Ansicht (u0, v0, Breite, Höhe) in Metern; 3 = Schrägansicht
+    private readonly (double U0, double V0, double W, double H)[] _box = new (double, double, double, double)[4];
+    private readonly bool[] _fitted = new bool[4];
+    private double _yaw = -35, _pitch = 30;
+
+    private enum DragMode { None, Body, Vertex, Pan, Orbit }
+    private DragMode _drag;
+    private int _dragView;
+    private (double U, double V) _dragStart;
+    private (double X, double Y) _dragClient;
+    private (double U0, double V0) _panOrigin;
+    private (double Yaw, double Pitch) _orbitOrigin;
+    private (double DX, double DY, double DZ) _applied;
+    private bool _recorded;
+
+    private static readonly (BodyShape, string)[] Shapes =
+    [
+        (BodyShape.Quader, "Cube"), (BodyShape.Zylinder, "Column"), (BodyShape.Keil, "Slope"), (BodyShape.Satteldach, "Building"),
+        (BodyShape.Walmdach, "Building"), (BodyShape.Pultdach, "Building"), (BodyShape.Gewoelbe, "Tunnel"), (BodyShape.Bogenwand, "Tunnel"),
+        (BodyShape.Fenster, "Window"), (BodyShape.Tuer, "Door"), (BodyShape.Tor, "Door"), (BodyShape.Treppe, "Ramp"),
+        (BodyShape.Vieleck, "Room"), (BodyShape.Freiform, "Cube"),
+    ];
+
+    private static (string, double)[] GridSteps => [(Lang.T("aus"), 0), ("1 cm", 0.01), ("5 cm", 0.05), ("10 cm", 0.1), ("25 cm", 0.25), ("50 cm", 0.5), ("1 m", 1)];
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_loaded, Model)) return;
+        _loaded = Model;
+        _ed = new ModelEditor(Model.Clone());
+        Array.Clear(_fitted);
+    }
+
+    /// <summary>Mausbewegungen ohne Wirkung bauen die Ansichten nicht neu auf.</summary>
+    private bool _render = true;
+
+    protected override bool ShouldRender()
+    {
+        var r = _render;
+        _render = true;
+        return r;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (_fitted.All(f => f)) return;
+        var changed = false;
+        for (var v = 0; v < 4; v++)
+            if (!_fitted[v] && Fit(v)) changed = true;
+        if (changed) StateHasChanged();
+    }
+
+    private bool HasVertices => Ed.Selected is { Shape: BodyShape.Vieleck or BodyShape.Freiform };
+    private IEnumerable<ModelBody> SelectedBodies => Ed.Selection.Where(i => i < Ed.Model.Bodies.Count).Select(i => Ed.Model.Bodies[i]);
+    private string PropsKey => string.Join(",", Ed.Selection) + "|" + Ed.SelectedVertex + "|" + Ed.Model.Bodies.Count + "|" + _version;
+    private int _version;
+
+    private string SizeText
+    {
+        get
+        {
+            var (w, d, h) = Ed.Model.Size;
+            var k = ModelLibrary.MmPerMeter(Gauge);
+            return Lang.F($"Vorbild {Fmt.Num(w, 1)} × {Fmt.Num(d, 1)} × {Fmt.Num(h, 1)} m · {Gauge.Id}: {Fmt.Num(w * k, 0)} × {Fmt.Num(d * k, 0)} × {Fmt.Num(h * k, 0)} mm");
+        }
+    }
+
+    private static string ShapeTip(BodyShape s) => s switch
+    {
+        BodyShape.Fenster or BodyShape.Tuer or BodyShape.Tor => Lang.T("Kommt an die Vorderseite des gewählten Körpers."),
+        BodyShape.Satteldach or BodyShape.Walmdach or BodyShape.Pultdach => Lang.T("Kommt oben auf den gewählten Körper."),
+        BodyShape.Vieleck => Lang.T("Vieleck mit fünf Ecken; die Ecken lassen sich ziehen. Eigener Grundriss: „Grundriss zeichnen“."),
+        BodyShape.Freiform => Lang.T("Freie Form, bei der sich jede Ecke in allen drei Richtungen ziehen lässt."),
+        _ => ModelBody.ShapeName(s),
+    };
+
+    private static string ViewTitle(int v) => v switch
+    {
+        0 => Lang.T("Draufsicht"),
+        1 => Lang.T("3D-Vorschau (ziehen dreht, Mausrad zoomt)"),
+        2 => Lang.T("Vorderansicht (Gleisseite unten in der Draufsicht)"),
+        _ => Lang.T("Seitenansicht von rechts"),
+    };
+
+    /// <summary>Anordnung: oben Draufsicht und 3D, unten Vorder- und Seitenansicht.</summary>
+    private static EditorView? OrthoOf(int v) => v switch { 0 => EditorView.Draufsicht, 2 => EditorView.Vorderansicht, 3 => EditorView.Seitenansicht, _ => null };
+
+    private static string SvgId(int v) => "me-view-" + v;
+
+    private Func<(double X, double Y, double Z), (double U, double V, double Depth)> Projection(int v)
+        => OrthoOf(v) is { } o ? ModelDrawing.Ortho(o) : ModelDrawing.Orbit(_yaw, _pitch);
+
+    // ---------- Aktionen ----------
+
+    private void Do(Action a)
+    {
+        a();
+        _version++;
+        _status = "";
+    }
+
+    /// <summary>Änderung aus den Eigenschaften als ein Rückgängig-Schritt.</summary>
+    private void Change(Action a)
+    {
+        Ed.Edit(a);
+        _version++;
+    }
+
+    private RenderFragment Num(string label, double value, Action<double> apply) => @<div>
+        <label class="field-label">@label</label>
+        <input class="input" value="@Fmt.Num(value, 3)" @onchange="@(e => { if (Fmt.Parse((string?)e.Value) is { } x && Math.Abs(x - value) > 1e-9) Change(() => apply(x)); else _version++; })" />
+    </div>;
+
+    private void SelectFromList(int index, bool add)
+    {
+        if (!add) Ed.Selection.Clear();
+        if (add && Ed.Selection.Contains(index)) Ed.Selection.Remove(index); else Ed.Selection.Add(index);
+        Ed.SelectedVertex = -1;
+        _version++;
+    }
+
+    private void TogglePolygon()
+    {
+        _polygonMode = !_polygonMode;
+        _polygon.Clear();
+        _status = _polygonMode ? Lang.T("Grundriss zeichnen: in der Draufsicht die Ecken anklicken, Doppelklick schließt.") : "";
+    }
+
+    private void FinishPolygon()
+    {
+        if (_polygon.Count == 0) return;
+        var pts = _polygon.ToList();
+        _polygon.Clear();
+        _polygonMode = false;
+        var height = Ed.Selected is { IsDetail: false } host ? Math.Max(1, host.H) : 3;
+        _status = Ed.AddPolygon(pts, height) is null
+            ? Lang.T("Für einen Grundriss braucht es mindestens drei Ecken, die eine Fläche umschließen.")
+            : Lang.T("Grundriss angelegt. Ecken lassen sich in der Draufsicht ziehen, ihre Höhe in der Vorder- oder Seitenansicht.");
+        _version++;
+    }
+
+    private bool Save()
+    {
+        Ed.Model.Name = Ed.Model.Name.Trim();
+        if (Ed.Problems() is { Count: > 0 } problems) { _status = string.Join(" ", problems); return false; }
+        if (!OnSave(Ed.Model.Clone())) return false;
+        Ed.Dirty = false;
+        _closeAsk = false;
+        _status = Lang.F($"„{Ed.Model.Name}“ gespeichert. Es steht jetzt unter Ausstattung › Eigene Modelle.");
+        return true;
+    }
+
+    private void AskClose()
+    {
+        if (Ed.Dirty) _closeAsk = true;
+        else OnClose();
+    }
+
+    /// <summary>Tasten, solange der Editor offen ist (aus der Hauptseite weitergereicht). true = verarbeitet.</summary>
+    public bool KeyDown(string key, bool ctrl)
+    {
+        var step = Ed.Grid > 0 ? Ed.Grid : 0.1;
+        void MoveBy(double dx, double dy) { if (Ed.Selection.Count > 0) Ed.Edit(() => Ed.MoveSelection(dx, dy, 0)); }
+        switch (key)
+        {
+            case "z" or "Z" when ctrl: Ed.Undo(); break;
+            case "y" or "Y" when ctrl: Ed.Redo(); break;
+            case "d" or "D" when ctrl: Ed.Duplicate(); break;
+            case "s" or "S" when ctrl: Save(); break;
+            case "Delete" when Ed.SelectedVertex >= 0: Ed.RemoveVertex(); break;
+            case "Delete": Ed.Delete(); break;
+            case "ArrowLeft": MoveBy(-step, 0); break;
+            case "ArrowRight": MoveBy(step, 0); break;
+            case "ArrowUp": MoveBy(0, -step); break;
+            case "ArrowDown": MoveBy(0, step); break;
+            case "Enter" when _polygonMode: FinishPolygon(); break;
+            case "Escape" when _polygonMode: TogglePolygon(); break;
+            case "Escape": AskClose(); break;
+            default: return false;
+        }
+        _version++;
+        StateHasChanged();
+        return true;
+    }
+
+    // ---------- Ansichten ----------
+
+    private bool Fit(int v)
+    {
+        double pw, ph;
+        try { var s = Js.ElementSize(SvgId(v)); pw = s[0]; ph = s[1]; }
+        catch { return false; }
+        if (pw < 10 || ph < 10) return false;
+        var (u0, v0, u1, v1) = ModelDrawing.Bounds(ModelDrawing.Draw(Ed.Model, Projection(v)));
+        if (OrthoOf(v) is EditorView.Vorderansicht or EditorView.Seitenansicht) v1 = Math.Max(v1, 0.5);
+        double w = Math.Max(u1 - u0, 2) * 1.25, h = Math.Max(v1 - v0, 2) * 1.25;
+        // Seitenverhältnis des Elements übernehmen, damit Zoom und Verschieben ohne Ränder rechnen
+        if (w / h < pw / ph) w = h * pw / ph; else h = w * ph / pw;
+        _box[v] = ((u0 + u1) / 2 - w / 2, (v0 + v1) / 2 - h / 2, w, h);
+        _fitted[v] = true;
+        return true;
+    }
+
+    private void FitAll()
+    {
+        Array.Clear(_fitted);
+        for (var v = 0; v < 4; v++) Fit(v);
+    }
+
+    private string ViewBox(int v)
+    {
+        var (u0, v0, w, h) = _box[v];
+        if (w <= 0) (u0, v0, w, h) = (-8, -6, 16, 12);
+        return string.Join(" ", new[] { u0, v0, w, h }.Select(x => x.ToString("0.####", CultureInfo.InvariantCulture)));
+    }
+
+    private (double U, double V) ToModel(int v, PointerEventArgs e) => ToModel(v, e.ClientX, e.ClientY);
+
+    private (double U, double V) ToModel(int v, double clientX, double clientY)
+    {
+        var p = Js.SvgPoint(SvgId(v), clientX, clientY);
+        return (p[0], p[1]);
+    }
+
+    /// <summary>Meter je Bildschirmpixel in einer Ansicht.</summary>
+    private double UnitsPerPx(int v)
+    {
+        try { var s = Js.ElementSize(SvgId(v)); return s[0] > 0 ? Math.Max(_box[v].W / s[0], _box[v].H / Math.Max(1, s[1])) : 0.05; }
+        catch { return 0.05; }
+    }
+
+    private void Down(int v, PointerEventArgs e)
+    {
+        var p = ToModel(v, e);
+        if (double.IsNaN(p.U)) return;
+        _dragView = v;
+        _dragStart = p;
+        _dragClient = (e.ClientX, e.ClientY);
+        _applied = (0, 0, 0);
+        _recorded = false;
+        Js.CapturePointer(SvgId(v), (int)e.PointerId);
+        if (e.Button == 2 && _polygonMode && _polygon.Count > 0) { FinishPolygon(); return; }
+        if (e.Button == 2 || e.Button == 1) { _drag = DragMode.Pan; _panOrigin = (_box[v].U0, _box[v].V0); return; }
+        if (OrthoOf(v) is not { } view) { _drag = DragMode.Orbit; _orbitOrigin = (_yaw, _pitch); return; }
+        if (_polygonMode)
+        {
+            if (view != EditorView.Draufsicht) { _status = Lang.T("Den Grundriss bitte in der Draufsicht zeichnen."); return; }
+            _polygon.Add((Ed.Snap(p.U), Ed.Snap(p.V)));
+            _drag = DragMode.None;
+            return;
+        }
+        if (HasVertices && Ed.PickVertex(view, p.U, p.V, 8 * UnitsPerPx(v)) >= 0)
+        {
+            _drag = DragMode.Vertex;
+            _status = Lang.F($"Ecke {Ed.SelectedVertex + 1}: ziehen verschiebt sie.");
+        }
+        else
+        {
+            var hit = Ed.Pick(view, p.U, p.V, e.CtrlKey || e.ShiftKey);
+            _drag = hit is { } h && Ed.Selection.Contains(h) ? DragMode.Body : DragMode.None;
+        }
+        _version++;
+    }
+
+    private void Move(int v, PointerEventArgs e)
+    {
+        if (_drag == DragMode.None)
+        {
+            if (_polygonMode && v == 0 && _polygon.Count > 0) { var m = ToModel(v, e); _mouse = (Ed.Snap(m.U), Ed.Snap(m.V)); }
+            else _render = false;
+            return;
+        }
+        if (v != _dragView) { _render = false; return; }
+        switch (_drag)
+        {
+            case DragMode.Pan:
+            {
+                var k = UnitsPerPx(v);
+                _box[v] = (_panOrigin.U0 - (e.ClientX - _dragClient.X) * k, _panOrigin.V0 - (e.ClientY - _dragClient.Y) * k, _box[v].W, _box[v].H);
+                return;
+            }
+            case DragMode.Orbit:
+                _yaw = _orbitOrigin.Yaw - (e.ClientX - _dragClient.X) * 0.4;
+                _pitch = Math.Clamp(_orbitOrigin.Pitch + (e.ClientY - _dragClient.Y) * 0.3, -10, 89);
+                Fit(1);
+                return;
+        }
+        var p = ToModel(v, e);
+        if (double.IsNaN(p.U) || OrthoOf(v) is not { } view) return;
+        if (!_recorded && Math.Abs(e.ClientX - _dragClient.X) + Math.Abs(e.ClientY - _dragClient.Y) < 3) { _render = false; return; }
+        var (dx, dy, dz) = ModelEditor.Unproject(view, p.U - _dragStart.U, p.V - _dragStart.V);
+        (dx, dy, dz) = (Ed.Snap(dx), Ed.Snap(dy), Ed.Snap(dz));
+        var inc = (X: dx - _applied.DX, Y: dy - _applied.DY, Z: dz - _applied.DZ);
+        if (Math.Abs(inc.X) + Math.Abs(inc.Y) + Math.Abs(inc.Z) < 1e-12) { _render = false; return; }
+        if (!_recorded) { Ed.Record(); _recorded = true; }
+        if (_drag == DragMode.Body) Ed.MoveSelection(inc.X, inc.Y, inc.Z);
+        else Ed.MoveVertex(Ed.SelectedVertex, inc.X, inc.Y, inc.Z);
+        _applied = (dx, dy, dz);
+        _status = Lang.F($"Verschoben um {Fmt.Num(dx, 2)} / {Fmt.Num(dy, 2)} / {Fmt.Num(dz, 2)} m");
+    }
+
+    private void Up(int v, PointerEventArgs e)
+    {
+        if (_drag is DragMode.Body or DragMode.Vertex && _recorded) { Ed.Commit(); _version++; }
+        _drag = DragMode.None;
+    }
+
+    private void DoubleClick(int v)
+    {
+        if (_polygonMode && v == 0) FinishPolygon();
+    }
+
+    private void Wheel(int v, WheelEventArgs e)
+    {
+        var p = ToModel(v, e.ClientX, e.ClientY);
+        if (double.IsNaN(p.U)) return;
+        var f = e.DeltaY > 0 ? 1.15 : 1 / 1.15;
+        var (u0, v0, w, h) = _box[v];
+        if (w * f < 0.2 || w * f > 2000) return;
+        _box[v] = (p.U - (p.U - u0) * f, p.V - (p.V - v0) * f, w * f, h * f);
+    }
+
+    // ---------- Bild ----------
+
+    private static string C(double x) => x.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string Hex(Rgb c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+
+    private static readonly Rgb Accent = new(0x43, 0x7E, 0x1E);
+
+    private string Picture(int v)
+    {
+        var sb = new StringBuilder();
+        var (u0, v0, w, h) = _box[v];
+        if (w <= 0) (u0, v0, w, h) = (-8, -6, 16, 12);
+        var px = Math.Max(w, h) / 600; // etwa ein Bildschirmpixel
+        var ortho = OrthoOf(v);
+        sb.Append($"<rect x=\"{C(u0)}\" y=\"{C(v0)}\" width=\"{C(w)}\" height=\"{C(h)}\" fill=\"{(ortho is null ? "#E4EDF5" : "#F3F3F3")}\"/>");
+        if (ortho is { } o)
+        {
+            // Raster
+            var minor = Nice(12 * px);
+            for (var u = Math.Floor(u0 / minor) * minor; u <= u0 + w; u += minor)
+                sb.Append($"<line x1=\"{C(u)}\" y1=\"{C(v0)}\" x2=\"{C(u)}\" y2=\"{C(v0 + h)}\" stroke=\"#000\" stroke-opacity=\"{(Major(u, minor) ? ".14" : ".06")}\" stroke-width=\"{C(px)}\"/>");
+            for (var y = Math.Floor(v0 / minor) * minor; y <= v0 + h; y += minor)
+                sb.Append($"<line x1=\"{C(u0)}\" y1=\"{C(y)}\" x2=\"{C(u0 + w)}\" y2=\"{C(y)}\" stroke=\"#000\" stroke-opacity=\"{(Major(y, minor) ? ".14" : ".06")}\" stroke-width=\"{C(px)}\"/>");
+            sb.Append($"<line x1=\"0\" y1=\"{C(v0)}\" x2=\"0\" y2=\"{C(v0 + h)}\" stroke=\"#666\" stroke-dasharray=\"{C(4 * px)}\" stroke-width=\"{C(px)}\"/>");
+            sb.Append(o == EditorView.Draufsicht
+                ? $"<line x1=\"{C(u0)}\" y1=\"0\" x2=\"{C(u0 + w)}\" y2=\"0\" stroke=\"#666\" stroke-dasharray=\"{C(4 * px)}\" stroke-width=\"{C(px)}\"/>"
+                : $"<line x1=\"{C(u0)}\" y1=\"0\" x2=\"{C(u0 + w)}\" y2=\"0\" stroke=\"#7A8A60\" stroke-width=\"{C(2 * px)}\"/>");
+        }
+        var tris = ModelDrawing.Draw(Ed.Model, Projection(v), Ed.Selection, Accent);
+        foreach (var t in tris)
+        {
+            var col = Hex(t.Color);
+            sb.Append($"<path d=\"M{C(t.A.U)} {C(t.A.V)}L{C(t.B.U)} {C(t.B.V)}L{C(t.C.U)} {C(t.C.V)}Z\" fill=\"{col}\" stroke=\"{col}\" stroke-width=\"{C(px * 0.6)}\" stroke-linejoin=\"round\"/>");
+        }
+        if (ortho is { } view)
+        {
+            // Auswahlrahmen
+            foreach (var i in Ed.Selection.Where(i => i < Ed.Model.Bodies.Count))
+            {
+                var pts = ModelMesh.Body(Ed.Model.Bodies[i]).SelectMany(t => new[] { t.A, t.B, t.C }).Select(q => ModelEditor.Project(view, q)).ToList();
+                if (pts.Count == 0) continue;
+                double a0 = pts.Min(q => q.U) - 3 * px, b0 = pts.Min(q => q.V) - 3 * px, a1 = pts.Max(q => q.U) + 3 * px, b1 = pts.Max(q => q.V) + 3 * px;
+                sb.Append($"<rect x=\"{C(a0)}\" y=\"{C(b0)}\" width=\"{C(a1 - a0)}\" height=\"{C(b1 - b0)}\" fill=\"none\" stroke=\"{Hex(Accent)}\" stroke-width=\"{C(1.5 * px)}\" stroke-dasharray=\"{C(5 * px)}\"/>");
+            }
+            // Ecken
+            if (Ed.Selected is { Shape: BodyShape.Vieleck or BodyShape.Freiform } sel)
+            {
+                var verts = Ed.Vertices(sel);
+                for (var i = 0; i < verts.Count; i++)
+                {
+                    var q = ModelEditor.Project(view, verts[i]);
+                    var s = 4 * px;
+                    sb.Append($"<rect x=\"{C(q.U - s)}\" y=\"{C(q.V - s)}\" width=\"{C(2 * s)}\" height=\"{C(2 * s)}\" fill=\"{(i == Ed.SelectedVertex ? Hex(Accent) : "#fff")}\" stroke=\"{Hex(Accent)}\" stroke-width=\"{C(2 * px)}\"/>");
+                }
+            }
+            // Grundriss in Arbeit
+            if (view == EditorView.Draufsicht && _polygon.Count > 0)
+            {
+                var pts = _polygon.ToList();
+                if (_mouse is { } m) pts.Add(m);
+                sb.Append($"<polyline points=\"{string.Join(" ", pts.Select(q => C(q.X) + "," + C(q.Y)))}\" fill=\"none\" stroke=\"{Hex(Accent)}\" stroke-width=\"{C(2 * px)}\"/>");
+                foreach (var q in pts) sb.Append($"<circle cx=\"{C(q.X)}\" cy=\"{C(q.Y)}\" r=\"{C(3.5 * px)}\" fill=\"#fff\" stroke=\"{Hex(Accent)}\" stroke-width=\"{C(2 * px)}\"/>");
+            }
+            // Maßstab
+            var meters = Nice(80 * px);
+            var y0 = v0 + h - 14 * px;
+            sb.Append($"<line x1=\"{C(u0 + 12 * px)}\" y1=\"{C(y0)}\" x2=\"{C(u0 + 12 * px + meters)}\" y2=\"{C(y0)}\" stroke=\"#5C5C5C\" stroke-width=\"{C(2 * px)}\"/>");
+            sb.Append($"<text x=\"{C(u0 + 16 * px + meters)}\" y=\"{C(y0 + 4 * px)}\" font-size=\"{C(11 * px)}\" fill=\"#5C5C5C\">{(meters >= 1 ? Fmt.Num(meters, 0) + " m" : Fmt.Num(meters * 100, 0) + " cm")}</text>");
+        }
+        return sb.ToString();
+    }
+
+    private static bool Major(double x, double minor)
+    {
+        var major = minor * 5;
+        return Math.Abs(x / major - Math.Round(x / major)) < 1e-6;
+    }
+
+    private static double Nice(double raw)
+    {
+        foreach (var s in new[] { 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100 })
+            if (s >= raw) return s;
+        return 200;
+    }
+}

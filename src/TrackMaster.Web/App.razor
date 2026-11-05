@@ -171,6 +171,11 @@
         <button class="st-toggle @(_session.ShowGrid ? "on" : "")" title="@Lang.T("Raster anzeigen")" @onclick="@(() => Run("grid"))">@Lang.T("Raster")</button>
     </footer>
 
+    @if (_editModel is { } editModel)
+    {
+        <ModelEditorPanel @ref="_editor" Model="editModel" Gauge="_session.Plan.Gauge" OnSave="SaveOwnModel" OnClose="CloseModelEditor" />
+    }
+
     @if (_open3D)
     {
         <div class="view3d" role="dialog" aria-label="@Lang.T("3D-Ansicht")">
@@ -1607,6 +1612,93 @@
                 </button>
             }
         </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    // ---------- Eigene Modelle (Dialoge, Logik in App.Equipment.cs) ----------
+
+    private void PickModel(string title, IReadOnlyList<ModelDefinition> models, Action<ModelDefinition> pick)
+    {
+        var d = Show(title, @<div class="list">
+            @foreach (var m in models)
+            {
+                var model = m;
+                <button class="list-item model-choice" @onclick="@(() => { CloseDialog(); pick(model); })">
+                    <span class="model-pic">@((MarkupString)Pictures.Model(m))</span>
+                    <span class="texts">
+                        <span class="strong">@m.Name</span>
+                        <span class="secondary">@(string.IsNullOrWhiteSpace(m.Category) ? ModelLibrary.OwnCategory : m.Category)</span>
+                    </span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void ShowModelLibrary()
+    {
+        var used = _session.Plan.Scenery.Where(s => s.IsModel).Select(s => s.Model!).ToHashSet();
+        var own = ModelLibrary.Own.OrderBy(m => m.Category).ThenBy(m => m.Name).ToList();
+        var planOnly = _session.PlanModelsNotInLibrary();
+        RenderFragment Row(ModelDefinition m, bool inLibrary) => @<div class="list-item me-lib-item">
+            <span class="model-pic">@((MarkupString)Pictures.Model(m))</span>
+            <span class="texts">
+                <span class="strong">@m.Name</span>
+                <span class="secondary">@(string.IsNullOrWhiteSpace(m.Category) ? ModelLibrary.OwnCategory : m.Category)@(inLibrary ? (used.Contains(m.Id) ? " · " + Lang.T("im Plan verwendet") : "") : " · " + Lang.T("nur im Plan"))</span>
+                <span class="button-row">
+                    @if (inLibrary)
+                    {
+                        <button class="btn small" @onclick="@(() => OpenModelEditor(m))">@Lang.T("Bearbeiten")</button>
+                    }
+                    else
+                    {
+                        <button class="btn small" @onclick="@(() => { if (SaveOwnModel(m.Clone())) ShowModelLibrary(); })">@Lang.T("In Bibliothek übernehmen")</button>
+                    }
+                    <button class="btn small" @onclick="@(() => OpenModelEditor(ModelEditor.CopyOf(m)))">@Lang.T("Kopie bearbeiten")</button>
+                    <button class="btn small" @onclick="@(() => { CloseAllDialogs(); SetModelTool(m.Id); })">@Lang.T("In den Plan einfügen")</button>
+                    <button class="btn small" @onclick="@(() => ExportModel(m))">@Lang.T("Exportieren…")</button>
+                    <button class="btn small" title="@Lang.T("STL für den 3D-Druck, OBJ mit Farben für 3D-Programme – im Maßstab der Spur")" @onclick="@(() => Export3D(m, true))">STL</button>
+                    <button class="btn small" @onclick="@(() => Export3D(m, false))">OBJ</button>
+                    @if (inLibrary)
+                    {
+                        <button class="btn small danger" @onclick="@(() => AskDeleteModel(m))">@Lang.T("Löschen")</button>
+                    }
+                </span>
+            </span>
+        </div>;
+        var d = Show(Lang.T("Eigene Modelle"), @<div class="list">
+            @if (own.Count == 0 && planOnly.Count == 0)
+            {
+                <div class="secondary">@Lang.T("Noch keine eigenen Modelle. Mit „Neues Modell“ oder „Aus Vorlage…“ eines bauen oder Modelle importieren.")</div>
+            }
+            @foreach (var m in own)
+            {
+                @Row(m, true)
+            }
+            @foreach (var m in planOnly)
+            {
+                @Row(m, false)
+            }
+            <div class="secondary">@Lang.T("Eigene Modelle liegen im Speicher dieses Browsers. Zur Sicherung oder für andere Geräte bitte exportieren (ZIP).")</div>
+        </div>, wide: true);
+        d.Buttons.Add(new(Lang.T("Neues Modell"), () => { OpenModelEditor(ModelEditor.NewModel(Lang.T("Neues Modell"))); return false; }));
+        d.Buttons.Add(new(Lang.T("Aus Vorlage…"), () => { PickModel(Lang.T("Vorlage für ein eigenes Modell"), ModelLibrary.All.ToList(), m => OpenModelEditor(ModelEditor.CopyOf(m))); return false; }));
+        d.Buttons.Add(new(Lang.T("Importieren…"), () => { CloseDialog(); _ = ImportModels(); return false; }));
+        if (own.Count > 0) d.Buttons.Add(new(Lang.T("Alle exportieren (ZIP)…"), () => { ExportAllModels(); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    private void AskDeleteModel(ModelDefinition m)
+    {
+        var d = Show(Lang.T("Eigene Modelle"), MessageBody(Lang.F($"„{m.Name}“ aus der Bibliothek löschen?") + "\n\n" + Lang.T("Pläne, die das Modell verwenden, behalten ihre mitgespeicherte Fassung.")));
+        d.Buttons.Add(new(Lang.T("Löschen"), () =>
+        {
+            ModelLibrary.RemoveOwn(m.Id);
+            StoreOwnModels();
+            CloseAllDialogs();
+            ShowModelLibrary();
+            return false;
+        }, true));
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
 

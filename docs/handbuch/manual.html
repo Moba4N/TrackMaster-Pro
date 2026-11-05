@@ -113,6 +113,7 @@ layout and look at the result in 3D – before you buy the first piece of rail.<
   <li><b>Height planning:</b> gradients over whole track sequences, round or oval helixes, single or double track.</li>
   <li><b>Timber list for the helix:</b> all cut pieces with edge allowance and saw allowance, supports, fixings and sheet requirement.</li>
   <li><b>Scenery:</b> hills and mountains, water, buildings, trees and tunnels.</li>
+  <li><b>Scenery items:</b> 20 basic models – tunnel portals, platforms that follow curves, stations, bridges, engine sheds, houses – that snap to the track; with Pro your own models in the <b>model editor</b> and export as STL/OBJ.</li>
   <li><b>Wiring and digital:</b> feeders, isolating joints, power sections, reverse loop detection, light signals with
     prototypical aspects, detectors, decoder addresses, routes and a wiring plan.</li>
   <li><b>Room:</b> the room with walls, doors, windows, radiators and furniture around the layout – the check reports aisles that are too narrow and blocked doors.</li>
@@ -138,6 +139,7 @@ layout and look at the result in 3D – before you buy the first piece of rail.<
   <tr><td>3D view with cab ride, train and time of day, plan and wiring check</td><td>Export as SVG at 1:1, wiring plan as text, export for control software</td></tr>
   <tr><td>Room with doors, windows and furniture, background image</td><td>Parts list with prices, stock, “to buy” and price list import</td></tr>
   <tr><td>Parallel track, height profile, lock, group, align, detectors</td><td>Export as PNG image and as DXF drawing for CAD programs</td></tr>
+  <tr><td>Scenery items: 20 basic models that snap to the track, models stored in the plan</td><td>Model editor, own model library, import, export as STL and OBJ</td></tr>
   <tr><td>Opening track plans, saving plans with up to 50 tracks</td><td></td></tr>
 </table>
 <p>Pro features are marked in the program: in the tooltip as “Pro feature”, in the Android app with a padlock.
@@ -147,7 +149,7 @@ If you choose a Pro feature in the Basic edition, a note explains what Pro offer
 <div class="tip"><b>New to this?</b>Then start with chapter <a href="#ke">4</a> “First steps for beginners”. It explains the basic terms
 and leads you in ten steps to your first layout. You can look up the other chapters afterwards whenever you need a feature.</div>
 <p>This manual describes the Windows version. The Android app and the web version work the same way; what is different there – mainly
-touch operation – is described in chapter <a href="#k13">16</a>, the web version in chapter <a href="#k2">2</a>. Ribbon commands are written as
+touch operation – is described in chapter <a href="#k13">17</a>, the web version in chapter <a href="#k2">2</a>. Ribbon commands are written as
 <span class="ui">Tab › Command</span>, for example <span class="ui">Tracks › Helix</span>. Keys look like this: <kbd>Ctrl</kbd>+<kbd>S</kbd>.
 The manual shows the English interface; how to switch the language is described in chapter <a href="#k4">5</a>.</p>
 <div class="tip"><b>Tip</b>Notes like this show shortcuts and proven ways of working.</div>
@@ -341,7 +343,7 @@ and <span class="ui">Home › History…</span> even jumps back 20 steps at once
 
 <h2 id="ke-3">Where do I find what?</h2>
 <p>All commands are in the <b>ribbon</b> at the top. It is divided into <b>tabs</b>: <span class="ui">Home</span>, <span class="ui">Tracks</span>,
-<span class="ui">Scenery</span>, <span class="ui">Room</span>, <span class="ui">Wiring</span>, <span class="ui">View</span> and <span class="ui">3D</span>. Clicking a tab shows
+<span class="ui">Scenery</span>, <span class="ui">Scenery items</span>, <span class="ui">Room</span>, <span class="ui">Wiring</span>, <span class="ui">View</span> and <span class="ui">3D</span>. Clicking a tab shows
 its buttons. On the far left is the <span class="ui">File</span> button with New, Open, Save and Print. When the manual says
 <span class="ui">Tracks › Gradient…</span>, it means: click the <span class="ui">Tracks</span> tab, then the <span class="ui">Gradient…</span> button.</p>
 <p>On the left is the <b>track library</b> with all track pieces, in the middle the <b>drawing area</b> with your plan and on the right the <b>properties</b>:
@@ -394,9 +396,9 @@ this turns the last track placed. If a track lies off to one side, drag it with 
   <li>Plan an L- or U-shaped board, modules or timber benchwork: chapter <a href="#kp">7</a>.</li>
   <li>More about tracks, flexible track, parallel tracks and aligning: chapter <a href="#k6">8</a>.</li>
   <li>Let lines climb, build a second level or a helix: chapter <a href="#k7">9</a>.</li>
-  <li>Mountains, lakes, houses and trees: chapter <a href="#k8">10</a>. Fit the layout into your room: chapter <a href="#kr">11</a>.</li>
-  <li>Power, signals and digital control: chapter <a href="#k9">12</a>.</li>
-  <li>Shopping list with prices, printing at full size: chapter <a href="#k12">15</a>.</li>
+  <li>Mountains, lakes, houses and trees: chapter <a href="#k8">10</a>. Fit the layout into your room: chapter <a href="#kr">12</a>.</li>
+  <li>Power, signals and digital control: chapter <a href="#k9">13</a>.</li>
+  <li>Shopping list with prices, printing at full size: chapter <a href="#k12">16</a>.</li>
 </ul>
 <p>The <b>sample plan</b> (<span class="ui">File › Load sample plan</span>) shows a finished layout with station, scenery and signals. Have a look at it
 and click on individual parts – the properties on the right reveal how everything is done.</p>
@@ -409,7 +411,7 @@ and click on individual parts – the properties on the right reveal how everyth
 <p>The main window is divided into six areas:</p>
 <table>
   <tr><th style="width:26%">Area</th><th>Purpose</th></tr>
-  <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Room, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo, Redo and History.</td></tr>
+  <tr><td><b>Ribbon</b> (top)</td><td>All commands, arranged in the tabs Home, Tracks, Scenery, Scenery items, Room, Wiring, View and 3D. Via <span class="ui">File</span> you reach New, Open, Save, parts list, export, printing, sample plan, licence and language. The quick access toolbar at the very top left contains Save, Undo, Redo and History.</td></tr>
   <tr><td><b>Track library</b> (left)</td><td>Choose the track system, search for tracks and filter by type (straight, curves, turnouts, crossings, other). A click attaches the track, dragging places it freely.</td></tr>
   <tr><td><b>Drawing area</b> (centre)</td><td>The track plan on the baseboard, with dimension chains, grid and the open track ends. The zoom can be set at the bottom right.</td></tr>
   <tr><td><b>Properties</b> (right)</td><td>Shows what is currently selected: the plan with baseboard dimensions and overview, a track with position, height and digital address, or an object such as a building, signal or feeder. Values can be entered directly.</td></tr>
@@ -516,7 +518,7 @@ this quickly turns a right-hand turnout in the direction of travel into one that
 
 <h2 id="k5-4">Checking the plan</h2>
 <p>Click <span class="ui">Home › Collision check</span> (<kbd>F7</kbd>). The list shows overlaps, spacing that is too tight
-and open ends; a click on an entry shows the spot in the plan (chapter <a href="#k10">13</a>).</p>
+and open ends; a click on an entry shows the spot in the plan (chapter <a href="#k10">14</a>).</p>
 
 <h2 id="k5-5">Sample plan</h2>
 <p>Under <span class="ui">File › Load sample plan</span> the layout “Newtown station” opens, with scenery, wiring and signals.
@@ -547,7 +549,7 @@ Empty fields take the common leg depth or the full length; <span class="ui">Rese
 <h2 id="kp-3">Rotate layout</h2>
 <p><span class="ui">Scenery › Rotate layout 90°</span> rotates the baseboard together with tracks, terrain and objects by 90° clockwise; rotating four times
 gives the initial state again. In the dimensions dialog of a module, <span class="ui">Rotate 90°</span> rotates only that module with its content.
-To rotate only the view, see chapter <a href="#k4">5</a>; free rotation in all directions is available in the 3D view (chapter <a href="#k11">14</a>).</p>
+To rotate only the view, see chapter <a href="#k4">5</a>; free rotation in all directions is available in the 3D view (chapter <a href="#k11">15</a>).</p>
 
 <h2 id="kp-4">Layout made of modules</h2>
 <p>Under <span class="ui">Scenery › Modules…</span> the layout is assembled from rectangular modules. An existing baseboard is split into modules,
@@ -868,7 +870,79 @@ hides the scenery when you only want to see the tracks. The plan check reports t
 
 <!-- ======================================================= -->
 <section>
-<h1 id="kr"><span class="no">11</span>Room and background image</h1>
+<h1 id="ka"><span class="no">11</span>Scenery items: basic models and your own models</h1>
+<p class="lead">Tunnel portals, platforms, stations, bridges and houses can be placed ready-made from the <span class="ui">Scenery items</span> tab.
+With Pro you build your own buildings and more in the <b>model editor</b> – from boxes, roofs, polygons and free forms.</p>
+<figure><img src="img-en/ausstattung.png" alt=""><figcaption>Scenery items tab with platform, platform canopy, tunnel portal, level crossing and station.</figcaption></figure>
+
+<h2 id="ka-1">Inserting basic models</h2>
+<p>The basic models come with the program and need no licence. Choose a group in the <span class="ui">Scenery items</span> tab and a model in it,
+then click into the plan. Clicking the same model again ends the tool.</p>
+<table>
+  <tr><th style="width:24%">Group</th><th>Models</th></tr>
+  <tr><td>Tunnels and bridges</td><td>Single- and double-track tunnel portal, box girder bridge, bridge abutment, retaining wall</td></tr>
+  <tr><td>Station</td><td>Side platform, island platform, platform canopy, waiting shelter, small and medium station building</td></tr>
+  <tr><td>Railway structures</td><td>Signal box, goods shed, single- and double-road engine shed, level crossing, buffer stop with earth mound</td></tr>
+  <tr><td>Houses</td><td>Residential house, farmhouse, barn</td></tr>
+</table>
+<p>The models have prototype size and are inserted at the <b>scale of the gauge</b> (1:87 in H0). Many of them snap to the track:</p>
+<ul>
+  <li><b>Tunnel portals</b> sit at the tunnel entrance, across the track; the opening faces into the tunnel.</li>
+  <li><b>Platforms and retaining walls</b> lie beside the track at the correct edge distance and <b>follow curves</b>. The click decides which side they are on.</li>
+  <li><b>Bridges</b> go under the track up to the underside of the track, <b>engine sheds</b> over the track, the <b>level crossing</b> across it and the <b>buffer stop</b> at an open track end.</li>
+</ul>
+<p>The <span class="ui">Properties</span> show length, depth, height and rotation in the plan, the prototype dimensions and a <b>main colour</b> (for example render in cream or brick red).
+<span class="ui">Original size</span> restores the size at scale. In the 3D view the models stand on the terrain or on their level.</p>
+<figure class="half"><img src="img-en/ausstattung-3d.png" alt=""><figcaption>Basic models in the 3D view.</figcaption></figure>
+<p><span class="ui">Simple building</span> still draws a plain house as a rectangle.</p>
+
+<h2 id="ka-2">The model editor <span class="badge">PRO</span></h2>
+<p><span class="ui">Scenery items › New model</span> opens the editor with an empty house. <span class="ui">From template…</span> copies a basic model
+or one of your own as a starting point. For a model in the plan, <span class="ui">Edit model</span> in the properties leads straight into the editor –
+a basic model is copied, and the object then gets your own version.</p>
+<figure><img src="img-en/modell-editor.png" alt=""><figcaption>The model editor: top view, 3D preview, front and side view, the model on the left, the selected body on the right.</figcaption></figure>
+<p>A model consists of <b>bodies</b>. All dimensions are prototype metres.</p>
+<table>
+  <tr><th style="width:24%">Body</th><th>Used for</th></tr>
+  <tr><td>Box, cylinder, wedge</td><td>Main building, towers, chimneys, ramps. With <span class="ui">Top</span> a box becomes a pyramid and a cylinder a cone.</td></tr>
+  <tr><td>Gable, hip and shed roof</td><td>Added on top of the selected body, with roof overhang.</td></tr>
+  <tr><td>Vault, arched wall</td><td>Tunnel tubes, bridge arches, portals; width and height of the opening are adjustable.</td></tr>
+  <tr><td>Window, door, gate</td><td>Added on the front of the selected body.</td></tr>
+  <tr><td>Stairs</td><td>Steps of a suitable height.</td></tr>
+  <tr><td>Polygon</td><td>Free <b>footprint</b> with any number of corners; each corner can have its own height (sloping top edges, gables).</td></tr>
+  <tr><td>Free form</td><td>Every corner can be dragged in all three directions – for everything the other shapes cannot do.</td></tr>
+</table>
+<h3>Working in the editor</h3>
+<ul>
+  <li><b>Select and move:</b> a click on a body in a view selects it, <kbd>Ctrl</kbd> or <kbd>Shift</kbd> selects several. Dragging moves on the chosen <span class="ui">Grid</span>,
+    the arrow keys by one grid step. The mouse wheel zooms, the right mouse button pans the view, <span class="ui">Fit</span> shows everything.</li>
+  <li><b>Exact values</b> are entered on the right: position, length, depth, height, rotation, material and colour.</li>
+  <li><b>Draw footprint:</b> switch it on and click corner by corner in the top view; double-click, <kbd>Enter</kbd> or the right mouse button closes the footprint.</li>
+  <li><b>Editing corners:</b> for a polygon or free form the corners appear as small squares. Dragging moves them; for a polygon, dragging in the
+    front or side view changes the height of the corner. <span class="ui">Insert corner</span> and <span class="ui">Remove corner</span> change the number of corners.</li>
+  <li><b>Convert to free form</b> turns any body into a free form of the same shape – for example to pull a roof out of true.</li>
+  <li><span class="ui">Duplicate</span>, <span class="ui">Mirror</span>, <span class="ui">Group</span> (grouped bodies move together), <span class="ui">Undo</span> and <span class="ui">Redo</span> work as in the track plan.</li>
+  <li>On the left you set the <b>name</b>, the <b>category</b> (submenu under <span class="ui">Own models</span>), how the model <b>snaps to the track</b> and the <b>main material</b>,
+    which gets the chosen main colour in the plan. The bottom line shows the size in the prototype and at the scale of your gauge.</li>
+</ul>
+<div class="tip"><b>Tip</b>The front view looks at the side that is at the bottom in the top view – for platforms and stations this is the track side.
+Build models that relate to the track so that the track runs along the x axis.</div>
+
+<h2 id="ka-3">Own library, import and export <span class="badge">PRO</span></h2>
+<p>Saved models are listed under <span class="ui">Scenery items › Own models</span> and are inserted like basic models. On Windows they are stored as
+files (<code>*.tmmodell</code>) in the folder <code>Documents\TrackMaster Pro\Modelle</code>, in the web version in the browser storage.</p>
+<p><span class="ui">Library…</span> shows all your models: edit, edit a copy, insert into the plan, delete and export –
+singly as <code>*.tmmodell</code>, all together as ZIP or as a <b>3D file</b>: <b>STL</b> for 3D printing and <b>OBJ</b> with colours for other 3D programs,
+each at the scale of the gauge in millimetres. <span class="ui">Import…</span> reads model files and ZIP collections.</p>
+<p>If a plan uses your own models, they are <b>stored in the plan</b>. Anyone who opens the plan sees them without your library and can insert them
+again even in the Basis version. <span class="ui">Add to library</span> takes such a model into your own library.
+If you change a model in the editor, it is updated in the open plan too.</p>
+<p>The Android app inserts basic models and models stored in the plan; the editor is reserved for Windows and the web version.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="kr"><span class="no">12</span>Room and background image</h1>
 <p class="lead">Will the layout actually fit into the room? Can the door still open, and can you reach every spot? In the <span class="ui">Room</span> tab
 you draw your room with doors, windows and furniture around the layout. A background image – such as a floor plan or an old track plan – helps you trace.</p>
 <figure><img src="img-en/raum.png" alt=""><figcaption>Room tab: room with door, window, radiator and column around the layout.</figcaption></figure>
@@ -929,7 +1003,7 @@ properties; the type can also be changed there afterwards. For a door the plan s
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k9"><span class="no">12</span>Wiring, signals and digital</h1>
+<h1 id="k9"><span class="no">13</span>Wiring, signals and digital</h1>
 <figure><img src="img-en/elektrik.png" alt=""><figcaption>Wiring tab with feeders, isolating joints and signals.</figcaption></figure>
 
 <h2 id="k9-1">Feeders and isolating joints</h2>
@@ -992,7 +1066,7 @@ without typing addresses twice.</p>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k10"><span class="no">13</span>Plan check</h1>
+<h1 id="k10"><span class="no">14</span>Plan check</h1>
 <p><span class="ui">Home › Collision check</span> (<kbd>F7</kbd>) examines the whole plan and lists all findings as error, warning or note.
 A click on an entry selects the tracks concerned and shows the spot.</p>
 <figure class="half"><img src="img-en/pruefung.png" alt=""><figcaption>Result of the plan check.</figcaption></figure>
@@ -1007,7 +1081,7 @@ A click on an entry selects the tracks concerned and shows the spot.</p>
   <tr><td>Radius for vehicles</td><td>curves that are too tight for the longest vehicle, with the overhang of the vehicle's centre and ends</td></tr>
   <tr><td>Gradient in curve</td><td>warning if a curve climbs more steeply than 2 % – in a curve a train pulls noticeably harder</td></tr>
   <tr><td>S-curve</td><td>reverse curves with a small radius and no straight in between, where long coaches can lock buffers</td></tr>
-  <tr><td>Room</td><td>board projects over a wall (error), door cannot open (error), column, radiator or furniture under the board (warning) – chapter <a href="#kr">11</a></td></tr>
+  <tr><td>Room</td><td>board projects over a wall (error), door cannot open (error), column, radiator or furniture under the board (warning) – chapter <a href="#kr">12</a></td></tr>
   <tr><td>Aisle</td><td>less than 60 cm of space between board and wall</td></tr>
   <tr><td>Usable length</td><td>sidings with a buffer stop that are shorter than the longest train</td></tr>
 </table>
@@ -1020,7 +1094,7 @@ A <b>note</b> is advice – sometimes the spot is exactly as intended.</div>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k11"><span class="no">14</span>3D view</h1>
+<h1 id="k11"><span class="no">15</span>3D view</h1>
 <figure><img src="img-en/3d.png" alt=""><figcaption>The layout in 3D with terrain, buildings, trees and signals.</figcaption></figure>
 <ul>
   <li><span class="ui">3D › 3D view</span>: dragging with the left mouse button rotates and tilts the layout – even below the baseboard –, <kbd>Ctrl</kbd> + left mouse button
@@ -1046,7 +1120,7 @@ buildings, trees, signals and the benchwork. Hidden levels are missing here too.
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k12"><span class="no">15</span>Saving, parts list, printing and export</h1>
+<h1 id="k12"><span class="no">16</span>Saving, parts list, printing and export</h1>
 <p class="lead">Saving small plans and opening work in both editions; the parts list, printing, the exports and saving large plans belong to the Pro edition.</p>
 
 <h2 id="k12-1">Saving and opening</h2>
@@ -1100,13 +1174,13 @@ and prices into a spreadsheet – as a shopping list for your dealer.</p>
   <li><b>Wiring plan as a text file</b> from the wiring plan window.</li>
   <li><b>Cutting templates as SVG</b> for helixes, ribs and roadbeds: one file per part at full size, together in a ZIP file.</li>
   <li><b>Ribs as CSV</b> and the <b>material and cutting list of the benchwork</b> as CSV (the benchwork belongs to the Basic edition).</li>
-  <li><b>Export for control software</b> (chapter <a href="#k9">12</a>).</li>
+  <li><b>Export for control software</b> (chapter <a href="#k9">13</a>).</li>
 </ul>
 </section>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k13"><span class="no">16</span>The Android app</h1>
+<h1 id="k13"><span class="no">17</span>The Android app</h1>
 <p class="lead">The app offers the same features as the Windows program, adapted to touch operation.</p>
 <p>At the top is the ribbon with the tabs <b>Home, Tracks, Scenery, Wiring, View, 3D</b> and <b>File</b>, at the bottom the track library as a bar.
 Properties, plan check, helix, signals and the 3D view open as separate windows. In the Basic edition, Pro features carry a padlock.
@@ -1133,7 +1207,7 @@ You draw a room like terrain: tap the corners and finish with <span class="ui">D
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k14"><span class="no">17</span>Keyboard shortcuts and mouse commands</h1>
+<h1 id="k14"><span class="no">18</span>Keyboard shortcuts and mouse commands</h1>
 <div class="cols">
 <table class="keep">
   <tr><th>Key</th><th>Function</th></tr>
@@ -1183,7 +1257,7 @@ You draw a room like terrain: tap the corners and finish with <span class="ui">D
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k15"><span class="no">18</span>Questions and solutions</h1>
+<h1 id="k15"><span class="no">19</span>Questions and solutions</h1>
 <h3>A track does not snap on.</h3>
 <p>Check whether <span class="ui">Snap</span> is switched on in the status bar. Tracks only snap onto <b>free</b> ends; if the end is already connected,
 choose the next open end with <kbd>E</kbd>.</p>
@@ -1211,11 +1285,11 @@ If <span class="ui">Show scenery</span> is off, hills, water, buildings and tree
 <h3>One click suddenly selects many tracks.</h3>
 <p>The tracks are grouped. <span class="ui">Home › Ungroup</span> separates them again.</p>
 <h3>The background image does not match my dimensions.</h3>
-<p>Draw a line over a known distance in the image with <span class="ui">Home › Dimension</span>, select it and call <span class="ui">Room › Scale to measurement…</span> (chapter <a href="#kr">11</a>).</p>
+<p>Draw a line over a known distance in the image with <span class="ui">Home › Dimension</span>, select it and call <span class="ui">Room › Scale to measurement…</span> (chapter <a href="#kr">12</a>).</p>
 <h3>The plan check says the door cannot open.</h3>
 <p>The swing area of the door lies under the board. Move the door, rotate it in the properties or make the board smaller at that spot.</p>
 <h3>How much does my layout cost?</h3>
-<p>Open the parts list (Pro), enter stock and prices or import a price list. The total is shown at the bottom of the list (chapter <a href="#k12">15</a>).</p>
+<p>Open the parts list (Pro), enter stock and prices or import a price list. The total is shown at the bottom of the list (chapter <a href="#k12">16</a>).</p>
 <h3>I have changed too much.</h3>
 <p><span class="ui">Home › History…</span> shows the last 20 steps; a click jumps to an earlier state, and forward again.</p>
 <h3>The 3D view stays black or stutters.</h3>
@@ -1229,7 +1303,7 @@ The program sends no data to third parties; at start-up it only fetches the curr
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k16"><span class="no">19</span>Glossary</h1>
+<h1 id="k16"><span class="no">20</span>Glossary</h1>
 <table>
   <tr><th style="width:28%">Term</th><th>Meaning</th></tr>
   <tr><td>Active track end</td><td>The free end marked in orange, where the next track is attached.</td></tr>

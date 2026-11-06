@@ -426,6 +426,15 @@ public static partial class Dialogs
                             Ui.Field(c, Lang.T("Schrifthöhe (mm)"), Num(s.Height, Lang.T("Schrifthöhe"), 2, 500, v => s.Height = v))));
                         body.AddView(Rows(c, (Lang.T("Länge"), $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null)));
                         break;
+                    case SceneryKind.Beam when s.Points.Count == 2:
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), BeamLayout.MinSection, BeamLayout.MaxWidth, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Höhe der Latte (mm)"), Num(s.Depth, Lang.T("Höhe der Latte"), BeamLayout.MinSection, BeamLayout.MaxDepth, v => s.Depth = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Länge (mm)"), Num(BeamLayout.Length(s), Lang.T("Länge"), BeamLayout.MinLength, 20000, v => PlanSession.SetBeamLength(s, v))),
+                            Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
+                        body.AddView(Rows(c, (Lang.T("Winkel"), $"{Fmt.Num(BeamLayout.Angle(s), 1)}°", null)));
+                        break;
                     case SceneryKind.Terrain:
                         body.AddView(Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), -500, 3000, v => s.Height = v)));
                         body.AddView(Rows(c, (Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));

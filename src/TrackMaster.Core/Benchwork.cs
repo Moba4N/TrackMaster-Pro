@@ -52,7 +52,8 @@ public sealed class BenchworkSpec
     public string FrameSection => $"{Fmt.Num(FrameThickness, 0)} × {Fmt.Num(FrameHeight, 0)}";
 }
 
-public enum BenchKind { Zarge, Querriegel, Bein, Traverse, Platte }
+/// <summary>Art eines Holzteils; <see cref="Leiste"/> = frei gezogene Leiste (Diagonale, Strebe) aus dem Plan.</summary>
+public enum BenchKind { Zarge, Querriegel, Bein, Traverse, Platte, Leiste }
 
 /// <summary>Ein Holzteil als achsparalleler Quader (x, y wie im Plan, z nach oben, 0 = Oberkante Platte).</summary>
 public sealed record BenchPiece(BenchKind Kind, string Section, double Length, double X0, double Y0, double Z0, double X1, double Y1, double Z1);
@@ -106,6 +107,7 @@ public static class Benchwork
         BenchKind.Querriegel => Lang.T("Querriegel"),
         BenchKind.Bein => Lang.T("Bein"),
         BenchKind.Traverse => Lang.T("Fußtraverse"),
+        BenchKind.Leiste => Lang.T("Leiste"),
         _ => Lang.T("Deckplatte"),
     };
 
@@ -240,6 +242,14 @@ public static class Benchwork
             }
             if (s.TopThickness > 0)
                 Box(BenchKind.Platte, $"{Fmt.Num(s.TopThickness, 0)} mm", u0, v0, zTop, u1, v1, 0);
+        }
+
+        // Frei gezogene Leisten (Diagonale, Streben): im 3D-Bild gedreht gezeichnet, hier nur für Zuschnitt und Material
+        foreach (var beam in plan.Scenery.Where(x => x.IsBeam && x.Points.Count == 2))
+        {
+            var o = BeamLayout.Outline(beam);
+            pieces.Add(new BenchPiece(BenchKind.Leiste, BeamLayout.Section(beam), Math.Round(BeamLayout.Length(beam)),
+                o.Min(q => q.X), o.Min(q => q.Y), beam.Height - beam.Depth, o.Max(q => q.X), o.Max(q => q.Y), beam.Height));
         }
 
         // Zuschnitt

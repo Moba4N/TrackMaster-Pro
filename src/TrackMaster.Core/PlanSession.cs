@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -1335,6 +1335,27 @@ public sealed partial class PlanSession
         var len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
         Say(Lang.F($"Maß {Fmt.Num(len, 0)} mm gesetzt. Abstand der Maßlinie und Schriftgröße stehen in den Eigenschaften."));
         return item;
+    }
+
+    /// <summary>Holzleiste des Unterbaus von a nach b (Diagonale, Strebe), Querschnitt wie die Zarge, Oberkante unter der Platte.</summary>
+    public SceneryItem? AddBeam((double X, double Y) a, (double X, double Y) b)
+    {
+        var len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+        if (len < BeamLayout.MinLength) return null;
+        var (w, d, top) = BeamLayout.Defaults(Plan);
+        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Beam, Points = [a, b], Width = w, Depth = d, Height = top });
+        Say(Lang.F($"Leiste {Fmt.Num(len, 0)} mm gesetzt ({BeamLayout.Section(item)} mm). Querschnitt, Höhe und Länge stehen in den Eigenschaften, im Unterbau steht sie in Zuschnitt und Materialliste."));
+        return item;
+    }
+
+    /// <summary>Länge einer Leiste ändern: der Anfang bleibt, die Richtung auch.</summary>
+    public static void SetBeamLength(SceneryItem s, double length)
+    {
+        if (!s.IsBeam || s.Points.Count != 2) return;
+        var (a, b) = (s.Points[0], s.Points[1]);
+        var l = BeamLayout.Length(s);
+        if (l < 1e-9) return;
+        s.Points = [a, (Math.Round(a.X + (b.X - a.X) / l * length, 1), Math.Round(a.Y + (b.Y - a.Y) / l * length, 1))];
     }
 
     /// <summary>

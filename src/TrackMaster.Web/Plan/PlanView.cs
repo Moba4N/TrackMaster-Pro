@@ -405,7 +405,18 @@ public sealed class PlanView
         {
             c.DrawCircle((float)a.X, (float)a.Y, 7 * Ui.Density / z, Stroke(Ui.Accent, 2.5f * Ui.Density / z));
             if (!_touch && Cursor is { } cur)
+            {
+                // Leiste: Vorschau in voller Breite bis zum Fangpunkt
+                if (_session.Tool == CanvasTool.Beam)
+                {
+                    var end = BeamLayout.Snap(_session.View, cur.X, cur.Y, Reach(12, 22) / _zoom, a);
+                    var w = (float)Math.Max(BeamLayout.Defaults(_session.View).Width, 2 * Ui.Density / z);
+                    c.DrawLine((float)a.X, (float)a.Y, (float)end.X, (float)end.Y, Stroke(Color.Argb(0x90, 0xD4, 0xB4, 0x82), w));
+                    c.DrawCircle((float)end.X, (float)end.Y, 5 * Ui.Density / z, Stroke(Ui.Accent, 2 * Ui.Density / z));
+                    cur = end;
+                }
                 c.DrawLine((float)a.X, (float)a.Y, (float)cur.X, (float)cur.Y, Stroke(Ui.Accent, 1.2f * Ui.Density / z));
+            }
         }
         if (_flexDraft is { Segments.Count: > 0 } draft)
         {
@@ -533,7 +544,8 @@ public sealed class PlanView
             if (o.Count == 0 || (o.Max(p => p.X) - o.Min(p => p.X)) * _zoom < Ui.Dp(60)) continue;
             var (cx, cy) = s.Center();
             var p = ToScreen(cx, cy);
-            DrawTag(c, s.Kind is SceneryKind.Water or SceneryKind.Room or SceneryKind.Obstacle ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
+            DrawTag(c, s.IsBeam ? $"{s.Name} · {Fmt.Num(BeamLayout.Length(s), 0)} mm"
+                : s.Kind is SceneryKind.Water or SceneryKind.Room or SceneryKind.Obstacle ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
         }
     }
 
@@ -690,6 +702,7 @@ public sealed class PlanView
             }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, Reach(6, 14) / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
     }
@@ -955,7 +968,7 @@ public sealed class PlanView
                 _flexDraft = _session.BeginFlexDraw(world.X, world.Y, _session.FlexTarget(world.X, world.Y, Reach(12, 26) / _zoom));
                 _drag = DragMode.FlexDraw;
                 return;
-            case CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Detector or CanvasTool.Model:
+            case CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Detector or CanvasTool.Model:
                 ToolTap(x, y, world);
                 return;
         }
@@ -1120,6 +1133,12 @@ public sealed class PlanView
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
                 Invalidate();
                 return;
+            case CanvasTool.Beam:
+                var bsnap = BeamLayout.Snap(_session.View, world.X, world.Y, Reach(12, 22) / _zoom, _dimStart);
+                if (_dimStart is not { } bfrom) { _dimStart = bsnap; _session.Say(Lang.T("Leiste: jetzt das Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste; Esc bricht ab.")); }
+                else if (Math.Abs(bsnap.X - bfrom.X) + Math.Abs(bsnap.Y - bfrom.Y) > 1) { _dimStart = null; _session.AddBeam(bfrom, bsnap); }
+                Invalidate();
+                return;
             case CanvasTool.Feeder:
                 // Klick auf eine vorhandene Einspeisung entfernt sie wieder
                 if (HitSmallObject(x, y, world) is { } fo && _session.View.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
@@ -1153,7 +1172,7 @@ public sealed class PlanView
             case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Pan or CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Detector or CanvasTool.Model:
+            case CanvasTool.Pan or CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Detector or CanvasTool.Model:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:

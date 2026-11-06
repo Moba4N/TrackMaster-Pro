@@ -393,6 +393,15 @@ public sealed class PropertiesPanel : DockPanel
                             Theme.Field(Lang.T("Schrifthöhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 2, 500), 0))));
                         Rows((Lang.T("Länge"), $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null));
                         break;
+                    case SceneryKind.Beam when s.Points.Count == 2:
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, BeamLayout.MinSection, BeamLayout.MaxWidth), 0)),
+                            Theme.Field(Lang.T("Höhe der Latte (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, BeamLayout.MinSection, BeamLayout.MaxDepth), 0))));
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Länge (mm)"), NumberBox(BeamLayout.Length(s), v => PlanSession.SetBeamLength(s, Math.Clamp(v, BeamLayout.MinLength, 20000)), 0)),
+                            Theme.Field(Lang.T("Oberkante (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, BeamLayout.MinTop, BeamLayout.MaxTop), 0))));
+                        Rows((Lang.T("Winkel"), $"{Fmt.Num(BeamLayout.Angle(s), 1)}°", null));
+                        break;
                     case SceneryKind.Terrain:
                         _body.Children.Add(Columns(2, Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, -500, 3000), 0))));
                         Rows((Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));

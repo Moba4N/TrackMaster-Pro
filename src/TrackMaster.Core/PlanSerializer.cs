@@ -234,7 +234,7 @@ public static class PlanSerializer
                 Id = withIds ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel ? s.Model : null, Color = s.Kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
                 Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
@@ -380,7 +380,8 @@ public static class PlanSerializer
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
-            if (kind == SceneryKind.Dimension && item.Points.Count != 2) continue;
+            if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
+            if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
             plan.Scenery.Add(item);
         }
         foreach (var f in dto.Feeders ?? [])

@@ -296,6 +296,7 @@ public partial class App : ComponentBase, IAppHost
         Add("toolTree", Lang.T("Vegetation"), () => SetTool(CanvasTool.Tree));
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
+        Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () =>
@@ -444,6 +445,7 @@ public partial class App : ComponentBase, IAppHost
         "toolTree" => _session.Tool == CanvasTool.Tree,
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
+        "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
@@ -466,7 +468,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolFeeder", "toolIsolation", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolIsolation", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn",
     ];
@@ -498,6 +500,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
+        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
             ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")

@@ -303,7 +303,15 @@ public sealed class PlanCanvas : FrameworkElement
             dc.DrawGeometry(null, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, geo);
             if (draft.Target is { } t) dc.DrawEllipse(null, new Pen(Theme.AccentBrush, 2 / z), new Point(t.Pose.X, t.Pose.Y), 10 / z, 10 / z);
         }
-        if (_dimStart is { } a)
+        if (_dimStart is { } ba && _session.Tool == CanvasTool.Beam)
+        {
+            var be = BeamLayout.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z, ba);
+            var w = Math.Max(BeamLayout.Defaults(_session.View).Width, 2 / z);
+            dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(0x90, 0xD4, 0xB4, 0x82)), w), new Point(ba.X, ba.Y), new Point(be.X, be.Y));
+            dc.DrawLine(new Pen(Theme.AccentBrush, 1.2 / z), new Point(ba.X, ba.Y), new Point(be.X, be.Y));
+            dc.DrawEllipse(null, new Pen(Theme.AccentBrush, 2 / z), new Point(be.X, be.Y), 5 / z, 5 / z);
+        }
+        else if (_dimStart is { } a)
         {
             var b = Annotation.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z);
             var preview = new SceneryItem { Kind = SceneryKind.Dimension, Points = [a, b], Width = Annotation.DefaultTextSize(_session.View.Gauge) * 1.5, Height = Annotation.DefaultTextSize(_session.View.Gauge) * 0.8 };
@@ -423,6 +431,7 @@ public sealed class PlanCanvas : FrameworkElement
             var text = s.Kind switch
             {
                 SceneryKind.Water or SceneryKind.Obstacle => s.Name,
+                SceneryKind.Beam => $"{s.Name} · {Fmt.Num(BeamLayout.Length(s), 0)} mm",
                 _ => $"{s.Name} · {Fmt.Num(s.Height, 0)} mm",
             };
             DrawTag(dc, text, ToScreen(cx, cy), Theme.TextSecondaryBrush, 10);
@@ -561,6 +570,7 @@ public sealed class PlanCanvas : FrameworkElement
             }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, 8 / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
     }
@@ -638,6 +648,12 @@ public sealed class PlanCanvas : FrameworkElement
                 var snap = Annotation.Snap(_session.View, world.X, world.Y, 12 / _zoom);
                 if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt anklicken (Gleisenden und Plattenecken rasten ein, Esc bricht ab).")); }
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
+                InvalidateVisual();
+                return;
+            case CanvasTool.Beam:
+                var bsnap = BeamLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom, _dimStart);
+                if (_dimStart is not { } bfrom) { _dimStart = bsnap; _session.Say(Lang.T("Leiste: jetzt das Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste; Esc bricht ab.")); }
+                else if (Math.Abs(bsnap.X - bfrom.X) + Math.Abs(bsnap.Y - bfrom.Y) > 1) { _dimStart = null; _session.AddBeam(bfrom, bsnap); }
                 InvalidateVisual();
                 return;
             case CanvasTool.Tree:

@@ -153,6 +153,13 @@ public sealed class Scene3DModel
             else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, z), P(r.X0, r.Y1, z), P(r.X1, r.Y1, z), P(r.X1, r.Y0, z));
         }
 
+        // Frei gezogene Leisten des Unterbaus (Diagonale, Streben), auch ohne berechneten Unterbau
+        foreach (var s in plan.Scenery.Where(x => x.IsBeam && x.Points.Count == 2))
+        {
+            var wood = new Rgb(0xD4, 0xB4, 0x82);
+            Prism(BeamLayout.Outline(s), s.Height - s.Depth, s.Height, wood, new Rgb(0xC2, 0x9E, 0x6C), SurfaceKind.Matte);
+        }
+
         foreach (var s in Scenery ? plan.Scenery : [])
             switch (s.Kind)
             {
@@ -241,7 +248,7 @@ public sealed class Scene3DModel
             {
                 BenchKind.Bein => new Rgb(0xA8, 0x80, 0x52),
                 BenchKind.Traverse => new Rgb(0xC2, 0x9E, 0x6C),
-                BenchKind.Platte => (Rgb?)null,
+                BenchKind.Platte or BenchKind.Leiste => (Rgb?)null,
                 _ => new Rgb(0xD4, 0xB4, 0x82),
             };
             if (color is { } c) Mesh(c).Box(P(p.X0, p.Y0, p.Z0), P(p.X1, p.Y1, p.Z1));

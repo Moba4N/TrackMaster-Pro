@@ -99,6 +99,7 @@
                 _f["color"] = s.Color ?? "";
                 _f["rotation"] = N(s.Rotation, 1);
                 _f["variant"] = s.Variant.ToString();
+                if (s.IsBeam) _f["length"] = N(BeamLayout.Length(s), 0);
                 break;
             case Detector det:
                 _f["name"] = det.Name;
@@ -510,6 +511,12 @@
                 Num("width", Lang.T("Abstand"), -5000, 5000, v => s.Width = v);
                 Num("height", Lang.T("Schrifthöhe"), 2, 500, v => s.Height = v);
                 break;
+            case SceneryKind.Beam when s.Points.Count == 2:
+                Num("width", Lang.T("Breite"), BeamLayout.MinSection, BeamLayout.MaxWidth, v => s.Width = v);
+                Num("depth", Lang.T("Höhe der Latte"), BeamLayout.MinSection, BeamLayout.MaxDepth, v => s.Depth = v);
+                Num("height", Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v);
+                Num("length", Lang.T("Länge"), BeamLayout.MinLength, 20000, v => PlanSession.SetBeamLength(s, v));
+                break;
             case SceneryKind.Terrain:
                 Num("height", Lang.T("Höhe"), -500, 3000, v => s.Height = v);
                 break;
@@ -574,6 +581,12 @@
             case SceneryKind.Dimension when s.Points.Count == 2:
                 <div class="cols">@NumField(Lang.T("Abstand (mm)"), "width", ApplyScenery)@NumField(Lang.T("Schrifthöhe (mm)"), "height", ApplyScenery)</div>
                 <dl class="rows"><dt>@Lang.T("Länge")</dt><dd>@Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1) mm</dd></dl>
+                break;
+            case SceneryKind.Beam when s.Points.Count == 2:
+                <div class="cols">@NumField(Lang.T("Breite (mm)"), "width", ApplyScenery)@NumField(Lang.T("Höhe der Latte (mm)"), "depth", ApplyScenery)</div>
+                <div class="cols">@NumField(Lang.T("Länge (mm)"), "length", ApplyScenery)@NumField(Lang.T("Oberkante (mm)"), "height", ApplyScenery)</div>
+                <dl class="rows"><dt>@Lang.T("Winkel")</dt><dd>@Fmt.Num(BeamLayout.Angle(s), 1)°</dd></dl>
+                <div class="tip-box">@Lang.T("Oberkante über der Plattenoberkante: negativ = unter der Platte. Mit Unterbau steht die Leiste in Zuschnitt und Materialliste.")</div>
                 break;
             case SceneryKind.Terrain:
                 <div class="cols">@NumField(Lang.T("Höhe (mm)"), "height", ApplyScenery)</div>

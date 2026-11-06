@@ -182,6 +182,7 @@ public sealed class PlanPainter
         c.DrawPath(board, Fill(Ui.Board));
         if (plan.Background is { Visible: true, PixelWidth: > 0 } bg) DrawBackground(c, bg);
         c.DrawPath(board, Stroke(Ui.BoardStroke, 1.2f * Ui.Density / z));
+        DrawBeams(c, z, selectedObject, selWidth);
 
         if (scenery)
         {
@@ -322,6 +323,20 @@ public sealed class PlanPainter
     private static readonly Color OtherFill = Color.Argb(0x80, 0xA0, 0xA0, 0xA0);
     private static readonly Color DetectorColor = Color.Rgb(0x6B, 0x3F, 0xA0);
     private static readonly Color LockColor = Color.Rgb(0x5C, 0x5C, 0x5C);
+
+    private static readonly Color BeamFill = Color.Argb(0xC8, 0xD4, 0xB4, 0x82);
+    private static readonly Color BeamStroke = Color.Rgb(0x8A, 0x6B, 0x4A);
+
+    /// <summary>Frei gezogene Leisten des Unterbaus (Diagonale, Streben): Holzfarbe, immer sichtbar.</summary>
+    private void DrawBeams(Canvas c, float z, int? selectedObject, float selWidth)
+    {
+        foreach (var b in _plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2))
+        {
+            var path = Polygon(BeamLayout.Outline(b));
+            c.DrawPath(path, Fill(BeamFill));
+            c.DrawPath(path, Stroke(b.Id == selectedObject ? Ui.Accent : BeamStroke, b.Id == selectedObject ? selWidth : 1.2f * Ui.Density / z));
+        }
+    }
 
     /// <summary>Räume: Boden und Wände (Wandstärke nach außen), unter der Platte.</summary>
     private void DrawRooms(Canvas c, float z, int? selectedObject, float selWidth)

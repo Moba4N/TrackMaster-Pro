@@ -82,6 +82,7 @@ public static class Icons
         ["RotateFree"] = "M4 12a8 8 0 1 0 8-8M12 4l3-3M12 4l3 3M12 12l4-4",
         ["Text"] = "M4 6V4h16v2M12 4v16M9 20h6",
         ["Ruler"] = "M3 8h18v8H3zM7 8v4M11 8v3M15 8v4M19 8v3",
+        ["Beam"] = "M3 17L17 3l4 4L7 21zM8 12l4 4M12 8l4 4",
         ["Room"] = "M3 3h18v18h-7M10 21H3V3M10 21a4 4 0 0 1 4-4",
         ["Door"] = "M6 21V3h11v18M4 21h16M14 12h.01",
         ["Window"] = "M4 4h16v16H4zM12 4v16M4 12h16",

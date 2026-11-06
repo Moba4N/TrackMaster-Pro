@@ -165,6 +165,7 @@ public sealed class MainActivity : Activity
         Add("new", Lang.T("Neu"), () => Dialogs.AskNewPlan(this, _session.Plan.GaugeId, setup =>
         {
             _session.NewPlan(setup);
+            if (setup.Benchwork is { Manual: true }) SetTool(CanvasTool.Beam);
             _library.Refresh(force: true);
             _canvas.Fit();
         }));

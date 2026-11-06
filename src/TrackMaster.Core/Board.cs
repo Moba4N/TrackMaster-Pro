@@ -6,7 +6,8 @@ public enum BoardShape { Rechteck, L, U, T, Z, Ring, G, E, Module }
 /// <summary>Angaben für einen neuen Plan: Spur und Anlagenplatte.</summary>
 /// <param name="LegLeft">U-Form: Länge des linken Schenkels in Grundstellung (0 = volle Tiefe).</param>
 /// <param name="LegRight">U-Form: Länge des rechten Schenkels in Grundstellung (0 = volle Tiefe).</param>
-public sealed record BoardSetup(string GaugeId, BoardShape Shape, double Width, double Height, double Depth, int Turn, double LegLeft = 0, double LegRight = 0)
+/// <param name="Benchwork">Rahmenbau gleich mit anlegen (Vorlage oder selbst gezeichnet); null = direkt auf Ebene 1 planen.</param>
+public sealed record BoardSetup(string GaugeId, BoardShape Shape, double Width, double Height, double Depth, int Turn, double LegLeft = 0, double LegRight = 0, BenchworkSpec? Benchwork = null)
 {
     /// <summary>Vorschlag für eine Spur: Rechteck in Standardgröße, Formen mit Schenkeln größer.</summary>
     public static BoardSetup Default(string gaugeId, BoardShape shape = BoardShape.Rechteck)

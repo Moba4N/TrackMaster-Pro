@@ -37,6 +37,8 @@ public static partial class Dialogs
         Child = Theme.Label(text, 11.5, false, Theme.TextSecondaryBrush),
     };
 
+    private static void SetHint(Border hint, string text) { if (hint.Child is TextBlock t) t.Text = text; }
+
     private static TextBlock ErrorText() => new() { Foreground = Theme.DangerBrush, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
 
     // ---------- Planprüfung ----------

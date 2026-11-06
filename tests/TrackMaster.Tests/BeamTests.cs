@@ -55,3 +55,41 @@ public class BeamTests
         Assert.DoesNotContain(s.Plan.Scenery, x => x.IsBeam);
     }
 }
+
+public class NewPlanBenchworkTests
+{
+    [Fact]
+    public void Alle_Vorlagen_sind_in_jeder_Spur_gueltig()
+    {
+        foreach (var g in Catalog.Gauges)
+            foreach (var t in BenchTemplate.All)
+                Assert.True(Benchwork.Validate(t.Spec(g)).Count == 0, $"{g.Id} {t.Id}");
+    }
+
+    [Fact]
+    public void Neuer_Plan_direkt_mit_Vorlage_oder_selbst_gezeichnet()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0));
+        Assert.Null(s.Plan.Benchwork);
+
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0, Benchwork: BenchTemplate.Find("lbein")!.Spec(s.Plan.Gauge)));
+        Assert.Equal(BenchLegStyle.LBein, s.Plan.Benchwork!.LegStyle);
+        Assert.True(Benchwork.Build(s.Plan, s.Plan.Benchwork).LegCount > 0);
+
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0, Benchwork: BenchTemplate.Manual(s.Plan.Gauge)));
+        Assert.True(s.Plan.Benchwork!.Manual);
+        s.AddBeam((0, 0), (2000, 0));
+        s.AddBeam((0, 1000), (2000, 1000));
+        var b = Benchwork.Build(s.Plan, s.Plan.Benchwork);
+        Assert.Equal(0, b.LegCount);
+        Assert.DoesNotContain(b.Pieces, p => p.Kind is BenchKind.Zarge or BenchKind.Querriegel or BenchKind.Bein);
+        Assert.Equal(2, b.Pieces.Count(p => p.Kind == BenchKind.Leiste));
+        Assert.Contains(b.Pieces, p => p.Kind == BenchKind.Platte);
+        Assert.All(b.Materials, m => Assert.True(m.Quantity > 0));
+        Assert.Contains(b.Materials, m => m.Item == "Holzschrauben");
+        // bleibt beim Speichern erhalten
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.True(back.Benchwork!.Manual);
+    }
+}

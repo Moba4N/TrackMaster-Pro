@@ -163,7 +163,7 @@ public sealed partial class PlanSession
     /// <summary>Neuer Plan mit Spur und Plattenform.</summary>
     public void NewPlan(BoardSetup setup)
     {
-        var (gaugeId, shape, width, height, depth, turn, legLeft, legRight) = setup;
+        var (gaugeId, shape, width, height, depth, turn, legLeft, legRight, bench) = setup;
         Record();
         Plan = LayoutPlan.Empty(gaugeId);
         Plan.BoardShape = shape;
@@ -175,11 +175,17 @@ public sealed partial class PlanSession
         Plan.BoardLegRight = shape == BoardShape.U ? Math.Max(0, legRight) : 0;
         // Modulanlage: Breite und Tiefe sind die Maße des ersten Moduls
         if (shape == BoardShape.Module) ModuleLayout.Single(Plan, Plan.BoardWidth, Plan.BoardHeight);
+        if (bench is not null && Core.Benchwork.Validate(bench).Count == 0) Plan.Benchwork = bench.Clone();
         FilePath = null;
         Selection.Clear();
         Active = null;
         Commit();
-        Say(Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}. Rückgängig holt den vorherigen zurück."));
+        var text = Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}.");
+        if (Plan.Benchwork is { Manual: true })
+            text += " " + Lang.T("Rahmenbau selbst zeichnen: Zargen, Querriegel, Diagonalen und Streben mit Gelände › Leiste ziehen; Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+        else if (Plan.Benchwork is not null)
+            text += " " + Lang.T("Der Rahmenbau ist angelegt: Gelände › Unterbau… zeigt Maße, Zuschnitt und Materialliste, die 3D-Ansicht das Gestell.");
+        Say(text + " " + Lang.T("Rückgängig holt den vorherigen Plan zurück."));
     }
 
     /// <summary>Übernimmt Lage und Größe der Module (verschobene Module nehmen ihre Gleise mit).</summary>

@@ -438,6 +438,8 @@
         _d["shape"] = BoardShape.Rechteck.ToString();
         _d["turn"] = "0";
         _d["legL"] = _d["legR"] = "";
+        _d["start"] = "direct";
+        _d["template"] = BenchTemplate.All[0].Id;
         SuggestBoard();
         var d = Show(Lang.T("Neuer Plan"), NewPlanBody, keepFields: true);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
@@ -518,6 +520,26 @@
                 <div><label class="field-label">@Lang.T("Rechter Schenkel lang (mm)")</label><input class="input" inputmode="decimal" placeholder="@Lang.T("ganz")" @bind='_d["legR"]' @bind:event="oninput" /></div>
             </div>
         }
+        <label class="field-label">@Lang.T("Bauweise")</label>
+        <select class="input" value="@D("start")" @onchange="@(e => _d["start"] = e.Value?.ToString() ?? "direct")">
+            <option value="direct">@Lang.T("Direkt auf Ebene 1 planen")</option>
+            <option value="template">@Lang.T("Rahmenbau mit Vorlage")</option>
+            <option value="manual">@Lang.T("Rahmenbau selbst zeichnen")</option>
+        </select>
+        @if (D("start") == "template")
+        {
+            <select class="input" value="@D("template")" @onchange="@(e => _d["template"] = e.Value?.ToString() ?? "")">
+                @foreach (var bt in BenchTemplate.All)
+                {
+                    <option value="@bt.Id">@bt.Name</option>
+                }
+            </select>
+            @Hint((BenchTemplate.Find(D("template")) ?? BenchTemplate.All[0]).Description + " " + Lang.T("Alle Maße lassen sich später unter Gelände › Unterbau… ändern."))
+        }
+        else if (D("start") == "manual")
+        {
+            @Hint(Lang.T("Platte ohne fertigen Rahmen: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv). Gelände › Unterbau… zeigt Zuschnitt und Materialliste."))
+        }
         @if (valid)
         {
             var area = BoardGeometry.Rects(shape, bw, bh, bd, t, l1, l2).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
@@ -546,7 +568,15 @@
         if (!Fail(errors)) return false;
         var t = int.TryParse(D("turn"), out var tt) ? tt : 0;
         var full = t % 2 == 0 ? bh : bw;
-        _session.NewPlan(new BoardSetup(D("gauge"), shape, bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2));
+        var gauge = Catalog.GetGauge(D("gauge"));
+        var bench = D("start") switch
+        {
+            "template" => (BenchTemplate.Find(D("template")) ?? BenchTemplate.All[0]).Spec(gauge),
+            "manual" => BenchTemplate.Manual(gauge),
+            _ => null,
+        };
+        _session.NewPlan(new BoardSetup(D("gauge"), shape, bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2, bench));
+        if (bench is { Manual: true }) _session.Tool = CanvasTool.Beam;
         _view.Fit();
         return true;
     }
@@ -653,10 +683,30 @@
         _d["style"] = ((int)s.LegStyle).ToString(); _d["lw"] = N(s.LegWidth); _d["ld"] = N(s.LegDepth); _d["lspace"] = N(s.LegSpacing);
         _d["braces"] = s.Braces ? "1" : ""; _d["bh"] = N(s.BraceHeight); _d["feet"] = s.Feet ? "1" : ""; _d["foot"] = N(s.FootHeight);
         _d["stock"] = N(s.StockLength); _d["sw"] = N(s.SheetWidth); _d["sd"] = N(s.SheetDepth);
+        _d["manual"] = s.Manual ? "1" : "";
+        void Fill(BenchworkSpec v)
+        {
+            _d["height"] = N(v.Height); _d["top"] = N(v.TopThickness); _d["ft"] = N(v.FrameThickness); _d["fh"] = N(v.FrameHeight); _d["cross"] = N(v.CrossSpacing);
+            _d["style"] = ((int)v.LegStyle).ToString(); _d["lw"] = N(v.LegWidth); _d["ld"] = N(v.LegDepth); _d["lspace"] = N(v.LegSpacing);
+            _d["braces"] = v.Braces ? "1" : ""; _d["bh"] = N(v.BraceHeight); _d["feet"] = v.Feet ? "1" : ""; _d["foot"] = N(v.FootHeight);
+            _d["manual"] = v.Manual ? "1" : "";
+        }
         RenderFragment Field(string key, string label) => @<div><label class="field-label">@label</label><input class="input" inputmode="decimal" @bind='_d[key]' @bind:event="oninput" /></div>;
         var d = Show(Lang.T("Unterbau"), @<div class="form">
             @Hint(Lang.F($"Holzkonstrukt unter der Platte ({BoardGeometry.Describe(plan)}): Zargen rundum und Querriegel unter jedem Plattenteil, Beine innen in den Ecken und entlang der langen Seiten. Alle Maße in mm. Die 3D-Ansicht zeigt den Unterbau."))
             <div class="cols">
+                <div>
+                    <label class="field-label">@Lang.T("Vorlage übernehmen")</label>
+                    <select class="input" value="" @onchange="@(e => { if (BenchTemplate.Find(e.Value?.ToString()) is { } bt) Fill(bt.Spec(plan.Gauge)); })">
+                        <option value="">…</option>
+                        @foreach (var bt in BenchTemplate.All)
+                        {
+                            <option value="@bt.Id">@bt.Name</option>
+                        }
+                    </select>
+                </div>
+                <div><label class="field-label"><input type="checkbox" checked="@(D("manual") == "1")" @onchange="@(e => _d["manual"] = e.Value is true ? "1" : "")" /> @Lang.T("Rahmen selbst zeichnen")</label>
+                    <div class="secondary">@Lang.T("Nur Deckplatte und eigene Leisten (Gelände › Leiste ziehen), kein berechneter Rahmen.")</div></div>
                 @Field("height", Lang.T("Höhe Oberkante Platte über Boden"))
                 @Field("top", Lang.T("Plattenstärke (0 = offener Rahmen)"))
                 @Field("ft", Lang.T("Latte für Rahmen: Stärke"))
@@ -690,7 +740,7 @@
                 Height = V("height"), TopThickness = V("top"), FrameThickness = V("ft"), FrameHeight = V("fh"), CrossSpacing = V("cross"),
                 LegStyle = D("style") == "1" ? BenchLegStyle.LBein : BenchLegStyle.Kantholz, LegWidth = V("lw"), LegDepth = V("ld"), LegSpacing = V("lspace"),
                 Braces = D("braces") == "1", BraceHeight = V("bh"), Feet = D("feet") == "1", FootHeight = V("foot"),
-                StockLength = V("stock"), SheetWidth = V("sw"), SheetDepth = V("sd"),
+                StockLength = V("stock"), SheetWidth = V("sw"), SheetDepth = V("sd"), Manual = D("manual") == "1",
             };
             errors.AddRange(Benchwork.Validate(spec));
             if (!Fail(errors)) return false;

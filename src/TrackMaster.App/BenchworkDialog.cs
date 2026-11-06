@@ -21,10 +21,27 @@ public static partial class Dialogs
         var feet = new CheckBox { Content = Lang.T("Stellfüße, Höhe"), IsChecked = s.Feet, Margin = new Thickness(0, 6, 0, 2) };
         var foot = Box(s.FootHeight);
         var stock = Box(s.StockLength); var sw = Box(s.SheetWidth); var sd = Box(s.SheetDepth);
+        var manual = new CheckBox { Content = Lang.T("Rahmen selbst zeichnen"), IsChecked = s.Manual, Margin = new Thickness(0, 22, 0, 2),
+            ToolTip = Lang.T("Nur Deckplatte und eigene Leisten (Gelände › Leiste ziehen), kein berechneter Rahmen.") };
+        var templates = BenchTemplate.All;
+        var templateBox = new ComboBox { Height = 28 };
+        templateBox.Items.Add("…");
+        foreach (var t in templates) templateBox.Items.Add(t.Name);
+        templateBox.SelectedIndex = 0;
+        templateBox.SelectionChanged += (_, _) =>
+        {
+            if (templateBox.SelectedIndex < 1) return;
+            var v = templates[templateBox.SelectedIndex - 1].Spec(plan.Gauge);
+            height.Text = Fmt.Num(v.Height, 0); top.Text = Fmt.Num(v.TopThickness, 0); ft.Text = Fmt.Num(v.FrameThickness, 0); fh.Text = Fmt.Num(v.FrameHeight, 0);
+            cross.Text = Fmt.Num(v.CrossSpacing, 0); style.SelectedIndex = (int)v.LegStyle; lw.Text = Fmt.Num(v.LegWidth, 0); ld.Text = Fmt.Num(v.LegDepth, 0);
+            lspace.Text = Fmt.Num(v.LegSpacing, 0); braces.IsChecked = v.Braces; bh.Text = Fmt.Num(v.BraceHeight, 0); feet.IsChecked = v.Feet; foot.Text = Fmt.Num(v.FootHeight, 0);
+            manual.IsChecked = v.Manual;
+        };
         StackPanel Check(CheckBox c, TextBox b) { var p = new StackPanel(); p.Children.Add(c); p.Children.Add(b); return p; }
         var error = ErrorText();
         var body = new StackPanel();
         body.Children.Add(Hint(Lang.F($"Holzkonstrukt unter der Platte ({BoardGeometry.Describe(plan)}): Zargen rundum und Querriegel unter jedem Plattenteil, Beine innen in den Ecken und entlang der langen Seiten. Alle Maße in mm. Die 3D-Ansicht zeigt den Unterbau.")));
+        body.Children.Add(Columns(Theme.Field(Lang.T("Vorlage übernehmen"), templateBox), manual));
         body.Children.Add(Columns(Theme.Field(Lang.T("Höhe Oberkante Platte über Boden"), height), Theme.Field(Lang.T("Plattenstärke (0 = offener Rahmen)"), top)));
         body.Children.Add(Cells(Theme.Field(Lang.T("Latte für Rahmen: Stärke"), ft), Theme.Field(Lang.T("Latte für Rahmen: Höhe"), fh), Theme.Field(Lang.T("Querriegel höchstens alle"), cross)));
         body.Children.Add(Cells(Theme.Field(Lang.T("Beine"), style), Theme.Field(Lang.T("Bein: Breite"), lw), Theme.Field(Lang.T("Bein: Tiefe"), ld), Theme.Field(Lang.T("Beine höchstens alle"), lspace)));
@@ -49,7 +66,7 @@ public static partial class Dialogs
                 Height = V(height), TopThickness = V(top), FrameThickness = V(ft), FrameHeight = V(fh), CrossSpacing = V(cross),
                 LegStyle = style.SelectedIndex == 1 ? BenchLegStyle.LBein : BenchLegStyle.Kantholz, LegWidth = V(lw), LegDepth = V(ld), LegSpacing = V(lspace),
                 Braces = braces.IsChecked == true, BraceHeight = V(bh), Feet = feet.IsChecked == true, FootHeight = V(foot),
-                StockLength = V(stock), SheetWidth = V(sw), SheetDepth = V(sd),
+                StockLength = V(stock), SheetWidth = V(sw), SheetDepth = V(sd), Manual = manual.IsChecked == true,
             };
             var errors = Benchwork.Validate(spec);
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }

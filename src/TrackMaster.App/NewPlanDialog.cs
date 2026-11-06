@@ -39,6 +39,27 @@ public static partial class Dialogs
             BorderBrush = Theme.BorderBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Child = preview,
         };
         var moduleHint = Hint(Lang.T("Modulanlage: Breite und Tiefe gelten für das erste Modul. Weitere Module hängst du unter Gelände › Module… an, dort lassen sich auch gespeicherte Pläne als Modul ansetzen."));
+        // Bauweise: direkt auf Ebene 1, Rahmenbau mit Vorlage oder Rahmen selbst zeichnen
+        var startBox = new ComboBox { Height = 28 };
+        foreach (var t in new[] { Lang.T("Direkt auf Ebene 1 planen"), Lang.T("Rahmenbau mit Vorlage"), Lang.T("Rahmenbau selbst zeichnen") }) startBox.Items.Add(t);
+        startBox.SelectedIndex = 0;
+        var templates = BenchTemplate.All;
+        var templateBox = new ComboBox { Height = 28, Margin = new Thickness(0, 6, 0, 0) };
+        foreach (var t in templates) templateBox.Items.Add(t.Name);
+        templateBox.SelectedIndex = 0;
+        var startHint = Hint("");
+        void UpdateStart()
+        {
+            templateBox.Visibility = startBox.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
+            startHint.Visibility = startBox.SelectedIndex == 0 ? Visibility.Collapsed : Visibility.Visible;
+            var text = startBox.SelectedIndex == 1
+                ? templates[Math.Max(0, templateBox.SelectedIndex)].Description + " " + Lang.T("Alle Maße lassen sich später unter Gelände › Unterbau… ändern.")
+                : Lang.T("Platte ohne fertigen Rahmen: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv). Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+            SetHint(startHint, text);
+        }
+        startBox.SelectionChanged += (_, _) => UpdateStart();
+        templateBox.SelectionChanged += (_, _) => UpdateStart();
+        UpdateStart();
         var info = Theme.Secondary("");
         var error = ErrorText();
         var updating = false;
@@ -93,6 +114,9 @@ public static partial class Dialogs
         body.Children.Add(Columns2(depthField, turnField));
         body.Children.Add(legsRow);
         body.Children.Add(info);
+        body.Children.Add(Theme.Field(Lang.T("Bauweise"), startBox));
+        body.Children.Add(templateBox);
+        body.Children.Add(startHint);
         body.Children.Add(error);
         Update();
 
@@ -117,8 +141,15 @@ public static partial class Dialogs
             }
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
             var full = turnBox.SelectedIndex % 2 == 0 ? h : w;
-            result = new BoardSetup(gauges[Math.Max(0, gaugeBox.SelectedIndex)].Id, Shape(), w, h, d > 0 ? d : 600, turnBox.SelectedIndex,
-                l1 >= full ? 0 : l1, l2 >= full ? 0 : l2);
+            var gauge = gauges[Math.Max(0, gaugeBox.SelectedIndex)];
+            var bench = startBox.SelectedIndex switch
+            {
+                1 => templates[Math.Max(0, templateBox.SelectedIndex)].Spec(gauge),
+                2 => BenchTemplate.Manual(gauge),
+                _ => null,
+            };
+            result = new BoardSetup(gauge.Id, Shape(), w, h, d > 0 ? d : 600, turnBox.SelectedIndex,
+                l1 >= full ? 0 : l1, l2 >= full ? 0 : l2, bench);
             win.Close();
         };
         win.ShowDialog();

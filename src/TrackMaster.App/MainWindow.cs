@@ -141,6 +141,7 @@ public sealed partial class MainWindow : Window
         {
             if (!ConfirmDiscard() || Dialogs.AskNewPlan(this, Session.Plan.GaugeId) is not { } setup) return;
             Session.NewPlan(setup);
+            if (setup.Benchwork is { Manual: true }) SetTool(CanvasTool.Beam);
             Canvas.Fit();
         });
         Add("open", OpenFile);

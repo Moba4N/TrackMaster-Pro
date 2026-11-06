@@ -20,8 +20,23 @@ public static partial class Dialogs
         var feet = new CheckBox(c) { Text = Lang.T("Stellfüße, Höhe"), Checked = s.Feet };
         var foot = Box(s.FootHeight);
         var stock = Box(s.StockLength); var sw = Box(s.SheetWidth); var sd = Box(s.SheetDepth);
+        var manual = new CheckBox(c) { Text = Lang.T("Rahmen selbst zeichnen"), Checked = s.Manual };
+        var templates = BenchTemplate.All;
+        var template = Choice(c, new[] { "…" }.Concat(templates.Select(t => t.Name)).ToList(), 0);
+        string T(double v) => Fmt.Num(v, 0).Replace(".", "");
+        template.ItemSelected += (_, e) =>
+        {
+            if (e.Position < 1) return;
+            var v = templates[e.Position - 1].Spec(plan.Gauge);
+            height.Text = T(v.Height); top.Text = T(v.TopThickness); ft.Text = T(v.FrameThickness); fh.Text = T(v.FrameHeight); cross.Text = T(v.CrossSpacing);
+            style.SetSelection((int)v.LegStyle); lw.Text = T(v.LegWidth); ld.Text = T(v.LegDepth); lspace.Text = T(v.LegSpacing);
+            braces.Checked = v.Braces; bh.Text = T(v.BraceHeight); feet.Checked = v.Feet; foot.Text = T(v.FootHeight); manual.Checked = v.Manual;
+        };
         var body = Ui.Column(c, 6);
         body.AddView(Hint(c, Lang.F($"Holzkonstrukt unter der Platte ({BoardGeometry.Describe(plan)}): Zargen rundum und Querriegel unter jedem Plattenteil, Beine innen in den Ecken und entlang der langen Seiten. Alle Maße in mm. Die 3D-Ansicht zeigt den Unterbau.")));
+        body.AddView(Ui.Field(c, Lang.T("Vorlage übernehmen"), template));
+        body.AddView(manual);
+        body.AddView(Ui.Label(c, Lang.T("Nur Deckplatte und eigene Leisten (Gelände › Leiste ziehen), kein berechneter Rahmen."), 12, color: Ui.TextSecondary));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Höhe Oberkante Platte über Boden"), height), Ui.Field(c, Lang.T("Plattenstärke (0 = offener Rahmen)"), top)));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Latte für Rahmen: Stärke"), ft), Ui.Field(c, Lang.T("Latte für Rahmen: Höhe"), fh)));
         body.AddView(Ui.Field(c, Lang.T("Querriegel höchstens alle"), cross));
@@ -46,7 +61,7 @@ public static partial class Dialogs
                 Height = V(height), TopThickness = V(top), FrameThickness = V(ft), FrameHeight = V(fh), CrossSpacing = V(cross),
                 LegStyle = style.SelectedItemPosition == 1 ? BenchLegStyle.LBein : BenchLegStyle.Kantholz, LegWidth = V(lw), LegDepth = V(ld), LegSpacing = V(lspace),
                 Braces = braces.Checked, BraceHeight = V(bh), Feet = feet.Checked, FootHeight = V(foot),
-                StockLength = V(stock), SheetWidth = V(sw), SheetDepth = V(sd),
+                StockLength = V(stock), SheetWidth = V(sw), SheetDepth = V(sd), Manual = manual.Checked,
             };
             var errors = Benchwork.Validate(spec);
             SetError(error, errors);

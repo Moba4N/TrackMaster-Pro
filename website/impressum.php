@@ -8,7 +8,7 @@
      IMP_EMAIL  E-Mail-Adresse
      IMP_PHONE  Telefon (optional, leer = nicht anzeigen)
      IMP_VAT            USt-IdNr. (optional, define('IMP_VAT', 'DE…'))
-     IMP_SMALL_BUSINESS true = Kleinunternehmer nach § 19 UStG (optional)
+     IMP_SMALL_BUSINESS Standard: Kleinunternehmer nach § 19 UStG; define('IMP_SMALL_BUSINESS', false) schaltet den Hinweis ab
    Gliederung: § 5 DDG (Anbieter), Kontakt, § 18 Abs. 2 MStV (Verantwortlicher),
    Software TrackMaster Pro, Verbraucherstreitbeilegung, Haftung, Urheberrecht.
    Keine Rechtsberatung.
@@ -42,7 +42,7 @@ $adresse = '<br>' . h(IMP_STREET) . '<br>' . h(IMP_CITY) . '<br>' . ($en ? 'Germ
   <?php if (defined('IMP_VAT') && IMP_VAT): ?>
   <h2>VAT ID</h2>
   <p>VAT identification number pursuant to Section 27a of the German VAT Act: <?= h(IMP_VAT) ?></p>
-  <?php elseif (defined('IMP_SMALL_BUSINESS') && IMP_SMALL_BUSINESS): ?>
+  <?php elseif (!defined('IMP_SMALL_BUSINESS') || IMP_SMALL_BUSINESS): ?>
   <h2>VAT</h2>
   <p>Small business pursuant to Section 19 of the German VAT Act (UStG); no VAT is charged.</p>
   <?php endif; ?>
@@ -79,7 +79,7 @@ $adresse = '<br>' . h(IMP_STREET) . '<br>' . h(IMP_CITY) . '<br>' . ($en ? 'Germ
   <?php if (defined('IMP_VAT') && IMP_VAT): ?>
   <h2>Umsatzsteuer-ID</h2>
   <p>Umsatzsteuer-Identifikationsnummer gemäß §&nbsp;27a Umsatzsteuergesetz: <?= h(IMP_VAT) ?></p>
-  <?php elseif (defined('IMP_SMALL_BUSINESS') && IMP_SMALL_BUSINESS): ?>
+  <?php elseif (!defined('IMP_SMALL_BUSINESS') || IMP_SMALL_BUSINESS): ?>
   <h2>Umsatzsteuer</h2>
   <p>Kleinunternehmer gemäß §&nbsp;19 UStG; es wird keine Umsatzsteuer berechnet.</p>
   <?php endif; ?>

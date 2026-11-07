@@ -100,6 +100,7 @@
                 _f["rotation"] = N(s.Rotation, 1);
                 _f["variant"] = s.Variant.ToString();
                 if (s.IsBeam) _f["length"] = N(BeamLayout.Length(s), 0);
+                if (s.IsPlate) { _f["x"] = N(s.X, 1); _f["y"] = N(s.Y, 1); _f["thick"] = N(PlateLayout.Thickness(s), 0); }
                 break;
             case Detector det:
                 _f["name"] = det.Name;
@@ -517,6 +518,14 @@
                 Num("height", Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v);
                 Num("length", Lang.T("Länge"), BeamLayout.MinLength, 20000, v => PlanSession.SetBeamLength(s, v));
                 break;
+            case SceneryKind.Plate:
+                Num("x", Lang.T("Links"), -20000, 20000, v => s.X = v);
+                Num("y", Lang.T("Oben"), -20000, 20000, v => s.Y = v);
+                Num("width", Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v);
+                Num("depth", Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v);
+                Num("thick", Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v));
+                Num("height", Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v);
+                break;
             case SceneryKind.Terrain:
                 Num("height", Lang.T("Höhe"), -500, 3000, v => s.Height = v);
                 break;
@@ -587,6 +596,14 @@
                 <div class="cols">@NumField(Lang.T("Länge (mm)"), "length", ApplyScenery)@NumField(Lang.T("Oberkante (mm)"), "height", ApplyScenery)</div>
                 <dl class="rows"><dt>@Lang.T("Winkel")</dt><dd>@Fmt.Num(BeamLayout.Angle(s), 1)°</dd></dl>
                 <div class="tip-box">@Lang.T("Oberkante über der Plattenoberkante: negativ = unter der Platte. Mit Unterbau steht die Leiste in Zuschnitt und Materialliste.")</div>
+                break;
+            case SceneryKind.Plate:
+                <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>
+                <div class="cols">@NumField(Lang.T("Breite (mm)"), "width", ApplyScenery)@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)</div>
+                <div class="cols">@NumField(Lang.T("Stärke (mm)"), "thick", ApplyScenery)@NumField(Lang.T("Oberkante (mm)"), "height", ApplyScenery)</div>
+                <dl class="rows"><dt>@Lang.T("Fläche")</dt><dd>@Fmt.Num(s.Width * s.Depth / 1e6, 2) m²</dd></dl>
+                <div class="button-row"><button class="btn" title="@Lang.T("Legt die Platte wieder genau über die gezeichneten Leisten bzw. den Rahmen.")" @onclick="@(() => Session.FitPlate(s))">@((MarkupString)Icons.Svg("Resize", 16)) @Lang.T("An Rahmen anpassen")</button></div>
+                <div class="tip-box">@Lang.T("Links und Oben: linke obere Ecke im Plan. Oberkante über der Plattenoberkante des Plans (0 = Gleisebene). Mit Unterbau steht die Platte in der Materialliste.")</div>
                 break;
             case SceneryKind.Terrain:
                 <div class="cols">@NumField(Lang.T("Höhe (mm)"), "height", ApplyScenery)</div>

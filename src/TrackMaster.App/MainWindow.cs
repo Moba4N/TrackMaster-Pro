@@ -175,6 +175,7 @@ public sealed partial class MainWindow : Window
         Add("toolLabel", () => SetTool(CanvasTool.Label));
         Add("toolDimension", () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", () => SetTool(CanvasTool.Beam));
+        Add("addPlate", () => { SetTool(CanvasTool.Select); Session.AddPlate(); });
         Add("toolFeeder", () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", () => SetTool(CanvasTool.Isolation));
         foreach (var t in Enum.GetValues<SignalType>())
@@ -833,7 +834,8 @@ public sealed partial class MainWindow : Window
                 Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
                 ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
                 Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt.")),
-                ToolToggle(Lang.T("Leiste ziehen"), "Beam", false, CanvasTool.Beam, "toolBeam", Lang.T("Einzelne Holzleiste frei ziehen, z. B. eine Diagonale unter versetzten Modulen und Streben dazu. Anfang und Ende anklicken; Kanten, Ecken und andere Leisten rasten ein."))),
+                ToolToggle(Lang.T("Leiste ziehen"), "Beam", false, CanvasTool.Beam, "toolBeam", Lang.T("Einzelne Holzleiste frei ziehen, z. B. eine Diagonale unter versetzten Modulen und Streben dazu. Anfang und Ende anklicken; Kanten, Ecken und andere Leisten rasten ein.")),
+                Small(Lang.T("Platte auflegen"), "Plate", "addPlate", Lang.T("Deckplatte nach den Maßen der gezeichneten Leisten bzw. des Rahmens auf den Unterbau legen. Lage, Größe und Stärke in mm in den Eigenschaften; verschieben mit Maus oder Pfeiltasten."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),

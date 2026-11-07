@@ -22,7 +22,7 @@ public static partial class Dialogs
         var foot = Box(s.FootHeight);
         var stock = Box(s.StockLength); var sw = Box(s.SheetWidth); var sd = Box(s.SheetDepth);
         var manual = new CheckBox { Content = Lang.T("Rahmen selbst zeichnen"), IsChecked = s.Manual, Margin = new Thickness(0, 22, 0, 2),
-            ToolTip = Lang.T("Nur Deckplatte und eigene Leisten (Gelände › Leiste ziehen), kein berechneter Rahmen.") };
+            ToolTip = Lang.T("Nur eigene Leisten und aufgelegte Deckplatten (Gelände › Leiste ziehen, Platte auflegen), kein berechneter Rahmen.") };
         var templates = BenchTemplate.All;
         var templateBox = new ComboBox { Height = 28 };
         templateBox.Items.Add("…");

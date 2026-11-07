@@ -36,7 +36,7 @@ public static partial class Dialogs
         body.AddView(Hint(c, Lang.F($"Holzkonstrukt unter der Platte ({BoardGeometry.Describe(plan)}): Zargen rundum und Querriegel unter jedem Plattenteil, Beine innen in den Ecken und entlang der langen Seiten. Alle Maße in mm. Die 3D-Ansicht zeigt den Unterbau.")));
         body.AddView(Ui.Field(c, Lang.T("Vorlage übernehmen"), template));
         body.AddView(manual);
-        body.AddView(Ui.Label(c, Lang.T("Nur Deckplatte und eigene Leisten (Gelände › Leiste ziehen), kein berechneter Rahmen."), 12, color: Ui.TextSecondary));
+        body.AddView(Ui.Label(c, Lang.T("Nur eigene Leisten und aufgelegte Deckplatten (Gelände › Leiste ziehen, Platte auflegen), kein berechneter Rahmen."), 12, color: Ui.TextSecondary));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Höhe Oberkante Platte über Boden"), height), Ui.Field(c, Lang.T("Plattenstärke (0 = offener Rahmen)"), top)));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Latte für Rahmen: Stärke"), ft), Ui.Field(c, Lang.T("Latte für Rahmen: Höhe"), fh)));
         body.AddView(Ui.Field(c, Lang.T("Querriegel höchstens alle"), cross));

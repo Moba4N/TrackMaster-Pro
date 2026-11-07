@@ -435,6 +435,19 @@ public static partial class Dialogs
                             Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
                         body.AddView(Rows(c, (Lang.T("Winkel"), $"{Fmt.Num(BeamLayout.Angle(s), 1)}°", null)));
                         break;
+                    case SceneryKind.Plate:
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => s.X = v)),
+                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => s.Y = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Stärke (mm)"), Num(PlateLayout.Thickness(s), Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v))),
+                            Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
+                        body.AddView(Ui.Button(c, Lang.T("An Rahmen anpassen"), () => { dialog?.Dismiss(); session.FitPlate(s); }), Ui.Wrap());
+                        body.AddView(Hint(c, Lang.T("Links und Oben: linke obere Ecke im Plan. Oberkante über der Plattenoberkante des Plans (0 = Gleisebene). Mit Unterbau steht die Platte in der Materialliste.")));
+                        break;
                     case SceneryKind.Terrain:
                         body.AddView(Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), -500, 3000, v => s.Height = v)));
                         body.AddView(Rows(c, (Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));

@@ -125,3 +125,61 @@ public static class BeamLayout
     public static IEnumerable<(string Section, double Length)> Cuts(LayoutPlan plan)
         => plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2).Select(s => (Section(s), Math.Round(Length(s))));
 }
+
+/// <summary>
+/// Deckplatte, frei auf den Unterbau gelegt (z. B. auf einen offenen oder selbst gezeichneten Rahmen).
+/// Eine Deckplatte ist ein <see cref="SceneryItem"/> der Art <see cref="SceneryKind.Plate"/>: linke obere Ecke
+/// (<see cref="SceneryItem.X"/>, <see cref="SceneryItem.Y"/>), Breite und Tiefe (<see cref="SceneryItem.Width"/>,
+/// <see cref="SceneryItem.Depth"/>), Oberkante (<see cref="SceneryItem.Height"/>) und Stärke in mm (<see cref="SceneryItem.Variant"/>).
+/// </summary>
+public static class PlateLayout
+{
+    public const double MinSize = 20, MaxSize = 20000;
+    public const int MinThickness = 3, MaxThickness = 50;
+
+    public static double Thickness(SceneryItem s) => Math.Clamp(s.Variant, MinThickness, MaxThickness);
+
+    public static IReadOnlyList<(double X, double Y)> Outline(SceneryItem s)
+        => [(s.X, s.Y), (s.X + s.Width, s.Y), (s.X + s.Width, s.Y + s.Depth), (s.X, s.Y + s.Depth)];
+
+    public static string Size(SceneryItem s) => $"{Fmt.Num(s.Width, 0)} × {Fmt.Num(s.Depth, 0)}";
+
+    public static bool Valid(SceneryItem s) => s.Width is >= MinSize and <= MaxSize && s.Depth is >= MinSize and <= MaxSize
+        && s.Variant is >= MinThickness and <= MaxThickness && s.Height is >= BeamLayout.MinTop and <= BeamLayout.MaxTop
+        && double.IsFinite(s.X) && double.IsFinite(s.Y);
+
+    public static void Repair(SceneryItem s)
+    {
+        s.X = double.IsFinite(s.X) ? s.X : 0;
+        s.Y = double.IsFinite(s.Y) ? s.Y : 0;
+        s.Width = double.IsFinite(s.Width) ? Math.Clamp(s.Width, MinSize, MaxSize) : 600;
+        s.Depth = double.IsFinite(s.Depth) ? Math.Clamp(s.Depth, MinSize, MaxSize) : 600;
+        s.Variant = Math.Clamp(s.Variant, MinThickness, MaxThickness);
+        s.Height = double.IsFinite(s.Height) ? Math.Clamp(s.Height, BeamLayout.MinTop, BeamLayout.MaxTop) : 0;
+    }
+
+    /// <summary>
+    /// Neue Deckplatte nach den Maßen des Rahmens: über allen gezeichneten Leisten (außen gemessen) bzw. ohne Leisten über der Platte des Plans;
+    /// sie liegt auf der höchsten Leiste bzw. auf dem Rahmen des Unterbaus. Stärke wie im Unterbau, sonst 10 mm.
+    /// </summary>
+    public static (double X, double Y, double Width, double Depth, int Thickness, double Top) FromFrame(LayoutPlan plan)
+    {
+        var bench = plan.Benchwork;
+        var t = (int)Math.Round(bench is { TopThickness: >= MinThickness } ? Math.Min(bench.TopThickness, MaxThickness) : 10);
+        var beams = plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2).ToList();
+        double x0, y0, x1, y1, frameTop;
+        if (beams.Count > 0)
+        {
+            var pts = beams.SelectMany(BeamLayout.Outline).ToList();
+            (x0, y0, x1, y1) = (pts.Min(p => p.X), pts.Min(p => p.Y), pts.Max(p => p.X), pts.Max(p => p.Y));
+            frameTop = beams.Max(b => b.Height);
+        }
+        else
+        {
+            var rects = BoardGeometry.Rects(plan);
+            (x0, y0, x1, y1) = rects.Count > 0 ? (rects.Min(r => r.X0), rects.Min(r => r.Y0), rects.Max(r => r.X1), rects.Max(r => r.Y1)) : (0, 0, plan.BoardWidth, plan.BoardHeight);
+            frameTop = -(bench?.TopThickness ?? t);
+        }
+        return (Math.Round(x0, 1), Math.Round(y0, 1), Math.Round(Math.Max(MinSize, x1 - x0), 1), Math.Round(Math.Max(MinSize, y1 - y0), 1), t, Math.Round(frameTop + t, 1));
+    }
+}

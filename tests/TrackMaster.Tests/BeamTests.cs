@@ -85,7 +85,7 @@ public class NewPlanBenchworkTests
         Assert.Equal(0, b.LegCount);
         Assert.DoesNotContain(b.Pieces, p => p.Kind is BenchKind.Zarge or BenchKind.Querriegel or BenchKind.Bein);
         Assert.Equal(2, b.Pieces.Count(p => p.Kind == BenchKind.Leiste));
-        Assert.Contains(b.Pieces, p => p.Kind == BenchKind.Platte);
+        Assert.DoesNotContain(b.Pieces, p => p.Kind == BenchKind.Platte);   // Deckplatte erst mit „Platte auflegen“
         Assert.All(b.Materials, m => Assert.True(m.Quantity > 0));
         Assert.Contains(b.Materials, m => m.Item == "Holzschrauben");
         // bleibt beim Speichern erhalten
@@ -126,5 +126,62 @@ public class OpenFrameAndNudgeTests
         Assert.Equal((999.0, 10.0), b.Points[1]);
         s.Undo();
         Assert.Equal((0.0, 10.0), s.Plan.Scenery.Single(x => x.IsBeam).Points[0]);
+    }
+}
+
+public class PlateTests
+{
+    [Fact]
+    public void Platte_auflegen_nimmt_die_Masse_der_Leisten_und_liegt_darauf()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0, Benchwork: BenchTemplate.Manual(s.Plan.Gauge)));
+        s.AddBeam((100, 100), (1300, 100));
+        s.AddBeam((100, 700), (1300, 700));
+        var top = s.Plan.Scenery.First(x => x.IsBeam).Height;
+        var p = s.AddPlate();
+        Assert.True(p.IsPlate);
+        Assert.Equal(p.Id, s.SelectedObject);
+        // außen über die Leistenbreite (18 mm Zarge → 9 mm je Seite)
+        Assert.Equal(100, p.X, 0);
+        Assert.Equal(91, p.Y, 0);
+        Assert.Equal(1200, p.Width, 0);
+        Assert.Equal(618, p.Depth, 0);
+        Assert.Equal(top + PlateLayout.Thickness(p), p.Height, 3);
+
+        // Pfeiltasten verschieben, Maße in mm ändern, an den Rahmen zurücksetzen
+        s.Nudge(10, -1, record: true);
+        Assert.Equal((110.0, 90.0), (p.X, Math.Round(p.Y)));
+        p.Width = 1234.5;
+        s.FitPlate(p);
+        Assert.Equal(1200, p.Width, 0);
+        Assert.Equal(100, p.X, 0);
+
+        // Unterbau: Platte in der Materialliste, 3D zeigt sie
+        var b = Benchwork.Build(s.Plan, s.Plan.Benchwork!);
+        Assert.Single(b.Pieces, x => x.Kind == BenchKind.Platte);
+        Assert.Contains(b.Materials, m => m.Item == "Sperrholzplatte");
+        var m3 = new Scene3DModel(s.Plan);
+        Assert.True(m3.OpenFrame);
+        Assert.Contains(m3.Meshes.Keys, k => k.Color == new Rgb(0xC8, 0xA8, 0x78));
+
+        // Speichern und Laden
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        var q = back.Scenery.Single(x => x.IsPlate);
+        Assert.Equal((p.X, p.Y, p.Width, p.Depth, p.Variant, p.Height), (q.X, q.Y, q.Width, q.Depth, q.Variant, q.Height));
+    }
+
+    [Fact]
+    public void Platte_auf_offenem_Rahmen_ersetzt_keine_Rahmenteile_und_liegt_auf_dem_Rahmen()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0, Benchwork: BenchTemplate.Find("offen")!.Spec(s.Plan.Gauge)));
+        var p = s.AddPlate();
+        Assert.Equal((0.0, 0.0, 2000.0, 1000.0), (p.X, p.Y, p.Width, p.Depth));
+        Assert.Equal(10, p.Variant);
+        Assert.Equal(10, p.Height, 3);   // Rahmen-Oberkante 0 + 10 mm
+        var b = Benchwork.Build(s.Plan, s.Plan.Benchwork!);
+        Assert.Contains(b.Pieces, x => x.Kind == BenchKind.Zarge);
+        Assert.Single(b.Pieces, x => x.Kind == BenchKind.Platte);
     }
 }

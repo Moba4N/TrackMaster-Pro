@@ -432,6 +432,7 @@ public sealed class PlanCanvas : FrameworkElement
             {
                 SceneryKind.Water or SceneryKind.Obstacle => s.Name,
                 SceneryKind.Beam => $"{s.Name} · {Fmt.Num(BeamLayout.Length(s), 0)} mm",
+                SceneryKind.Plate => $"{s.Name} · {PlateLayout.Size(s)} mm",
                 _ => $"{s.Name} · {Fmt.Num(s.Height, 0)} mm",
             };
             DrawTag(dc, text, ToScreen(cx, cy), Theme.TextSecondaryBrush, 10);
@@ -578,7 +579,8 @@ public sealed class PlanCanvas : FrameworkElement
     private int? HitArea(Point world)
         => (_session.ShowScenery
             ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
-            : null) ?? HitRoom(world);
+            : null) ?? HitRoom(world)
+            ?? _session.View.Scenery.Where(s => s.IsPlate).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
 
     /// <summary>Raumelement unter dem Zeiger oder Wand eines Raums (nach Gleisen und Gelände).</summary>
     private int? HitRoom(Point world)

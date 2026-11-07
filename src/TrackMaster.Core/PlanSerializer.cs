@@ -372,7 +372,7 @@ public static class PlanSerializer
             var item = new SceneryItem
             {
                 Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
-                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) ? s.Variant : 0,
+                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
                 Model = kind == SceneryKind.Building && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
                 Color = kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
@@ -382,6 +382,7 @@ public static class PlanSerializer
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
             if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
+            if (kind == SceneryKind.Plate && !PlateLayout.Valid(item)) PlateLayout.Repair(item);
             plan.Scenery.Add(item);
         }
         foreach (var f in dto.Feeders ?? [])

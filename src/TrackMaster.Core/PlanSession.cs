@@ -182,7 +182,7 @@ public sealed partial class PlanSession
         Commit();
         var text = Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}.");
         if (Plan.Benchwork is { Manual: true })
-            text += " " + Lang.T("Rahmenbau selbst zeichnen: Zargen, Querriegel, Diagonalen und Streben mit Gelände › Leiste ziehen; Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+            text += " " + Lang.T("Rahmenbau selbst zeichnen: Zargen, Querriegel, Diagonalen und Streben mit Gelände › Leiste ziehen, dann Gelände › Platte auflegen; Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
         else if (Plan.Benchwork is not null)
             text += " " + Lang.T("Der Rahmenbau ist angelegt: Gelände › Unterbau… zeigt Maße, Zuschnitt und Materialliste, die 3D-Ansicht das Gestell.");
         Say(text + " " + Lang.T("Rückgängig holt den vorherigen Plan zurück."));
@@ -1365,6 +1365,26 @@ public sealed partial class PlanSession
         var item = AddScenery(new SceneryItem { Kind = SceneryKind.Beam, Points = [a, b], Width = w, Depth = d, Height = top });
         Say(Lang.F($"Leiste {Fmt.Num(len, 0)} mm gesetzt ({BeamLayout.Section(item)} mm). Querschnitt, Höhe und Länge stehen in den Eigenschaften, im Unterbau steht sie in Zuschnitt und Materialliste."));
         return item;
+    }
+
+    /// <summary>Deckplatte nach den Maßen des Rahmens auf den Unterbau legen (über den gezeichneten Leisten bzw. der Platte des Plans).</summary>
+    public SceneryItem AddPlate()
+    {
+        var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
+        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Plate, X = x, Y = y, Width = w, Depth = d, Variant = t, Height = top });
+        Say(Lang.F($"Deckplatte {PlateLayout.Size(item)} mm, {t} mm stark, aufgelegt (Oberkante {Fmt.Num(top, 0)} mm). Lage, Größe, Stärke und Oberkante stehen in den Eigenschaften; verschieben mit der Maus oder den Pfeiltasten."));
+        return item;
+    }
+
+    /// <summary>Gewählte Deckplatte wieder auf die Maße des Rahmens bringen.</summary>
+    public void FitPlate(SceneryItem s)
+    {
+        if (!s.IsPlate) return;
+        Record();
+        var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
+        (s.X, s.Y, s.Width, s.Depth) = (x, y, w, d);
+        s.Height = Math.Round(top - t + PlateLayout.Thickness(s), 1);   // auf dem Rahmen, eigene Stärke bleibt
+        Commit();
     }
 
     /// <summary>Länge einer Leiste ändern: der Anfang bleibt, die Richtung auch.</summary>

@@ -60,7 +60,7 @@ public static partial class Dialogs
             startHint.Visibility = startChoice.SelectedItemPosition == 0 ? ViewStates.Gone : ViewStates.Visible;
             startHint.Text = startChoice.SelectedItemPosition == 1
                 ? templates[Math.Max(0, templateChoice.SelectedItemPosition)].Description + " " + Lang.T("Alle Maße lassen sich später unter Gelände › Unterbau… ändern.")
-                : Lang.T("Platte ohne fertigen Rahmen: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv). Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+                : Lang.T("Rahmen ohne Vorgabe: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv), danach legt Gelände › Platte auflegen die Deckplatte nach diesen Maßen auf. Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
         }
         startChoice.ItemSelected += (_, _) => UpdateStart();
         templateChoice.ItemSelected += (_, _) => UpdateStart();

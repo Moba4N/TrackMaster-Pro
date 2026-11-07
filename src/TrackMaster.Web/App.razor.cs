@@ -297,6 +297,7 @@ public partial class App : ComponentBase, IAppHost
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
+        Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
         Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () =>

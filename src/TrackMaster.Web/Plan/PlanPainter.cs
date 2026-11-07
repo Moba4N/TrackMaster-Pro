@@ -327,9 +327,17 @@ public sealed class PlanPainter
     private static readonly Color BeamFill = Color.Argb(0xC8, 0xD4, 0xB4, 0x82);
     private static readonly Color BeamStroke = Color.Rgb(0x8A, 0x6B, 0x4A);
 
-    /// <summary>Frei gezogene Leisten des Unterbaus (Diagonale, Streben): Holzfarbe, immer sichtbar.</summary>
+    private static readonly Color PlateFill = Color.Argb(0x50, 0xC8, 0xA8, 0x78);
+
+    /// <summary>Frei gezogene Leisten des Unterbaus (Diagonale, Streben): Holzfarbe, immer sichtbar; darüber durchscheinend aufgelegte Deckplatten.</summary>
     private void DrawBeams(Canvas c, float z, int? selectedObject, float selWidth)
     {
+        foreach (var p in _plan.Scenery.Where(s => s.IsPlate))
+        {
+            var path = Polygon(PlateLayout.Outline(p));
+            c.DrawPath(path, Fill(PlateFill));
+            c.DrawPath(path, p.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(BeamStroke, 1.5f * Ui.Density / z, effect: new DashPathEffect([8 / z, 4 / z], 0)));
+        }
         foreach (var b in _plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2))
         {
             var path = Polygon(BeamLayout.Outline(b));

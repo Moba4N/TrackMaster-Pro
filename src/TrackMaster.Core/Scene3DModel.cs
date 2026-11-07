@@ -89,7 +89,7 @@ public sealed class Scene3DModel
     /// <summary>Gelände zeigen (Wiese, Hügel, Gewässer, Gebäude, Bäume) oder nur Platte und Gleise.</summary>
     public bool Scenery { get; }
 
-    /// <summary>Unterbau ohne Deckplatte (offener Rahmen, Spantenbau): 3D zeigt nur Rahmen, Leisten und Gleise.</summary>
+    /// <summary>Unterbau ohne Deckplatte (offener Rahmen, Spantenbau) oder selbst gezeichnet: 3D zeigt nur Rahmen, Leisten, aufgelegte Deckplatten und Gleise.</summary>
     public bool OpenFrame { get; }
 
     /// <summary>Stützen unter hochliegenden Gleisen zeigen (je eine rechts und links neben dem Gleis) oder weglassen.</summary>
@@ -105,7 +105,7 @@ public sealed class Scene3DModel
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
         // Offener Rahmen (Spantenbau, ohne Deckplatte): nur das Holzgerüst zeigen, ohne Platte, Wiese und Gelände
-        OpenFrame = plan.Benchwork is { TopThickness: <= 0 };
+        OpenFrame = plan.Benchwork is { TopThickness: <= 0 } or { Manual: true };
         Scenery = scenery && !OpenFrame;
         Piers = piers;
         Tunnels = tunnels;
@@ -165,6 +165,10 @@ public sealed class Scene3DModel
             var wood = new Rgb(0xD4, 0xB4, 0x82);
             Prism(BeamLayout.Outline(s), s.Height - s.Depth, s.Height, wood, new Rgb(0xC2, 0x9E, 0x6C), SurfaceKind.Matte);
         }
+
+        // Aufgelegte Deckplatten
+        foreach (var s in plan.Scenery.Where(x => x.IsPlate))
+            Mesh(new Rgb(0xC8, 0xA8, 0x78)).Box(P(s.X, s.Y, s.Height - PlateLayout.Thickness(s)), P(s.X + s.Width, s.Y + s.Depth, s.Height));
 
         foreach (var s in Scenery ? plan.Scenery : [])
             switch (s.Kind)

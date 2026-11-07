@@ -544,7 +544,7 @@ public sealed class PlanView
             if (o.Count == 0 || (o.Max(p => p.X) - o.Min(p => p.X)) * _zoom < Ui.Dp(60)) continue;
             var (cx, cy) = s.Center();
             var p = ToScreen(cx, cy);
-            DrawTag(c, s.IsBeam ? $"{s.Name} · {Fmt.Num(BeamLayout.Length(s), 0)} mm"
+            DrawTag(c, s.IsBeam ? $"{s.Name} · {Fmt.Num(BeamLayout.Length(s), 0)} mm" : s.IsPlate ? $"{s.Name} · {PlateLayout.Size(s)} mm"
                 : s.Kind is SceneryKind.Water or SceneryKind.Room or SceneryKind.Obstacle ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
         }
     }
@@ -710,7 +710,8 @@ public sealed class PlanView
     private int? HitArea((double X, double Y) world)
         => (_session.ShowScenery
             ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
-            : null) ?? HitRoom(world);
+            : null) ?? HitRoom(world)
+            ?? _session.View.Scenery.Where(s => s.IsPlate).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
 
     /// <summary>Raumelement unter dem Zeiger oder Wand eines Raums (nach Gleisen und Gelände).</summary>
     private int? HitRoom((double X, double Y) world)

@@ -77,7 +77,7 @@ public sealed class PlacedPiece
 }
 
 /// <summary>Art eines Objekts; <see cref="Beam"/> = Holzleiste des Unterbaus (z. B. Diagonale oder Strebe), frei gezogen.</summary>
-public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam }
+public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate }
 
 /// <summary>Art eines Raumelements (<see cref="SceneryKind.Obstacle"/>).</summary>
 public enum ObstacleType { Tuer, Fenster, Saeule, Heizkoerper, Moebel, Sonstiges }
@@ -127,6 +127,9 @@ public sealed class SceneryItem
     /// <summary>Holzleiste des Unterbaus: <see cref="Points"/> = Anfang und Ende der Mittellinie, <see cref="Width"/> = Breite von oben,
     /// <see cref="Depth"/> = Höhe der Latte, <see cref="Height"/> = Oberkante über der Plattenoberkante (meist negativ, unter der Platte).</summary>
     public bool IsBeam => Kind == SceneryKind.Beam;
+    /// <summary>Deckplatte auf dem Unterbau: <see cref="X"/>, <see cref="Y"/> = linke obere Ecke, <see cref="Width"/> × <see cref="Depth"/>,
+    /// <see cref="Height"/> = Oberkante, <see cref="Variant"/> = Stärke in mm.</summary>
+    public bool IsPlate => Kind == SceneryKind.Plate;
 
     /// <summary>Eckpunkte in Weltkoordinaten (Vieleck bzw. gedrehtes Rechteck; Bäume als Achteck).</summary>
     public IReadOnlyList<(double X, double Y)> Outline()
@@ -143,6 +146,8 @@ public sealed class SceneryItem
                 return Annotation.DimensionOutline(this);
             case SceneryKind.Beam:
                 return BeamLayout.Outline(this);
+            case SceneryKind.Plate:
+                return PlateLayout.Outline(this);
             case SceneryKind.Building when Points.Count >= 2:
                 return PlacedModel.PathOutline(Points, Depth);
             case SceneryKind.Building:
@@ -159,6 +164,7 @@ public sealed class SceneryItem
     public (double X, double Y) Center()
     {
         if (Kind is SceneryKind.Dimension or SceneryKind.Beam && Points.Count == 2) return ((Points[0].X + Points[1].X) / 2, (Points[0].Y + Points[1].Y) / 2);
+        if (Kind == SceneryKind.Plate) return (X + Width / 2, Y + Depth / 2);
         if ((!IsArea && Kind != SceneryKind.Room) || Points.Count == 0) return (X, Y);
         return (Points.Average(p => p.X), Points.Average(p => p.Y));
     }
@@ -171,6 +177,14 @@ public sealed class SceneryItem
         var r = degrees * Math.PI / 180;
         double c = Math.Cos(r), s = Math.Sin(r);
         (double X, double Y) Turn(double x, double y) => (cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c);
+        if (Kind == SceneryKind.Plate)
+        {
+            // Deckplatten bleiben achsparallel: Mitte drehen, bei Vierteldrehung Breite und Tiefe tauschen
+            var m = Turn(X + Width / 2, Y + Depth / 2);
+            if (Math.Abs(Math.IEEERemainder(degrees, 180)) > 45) (Width, Depth) = (Depth, Width);
+            (X, Y) = (m.X - Width / 2, m.Y - Depth / 2);
+            return;
+        }
         (X, Y) = Turn(X, Y);
         Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
         if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle) Rotation = Angles.Normalize(Rotation + degrees);
@@ -197,6 +211,7 @@ public sealed class SceneryItem
         SceneryKind.Room => Lang.T("Raum"),
         SceneryKind.Obstacle => Lang.T("Raumelement"),
         SceneryKind.Beam => Lang.T("Leiste"),
+        SceneryKind.Plate => Lang.T("Deckplatte"),
         _ => Lang.T("Baum"),
     };
 

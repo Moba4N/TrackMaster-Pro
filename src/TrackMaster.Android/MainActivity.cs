@@ -248,6 +248,7 @@ public sealed class MainActivity : Activity
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
+        Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
         Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
@@ -536,7 +537,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Ausstattung"), [.. ModelCommands.Select(m => (m.Category + "…", m.Command, true)), (Lang.T("Einfaches Gebäude"), "toolBuilding", true)]),
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),

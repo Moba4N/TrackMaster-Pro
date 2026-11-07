@@ -54,7 +54,7 @@ public static partial class Dialogs
             startHint.Visibility = startBox.SelectedIndex == 0 ? Visibility.Collapsed : Visibility.Visible;
             var text = startBox.SelectedIndex == 1
                 ? templates[Math.Max(0, templateBox.SelectedIndex)].Description + " " + Lang.T("Alle Maße lassen sich später unter Gelände › Unterbau… ändern.")
-                : Lang.T("Platte ohne fertigen Rahmen: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv). Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+                : Lang.T("Rahmen ohne Vorgabe: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv), danach legt Gelände › Platte auflegen die Deckplatte nach diesen Maßen auf. Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
             SetHint(startHint, text);
         }
         startBox.SelectionChanged += (_, _) => UpdateStart();

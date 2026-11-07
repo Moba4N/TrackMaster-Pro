@@ -7,6 +7,8 @@
      IMP_CITY   PLZ und Ort
      IMP_EMAIL  E-Mail-Adresse
      IMP_PHONE  Telefon (optional, leer = nicht anzeigen)
+     IMP_VAT            USt-IdNr. (optional, define('IMP_VAT', 'DE…'))
+     IMP_SMALL_BUSINESS true = Kleinunternehmer nach § 19 UStG (optional)
    Gliederung: § 5 DDG (Anbieter), Kontakt, § 18 Abs. 2 MStV (Verantwortlicher),
    Software TrackMaster Pro, Verbraucherstreitbeilegung, Haftung, Urheberrecht.
    Keine Rechtsberatung.
@@ -37,18 +39,25 @@ $adresse = '<br>' . h(IMP_STREET) . '<br>' . h(IMP_CITY) . '<br>' . ($en ? 'Germ
     E-mail: <a href="mailto:<?= h(IMP_EMAIL) ?>"><?= h(IMP_EMAIL) ?></a>
     <?php if (IMP_PHONE): ?><br>Phone: <?= h(IMP_PHONE) ?><?php endif; ?>
   </p>
+  <?php if (defined('IMP_VAT') && IMP_VAT): ?>
+  <h2>VAT ID</h2>
+  <p>VAT identification number pursuant to Section 27a of the German VAT Act: <?= h(IMP_VAT) ?></p>
+  <?php elseif (defined('IMP_SMALL_BUSINESS') && IMP_SMALL_BUSINESS): ?>
+  <h2>VAT</h2>
+  <p>Small business pursuant to Section 19 of the German VAT Act (UStG); no VAT is charged.</p>
+  <?php endif; ?>
 
   <h2>Responsible for the content</h2>
   <p>Pursuant to Section 18(2) of the German Interstate Media Treaty (MStV):<br><?= h($name) ?><?= $adresse ?></p>
 
   <h2>TrackMaster Pro software</h2>
-  <p>The TrackMaster&nbsp;Pro track planner (web version, Windows and Android programs) and its licences are provided by the provider named above. Questions about licences and activation: <a href="mailto:<?= h(IMP_EMAIL) ?>"><?= h(IMP_EMAIL) ?></a>.</p>
+  <p>The TrackMaster&nbsp;Pro track planner (web version, Windows and Android programs) and its paid Pro licences are offered by the provider named above; see the <a href="<?= h(url('verkauf.php')) ?>">terms of sale and licence</a>. Questions about licences and activation: <a href="mailto:<?= h(IMP_EMAIL) ?>"><?= h(IMP_EMAIL) ?></a>.</p>
 
   <h2>Consumer dispute resolution</h2>
   <p>I am neither willing nor obliged to take part in dispute resolution proceedings before a consumer arbitration board.</p>
 
   <h2>Liability for content</h2>
-  <p>The content of these pages was created with great care. However, no guarantee can be given for the accuracy, completeness and timeliness of the content. This website is a private, non-commercial hobby project about a model railway collection in N scale.</p>
+  <p>The content of these pages was created with great care. However, no guarantee can be given for the accuracy, completeness and timeliness of the content. The model railway collection in N scale shown here is a private hobby project.</p>
 
   <h2>Liability for links</h2>
   <p>This website contains links to external websites over whose content I have no influence. The respective provider or operator is always responsible for the content of linked pages. The linked pages were checked for possible legal violations at the time of linking; if I become aware of any infringements, I will remove such links immediately.</p>
@@ -67,18 +76,25 @@ $adresse = '<br>' . h(IMP_STREET) . '<br>' . h(IMP_CITY) . '<br>' . ($en ? 'Germ
     E-Mail: <a href="mailto:<?= h(IMP_EMAIL) ?>"><?= h(IMP_EMAIL) ?></a>
     <?php if (IMP_PHONE): ?><br>Telefon: <?= h(IMP_PHONE) ?><?php endif; ?>
   </p>
+  <?php if (defined('IMP_VAT') && IMP_VAT): ?>
+  <h2>Umsatzsteuer-ID</h2>
+  <p>Umsatzsteuer-Identifikationsnummer gemäß §&nbsp;27a Umsatzsteuergesetz: <?= h(IMP_VAT) ?></p>
+  <?php elseif (defined('IMP_SMALL_BUSINESS') && IMP_SMALL_BUSINESS): ?>
+  <h2>Umsatzsteuer</h2>
+  <p>Kleinunternehmer gemäß §&nbsp;19 UStG; es wird keine Umsatzsteuer berechnet.</p>
+  <?php endif; ?>
 
   <h2>Verantwortlich für den Inhalt</h2>
   <p>nach § 18 Abs.&nbsp;2 Medienstaatsvertrag (MStV):<br><?= h($name) ?><?= $adresse ?></p>
 
   <h2>Software TrackMaster Pro</h2>
-  <p>Der Gleisplaner TrackMaster&nbsp;Pro (Webversion sowie Programme für Windows und Android) und seine Lizenzen werden vom oben genannten Anbieter bereitgestellt. Fragen zu Lizenzen und Aktivierung: <a href="mailto:<?= h(IMP_EMAIL) ?>"><?= h(IMP_EMAIL) ?></a>.</p>
+  <p>Der Gleisplaner TrackMaster&nbsp;Pro (Webversion sowie Programme für Windows und Android) und seine kostenpflichtigen Pro-Lizenzen werden vom oben genannten Anbieter angeboten; es gelten die <a href="<?= h(url('verkauf.php')) ?>">Verkaufs- und Lizenzbedingungen</a>. Fragen zu Lizenzen und Aktivierung: <a href="mailto:<?= h(IMP_EMAIL) ?>"><?= h(IMP_EMAIL) ?></a>.</p>
 
   <h2>Verbraucherstreitbeilegung</h2>
   <p>Ich bin nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
 
   <h2>Haftung für Inhalte</h2>
-  <p>Die Inhalte dieser Seiten wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte kann ich jedoch keine Gewähr übernehmen. Diese Website ist ein privates, nicht kommerzielles Hobbyprojekt zu einer Modelleisenbahn-Sammlung in Spur&nbsp;N.</p>
+  <p>Die Inhalte dieser Seiten wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte kann ich jedoch keine Gewähr übernehmen. Die hier gezeigte Modelleisenbahn-Sammlung in Spur&nbsp;N ist ein privates Hobbyprojekt.</p>
 
   <h2>Haftung für Links</h2>
   <p>Diese Website enthält Links zu externen Websites, auf deren Inhalte ich keinen Einfluss habe. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft; werden mir Rechtsverletzungen bekannt, entferne ich derartige Links umgehend.</p>

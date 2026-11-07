@@ -1237,6 +1237,7 @@ public static partial class Dialogs
                 }), Ui.Wrap());
             }
         }
+        if (license.Activation is not null) body.AddView(Hint(c, LicenseActivation.PrivacyNotice));
         body.AddView(Section(c, Lang.T("Basis")));
         body.AddView(Ui.Label(c, string.Join("\n", EditionInfo.Basis.Select(x => "• " + x)), 13.5));
         body.AddView(Section(c, Lang.T("Pro")));

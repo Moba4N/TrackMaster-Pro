@@ -835,6 +835,13 @@ public static partial class Dialogs
         machineRow.Children.Add(Theme.Field(Lang.T("Rechnerkennung (für eine rechnergebundene Lizenz an den Hersteller schicken)"), machine));
         copy.Click += (_, _) => { try { Clipboard.SetText(machine.Text); } catch (System.Runtime.InteropServices.COMException) { } };
         body.Children.Add(machineRow);
+        if (license.Activation is not null)
+        {
+            var privacy = Theme.Label(LicenseActivation.PrivacyNotice, 11, false, Theme.TextSecondaryBrush);
+            privacy.TextWrapping = TextWrapping.Wrap;
+            privacy.Margin = new Thickness(0, 0, 6, 6);
+            body.Children.Add(privacy);
+        }
         var message = Theme.Label("", 12);
         body.Children.Add(message);
         var installButton = Theme.Button(Lang.T("Lizenz einspielen…"), "Open");
@@ -862,7 +869,7 @@ public static partial class Dialogs
             Sync();
         };
         window.Width = 720;
-        window.Height = 560;
+        window.Height = license.Activation is not null ? 660 : 560;
         installButton.Click += (_, _) =>
         {
             if (install() is { } m) { message.Text = m; Sync(); }

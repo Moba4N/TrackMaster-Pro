@@ -48,6 +48,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     if ($n > 0) $daten[$id]['max'] = min($n, 50); else unset($daten[$id]['max']);
                     $meldung = "Gerätezahl für $id geändert.";
                     break;
+                case 'loeschen':
+                    // Auskunfts- oder Löschwunsch des Lizenznehmers (Art. 17 DSGVO): ganzen Eintrag entfernen
+                    unset($daten[$id]);
+                    $meldung = "Alle Aktivierungsdaten zu $id gelöscht.";
+                    break;
                 case 'versuche':
                     $daten[$id]['abgelehnt'] = [];
                     $meldung = "Abgelehnte Versuche bei $id gelöscht.";
@@ -118,6 +123,7 @@ function zeit(?string $iso): string
     <?php endif; ?>
   </div>
 <?php else:
+    tm_daten_aendern(function (array &$d) {});   // abgelaufene Einträge nach den Speicherfristen löschen
     $daten = tm_daten_lesen();
     uksort($daten, function ($a, $b) use ($daten) {
         $wa = count($daten[$a]['abgelehnt'] ?? []); $wb = count($daten[$b]['abgelehnt'] ?? []);
@@ -141,7 +147,7 @@ function zeit(?string $iso): string
   <div class="karte<?= $abgelehnt ? ' warn' : '' ?>">
     <div class="kopf">
       <strong><?= h($x['inhaber'] ?? '') ?: '–' ?></strong>
-      <span class="klein"><?= h((string)$id) ?><?= !empty($x['email']) ? ' · ' . h($x['email']) : '' ?></span>
+      <span class="klein"><?= h((string)$id) ?></span>
       <span class="marke<?= count($geraete) >= $max ? ' grau' : '' ?>"><?= count($geraete) ?> von <?= $max ?> Geräten</span>
       <?php if (!empty($x['gesperrt'])): ?><span class="marke rot">gesperrt</span><?php endif; ?>
       <?php if ($abgelehnt): ?><span class="marke rot"><?= count($abgelehnt) ?> abgelehnt</span><?php endif; ?>
@@ -179,6 +185,9 @@ function zeit(?string $iso): string
       <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="lizenz" value="<?= h((string)$id) ?>">
         <button name="aktion" value="versuche">Abgelehnte Versuche löschen</button></form>
       <?php endif; ?>
+      <form method="post" class="inline" onsubmit="return confirm('Alle gespeicherten Aktivierungsdaten dieser Lizenz löschen (z. B. auf Wunsch des Lizenznehmers)? Aktive Geräte melden sich bei der nächsten Prüfung neu an.')">
+        <input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="lizenz" value="<?= h((string)$id) ?>">
+        <button name="aktion" value="loeschen">Daten löschen</button></form>
     </div>
   </div>
   <?php endforeach; ?>

@@ -16,6 +16,35 @@ public static class UpdateCheck
         => assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "UpdateUrl")?.Value is { Length: > 0 } url
            && Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps ? url : null;
 
+    private static string OffFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrackMaster Pro", "keine-update-pruefung.txt");
+
+    /// <summary>
+    /// Beim Programmstart automatisch nach Updates suchen? Standard: ja. Die Prüfung ruft die version.json bei GitHub ab
+    /// (dabei sieht GitHub wie bei jedem Abruf die IP-Adresse); wer das nicht möchte, schaltet es hier ab.
+    /// </summary>
+    public static bool AutoEnabled
+    {
+        get
+        {
+            try { return !File.Exists(OffFile); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return true; }
+        }
+        set
+        {
+            try
+            {
+                if (value) { if (File.Exists(OffFile)) File.Delete(OffFile); return; }
+                Directory.CreateDirectory(Path.GetDirectoryName(OffFile)!);
+                File.WriteAllText(OffFile, "aus");
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>Text für die Frage, ob beim Start automatisch geprüft werden soll.</summary>
+    public static string AutoQuestion => Lang.T("Beim Programmstart automatisch nach Updates suchen? Dabei ruft das Programm eine kleine Versionsdatei bei GitHub (github.com, USA) ab; GitHub sieht dabei wie bei jedem Abruf die IP-Adresse und die Programmkennung „TrackMasterPro-UpdateCheck“. Es werden keine Pläne, Lizenzdaten oder Gerätekennungen übertragen.")
+        + "\n\n" + (AutoEnabled ? Lang.T("Zurzeit: an.") : Lang.T("Zurzeit: aus."));
+
     public static UpdateInfo? Parse(string json)
     {
         try

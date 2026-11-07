@@ -32,6 +32,7 @@ function tm_daten_aendern(callable $aendern)
         $inhalt = stream_get_contents($f);
         $daten = $inhalt ? json_decode($inhalt, true) : [];
         if (!is_array($daten)) $daten = [];
+        tm_aufraeumen($daten);
         $ergebnis = $aendern($daten);
         rewind($f);
         ftruncate($f, 0);
@@ -42,6 +43,32 @@ function tm_daten_aendern(callable $aendern)
         flock($f, LOCK_UN);
         fclose($f);
     }
+}
+
+/** Speicherfristen (Datenschutz): Geräte ohne Meldung seit 12 Monaten und abgelehnte Versuche nach 90 Tagen löschen. */
+const TM_GERAET_FRIST_TAGE = 365;
+const TM_VERSUCH_FRIST_TAGE = 90;
+
+/**
+ * Löscht abgelaufene Einträge: Geräte, die sich seit TM_GERAET_FRIST_TAGE nicht gemeldet haben, abgelehnte Versuche
+ * nach TM_VERSUCH_FRIST_TAGE und Lizenzen ohne Geräte, Versuche, Sperre oder eigene Geräteanzahl (samt Inhabername).
+ * Eine früher gespeicherte E-Mail-Adresse wird entfernt; sie wird für die Aktivierung nicht gebraucht.
+ */
+function tm_aufraeumen(array &$daten): void
+{
+    $jetzt = time();
+    foreach ($daten as $id => &$e) {
+        if (!is_array($e)) { unset($daten[$id]); continue; }
+        unset($e['email']);
+        foreach ($e['geraete'] ?? [] as $gid => $g) {
+            $zuletzt = strtotime((string)($g['zuletzt'] ?? $g['erst'] ?? '')) ?: 0;
+            if ($jetzt - $zuletzt > TM_GERAET_FRIST_TAGE * 86400) unset($e['geraete'][$gid]);
+        }
+        $e['abgelehnt'] = array_values(array_filter($e['abgelehnt'] ?? [],
+            fn($v) => $jetzt - (strtotime((string)($v['zeit'] ?? '')) ?: 0) <= TM_VERSUCH_FRIST_TAGE * 86400));
+        if (empty($e['geraete']) && empty($e['abgelehnt']) && empty($e['gesperrt']) && empty($e['max'])) unset($daten[$id]);
+    }
+    unset($e);
 }
 
 function tm_daten_lesen(): array

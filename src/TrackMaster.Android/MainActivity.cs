@@ -467,6 +467,7 @@ public sealed class MainActivity : Activity
     private async Task CheckForUpdates(bool manual)
     {
         if (UpdateCheck.ConfiguredUrl(typeof(MainActivity).Assembly) is not { } url) return;
+        if (!manual && !UpdateCheck.AutoEnabled) return;
         var info = await UpdateCheck.FetchAsync(url, TimeSpan.FromSeconds(manual ? 15 : 5));
         var current = typeof(MainActivity).Assembly.GetName().Version;
         RunOnUiThread(() =>
@@ -481,6 +482,8 @@ public sealed class MainActivity : Activity
             if (info?.Url is { } link && UpdateCheck.IsNewer(info, current))
                 b.SetPositiveButton(Lang.T("Download-Seite öffnen"), (_, _) => StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(link))))!.SetNegativeButton(Lang.T("Später"), (_, _) => { });
             else b.SetPositiveButton("OK", (_, _) => { });
+            b.SetNeutralButton(Lang.T("Beim Start…"), (_, _) => new AlertDialog.Builder(this).SetTitle(Lang.T("Updates"))!.SetMessage(UpdateCheck.AutoQuestion)!
+                .SetPositiveButton(Lang.T("Ja"), (_, _) => UpdateCheck.AutoEnabled = true)!.SetNegativeButton(Lang.T("Nein"), (_, _) => UpdateCheck.AutoEnabled = false)!.Show());
             b.Show();
         });
     }

@@ -2047,7 +2047,11 @@
                       placeholder="@Lang.T("Inhalt der Lizenzdatei hier einfügen (Strg+V oder lange tippen > Einfügen)")"
                       @bind='_d["lic"]' @bind:event="oninput"></textarea>
             @Hint(Lang.T("Eine Pro-Lizenz ist eine Datei „trackmaster.lic“. Sie gilt für Windows, Android und die Webversion. Entweder über „Lizenzdatei wählen“ einspielen oder den Text der Datei oben einfügen und „Eingefügte Lizenz übernehmen“ tippen. ") +
-                  Lang.T("Die Lizenz wird nur in diesem Browser gespeichert. Die Gerätekennung gehört zu diesem Browser; nach dem Löschen der Website-Daten entsteht eine neue."))
+                  Lang.T("Die Lizenz wird in diesem Browser gespeichert. Die Gerätekennung gehört zu diesem Browser; nach dem Löschen der Website-Daten entsteht eine neue."))
+            @if (_license.Activation is not null)
+            {
+                @Hint(LicenseActivation.PrivacyNotice)
+            }
         </div>, wide: true);
         _d["lic"] = "";
         if (_license.Result.IsValid && _license.Activation is { } act && act.Applies(_license.Result.License))

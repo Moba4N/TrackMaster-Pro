@@ -238,6 +238,8 @@ public sealed partial class MainWindow : Window
         Add("language", ChangeLanguage);
         Add("about", () => Dialogs.ShowAbout(this, License));
         Add("update", () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null);
+        Add("autoUpdate", () => UpdateCheck.AutoEnabled = MessageBox.Show(this, UpdateCheck.AutoQuestion, AppFolders.Name, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes,
+            () => UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null);
 
         // Raum, Hintergrundbild, Anordnen, Parallelgleis, Höhenprofil, Rückmelder
         bool Several() => Session.Selection.Count > 1;
@@ -460,6 +462,7 @@ public sealed partial class MainWindow : Window
     public async Task CheckForUpdates(bool manual)
     {
         if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not { } url) return;
+        if (!manual && !UpdateCheck.AutoEnabled) return;
         var info = await UpdateCheck.FetchAsync(url, TimeSpan.FromSeconds(manual ? 15 : 5));
         var current = typeof(MainWindow).Assembly.GetName().Version;
         if (info is null)
@@ -772,7 +775,7 @@ public sealed partial class MainWindow : Window
         _appMenu.Items.Add(Item(Lang.T("Lizenz…"), "Shield", "license"));
         _appMenu.Items.Add(Item(Lang.T("Darstellung…"), "Palette", "appearance"));
         _appMenu.Items.Add(Item("Sprache / Language…", "Font", "language"));
-        if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null) _appMenu.Items.Add(Item(Lang.T("Nach Updates suchen…"), "Update", "update"));
+        if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null) { _appMenu.Items.Add(Item(Lang.T("Nach Updates suchen…"), "Update", "update")); _appMenu.Items.Add(Item(Lang.T("Update-Prüfung beim Start…"), "Update", "autoUpdate")); }
         _appMenu.Items.Add(Item(Lang.T("Über das Programm…"), "Info", "about"));
         _appMenu.FooterPaneContent = new RibbonButton { Label = Lang.T("Beenden"), SmallImageSource = Icons.Get("Exit"), Command = _commands["exit"], HorizontalAlignment = HorizontalAlignment.Right };
         Ribbon.ApplicationMenu = _appMenu;

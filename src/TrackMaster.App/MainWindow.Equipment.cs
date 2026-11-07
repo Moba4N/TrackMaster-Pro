@@ -150,6 +150,35 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Modell im Maßstab der Spur als STL (3D-Druck) oder OBJ mit Farben (3D-Programme) speichern.</summary>
+    private void Export3D(Window owner, ModelDefinition m)
+    {
+        var gauge = Session.Plan.Gauge;
+        var dlg = new SaveFileDialog
+        {
+            Title = Lang.F($"3D-Datei im Maßstab {gauge.Scale} speichern"),
+            Filter = Lang.T("STL für den 3D-Druck (*.stl)|*.stl|OBJ mit Farben (*.obj)|*.obj"),
+            FileName = ModelFile.SafeFileName(m.Name) + ".stl",
+        };
+        if (dlg.ShowDialog(owner) != true) return;
+        var k = ModelLibrary.MmPerMeter(gauge);
+        try
+        {
+            if (Path.GetExtension(dlg.FileName).Equals(".obj", StringComparison.OrdinalIgnoreCase))
+            {
+                var mtl = Path.ChangeExtension(dlg.FileName, ".mtl");
+                File.WriteAllText(dlg.FileName, ModelExport.ToObj(m, k, Path.GetFileName(mtl)), new System.Text.UTF8Encoding(false));
+                File.WriteAllText(mtl, ModelExport.ToMtl(m), new System.Text.UTF8Encoding(false));
+            }
+            else File.WriteAllBytes(dlg.FileName, ModelExport.ToStl(m, k));
+            ShowMessage(Lang.F($"Gespeichert: {Path.GetFileName(dlg.FileName)}"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(owner, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     // ---------- Dialoge ----------
 
     private static StackPanel ModelRow(ModelDefinition m, string? note = null)
@@ -252,6 +281,7 @@ public sealed partial class MainWindow
             Fill();
         }, () => Selected().Any(m => !InLibrary(m))));
         side.Children.Add(B(Lang.T("Exportieren…"), "SaveAs", () => ExportModels(win, Selected().ToList()), any));
+        side.Children.Add(B(Lang.T("3D-Datei (STL/OBJ)…"), "Cube", () => { if (Selected().FirstOrDefault() is { } m) Export3D(win, m); }, one));
         side.Children.Add(B(Lang.T("Alle exportieren (ZIP)…"), "SaveAs", () => ExportModels(win, ModelLibrary.Own.ToList()), () => true));
         side.Children.Add(B(Lang.T("Importieren…"), "Open", () => { if (ImportModels(win) > 0) Fill(); }));
         side.Children.Add(B(Lang.T("Ordner öffnen"), "Open", () =>

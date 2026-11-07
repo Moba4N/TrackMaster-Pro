@@ -87,8 +87,12 @@ public static class ModelLibrary
         return 1000 / 87.0;
     }
 
-    public static PlacedModel? Placed(LayoutPlan plan, SceneryItem s)
-        => Of(plan, s) is { } def ? new PlacedModel(def, s, MmPerMeter(plan.Gauge)) : null;
+    /// <summary>
+    /// Modell zum Zeichnen. Mit <paramref name="trackHeight"/> (3D) richtet sich die Höhe nach den verknüpften Gleisen;
+    /// der Gleisplan braucht das nicht.
+    /// </summary>
+    public static PlacedModel? Placed(LayoutPlan plan, SceneryItem s, bool trackHeight = false)
+        => Of(plan, s) is { } def ? new PlacedModel(def, s, MmPerMeter(plan.Gauge), trackHeight ? ModelPlacement.TrackRise(plan, s, def) : null) : null;
 
     /// <summary>Behält im Plan nur die mitgespeicherten Modelle, die noch verwendet werden.</summary>
     public static void Prune(LayoutPlan plan)

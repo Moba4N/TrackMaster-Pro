@@ -8,7 +8,7 @@ Technik: C# / .NET 8 / WPF (`System.Windows.Controls.Ribbon`), aufgebaut wie Gle
 ## Installieren
 
 Unter **Releases** liegen der Windows-Installer `TrackMasterPro-<Version>.msi`, die Android-App
-`TrackMasterPro-<Version>.apk` und das Handbuch `TrackMaster-Pro-Handbuch.pdf`.
+`TrackMasterPro-<Version>.apk` und das Handbuch `TrackMaster-Pro-Handbuch.pdf` (englisch `TrackMaster-Pro-Manual.pdf`).
 
 Der Installer bringt die .NET-Laufzeit mit, legt das Programm unter `C:\Programme\TrackMaster Pro` ab und richtet
 Startmenü- und Desktop-Verknüpfung (mit Handbuch) ein. Neue Versionen installieren sich über die alte;
@@ -18,7 +18,9 @@ Ohne Installation geht es auch: Unter **Actions** das Artefakt **TrackMasterPro-
 `TrackMasterPro.exe` starten (dafür ist die **.NET 8 Desktop Runtime (x64)** nötig).
 
 Das Handbuch entsteht aus den Bildschirmfotos des Builds (Zweig `handbuch-bilder`, neutrale Gleissystem-Namen)
-und liegt unter `docs/TrackMaster-Pro-Handbuch.pdf`; der Installer nimmt es mit.
+und liegt unter `docs/TrackMaster-Pro-Handbuch.pdf`; der Installer nimmt es mit. Jeder Build erzeugt beide PDFs neu
+(Artefakt **Handbuch**, das Release nimmt diese); Builds anderer Zweige als `main` legen sie zum Prüfen zusätzlich in den
+Zweig `handbuch-vorschau`. Anleitung zum Bauen von Hand: `docs/handbuch/LIESMICH.md`.
 
 Eine Plandatei lässt sich direkt öffnen: `TrackMasterPro.exe MeineAnlage.trackmaster.json`.
 
@@ -69,6 +71,7 @@ in der Basisversion erklärt ein Klick darauf, was Pro bietet. Öffnen funktioni
 | Gelände, Gewässer, Gebäude, Vegetation, Tunnel | Holzliste der Gleiswendel mit allen Zuschnitten |
 | Elektrik: Einspeisungen, Trennstellen, Signale, Decoder, Kabelplan | Drucken |
 | 3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung, Öffnen | Export: SVG 1:1, Kabelplan als Text |
+| Ausstattung: 20 Grundmodelle (Tunnelportale, Bahnsteige, Bahnhof, Brücken, Häuser) mit Einrasten am Gleis | Modell-Editor, eigene Modellbibliothek, Import/Export, STL/OBJ |
 
 Die Lizenz wird unter **Datei › Lizenz** eingespielt und liegt dann in `%APPDATA%\TrackMaster Pro\trackmaster.lic`.
 Dort steht auch die **Rechnerkennung**, falls eine Lizenz an einen PC gebunden werden soll.
@@ -106,8 +109,8 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Form und Maße lassen sich später in den Planeigenschaften ändern. Zeichnung, Raster, 3D-Ansicht, SVG-Export und die
   Planprüfung (Gleise über dem Plattenrand bzw. in der offenen Mitte) folgen der Form.
 - Spur wählen (Z, N, TT, H0, H0m, H0e, 0, Spur 1, G) und das Gleissystem des Herstellers:
-  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix ·
-  TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko ·
+  Z: Märklin mini-club · N: Kato Unitrack, Roco/Fleischmann ohne Bettung (222xx) und piccolo mit Bettung (91xx), Minitrix, Peco Streamline Code 55 ·
+  TT: Tillig Modellgleis, Tillig Advance, Tillig Bettungsgleis, Piko, Peco Streamline Code 55 (TT:120) ·
   H0: Märklin C, Trix C, Märklin K, Roco geoLine, Roco Line ohne und mit Bettung, Piko A,
   Tillig Elite, Peco Setrack, Kato Unitrack, Weinert mein Gleis · H0m: Tillig · H0e: Tillig, Kato, Roco ·
   0: Standard · Spur 1: Märklin · G: LGB, Piko.
@@ -115,7 +118,7 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
   Dreiwege-, Bogen- und Y-Weichen, Kreuzungen, EKW, DKW, Gleisverbindungen und Doppelgleise.
   Die Gleisdaten stehen im eigenen Katalog `src/TrackMaster.Core/Gleiskatalog.json`, erfasst nach Herstellerangaben
   (Produktseiten, Kataloge, Anleitungen; Quellen je System, Erzeuger in `tools/katalog`). Bisher so erfasst: Märklin C, K und
-  mini-club, Trix C, Minitrix, Kato Unitrack N, H0 und H0e, Roco/Fleischmann N (ohne Bettung und piccolo), Weinert mein Gleis, Peco Setrack H0, Roco Line ohne und mit Bettung, Roco geoLine, Roco H0e, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
+  mini-club, Trix C, Minitrix, Kato Unitrack N, H0 und H0e, Roco/Fleischmann N (ohne Bettung und piccolo), Weinert mein Gleis, Peco Setrack H0, Peco Streamline Code 55 (N und TT:120), Roco Line ohne und mit Bettung, Roco geoLine, Roco H0e, Piko A, Piko G, Tillig (TT-Modellgleis, Bettungsgleis, Advance, Elite H0, H0m, H0e), LGB und
   Märklin Spur 1. Teile, die es in keinem System mehr gibt, überspringt das Programm beim Öffnen älterer Pläne und meldet
   ihre Anzahl.
   Drehscheiben und Schiebebühnen der Hersteller stehen in einer eigenen Gruppe der Bibliothek. Die Teile stehen je System nach Geraden, Bögen, Weichen, Kreuzungen und Sonstigem, darin nach Artikelnummer.
@@ -156,6 +159,14 @@ bereits ausgestellte Lizenzen gelten dann nicht mehr.
 **Gelände**
 - Höhenflächen und Gewässer als Vielecke zeichnen (Klicks setzen Punkte, Enter schließt, Esc bricht ab).
 - Gebäude aufziehen, Bäume setzen; Name, Größe, Höhe und Drehung im Eigenschaftenfeld.
+
+**Ausstattung**
+- 20 **Grundmodelle** ohne Lizenz: Tunnelportale, Kastenbrücke, Brückenkopf, Stützmauer, Haus- und Mittelbahnsteig, Bahnsteigdach,
+  Wartehäuschen, Empfangsgebäude, Stellwerk, Güterschuppen, Lokschuppen, Bahnübergang, Prellbock, Wohnhaus, Bauernhaus, Scheune.
+  Sie haben Vorbildmaße, erscheinen im Maßstab der Spur und rasten am Gleis ein (Bahnsteige folgen Gleisbögen).
+- **Modell-Editor** (Pro, Windows und Web): Körper wie Quader, Dächer, Gewölbe, Fenster und Türen, freie Grundrisse als Vieleck und
+  Freiformen mit frei ziehbaren Ecken; Draufsicht, Vorder- und Seitenansicht mit 3D-Vorschau.
+- Eigene **Modellbibliothek** (`*.tmmodell`, Sammlungen als ZIP), Export als **STL** und **OBJ**; verwendete Modelle werden im Plan mitgespeichert.
 
 **Elektrik**
 - Einspeisungen und Trennstellen setzen; Stromabschnitte farbig anzeigen.
@@ -227,6 +238,7 @@ src/
   TrackMaster.App           Hauptfenster (TrackMasterPro.exe): Ribbon, Zeichenfläche, Eigenschaften, Dialoge,
                             Drucken, 3D-Ansicht
   TrackMaster.Android       Android-App (APK): Zeichenfläche, Menüband, Gesten, Dialoge, 3D mit OpenGL ES
+  TrackMaster.Web           Webversion (Blazor WebAssembly), nicht in der Projektmappe
 tools/
   TrackMaster.Lizenzverwaltung   Lizenzen ausstellen (Oberfläche)
   TrackMaster.LicenseTool        Lizenzen ausstellen und prüfen (Kommandozeile)

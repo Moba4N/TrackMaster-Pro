@@ -141,6 +141,7 @@ public sealed partial class MainWindow : Window
         {
             if (!ConfirmDiscard() || Dialogs.AskNewPlan(this, Session.Plan.GaugeId) is not { } setup) return;
             Session.NewPlan(setup);
+            if (setup.Benchwork is { Manual: true }) SetTool(CanvasTool.Beam);
             Canvas.Fit();
         });
         Add("open", OpenFile);
@@ -173,6 +174,8 @@ public sealed partial class MainWindow : Window
         Add("toolTree", () => SetTool(CanvasTool.Tree));
         Add("toolLabel", () => SetTool(CanvasTool.Label));
         Add("toolDimension", () => SetTool(CanvasTool.Dimension));
+        Add("toolBeam", () => SetTool(CanvasTool.Beam));
+        Add("addPlate", () => { SetTool(CanvasTool.Select); Session.AddPlate(); });
         Add("toolFeeder", () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", () => SetTool(CanvasTool.Isolation));
         foreach (var t in Enum.GetValues<SignalType>())
@@ -235,6 +238,8 @@ public sealed partial class MainWindow : Window
         Add("language", ChangeLanguage);
         Add("about", () => Dialogs.ShowAbout(this, License));
         Add("update", () => _ = CheckForUpdates(manual: true), () => UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null);
+        Add("autoUpdate", () => UpdateCheck.AutoEnabled = MessageBox.Show(this, UpdateCheck.AutoQuestion, AppFolders.Name, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes,
+            () => UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null);
 
         // Raum, Hintergrundbild, Anordnen, Parallelgleis, Höhenprofil, Rückmelder
         bool Several() => Session.Selection.Count > 1;
@@ -277,10 +282,12 @@ public sealed partial class MainWindow : Window
     /// <summary>Modell für das Werkzeug „Modell einfügen“ wählen; ein zweiter Klick auf dasselbe Modell beendet das Werkzeug.</summary>
     private void SetModelTool(string id)
     {
+        // Gleise gewählt und Brücke, Stützmauer oder Bahnsteig: gleich entlang der Auswahl setzen
+        if (Session.Tool != CanvasTool.Model && Session.PlaceModelOnSelection(id) is not null) { Session.ModelId = id; return; }
         if (Session.Tool == CanvasTool.Model && Session.ModelId == id) { SetTool(CanvasTool.Select); return; }
         Session.ModelId = id;
         SetTool(CanvasTool.Model);
-        if (Session.CurrentModel is { } m) Session.Say(Lang.F($"{m.Name}: in den Plan klicken.") + (m.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")));
+        if (Session.CurrentModel is { } m) Session.Say(Lang.F($"{m.Name}: in den Plan klicken.") + (m.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(m) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : ""));
     }
 
     /// <summary>Menü mit den Modellen einer Kategorie; die Einträge werden beim Öffnen neu aufgebaut (eigene Modelle ändern sich).</summary>
@@ -455,6 +462,7 @@ public sealed partial class MainWindow : Window
     public async Task CheckForUpdates(bool manual)
     {
         if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not { } url) return;
+        if (!manual && !UpdateCheck.AutoEnabled) return;
         var info = await UpdateCheck.FetchAsync(url, TimeSpan.FromSeconds(manual ? 15 : 5));
         var current = typeof(MainWindow).Assembly.GetName().Version;
         if (info is null)
@@ -767,7 +775,7 @@ public sealed partial class MainWindow : Window
         _appMenu.Items.Add(Item(Lang.T("Lizenz…"), "Shield", "license"));
         _appMenu.Items.Add(Item(Lang.T("Darstellung…"), "Palette", "appearance"));
         _appMenu.Items.Add(Item("Sprache / Language…", "Font", "language"));
-        if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null) _appMenu.Items.Add(Item(Lang.T("Nach Updates suchen…"), "Update", "update"));
+        if (UpdateCheck.ConfiguredUrl(typeof(MainWindow).Assembly) is not null) { _appMenu.Items.Add(Item(Lang.T("Nach Updates suchen…"), "Update", "update")); _appMenu.Items.Add(Item(Lang.T("Update-Prüfung beim Start…"), "Update", "autoUpdate")); }
         _appMenu.Items.Add(Item(Lang.T("Über das Programm…"), "Info", "about"));
         _appMenu.FooterPaneContent = new RibbonButton { Label = Lang.T("Beenden"), SmallImageSource = Icons.Get("Exit"), Command = _commands["exit"], HorizontalAlignment = HorizontalAlignment.Right };
         Ribbon.ApplicationMenu = _appMenu;
@@ -828,7 +836,9 @@ public sealed partial class MainWindow : Window
                 Large(Lang.T("Anlage 90° drehen"), "RotateRight", "boardRotate", Lang.T("Ganze Anlage samt Gleisen und Gelände um 90° im Uhrzeigersinn drehen.")),
                 Large(Lang.T("Module…"), "Modules", "modules", Lang.T("Anlage aus Modulen: Module anhängen, verschieben (samt Gleisen) und gespeicherte Pläne als Modul ansetzen.")),
                 ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
-                Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))),
+                Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt.")),
+                ToolToggle(Lang.T("Leiste ziehen"), "Beam", false, CanvasTool.Beam, "toolBeam", Lang.T("Einzelne Holzleiste frei ziehen, z. B. eine Diagonale unter versetzten Modulen und Streben dazu. Anfang und Ende anklicken; Kanten, Ecken und andere Leisten rasten ein.")),
+                Small(Lang.T("Platte auflegen"), "Plate", "addPlate", Lang.T("Deckplatte nach den Maßen der gezeichneten Leisten bzw. des Rahmens auf den Unterbau legen. Lage, Größe und Stärke in mm in den Eigenschaften; verschieben mit Maus oder Pfeiltasten."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),
@@ -1210,7 +1220,7 @@ public sealed partial class MainWindow : Window
             e.Handled = true;
             return;
         }
-        if (!ctrl && Session.Selection.Count > 0 && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+        if (!ctrl && Session.CanNudge && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
         {
             var step = shift ? 10 : 1;
             var dx = e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0;

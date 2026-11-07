@@ -36,6 +36,11 @@ public sealed class BenchworkSpec
     /// <summary>Höhenverstellbare Stellfüße unter den Beinen.</summary>
     public bool Feet { get; set; } = true;
     public double FootHeight { get; set; } = 30;
+    /// <summary>
+    /// Rahmen selbst zeichnen: kein berechneter Rahmen, keine Beine und Traversen; Zargen, Querriegel, Diagonalen und Streben
+    /// kommen als Leisten aus dem Plan (<see cref="SceneryKind.Beam"/>), die Deckplatte bleibt.
+    /// </summary>
+    public bool Manual { get; set; }
     /// <summary>Handelslänge der Latten und Kanthölzer.</summary>
     public double StockLength { get; set; } = 2500;
     /// <summary>Plattenformat der Deckplatte.</summary>
@@ -52,7 +57,30 @@ public sealed class BenchworkSpec
     public string FrameSection => $"{Fmt.Num(FrameThickness, 0)} × {Fmt.Num(FrameHeight, 0)}";
 }
 
-public enum BenchKind { Zarge, Querriegel, Bein, Traverse, Platte }
+/// <summary>Vorlage für den Rahmenbau: Name, kurze Beschreibung und die Maße je Spur.</summary>
+public sealed record BenchTemplate(string Id, string Name, string Description, Func<Gauge, BenchworkSpec> Spec)
+{
+    /// <summary>Vorlagen für den Rahmenbau beim Anlegen eines Plans und im Dialog Unterbau (bei jedem Aufruf neu, damit die Sprache stimmt).</summary>
+    public static IReadOnlyList<BenchTemplate> All =>
+    [
+        new("platte", Lang.T("Rahmen mit Deckplatte"), Lang.T("Zargen und Querriegel unter einer Sperrholzplatte, Kanthölzer als Beine mit Fußtraversen – der übliche Anlagentisch."),
+            g => BenchworkSpec.Defaults(g)),
+        new("offen", Lang.T("Offener Rahmen (Spantenbau)"), Lang.T("Rahmen ohne Deckplatte, Querriegel enger; die Trassen kommen auf Spanten (Gleise › Spantenbau). Für Landschaft mit Höhen und Tiefen."),
+            g => { var s = BenchworkSpec.Defaults(g); s.TopThickness = 0; s.CrossSpacing = Math.Min(s.CrossSpacing, 400); return s; }),
+        new("lbein", Lang.T("L-Bein-Gestell"), Lang.T("Beine aus zwei verleimten Latten: leicht und sehr steif, gut für große, frei stehende Anlagen."),
+            g => { var s = BenchworkSpec.Defaults(g); s.LegStyle = BenchLegStyle.LBein; s.LegSpacing = Math.Max(s.LegSpacing, 1500); return s; }),
+        new("modul", Lang.T("Ausstellungsmodul (1.300 mm hoch)"), Lang.T("Leichter Modulkasten mit hohem Rahmen und Kantholzbeinen, Oberkante 1.300 mm wie bei vielen Modulnormen; ohne Fußtraversen."),
+            g => { var s = BenchworkSpec.Defaults(g); s.Height = 1300; s.FrameThickness = 16; s.FrameHeight = 100; s.CrossSpacing = 400; s.LegWidth = 45; s.LegDepth = 45; s.LegSpacing = 1000; s.Braces = false; return s; }),
+    ];
+
+    public static BenchTemplate? Find(string? id) => All.FirstOrDefault(t => t.Id == id);
+
+    /// <summary>Platte ohne berechneten Rahmen: den Rahmen zieht man selbst mit Leisten.</summary>
+    public static BenchworkSpec Manual(Gauge g) { var s = BenchworkSpec.Defaults(g); s.Manual = true; return s; }
+}
+
+/// <summary>Art eines Holzteils; <see cref="Leiste"/> = frei gezogene Leiste (Diagonale, Strebe) aus dem Plan.</summary>
+public enum BenchKind { Zarge, Querriegel, Bein, Traverse, Platte, Leiste }
 
 /// <summary>Ein Holzteil als achsparalleler Quader (x, y wie im Plan, z nach oben, 0 = Oberkante Platte).</summary>
 public sealed record BenchPiece(BenchKind Kind, string Section, double Length, double X0, double Y0, double Z0, double X1, double Y1, double Z1);
@@ -106,6 +134,7 @@ public static class Benchwork
         BenchKind.Querriegel => Lang.T("Querriegel"),
         BenchKind.Bein => Lang.T("Bein"),
         BenchKind.Traverse => Lang.T("Fußtraverse"),
+        BenchKind.Leiste => Lang.T("Leiste"),
         _ => Lang.T("Deckplatte"),
     };
 
@@ -174,9 +203,12 @@ public static class Benchwork
             Add(BenchKind.Bein, $"{Fmt.Num(t, 0)} × {Fmt.Num(s.LegDepth - t, 0)}", x0, y0 + t, zLegBottom, x0 + t, y1, zTop);
         }
 
+        var plates = plan.Scenery.Where(x => x.IsPlate).ToList();
         foreach (var r in rects)
         {
             double w = r.X1 - r.X0, d = r.Y1 - r.Y0;
+            // Rahmen selbst gezeichnet: kein Rahmen, die Deckplatte legt man mit „Platte auflegen“ auf
+            if (s.Manual) continue;
             if (w < 2 * t + 1 || d < 2 * t + 1) continue;
             var alongX = w >= d;
             // In Längsrichtung (u) und Querrichtung (v) rechnen, dann zurück in x, y
@@ -238,8 +270,21 @@ public static class Benchwork
                 var vm = (v0 + v1) / 2;
                 Box(BenchKind.Traverse, frameSection, positions[0] + legU, vm - t / 2, zb + s.FrameHeight, positions[^1], vm + t / 2, zb + 2 * s.FrameHeight);
             }
-            if (s.TopThickness > 0)
+            if (s.TopThickness > 0 && !plates.Any())
                 Box(BenchKind.Platte, $"{Fmt.Num(s.TopThickness, 0)} mm", u0, v0, zTop, u1, v1, 0);
+        }
+
+        // Aufgelegte Deckplatten ersetzen die Deckplatte des Rahmens
+        foreach (var p in plates)
+            pieces.Add(new BenchPiece(BenchKind.Platte, $"{Fmt.Num(PlateLayout.Thickness(p), 0)} mm", Math.Round(Math.Max(p.Width, p.Depth)),
+                p.X, p.Y, p.Height - PlateLayout.Thickness(p), p.X + p.Width, p.Y + p.Depth, p.Height));
+
+        // Frei gezogene Leisten (Diagonale, Streben): im 3D-Bild gedreht gezeichnet, hier nur für Zuschnitt und Material
+        foreach (var beam in plan.Scenery.Where(x => x.IsBeam && x.Points.Count == 2))
+        {
+            var o = BeamLayout.Outline(beam);
+            pieces.Add(new BenchPiece(BenchKind.Leiste, BeamLayout.Section(beam), Math.Round(BeamLayout.Length(beam)),
+                o.Min(q => q.X), o.Min(q => q.Y), beam.Height - beam.Depth, o.Max(q => q.X), o.Max(q => q.Y), beam.Height));
         }
 
         // Zuschnitt
@@ -264,24 +309,30 @@ public static class Benchwork
         var tops = pieces.Where(p => p.Kind == BenchKind.Platte).ToList();
         if (tops.Count > 0)
         {
-            var area = tops.Sum(p => (p.X1 - p.X0) * (p.Y1 - p.Y0)) / 1e6;
-            var sheets = Sheets(tops.Select(p => (p.X1 - p.X0, p.Y1 - p.Y0)).ToList(), s.SheetWidth, s.SheetDepth);
-            materials.Add(new BenchMaterial(Lang.T("Sperrholzplatte"), Lang.F($"{Fmt.Num(s.TopThickness, 0)} mm, {Fmt.Num(s.SheetWidth, 0)} × {Fmt.Num(s.SheetDepth, 0)} mm"), sheets, Lang.T("Stück"),
-                Lang.F($"{Fmt.Num(area, 2)} m² Plattenfläche")));
+            foreach (var byThickness in tops.GroupBy(p => p.Section).OrderBy(g => g.Key))
+            {
+                var sheets = Sheets(byThickness.Select(p => (p.X1 - p.X0, p.Y1 - p.Y0)).ToList(), s.SheetWidth, s.SheetDepth);
+                var part = byThickness.Sum(p => (p.X1 - p.X0) * (p.Y1 - p.Y0)) / 1e6;
+                materials.Add(new BenchMaterial(Lang.T("Sperrholzplatte"), Lang.F($"{byThickness.Key}, {Fmt.Num(s.SheetWidth, 0)} × {Fmt.Num(s.SheetDepth, 0)} mm"), sheets, Lang.T("Stück"),
+                    Lang.F($"{Fmt.Num(part, 2)} m² Plattenfläche")));
+            }
             foreach (var p in tops.Where(p => Math.Max(p.X1 - p.X0, p.Y1 - p.Y0) > Math.Max(s.SheetWidth, s.SheetDepth) || Math.Min(p.X1 - p.X0, p.Y1 - p.Y0) > Math.Min(s.SheetWidth, s.SheetDepth)))
                 notes.Add(Lang.F($"Deckplatte {Fmt.Num(p.X1 - p.X0, 0)} × {Fmt.Num(p.Y1 - p.Y0, 0)} mm ist größer als das Plattenformat: über einem Querriegel stoßen."));
         }
         var legCount = legs.Count;
-        var frameJoints = pieces.Count(p => p.Kind is BenchKind.Querriegel) + pieces.Count(p => p.Kind == BenchKind.Zarge) / 2;
+        var frameJoints = pieces.Count(p => p.Kind is BenchKind.Querriegel) + pieces.Count(p => p.Kind == BenchKind.Zarge) / 2 + pieces.Count(p => p.Kind == BenchKind.Leiste);
         var braces = pieces.Count(p => p.Kind == BenchKind.Traverse);
-        var topScrews = tops.Count == 0 ? 0 : (int)Math.Ceiling(pieces.Where(p => p.Kind is BenchKind.Zarge or BenchKind.Querriegel).Sum(p => p.Length) / 200);
+        var topScrews = tops.Count == 0 ? 0 : (int)Math.Ceiling(pieces.Where(p => p.Kind is BenchKind.Zarge or BenchKind.Querriegel or BenchKind.Leiste).Sum(p => p.Length) / 200);
         materials.Add(new BenchMaterial(Lang.T("Holzschrauben"), "4 × 50 mm", Round10(frameJoints * 4 + braces * 4 + (s.LegStyle == BenchLegStyle.LBein ? legCount * Math.Ceiling(legLength / 150) : 0)), Lang.T("Stück"), Lang.T("Rahmen, Traversen, L-Beine")));
         materials.Add(new BenchMaterial(Lang.T("Schlossschrauben mit Mutter"), "M8 × 80 mm", legCount * 2, Lang.T("Stück"), Lang.T("Beine an der Zarge")));
         if (topScrews > 0) materials.Add(new BenchMaterial(Lang.T("Spanplattenschrauben"), "3,5 × 30 mm", Round10(topScrews), Lang.T("Stück"), Lang.T("Deckplatte, alle 20 cm")));
         if (s.Feet) materials.Add(new BenchMaterial(Lang.T("Stellfüße"), Lang.F($"M8, {Fmt.Num(s.FootHeight, 0)} mm"), legCount, Lang.T("Stück"), Lang.T("mit Einschlagmutter")));
         materials.Add(new BenchMaterial(Lang.T("Holzleim"), "D3", Math.Max(1, Math.Ceiling(pieces.Count / 60.0)), Lang.T("Flasche"), ""));
 
-        notes.Insert(0, Lang.F($"Plattenteile: {rects.Count}, Beine: {legCount} je {Fmt.Num(legLength, 0)} mm lang, Oberkante {Fmt.Num(s.Height, 0)} mm über dem Boden."));
+        materials.RemoveAll(m => m.Quantity <= 0);
+        notes.Insert(0, s.Manual
+            ? Lang.F($"Rahmen selbst gezeichnet: {plan.Scenery.Count(x => x.IsBeam)} Leisten (Gelände › Leiste ziehen), {plates.Count} Deckplatten (Gelände › Platte auflegen), Oberkante {Fmt.Num(s.Height, 0)} mm über dem Boden.")
+            : Lang.F($"Plattenteile: {rects.Count}, Beine: {legCount} je {Fmt.Num(legLength, 0)} mm lang, Oberkante {Fmt.Num(s.Height, 0)} mm über dem Boden."));
         if (s.TopThickness == 0) notes.Add(Lang.T("Ohne Deckplatte: offene Rahmenbauweise, Trassen kommen auf die Querriegel (siehe Spantenbau)."));
         return new BenchworkPlan(s.Clone(), pieces, cuts, materials, notes);
     }

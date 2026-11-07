@@ -460,7 +460,8 @@ public sealed class PlanView : View
             if (o.Count == 0 || (o.Max(p => p.X) - o.Min(p => p.X)) * _zoom < Ui.Dp(60)) continue;
             var (cx, cy) = s.Center();
             var p = ToScreen(cx, cy);
-            DrawTag(c, s.Kind is SceneryKind.Water or SceneryKind.Obstacle ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
+            DrawTag(c, s.IsBeam ? $"{s.Name} · {Fmt.Num(BeamLayout.Length(s), 0)} mm" : s.IsPlate ? $"{s.Name} · {PlateLayout.Size(s)} mm"
+                : s.Kind is SceneryKind.Water or SceneryKind.Obstacle ? s.Name : $"{s.Name} · {Fmt.Num(s.Height, 0)} mm", p.X, p.Y, Ui.TextSecondary, 10);
         }
     }
 
@@ -615,6 +616,7 @@ public sealed class PlanView : View
             }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, Ui.Dp(14) / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
     }
@@ -622,7 +624,8 @@ public sealed class PlanView : View
     private int? HitArea((double X, double Y) world)
         => (_session.ShowScenery
             ? _session.View.Scenery.Where(s => s.IsArea).OrderByDescending(s => s.Kind == SceneryKind.Water).ThenByDescending(s => s.Height).FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id
-            : null) ?? HitRoom(world);
+            : null) ?? HitRoom(world)
+            ?? _session.View.Scenery.Where(s => s.IsPlate).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
 
     /// <summary>Raumelement unter dem Finger oder Wand eines Raums (nach Gleisen und Gelände).</summary>
     private int? HitRoom((double X, double Y) world)
@@ -778,7 +781,7 @@ public sealed class PlanView : View
             case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Model:
+            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Model:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:
@@ -887,6 +890,12 @@ public sealed class PlanView : View
                 var snap = Annotation.Snap(_session.View, world.X, world.Y, Ui.Dp(22) / _zoom);
                 if (_dimStart is not { } from) { _dimStart = snap; _session.Say(Lang.T("Maß: jetzt den zweiten Punkt antippen (Gleisenden und Plattenecken rasten ein).")); }
                 else if (Math.Abs(snap.X - from.X) + Math.Abs(snap.Y - from.Y) > 1) { _dimStart = null; _session.AddDimension(from, snap); }
+                Invalidate();
+                return;
+            case CanvasTool.Beam:
+                var bsnap = BeamLayout.Snap(_session.View, world.X, world.Y, Ui.Dp(22) / _zoom, _dimStart);
+                if (_dimStart is not { } bfrom) { _dimStart = bsnap; _session.Say(Lang.T("Leiste: jetzt das Ende antippen. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste.")); }
+                else if (Math.Abs(bsnap.X - bfrom.X) + Math.Abs(bsnap.Y - bfrom.Y) > 1) { _dimStart = null; _session.AddBeam(bfrom, bsnap); }
                 Invalidate();
                 return;
             case CanvasTool.Feeder:

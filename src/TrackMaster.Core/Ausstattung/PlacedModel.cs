@@ -1,5 +1,18 @@
 namespace TrackMaster.Core;
 
+/// <summary>Wie ein Modell der Gleishöhe folgt.</summary>
+public enum TrackHeightMode
+{
+    /// <summary>Gar nicht (freie Modelle: auf Gelände, Modul und Ebene).</summary>
+    None,
+    /// <summary>Wächst nach oben mit, die Grundfläche bleibt am Boden (Stützmauer, Bahnsteig, Tunnelportal).</summary>
+    Stretch,
+    /// <summary>Steht als Ganzes auf Gleishöhe (Lokschuppen, Bahnübergang, Prellbock).</summary>
+    Lift,
+    /// <summary>Reicht vom Boden bis unter das Gleis (Brücke).</summary>
+    Top,
+}
+
 /// <summary>Fläche oder Linie eines Modells im Gleisplan (Weltkoordinaten in mm).</summary>
 public sealed record ModelPlanShape(IReadOnlyList<(double X, double Y)> Points, Rgb Color, bool Closed);
 
@@ -13,12 +26,17 @@ public sealed class PlacedModel
     public ModelDefinition Def { get; }
     public SceneryItem Item { get; }
     private readonly double _x0, _x1, _cx, _cy, _sx, _sy, _sz;
+    private readonly double _h;
+    /// <summary>Gleishöhe über dem Boden: je Stützpunkt der Linie oder ein Wert für das ganze Modell (leer = kein Gleisbezug).</summary>
+    private readonly double[] _rise = [];
+    private readonly TrackHeightMode _mode;
     private readonly IReadOnlyList<(double X, double Y)> _path;
     private readonly double[] _along = [];
     private readonly (double X, double Y)[] _normals = [];
 
-    public PlacedModel(ModelDefinition def, SceneryItem item, double mmPerMeter)
+    public PlacedModel(ModelDefinition def, SceneryItem item, double mmPerMeter, double[]? rise = null)
     {
+        _mode = rise is { Length: > 0 } ? ModelPlacement.ModeOf(def) : TrackHeightMode.None;
         Def = def;
         Item = item;
         var b = def.Bounds();
@@ -28,7 +46,11 @@ public sealed class PlacedModel
         _sx = item.Width > 0 ? item.Width / w : mmPerMeter;
         _sy = item.Depth > 0 ? item.Depth / d : mmPerMeter;
         _sz = item.Height > 0 ? item.Height / h : mmPerMeter;
+        _h = Math.Max(h, 1e-9);
         _path = item.Points.Count >= 2 ? item.Points : [];
+        // je Stützpunkt (gebogen), gleichmäßig entlang der Länge (gerade) oder ein Wert
+        if (_mode != TrackHeightMode.None && (rise!.Length == 1 || (_path.Count >= 2 ? rise.Length == _path.Count : rise.Length >= 2))) _rise = rise;
+        else _mode = TrackHeightMode.None;
         if (_path.Count >= 2)
         {
             _along = new double[_path.Count];
@@ -78,6 +100,46 @@ public sealed class PlacedModel
 
     public double MapZ(double z) => z * _sz;
 
+    /// <summary>
+    /// Höhe eines Modellpunkts (Meter) über dem Boden in mm. Folgt das Modell der Gleishöhe, wächst es dort nach oben:
+    /// die Grundfläche bleibt am Boden, alles darüber hebt sich um die Gleishöhe an dieser Stelle.
+    /// </summary>
+    public double MapZ(double x, double z)
+    {
+        if (_mode == TrackHeightMode.None) return z * _sz;
+        var r = RiseAt(x);
+        return _mode switch
+        {
+            // Mauer, Bahnsteig, Portal: unten am Boden, alles darüber um die Gleishöhe angehoben
+            TrackHeightMode.Stretch => z <= 1e-9 ? 0 : z * _sz + r,
+            // Lokschuppen, Bahnübergang, Prellbock: steht auf Gleishöhe
+            TrackHeightMode.Lift => z * _sz + r,
+            // Brücke: reicht vom Boden bis unter das Gleis
+            TrackHeightMode.Top => r > 1 ? z / _h * r : z * _sz,
+            _ => z * _sz,
+        };
+    }
+
+    /// <summary>Gleishöhe über dem Boden an der Modellstelle x (Meter).</summary>
+    public double RiseAt(double x)
+    {
+        if (_rise.Length == 0) return 0;
+        if (_rise.Length == 1) return _rise[0];
+        var f = Math.Clamp((x - _x0) / Math.Max(_x1 - _x0, 1e-9), 0, 1);
+        if (!Bent || _rise.Length != _path.Count)
+        {
+            var u = f * (_rise.Length - 1);
+            var j = Math.Min((int)u, _rise.Length - 2);
+            return _rise[j] + (_rise[j + 1] - _rise[j]) * (u - j);
+        }
+        var s = f * _along[^1];
+        var i = Array.BinarySearch(_along, s);
+        if (i < 0) i = ~i - 1;
+        i = Math.Clamp(i, 0, _path.Count - 2);
+        var t = (s - _along[i]) / Math.Max(_along[i + 1] - _along[i], 1e-9);
+        return _rise[i] + (_rise[i + 1] - _rise[i]) * t;
+    }
+
     /// <summary>Größte Länge eines Dreiecks entlang x, bevor es zum Biegen geteilt wird (Meter).</summary>
     private double BendStep
     {
@@ -96,7 +158,7 @@ public sealed class PlacedModel
         foreach (var (color, kind, t) in ModelMesh.Triangles(Def, main))
             foreach (var p in Bent ? Split(t, step) : [t])
             {
-                (double, double, double) W((double X, double Y, double Z) q) { var (x, y) = Map(q.X, q.Y); return (x, y, ground + MapZ(q.Z)); }
+                (double, double, double) W((double X, double Y, double Z) q) { var (x, y) = Map(q.X, q.Y); return (x, y, ground + MapZ(q.X, q.Z)); }
                 yield return (color, kind, W(p.A), W(p.B), W(p.C));
             }
     }

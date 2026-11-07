@@ -42,9 +42,9 @@ $jetzt = gmdate('c');
 
 try {
     $ergebnis = tm_daten_aendern(function (array &$daten) use ($aktion, $id, $lizenz, $geraet, $plattform, $name, $version, $jetzt) {
-        $e = $daten[$id] ?? ['inhaber' => '', 'email' => '', 'geraete' => [], 'abgelehnt' => [], 'gesperrt' => false];
+        // Gespeichert wird nur, was zum Einhalten der Geräteanzahl nötig ist (keine E-Mail-Adresse, keine IP-Adresse)
+        $e = $daten[$id] ?? ['inhaber' => '', 'geraete' => [], 'abgelehnt' => [], 'gesperrt' => false];
         $e['inhaber'] = tm_text((string)($lizenz['licensee'] ?? ''), 120);
-        $e['email'] = tm_text((string)($lizenz['email'] ?? ''), 120);
         $max = tm_max_geraete($id, $e);
 
         if ($aktion === 'release') {

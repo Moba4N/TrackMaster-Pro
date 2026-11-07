@@ -17,7 +17,8 @@ public partial class App
     private View3DMode _mode3D;
     private LayoutPlan? _plan3D;
     private bool _riding, _trainOn;
-    private bool _scenery3D = true, _piers3D;
+    private bool _scenery3D = true, _piers3D, _tunnels3D = true;
+    private Func<double, double, bool>? _tunnelMask;
     private Train3D? _train;
     private readonly Dictionary<int, int> _routes = [];
     private RidePath? _path;
@@ -34,6 +35,7 @@ public partial class App
     {
         _plan3D = _session.View;
         _mode3D = mode;
+        _tunnelMask = _tunnels3D ? null : Scene3DModel.TunnelMask(_plan3D);
         _startPiece = _session.SelectedPieces.FirstOrDefault()?.Id;
         _routes.Clear();
         _path = null;
@@ -60,7 +62,7 @@ public partial class App
         }
         try
         {
-            var model = new Scene3DModel(plan, _scenery3D, _piers3D);
+            var model = new Scene3DModel(plan, _scenery3D, _piers3D, _tunnels3D);
             var (data, meta) = ToData(model.Meshes);
             Js.GlSetMeshes(data, meta, false);
             _train = new Train3D(plan);
@@ -91,11 +93,20 @@ public partial class App
         Rebuild3D();
     }
 
+    /// <summary>Tunnelstrecken zeigen oder ausblenden (auch den Zug darin).</summary>
+    private void ToggleTunnels3D()
+    {
+        if (_plan3D is null) return;
+        _tunnels3D = !_tunnels3D;
+        _tunnelMask = _tunnels3D ? null : Scene3DModel.TunnelMask(_plan3D);
+        Rebuild3D();
+    }
+
     private void Rebuild3D()
     {
         try
         {
-            var (data, meta) = ToData(new Scene3DModel(_plan3D!, _scenery3D, _piers3D).Meshes);
+            var (data, meta) = ToData(new Scene3DModel(_plan3D!, _scenery3D, _piers3D, _tunnels3D).Meshes);
             Js.GlSetMeshes(data, meta, false);
         }
         catch (Exception e)
@@ -276,7 +287,7 @@ public partial class App
         }
         else if (_trainOn && _train is not null)
         {
-            var (data, meta) = ToData(_train.Build(path, _position));
+            var (data, meta) = ToData(_train.Build(path, _position, _tunnelMask));
             Js.GlSetMeshes(data, meta, true);
         }
         _sinceStatus += dt;

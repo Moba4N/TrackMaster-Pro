@@ -10,7 +10,7 @@
   @page :first { margin: 0; }
   :root { --accent: #437E1E; --accent-soft: #EEF5E4; --logo: #76AD33; --logo-dark: #1F2428; --text: #1F2328; --muted: #5B6470; --line: #D8DEE6; --warn: #8A5A00; --warn-soft: #FFF6E0; --pro: #437E1E; }
   * { box-sizing: border-box; }
-  html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
+  html { font-family: "Segoe UI", Inter, "Noto Sans", "DejaVu Sans", Arial, sans-serif; color: var(--text); font-size: 10.2pt; line-height: 1.5; }
   body { margin: 0; }
   h1, h2, h3 { color: var(--text); line-height: 1.25; font-weight: 600; }
   h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 3mm; border-bottom: 2.5pt solid var(--accent); break-before: page; }
@@ -113,6 +113,7 @@ Anlage und sehen sich das Ergebnis in 3D an – bevor die erste Schiene gekauft 
   <li><b>Höhenplanung:</b> Steigungen über ganze Gleisfolgen, Gleiswendeln rund oder oval, ein- oder zweigleisig.</li>
   <li><b>Holzliste für die Gleiswendel:</b> alle Zuschnitte mit Randaufmaß und Sägezugabe, Stützen, Schrauben und Plattenbedarf.</li>
   <li><b>Landschaft:</b> Hügel und Berge, Gewässer, Gebäude, Bäume und Tunnel.</li>
+  <li><b>Ausstattung:</b> 20 Grundmodelle – Tunnelportale, Bahnsteige, die Gleisbögen folgen, Bahnhöfe, Brücken, Lokschuppen, Häuser –, die am Gleis einrasten; mit Pro eigene Modelle im <b>Modell-Editor</b> und Export als STL/OBJ.</li>
   <li><b>Elektrik und Digital:</b> Einspeisungen, Trennstellen, Stromabschnitte, Kehrschleifen-Erkennung, Lichtsignale mit
     vorbildgerechtem Signalbild, Rückmelder, Decoder-Adressen und Kabelplan.</li>
   <li><b>Raum:</b> das Zimmer mit Wänden, Türen, Fenstern, Heizkörpern und Möbeln um die Anlage – die Prüfung meldet zu schmale Gänge und blockierte Türen.</li>
@@ -138,6 +139,7 @@ Anlage und sehen sich das Ergebnis in 3D an – bevor die erste Schiene gekauft 
   <tr><td>3D-Ansicht mit Mitfahren und Tageszeit, Plan- und Elektrikprüfung</td><td>Export als SVG im Maßstab 1:1, Kabelplan als Textdatei</td></tr>
   <tr><td>Raum mit Türen, Fenstern und Möbeln, Hintergrundbild</td><td>Stückliste mit Preisen, Bestand, „noch zu kaufen“ und Preisliste</td></tr>
   <tr><td>Parallelgleis, Höhenprofil, Sperren, Gruppieren, Ausrichten, Rückmelder</td><td>Export als PNG-Bild und als DXF-Zeichnung für CAD-Programme</td></tr>
+  <tr><td>Ausstattung: 20 Grundmodelle mit Einrasten am Gleis, im Plan mitgespeicherte Modelle</td><td>Modell-Editor, eigene Modellbibliothek, Import, Export als STL und OBJ</td></tr>
   <tr><td>Gleispläne öffnen</td><td></td></tr>
 </table>
 <p>Pro-Funktionen sind im Programm gekennzeichnet: im Tooltip als „Pro-Funktion“, in der Android-App mit einem Schloss.
@@ -147,7 +149,7 @@ Wählen Sie in der Basisversion eine Pro-Funktion, erklärt ein Hinweis, was Pro
 <div class="tip"><b>Zum ersten Mal dabei?</b>Dann beginnen Sie mit Kapitel <a href="#ke">4</a> „Erste Schritte für Einsteiger“. Es erklärt die Grundbegriffe
 und führt Sie in zehn Schritten zu Ihrer ersten Anlage. Die übrigen Kapitel können Sie danach einzeln nachschlagen, wenn Sie eine Funktion brauchen.</div>
 <p>Das Handbuch beschreibt die Windows-Version. Die Android-App und die Webversion funktionieren genauso; was dort anders ist – vor allem die
-Bedienung mit dem Finger – steht in Kapitel <a href="#k13">16</a>, die Webversion in Kapitel <a href="#k2">2</a>. Befehle aus dem Menüband sind als
+Bedienung mit dem Finger – steht in Kapitel <a href="#k13">17</a>, die Webversion in Kapitel <a href="#k2">2</a>. Befehle aus dem Menüband sind als
 <span class="ui">Register › Befehl</span> geschrieben, zum Beispiel <span class="ui">Gleise › Gleiswendel</span>. Tasten sehen so aus: <kbd>Strg</kbd>+<kbd>S</kbd>.</p>
 <div class="tip"><b>Tipp</b>Hinweise wie dieser zeigen Abkürzungen und bewährte Vorgehensweisen.</div>
 <div class="warn"><b>Achtung</b>So gekennzeichnete Hinweise sollten Sie vor dem Bau beachten.</div>
@@ -230,6 +232,8 @@ danach kommt sie aus dem Zwischenspeicher des Browsers.</p>
   <li><b>3D-Ansicht:</b> braucht WebGL. Meldet der Browser, dass er keine 3D-Grafik anzeigen kann, schalten Sie die Hardwarebeschleunigung ein.</li>
   <li><b>Planvorschlag:</b> Nur in der Webversion baut <span class="ui">Gleise › Planvorschlag…</span> aus Ihrem Gleisbestand kleine Anlagen (siehe <a href="#k6-7">Planvorschlag</a> in Kapitel 8).</li>
   <li><b>Drucken und Exporte</b> werden als Datei heruntergeladen bzw. über den Druckdialog des Browsers ausgegeben.</li>
+  <li><b>Eigene Modelle</b> <span class="badge">PRO</span> liegen wie die Lizenz nur in diesem Browser. Sichern Sie sie ab und zu mit
+    <span class="ui">Ausstattung › Bibliothek… › Alle exportieren (ZIP)…</span> (siehe <a href="#ka-3">Kapitel 11</a>).</li>
 </ul>
 <p>Ist die Webversion in eine Webseite eingebunden, führt der Knopf <span class="ui">Startseite</span> oben links in der Titelleiste zurück zur Startseite dieser Webseite.</p>
 </section>
@@ -287,7 +291,7 @@ und keine Lizenz – alles klappt in der Basisversion.</p>
 <p>Ein Gleisplan ist eine Zeichnung Ihrer Anlage von oben, im richtigen Maßstab. Er wird aus einzelnen <b>Gleisstücken</b> zusammengesetzt –
 genau wie die echte Anlage aus gekauften Gleisen. Diese Wörter begegnen Ihnen ständig:</p>
 <figure class="half">
-<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
+<svg viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:0.6pt solid #D8DEE6;border-radius:2mm;background:#FBFCF8" font-family="Segoe UI, Inter, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="12">
   <rect x="10" y="10" width="500" height="230" rx="8" fill="#F4F0E6" stroke="#C9BFA7"/>
   <g stroke="#3B4148" stroke-width="7" fill="none" stroke-linecap="butt">
     <line x1="40" y1="170" x2="160" y2="170"/>
@@ -343,7 +347,7 @@ und <span class="ui">Start › Verlauf…</span> springt sogar 20 Schritte auf e
 
 <h2 id="ke-3">Wo finde ich was?</h2>
 <p>Alle Befehle liegen oben im <b>Menüband</b>. Es ist in <b>Register</b> geteilt – das sind die Reiter <span class="ui">Start</span>, <span class="ui">Gleise</span>,
-<span class="ui">Gelände</span>, <span class="ui">Raum</span>, <span class="ui">Elektrik</span>, <span class="ui">Ansicht</span> und <span class="ui">3D</span>. Ein Klick auf einen Reiter zeigt
+<span class="ui">Gelände</span>, <span class="ui">Ausstattung</span>, <span class="ui">Raum</span>, <span class="ui">Elektrik</span>, <span class="ui">Ansicht</span> und <span class="ui">3D</span>. Ein Klick auf einen Reiter zeigt
 seine Knöpfe. Ganz links liegt der Knopf <span class="ui">Datei</span> mit Neu, Öffnen, Speichern und Drucken. Wenn das Handbuch
 <span class="ui">Gleise › Steigung…</span> schreibt, heißt das: Reiter <span class="ui">Gleise</span> anklicken, dann den Knopf <span class="ui">Steigung…</span>.</p>
 <p>Links liegt die <b>Gleisbibliothek</b> mit allen Gleisstücken, in der Mitte die <b>Zeichenfläche</b> mit Ihrem Plan und rechts die <b>Eigenschaften</b>:
@@ -396,9 +400,9 @@ so dreht sich das zuletzt gesetzte Gleis um. Liegt ein Gleis daneben, ziehen Sie
   <li>Eine Platte in L- oder U-Form, Module oder den Holzunterbau planen: Kapitel <a href="#kp">7</a>.</li>
   <li>Mehr über Gleise, Flexgleis, Parallelgleise und Ausrichten: Kapitel <a href="#k6">8</a>.</li>
   <li>Strecken ansteigen lassen, eine zweite Ebene oder eine Gleiswendel bauen: Kapitel <a href="#k7">9</a>.</li>
-  <li>Berge, Seen, Häuser und Bäume: Kapitel <a href="#k8">10</a>. Die Anlage in Ihr Zimmer einpassen: Kapitel <a href="#kr">11</a>.</li>
-  <li>Strom, Signale und Digitalsteuerung: Kapitel <a href="#k9">12</a>.</li>
-  <li>Einkaufsliste mit Preisen, Ausdruck in Originalgröße: Kapitel <a href="#k12">15</a>.</li>
+  <li>Berge, Seen, Häuser und Bäume: Kapitel <a href="#k8">10</a>. Die Anlage in Ihr Zimmer einpassen: Kapitel <a href="#kr">12</a>.</li>
+  <li>Strom, Signale und Digitalsteuerung: Kapitel <a href="#k9">13</a>.</li>
+  <li>Einkaufsliste mit Preisen, Ausdruck in Originalgröße: Kapitel <a href="#k12">16</a>.</li>
 </ul>
 <p>Der <b>Beispielplan</b> (<span class="ui">Datei › Beispielplan laden</span>) zeigt eine fertige Anlage mit Bahnhof, Gelände und Signalen. Schauen Sie ihn sich an
 und klicken Sie auf einzelne Teile – die Eigenschaften rechts verraten, wie alles gemacht ist.</p>
@@ -411,7 +415,7 @@ und klicken Sie auf einzelne Teile – die Eigenschaften rechts verraten, wie al
 <p>Das Hauptfenster ist in sechs Bereiche geteilt:</p>
 <table>
   <tr><th style="width:26%">Bereich</th><th>Aufgabe</th></tr>
-  <tr><td><b>Menüband</b> (oben)</td><td>Alle Befehle, geordnet in den Registern Start, Gleise, Gelände, Raum, Elektrik, Ansicht und 3D. Über <span class="ui">Datei</span> erreichen Sie Neu, Öffnen, Speichern, Stückliste, Export, Drucken, Beispielplan und Lizenz. Die Schnellzugriffsleiste ganz oben links enthält Speichern, Rückgängig, Wiederholen und den Verlauf.</td></tr>
+  <tr><td><b>Menüband</b> (oben)</td><td>Alle Befehle, geordnet in den Registern Start, Gleise, Gelände, Ausstattung, Raum, Elektrik, Ansicht und 3D. Über <span class="ui">Datei</span> erreichen Sie Neu, Öffnen, Speichern, Stückliste, Export, Drucken, Beispielplan und Lizenz. Die Schnellzugriffsleiste ganz oben links enthält Speichern, Rückgängig, Wiederholen und den Verlauf.</td></tr>
   <tr><td><b>Gleisbibliothek</b> (links)</td><td>Gleissystem wählen, Gleise suchen und nach Art filtern (Gerade, Bögen, Weichen, Kreuzungen, Sonstige). Ein Klick setzt das Gleis an, Ziehen legt es frei ab.</td></tr>
   <tr><td><b>Zeichenfläche</b> (Mitte)</td><td>Der Gleisplan auf der Anlagenplatte, mit Maßketten, Raster und den offenen Gleisenden. Unten rechts lässt sich der Zoom einstellen.</td></tr>
   <tr><td><b>Eigenschaften</b> (rechts)</td><td>Zeigt, was gerade gewählt ist: den Plan mit Plattenmaßen und Übersicht, ein Gleis mit Position, Höhe und Digitaladresse oder ein Objekt wie Gebäude, Signal oder Einspeisung. Werte lassen sich direkt eintragen.</td></tr>
@@ -483,10 +487,18 @@ Dazu kommen die Gruppen <b>Drehen</b> und <b>Darstellung</b> (siehe oben) sowie 
   <li>Wählen Sie <span class="ui">Datei › Neu</span> (<kbd>Strg</kbd>+<kbd>N</kbd>).</li>
   <li>Wählen Sie die <b>Spur</b>.</li>
   <li>Wählen Sie die <b>Form der Anlagenplatte</b> und tragen Sie die Maße ein. Die Vorschau zeigt die Form sofort.</li>
+  <li>Wählen Sie die <b>Bauweise</b>: <span class="ui">Direkt auf Ebene 1 planen</span> (nur die Platte), <span class="ui">Rahmenbau mit Vorlage</span>
+    oder <span class="ui">Rahmenbau selbst zeichnen</span> (siehe unten).</li>
   <li>Bestätigen Sie mit <span class="ui">Plan anlegen</span>.</li>
   <li>Den Namen des Plans tragen Sie danach in den Eigenschaften unter <span class="ui">Planname</span> ein.</li>
 </ol>
 <figure class="half"><img src="img/neu.png" alt=""><figcaption>Neuer Plan: Spur, Plattenform und Maße.</figcaption></figure>
+<p><b>Rahmenbau gleich mit anlegen.</b> Mit <span class="ui">Rahmenbau mit Vorlage</span> bekommt der Plan sofort ein Holzgestell. Zur Auswahl stehen:
+<span class="ui">Rahmen mit Deckplatte</span> (der übliche Anlagentisch), <span class="ui">Offener Rahmen (Spantenbau)</span> ohne Deckplatte,
+<span class="ui">L-Bein-Gestell</span> für große, frei stehende Anlagen und <span class="ui">Ausstellungsmodul (1.300 mm hoch)</span>.
+Mit <span class="ui">Rahmenbau selbst zeichnen</span> entsteht nur die Platte, und das Werkzeug <span class="ui">Gelände › Leiste ziehen</span> ist gleich aktiv:
+Zargen, Querriegel, Diagonalen und Streben ziehen Sie selbst (Kapitel <a href="#kp">7</a>). In beiden Fällen zeigt <span class="ui">Gelände › Unterbau…</span>
+Maße, Zuschnitt und Materialliste; dort lässt sich auch später eine Vorlage übernehmen oder auf <span class="ui">Rahmen selbst zeichnen</span> umstellen.</p>
 <table>
   <tr><th style="width:24%">Plattenform</th><th>Maße und Besonderheiten</th></tr>
   <tr><td>Rechteck</td><td>Breite und Tiefe</td></tr>
@@ -518,7 +530,7 @@ so wird aus einer Rechtsweiche in Fahrtrichtung schnell eine Weiche, die das Gle
 
 <h2 id="k5-4">Plan prüfen</h2>
 <p>Klicken Sie auf <span class="ui">Start › Kollisionsprüfung</span> (<kbd>F7</kbd>). Die Liste zeigt Überschneidungen, zu enge Abstände
-und offene Enden; ein Klick auf einen Eintrag zeigt die Stelle im Plan (Kapitel <a href="#k10">13</a>).</p>
+und offene Enden; ein Klick auf einen Eintrag zeigt die Stelle im Plan (Kapitel <a href="#k10">14</a>).</p>
 
 <h2 id="k5-5">Beispielplan</h2>
 <p>Unter <span class="ui">Datei › Beispielplan laden</span> öffnet sich die Anlage „Bahnhof Neustadt“ mit Gelände, Elektrik und Signalen.
@@ -549,7 +561,7 @@ Leere Felder nehmen die gemeinsame Schenkeltiefe bzw. die volle Länge; <span cl
 <h2 id="kp-3">Anlage drehen</h2>
 <p><span class="ui">Gelände › Anlage 90° drehen</span> dreht die Platte samt Gleisen, Gelände und Objekten um 90° im Uhrzeigersinn; viermal drehen
 ergibt wieder den Ausgangszustand. Im Maßdialog eines Moduls dreht <span class="ui">Um 90° drehen</span> nur dieses Modul mit seinem Inhalt.
-Nur die Ansicht drehen Sie dagegen wie in Kapitel <a href="#k4">5</a> beschrieben, frei in alle Richtungen in der 3D-Ansicht (Kapitel <a href="#k11">14</a>).</p>
+Nur die Ansicht drehen Sie dagegen wie in Kapitel <a href="#k4">5</a> beschrieben, frei in alle Richtungen in der 3D-Ansicht (Kapitel <a href="#k11">15</a>).</p>
 
 <h2 id="kp-4">Anlage aus Modulen</h2>
 <p>Unter <span class="ui">Gelände › Module…</span> wird die Anlage aus rechteckigen Modulen zusammengesetzt. Eine vorhandene Platte wird dabei in Module zerlegt,
@@ -587,7 +599,20 @@ und entlang der langen Seiten, auf Wunsch Fußtraversen, Stellfüße und eine De
 </table>
 <p>Die <b>Materialliste</b> nennt Latten und Kanthölzer nach Handelslänge, Platten, Schrauben und Leim. Die <b>Zuschnittliste</b> zeigt jedes Teil mit Querschnitt,
 Länge und Anzahl; beides lässt sich kopieren oder als CSV-Datei speichern. Zu lange Teile und zu große Deckplatten werden mit einem Hinweis zum Stoßen gemeldet.
-Die 3D-Ansicht zeigt den Unterbau unter der Platte. <span class="ui">Entfernen</span> im Dialog nimmt ihn wieder aus dem Plan.</p>
+Die 3D-Ansicht zeigt den Unterbau unter der Platte; beim offenen Rahmen ohne Deckplatte (Spantenbau) zeigt sie nur das Holzgerüst mit Leisten und Gleisen, ohne Platte und Gelände. <span class="ui">Entfernen</span> im Dialog nimmt ihn wieder aus dem Plan.</p>
+<h3>Diagonale und Streben</h3>
+<p>Stehen Module versetzt, zum Beispiel stufenförmig an einer schrägen Wand, trägt oft eine durchgehende Diagonale mit einzelnen Streben zu den Modulkanten.
+<span class="ui">Gelände › Leiste ziehen</span> zieht solche Leisten frei: Anfang und Ende anklicken. Plattenecken, Plattenkanten und andere Leisten rasten ein.
+Beginnt eine Strebe an einer Modulkante, rastet ihr Ende senkrecht oder waagrecht darunter genau auf der Diagonale ein. Die Eigenschaften zeigen Breite,
+Höhe der Latte, Länge und Oberkante (negativ = unter der Platte); neue Leisten bekommen den Querschnitt der Zarge. Die Leisten erscheinen im Plan
+in Holzfarbe und in der 3D-Ansicht, mit Unterbau zusätzlich in Zuschnitt und Materialliste. Eine gewählte Leiste – auch die gerade gezogene – verschieben die <b>Pfeiltasten</b> um 1 mm, mit <kbd>Umschalt</kbd> um 10 mm.</p>
+<h3>Deckplatte auflegen</h3>
+<p>Auf einen offenen oder selbst gezeichneten Rahmen legt <span class="ui">Gelände › Platte auflegen</span> eine Deckplatte. Sie bekommt die Außenmaße der
+gezeichneten Leisten (ohne Leisten die Maße der Anlagenplatte) und liegt auf der höchsten Leiste bzw. auf dem Rahmen; die Stärke kommt aus dem Unterbau, sonst 10 mm.
+In den Eigenschaften lassen sich linke obere Ecke, Breite, Tiefe, Stärke und Oberkante millimetergenau eintippen; verschieben geht mit der Maus oder den Pfeiltasten.
+<span class="ui">An Rahmen anpassen</span> legt die Platte wieder genau über den Rahmen. Im Plan erscheint sie durchscheinend mit gestricheltem Rand, in 3D als Holzplatte,
+im Unterbau in der Materialliste (statt der Deckplatte des Rahmens). Beim offenen und beim selbst gezeichneten Rahmen zeigt die 3D-Ansicht keine eigene Platte und kein Gelände,
+nur Holz und Gleise.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -784,6 +809,18 @@ jedes Gleis und jedes Geländeobjekt gehört zu genau einer Ebene.</p>
 weist darauf hin. Übereinanderliegende Windungen werden nicht miteinander verbunden.</p>
 <p>Unter <b>Bauweise</b> wählen Sie, wie die Trasse getragen wird: auf <b>Gewindestangen</b> oder im <b>Spantenbau</b> mit geschlitzten Spanten innen und außen,
 in deren Schlitzen die Trassenbretter liegen. Die Holzliste enthält dann statt der Gewindestangen die Spanten mit den Höhen aller Schlitz-Unterkanten.</p>
+<h3>Wendel nachträglich bearbeiten, Weiche einsetzen</h3>
+<p>Die fertige Wendel besteht aus einzelnen Gleisen; jedes behält seine eigene Höhe und Steigung und lässt sich wie jedes andere Gleis ändern.
+Damit die übrigen Windungen nicht im Weg liegen, blenden Sie in der Ebenenleiste unten alle Ebenen bis auf die gewünschte Windung aus.</p>
+<ol>
+  <li>Wählen Sie das Gleis, an dessen Stelle die Weiche kommen soll.</li>
+  <li>In den <span class="ui">Eigenschaften</span> unter <span class="ui">Weiche einsetzen</span> die Weiche wählen, bei Bedarf
+      <span class="ui">in Gegenrichtung</span> (Weichenspitze am anderen Ende) und <span class="ui">Abzweig auf die andere Seite</span>.</li>
+  <li>Auf <span class="ui">Weiche einsetzen</span> klicken. Die Weiche ersetzt das Gleis mit Höhe, Steigung und Ebene; ist sie länger, werden die folgenden Gleise
+      mit ersetzt, eine verbleibende Lücke schließt ein Flexgleis. Die Statuszeile nennt, wie viele Gleise ersetzt wurden; <kbd>Strg</kbd>+<kbd>Z</kbd> nimmt alles zurück.</li>
+</ol>
+<div class="tip"><b>Tipp</b>In engen Wendelradien passt eine <b>Bogenweiche</b> am besten, weil ihr innerer Strang dem Wendelbogen folgt. Eine gerade Weiche
+braucht dort ein langes Ausgleichsstück oder passt gar nicht – das Programm sagt es dann.</div>
 
 <h2 id="k7-4">Holzliste der Gleiswendel <span class="badge">PRO</span></h2>
 <p>Nach dem Bauen zeigt TrackMaster Pro die <b>Holzliste</b> – alles, was Sie für den Unterbau der Wendel brauchen, mit fertigen Zuschnittmaßen.
@@ -870,7 +907,91 @@ blendet die Landschaft aus, wenn Sie nur die Gleise sehen möchten. Die Planprü
 
 <!-- ======================================================= -->
 <section>
-<h1 id="kr"><span class="no">11</span>Raum und Hintergrundbild</h1>
+<h1 id="ka"><span class="no">11</span>Ausstattung: Grundmodelle und eigene Modelle</h1>
+<p class="lead">Tunnelportale, Bahnsteige, Bahnhof, Brücken und Häuser setzen Sie fertig aus dem Register <span class="ui">Ausstattung</span> in den Plan.
+Mit Pro bauen Sie im <b>Modell-Editor</b> eigene Gebäude und mehr – aus Quadern, Dächern, Vielecken und freien Formen.</p>
+<figure><img src="img/ausstattung.png" alt=""><figcaption>Register Ausstattung mit Bahnsteig, Bahnsteigdach, Tunnelportal, Bahnübergang und Bahnhof.</figcaption></figure>
+
+<h2 id="ka-1">Grundmodelle einfügen</h2>
+<p>Die Grundmodelle gehören zum Programm und brauchen keine Lizenz. Wählen Sie im Register <span class="ui">Ausstattung</span> eine Gruppe und darin ein Modell,
+dann klicken Sie in den Plan. Ein zweiter Klick auf dasselbe Modell beendet das Werkzeug.</p>
+<table>
+  <tr><th style="width:24%">Gruppe</th><th>Modelle</th></tr>
+  <tr><td>Tunnel und Brücken</td><td>Tunnelportal ein- und zweigleisig, Kastenbrücke, Brückenkopf, Stützmauer</td></tr>
+  <tr><td>Bahnhof</td><td>Hausbahnsteig, Mittelbahnsteig, Bahnsteigdach, Wartehäuschen, Empfangsgebäude klein und mittel</td></tr>
+  <tr><td>Bahnanlagen</td><td>Stellwerk, Güterschuppen, Lokschuppen ein- und zweiständig, Bahnübergang, Prellbock mit Erdhügel</td></tr>
+  <tr><td>Häuser</td><td>Wohnhaus, Bauernhaus, Scheune</td></tr>
+</table>
+<p>Die Modelle haben die Größe des Vorbilds und werden im <b>Maßstab der Spur</b> eingesetzt (in H0 also 1:87). Viele rasten am Gleis ein:</p>
+<ul>
+  <li><b>Tunnelportale</b> setzen sich an den Tunnelanfang, quer über das Gleis; die Öffnung zeigt in den Tunnel.</li>
+  <li><b>Bahnsteige und Stützmauern</b> legen sich im richtigen Kantenabstand neben das Gleis und <b>folgen Gleisbögen</b>. Auf welcher Seite sie liegen, bestimmt der Klick.</li>
+  <li><b>Brücken</b> kommen unter das Gleis und reichen bis zur Gleisunterkante, auch im Bogen. <b>Lokschuppen</b> kommen über das Gleis, der <b>Bahnübergang</b> quer darüber, der <b>Prellbock</b> an ein offenes Gleisende.</li>
+</ul>
+<div class="tip"><b>An gewählte Gleise setzen</b>Wählen Sie zuerst die Gleise, an denen die Brücke, Stützmauer oder der Bahnsteig entstehen soll – mit dem Auswahlrahmen
+oder mit <kbd>Umschalt</kbd>+Klick, auch über Bögen und Flexgleise hinweg. Wählen Sie dann das Modell unter <span class="ui">Ausstattung › Tunnel und Brücken</span> bzw.
+<span class="ui">Bahnhof</span>: Es wird sofort entlang der ganzen Auswahl gesetzt, so lang wie die Gleise und mit allen Bögen; Drehen entfällt.
+Eine Brücke bekommt die Höhe der Gleise. Stützmauern und Bahnsteige liegen zunächst rechts in Richtung der Gleiskette;
+<span class="ui">Seite wechseln</span> in den Eigenschaften setzt sie auf die andere Seite, <span class="ui">Beidseitig</span> setzt zusätzlich eine zweite gegenüber.
+Liegen die Gleise höher als der Boden, wachsen Stützmauer und Bahnsteig mit der Gleishöhe mit, auch auf Rampen; ihre <span class="ui">Höhe über Gleis</span>
+steht dann in den Eigenschaften.</div>
+<div class="tip"><b>Höhe und Ebene passen sich an</b>Jedes am Gleis eingerastete Modell merkt sich seine Gleise. Heben oder senken Sie die Gleise später,
+bauen eine Rampe oder legen sie auf eine andere Ebene, passt sich das Modell in der 3D-Ansicht von selbst an – neu setzen ist nicht nötig:
+Stützmauer, Bahnsteig und Tunnelportal wachsen mit der Gleishöhe mit, die Brücke reicht an jeder Stelle bis unter das Gleis, Lokschuppen,
+Bahnübergang und Prellbock stehen auf Gleishöhe. Die Ebene des Modells folgt der Ebene seines Gleises. Die aktuelle <span class="ui">Gleishöhe</span>
+steht in den Eigenschaften. Freie Modelle wie Häuser stehen weiter auf Gelände, Modul und Ebene.</div>
+<p>In den <span class="ui">Eigenschaften</span> stehen Länge, Tiefe, Höhe und Drehung im Plan, die Vorbildmaße und eine <b>Hauptfarbe</b> (zum Beispiel Putz in Creme oder Ziegelrot).
+<span class="ui">Originalgröße</span> stellt die Größe im Maßstab wieder her. In der 3D-Ansicht stehen die Modelle auf dem Gelände bzw. auf ihrer Ebene, Modelle am Gleis auf Gleishöhe.</p>
+<figure class="half"><img src="img/ausstattung-3d.png" alt=""><figcaption>Grundmodelle in der 3D-Ansicht.</figcaption></figure>
+<p><span class="ui">Einfaches Gebäude</span> zieht wie bisher ein schlichtes Haus als Rechteck auf.</p>
+
+<h2 id="ka-2">Der Modell-Editor <span class="badge">PRO</span></h2>
+<p><span class="ui">Ausstattung › Neues Modell</span> öffnet den Editor mit einem leeren Haus. <span class="ui">Aus Vorlage…</span> kopiert ein Grundmodell
+oder eines Ihrer Modelle als Ausgangspunkt. Bei einem Modell im Plan führt <span class="ui">Modell bearbeiten</span> in den Eigenschaften direkt in den Editor –
+ein Grundmodell wird dabei kopiert, und das Objekt bekommt Ihre eigene Fassung.</p>
+<figure><img src="img/modell-editor.png" alt=""><figcaption>Der Modell-Editor: Draufsicht, 3D-Vorschau, Vorder- und Seitenansicht, links das Modell, rechts der gewählte Körper.</figcaption></figure>
+<p>Ein Modell besteht aus <b>Körpern</b>. Alle Maße sind Meter im Vorbild.</p>
+<table>
+  <tr><th style="width:24%">Körper</th><th>Wofür</th></tr>
+  <tr><td>Quader, Zylinder, Keil</td><td>Hauptbau, Türme, Schornsteine, Rampen. Mit <span class="ui">Oberseite</span> wird ein Quader zur Pyramide, ein Zylinder zum Kegel.</td></tr>
+  <tr><td>Satteldach, Walmdach, Pultdach</td><td>Kommen beim Hinzufügen oben auf den gewählten Körper, mit Dachüberstand.</td></tr>
+  <tr><td>Gewölbe, Bogenwand</td><td>Tunnelröhren, Brückenbögen, Portale; Breite und Höhe der Öffnung sind einstellbar.</td></tr>
+  <tr><td>Fenster, Tür, Tor</td><td>Kommen an die Vorderseite des gewählten Körpers.</td></tr>
+  <tr><td>Treppe</td><td>Stufen in passender Höhe.</td></tr>
+  <tr><td>Vieleck</td><td>Freier <b>Grundriss</b> mit beliebig vielen Ecken; jede Ecke kann eine eigene Höhe haben (schräge Oberkanten, Giebel).</td></tr>
+  <tr><td>Freiform</td><td>Jede Ecke lässt sich in alle drei Richtungen ziehen – für alles, was die anderen Formen nicht können.</td></tr>
+</table>
+<h3>So arbeiten Sie im Editor</h3>
+<ul>
+  <li><b>Wählen und verschieben:</b> Klick auf einen Körper in einer Ansicht wählt ihn, <kbd>Strg</kbd> oder <kbd>Umschalt</kbd> wählt mehrere. Ziehen verschiebt im eingestellten <span class="ui">Raster</span>,
+    die Pfeiltasten um ein Rasterfeld. Mausrad zoomt, die rechte Maustaste verschiebt die Ansicht, <span class="ui">Einpassen</span> zeigt alles.</li>
+  <li><b>Genaue Werte</b> tragen Sie rechts ein: Lage, Länge, Tiefe, Höhe, Drehung, Material und Farbe.</li>
+  <li><b>Grundriss zeichnen:</b> Schalter einschalten und in der Draufsicht Ecke für Ecke klicken; Doppelklick, <kbd>Enter</kbd> oder die rechte Maustaste schließt den Grundriss.</li>
+  <li><b>Ecken bearbeiten:</b> Bei einem Vieleck oder einer Freiform erscheinen die Ecken als kleine Quadrate. Ziehen verschiebt sie; beim Vieleck ändert Ziehen in der
+    Vorder- oder Seitenansicht die Höhe der Ecke. <span class="ui">Ecke einfügen</span> und <span class="ui">Ecke entfernen</span> ändern die Zahl der Ecken.</li>
+  <li><b>In Freiform umwandeln</b> macht aus jedem Körper eine Freiform mit gleicher Gestalt – etwa um ein Dach windschief zu ziehen.</li>
+  <li><span class="ui">Duplizieren</span>, <span class="ui">Spiegeln</span>, <span class="ui">Gruppieren</span> (gruppierte Körper bewegen sich gemeinsam), <span class="ui">Rückgängig</span> und <span class="ui">Wiederholen</span> wie im Gleisplan.</li>
+  <li>Links legen Sie <b>Name</b>, <b>Kategorie</b> (Untermenü unter <span class="ui">Eigene Modelle</span>), das <b>Einrasten am Gleis</b> und das <b>Hauptmaterial</b> fest,
+    das im Plan die gewählte Hauptfarbe bekommt. Unten steht die Größe im Vorbild und im Maßstab Ihrer Spur.</li>
+</ul>
+<div class="tip"><b>Tipp</b>Die Vorderansicht schaut auf die Seite, die in der Draufsicht unten liegt – bei Bahnsteigen und Bahnhöfen ist das die Gleisseite.
+Bauen Sie Modelle mit Gleisbezug so, dass das Gleis entlang der x-Achse verläuft.</div>
+
+<h2 id="ka-3">Eigene Bibliothek, Import und Export <span class="badge">PRO</span></h2>
+<p>Gespeicherte Modelle stehen unter <span class="ui">Ausstattung › Eigene Modelle</span> und lassen sich wie Grundmodelle einfügen. Unter Windows liegen sie als
+Dateien (<code>*.tmmodell</code>) im Ordner <code>Dokumente\TrackMaster Pro\Modelle</code>, in der Webversion im Speicher des Browsers.</p>
+<p><span class="ui">Bibliothek…</span> zeigt alle eigenen Modelle: bearbeiten, als Kopie bearbeiten, in den Plan einfügen, löschen und exportieren –
+einzeln als <code>*.tmmodell</code>, alle zusammen als ZIP oder als <b>3D-Datei</b>: <b>STL</b> für den 3D-Druck und <b>OBJ</b> mit Farben für andere 3D-Programme,
+jeweils im Maßstab der Spur in Millimetern. <span class="ui">Importieren…</span> liest Modelldateien und ZIP-Sammlungen ein.</p>
+<p>Verwendet ein Plan eigene Modelle, werden sie <b>im Plan mitgespeichert</b>. Wer den Plan öffnet, sieht sie also auch ohne Ihre Bibliothek und kann sie
+auch in der Basisversion weitere Male einfügen. <span class="ui">In Bibliothek übernehmen</span> holt ein solches Modell in die eigene Bibliothek.
+Ändern Sie ein Modell im Editor, wird es auch im geöffneten Plan aktualisiert.</p>
+<p>Die Android-App fügt Grund- und Planmodelle ein; der Editor ist Windows und der Webversion vorbehalten.</p>
+</section>
+
+<!-- ======================================================= -->
+<section>
+<h1 id="kr"><span class="no">12</span>Raum und Hintergrundbild</h1>
 <p class="lead">Passt die Anlage überhaupt ins Zimmer? Geht die Tür noch auf, und kommen Sie an jede Stelle heran? Im Register <span class="ui">Raum</span>
 zeichnen Sie Ihr Zimmer mit Türen, Fenstern und Möbeln um die Anlage. Ein Hintergrundbild – etwa ein Grundriss oder ein alter Gleisplan – hilft beim Nachzeichnen.</p>
 <figure><img src="img/raum.png" alt=""><figcaption>Register Raum: Raum mit Tür, Fenster, Heizkörper und Säule um die Anlage.</figcaption></figure>
@@ -931,7 +1052,7 @@ Eigenschaften genau ein; dort lässt sich auch die Art nachträglich ändern. Be
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k9"><span class="no">12</span>Elektrik, Signale und Digital</h1>
+<h1 id="k9"><span class="no">13</span>Elektrik, Signale und Digital</h1>
 <figure><img src="img/elektrik.png" alt=""><figcaption>Register Elektrik mit Einspeisungen, Trennstellen und Signalen.</figcaption></figure>
 
 <h2 id="k9-1">Einspeisungen und Trennstellen</h2>
@@ -994,7 +1115,7 @@ ohne Adressen doppelt einzutippen.</p>
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k10"><span class="no">13</span>Planprüfung</h1>
+<h1 id="k10"><span class="no">14</span>Planprüfung</h1>
 <p><span class="ui">Start › Kollisionsprüfung</span> (<kbd>F7</kbd>) untersucht den ganzen Plan und listet alle Auffälligkeiten als Fehler, Warnung oder Hinweis.
 Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.</p>
 <figure class="half"><img src="img/pruefung.png" alt=""><figcaption>Ergebnis der Planprüfung.</figcaption></figure>
@@ -1009,7 +1130,7 @@ Ein Klick auf einen Eintrag wählt die betroffenen Gleise und zeigt die Stelle.<
   <tr><td>Radius für Fahrzeuge</td><td>Bögen, die für das längste Fahrzeug zu eng sind, mit dem Ausschwenken von Wagenmitte und -ende</td></tr>
   <tr><td>Steigung im Bogen</td><td>Warnung, wenn ein Bogen steiler als 2 % ansteigt – im Bogen zieht ein Zug spürbar schwerer</td></tr>
   <tr><td>S-Bogen</td><td>Gegenbögen mit kleinem Radius ohne Zwischengerade, an denen lange Wagen mit den Puffern aneinander geraten können</td></tr>
-  <tr><td>Raum</td><td>Platte ragt über eine Wand (Fehler), Tür lässt sich nicht öffnen (Fehler), Säule, Heizkörper oder Möbel unter der Platte (Warnung) – Kapitel <a href="#kr">11</a></td></tr>
+  <tr><td>Raum</td><td>Platte ragt über eine Wand (Fehler), Tür lässt sich nicht öffnen (Fehler), Säule, Heizkörper oder Möbel unter der Platte (Warnung) – Kapitel <a href="#kr">12</a></td></tr>
   <tr><td>Gang</td><td>Weniger als 60 cm Platz zwischen Platte und Wand</td></tr>
   <tr><td>Nutzlänge</td><td>Abstellgleise mit Prellbock, die kürzer sind als der längste Zug</td></tr>
 </table>
@@ -1022,7 +1143,7 @@ Ein <b>Hinweis</b> ist ein Ratschlag – manchmal ist die Stelle genau so gewoll
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k11"><span class="no">14</span>3D-Ansicht</h1>
+<h1 id="k11"><span class="no">15</span>3D-Ansicht</h1>
 <figure><img src="img/3d.png" alt=""><figcaption>Die Anlage in 3D mit Gelände, Gebäuden, Bäumen und Signalen.</figcaption></figure>
 <ul>
   <li><span class="ui">3D › 3D-Ansicht</span>: Ziehen mit der linken Maustaste dreht und kippt die Anlage – auch bis unter die Platte –, <kbd>Strg</kbd> + linke Maustaste
@@ -1030,6 +1151,7 @@ Ein <b>Hinweis</b> ist ein Ratschlag – manchmal ist die Stelle genau so gewoll
     Querachse, die Hochachse und die Blickachse; <span class="ui">Grundstellung</span> stellt die Ansicht zurück.</li>
   <li><span class="ui">Mit Gelände</span> / <span class="ui">Nur Gleisplan</span>: Landschaft, Gewässer, Gebäude und Bäume zeigen oder nur Platte und Gleise.</li>
   <li><span class="ui">Stützen</span>: zeigt unter hochliegenden Gleisen je eine Stütze rechts und links neben dem Gleis mit Querträger, sodass die Gleismitte frei bleibt. Vorgegeben ist aus – Gleiswechsel und Steigungen erscheinen dann ohne Stützen.</li>
+  <li><span class="ui">Tunnel</span>: ausgeschaltet blendet es alle Tunnelstrecken aus – Tunnelgleise, Röhren und Signale darin; ein fahrender Zug verschwindet dort wie im echten Tunnel. So sieht man die übrige Anlage frei. Vorgegeben ist ein.</li>
   <li><span class="ui">3D › Mitfahren</span>: Sie fahren im Führerstand über die Gleise, beginnend am gewählten Gleis. Die Geschwindigkeit stellen Sie in km/h des Vorbilds ein.
     Vor jeder Weiche und Kreuzungsweiche erscheinen oben die möglichen <b>Richtungen</b> (◀ <i>links</i>, ▲ <i>geradeaus</i>, ▶ <i>rechts</i>); ein Klick oder die
     Pfeiltasten <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> legen fest, wohin der Zug an der nächsten Weiche fährt. Die Statuszeile nennt Weiche, Entfernung und gewählte Richtung.
@@ -1048,7 +1170,7 @@ Gebäude, Bäume, Signale und den Unterbau. Ausgeblendete Ebenen fehlen auch hie
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k12"><span class="no">15</span>Speichern, Stückliste, Drucken und Export</h1>
+<h1 id="k12"><span class="no">16</span>Speichern, Stückliste, Drucken und Export</h1>
 <p class="lead">Diese Funktionen gehören zur Pro-Version.</p>
 
 <h2 id="k12-1">Speichern und Öffnen</h2>
@@ -1106,7 +1228,7 @@ und Preisen in eine Tabellenkalkulation – als Einkaufsliste für den Händler.
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k13"><span class="no">16</span>Die Android-App</h1>
+<h1 id="k13"><span class="no">17</span>Die Android-App</h1>
 <p class="lead">Die App bietet dieselben Funktionen wie das Windows-Programm, angepasst an die Bedienung mit dem Finger.</p>
 <p>Oben liegt das Menüband mit den Registern <b>Start, Gleise, Gelände, Elektrik, Ansicht, 3D</b> und <b>Datei</b>, unten die Gleisbibliothek als Leiste.
 Eigenschaften, Planprüfung, Gleiswendel, Signale und die 3D-Ansicht öffnen sich als eigene Fenster. Pro-Funktionen tragen in der Basisversion ein Schloss.
@@ -1133,7 +1255,7 @@ von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich 
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k14"><span class="no">17</span>Tastenkürzel und Mausbefehle</h1>
+<h1 id="k14"><span class="no">18</span>Tastenkürzel und Mausbefehle</h1>
 <div class="cols">
 <table class="keep">
   <tr><th>Taste</th><th>Funktion</th></tr>
@@ -1183,7 +1305,7 @@ von Android – im Gerätespeicher oder in einem Cloud-Speicher. So lässt sich 
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k15"><span class="no">18</span>Fragen und Lösungen</h1>
+<h1 id="k15"><span class="no">19</span>Fragen und Lösungen</h1>
 <h3>Ein Gleis rastet nicht ein.</h3>
 <p>Prüfen Sie, ob <span class="ui">Fang</span> in der Statusleiste eingeschaltet ist. Gleise rasten nur an <b>freien</b> Enden ein; ist das Ende bereits verbunden,
 wählen Sie mit <kbd>E</kbd> das nächste offene Ende.</p>
@@ -1211,11 +1333,11 @@ Ist <span class="ui">Gelände zeigen</span> aus, fehlen außerdem Hügel, Gewäs
 <h3>Ein Klick wählt plötzlich viele Gleise.</h3>
 <p>Die Gleise sind gruppiert. <span class="ui">Start › Gruppe auflösen</span> trennt sie wieder.</p>
 <h3>Das Hintergrundbild passt nicht zu meinen Maßen.</h3>
-<p>Ziehen Sie mit <span class="ui">Start › Maß</span> eine Linie über eine bekannte Strecke im Bild, wählen Sie sie an und rufen Sie <span class="ui">Raum › Nach Maß skalieren…</span> auf (Kapitel <a href="#kr">11</a>).</p>
+<p>Ziehen Sie mit <span class="ui">Start › Maß</span> eine Linie über eine bekannte Strecke im Bild, wählen Sie sie an und rufen Sie <span class="ui">Raum › Nach Maß skalieren…</span> auf (Kapitel <a href="#kr">12</a>).</p>
 <h3>Die Planprüfung meldet, die Tür lasse sich nicht öffnen.</h3>
 <p>Der Schwenkbereich der Tür liegt unter der Platte. Verschieben Sie die Tür, drehen Sie sie in den Eigenschaften oder verkleinern Sie die Platte an dieser Stelle.</p>
 <h3>Wie viel kostet meine Anlage?</h3>
-<p>Öffnen Sie die Stückliste (Pro), tragen Sie Bestand und Preise ein oder lesen Sie eine Preisliste ein. Die Summe steht unten in der Liste (Kapitel <a href="#k12">15</a>).</p>
+<p>Öffnen Sie die Stückliste (Pro), tragen Sie Bestand und Preise ein oder lesen Sie eine Preisliste ein. Die Summe steht unten in der Liste (Kapitel <a href="#k12">16</a>).</p>
 <h3>Ich habe zu viel geändert.</h3>
 <p><span class="ui">Start › Verlauf…</span> zeigt die letzten 20 Schritte; ein Klick springt zu einem früheren Stand, und auch wieder vor.</p>
 <h3>Die 3D-Ansicht bleibt schwarz oder ruckelt.</h3>
@@ -1227,7 +1349,7 @@ Das Programm sendet keine Daten an Dritte; beim Start ruft es lediglich die aktu
 
 <!-- ======================================================= -->
 <section>
-<h1 id="k16"><span class="no">19</span>Begriffe</h1>
+<h1 id="k16"><span class="no">20</span>Begriffe</h1>
 <table>
   <tr><th style="width:28%">Begriff</th><th>Bedeutung</th></tr>
   <tr><td>Abstellgleis</td><td>Gleis, das an einem Prellbock endet und auf dem Züge oder Wagen abgestellt werden.</td></tr>

@@ -957,3 +957,55 @@ export const gl = {
         if (on) requestAnimationFrame(tick);
     },
 };
+
+// ---------- Modell-Editor ----------
+
+/** Bildschirmpunkt (clientX, clientY) in Koordinaten des SVG-Elements (viewBox). */
+export function svgPoint(id, x, y) {
+    const svg = document.getElementById(id);
+    if (!svg || !svg.getScreenCTM) return [NaN, NaN];
+    const m = svg.getScreenCTM();
+    if (!m) return [NaN, NaN];
+    const p = new DOMPoint(x, y).matrixTransform(m.inverse());
+    return [p.x, p.y];
+}
+
+/** Breite und Höhe eines Elements in Pixeln. */
+export function elementSize(id) {
+    const e = document.getElementById(id);
+    if (!e) return [0, 0];
+    const r = e.getBoundingClientRect();
+    return [r.width, r.height];
+}
+
+/** Zeiger an ein Element binden, damit Ziehen auch außerhalb weiterläuft. */
+export function capturePointer(id, pointerId) {
+    const e = document.getElementById(id);
+    try { if (e) e.setPointerCapture(pointerId); } catch { }
+}
+
+/** Dateiauswahl für Binärdateien (z. B. ZIP); Ergebnis „Name\0Base64“ oder leer. */
+export function pickFileBytes(accept) {
+    return new Promise(resolve => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = accept;
+        input.style.display = "none";
+        let done = false;
+        const finish = v => { if (!done) { done = true; resolve(v); input.remove(); } };
+        input.addEventListener("change", () => {
+            const f = input.files && input.files[0];
+            if (!f) { finish(""); return; }
+            const r = new FileReader();
+            r.onload = () => {
+                const s = String(r.result);
+                finish(f.name + "\u0000" + s.substring(s.indexOf(",") + 1));
+            };
+            r.onerror = () => finish("");
+            r.readAsDataURL(f);
+        });
+        input.addEventListener("cancel", () => finish(""));
+        document.body.appendChild(input);
+        input.click();
+    });
+}

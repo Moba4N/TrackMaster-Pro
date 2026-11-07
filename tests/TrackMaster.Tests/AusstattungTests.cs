@@ -203,6 +203,263 @@ public class AusstattungTests
         Assert.Throws<InvalidDataException>(() => ModelFile.FromJson("{\"format\":\"x\"}"));
     }
 
+    /// <summary>Bogen aus dem Beispielplan mit seinen beiden Nachbarn: eine Kette gerade/Bogen/… über drei Gleise.</summary>
+    private static (PlanSession Session, PlacedPiece Curve, HashSet<int> Ids) CurveChain()
+    {
+        var session = new PlanSession { IsPro = () => true };
+        session.Replace(SamplePlan.Build(), null);
+        var plan = session.Plan;
+        var conn = Connectivity.Analyze(plan);
+        var curve = plan.Pieces.First(p => p.Def.Kind == PieceKind.Curve && p.Level == 0
+            && conn.Of(p.Id).Count(c => c.Link is not null) == 2);
+        var ids = new HashSet<int> { curve.Id };
+        foreach (var c in conn.Of(curve.Id)) if (c.Link is { } l) ids.Add(l.PieceId);
+        return (session, curve, ids);
+    }
+
+    [Fact]
+    public void Bruecke_entlang_gewaehlter_Gleise_folgt_dem_Bogen_und_der_Hoehe()
+    {
+        var (session, curve, ids) = CurveChain();
+        var plan = session.Plan;
+        foreach (var id in ids) plan.Find(id)!.Height = 80;
+        session.Commit();
+        foreach (var id in ids) session.Selection.Add(id);
+        var length = TrackChain.Order(plan, Connectivity.Analyze(plan), ids).Sum(c => c.Length);
+
+        var item = session.PlaceModelOnSelection("tm.kastenbruecke");
+        Assert.NotNull(item);
+        Assert.True(item!.Points.Count > 5, "Brücke im Bogen soll gebogen sein");
+        Assert.Equal(length, PlacedModel.PathLength(item.Points), 0);
+        Assert.Equal(80, item.Height, 0);
+        // die Brücke liegt unter der Gleismitte des Bogens
+        var mid = curve.WorldLegs()[0].At(0.5);
+        Assert.Contains(item.Points, q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y) < 2);
+        Assert.Empty(session.Selection);
+        Assert.Equal(item.Id, session.SelectedObject);
+        Assert.True(new Scene3DModel(plan).TriangleCount > 0);
+    }
+
+    [Fact]
+    public void Stuetzmauer_entlang_gewaehlter_Gleise_und_Seite_wechseln()
+    {
+        var (session, curve, ids) = CurveChain();
+        var plan = session.Plan;
+        foreach (var id in ids) session.Selection.Add(id);
+        var item = session.PlaceModelOnSelection("tm.stuetzmauer");
+        Assert.NotNull(item);
+        Assert.True(item!.Points.Count > 5);
+        var leg = curve.WorldLegs()[0];
+        var (cx, cy) = leg.Center;
+        double R((double X, double Y) q) => Math.Sqrt((q.X - cx) * (q.X - cx) + (q.Y - cy) * (q.Y - cy));
+        // Punkte im Bereich des Bogens: alle auf einer Seite der Gleismitte, mit Abstand
+        var mid = leg.At(0.5);
+        var near = item.Points.OrderBy(q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y)).First();
+        var before = R(near) - leg.Radius;
+        Assert.True(Math.Abs(before) > plan.Gauge.TrackWidth, $"Abstand {before}");
+        // Kante (Modell −y) liegt zum Gleis hin
+        var def = ModelLibrary.Of(plan, item)!;
+        void EdgeTowardsTrack()
+        {
+            var placed = ModelLibrary.Placed(plan, item)!;
+            var b = def.Bounds();
+            var m = (b.X0 + b.X1) / 2;
+            Assert.True(Math.Abs(R(placed.Map(m, b.Y0)) - leg.Radius) < Math.Abs(R(placed.Map(m, b.Y1)) - leg.Radius));
+        }
+        EdgeTowardsTrack();
+
+        Assert.True(session.CanFlipModelSide(item.Id));
+        session.FlipModelSide(item.Id);
+        var near2 = item.Points.OrderBy(q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y)).First();
+        var after = R(near2) - leg.Radius;
+        Assert.True(Math.Sign(after) != Math.Sign(before), $"vorher {before}, nachher {after}");
+        Assert.Equal(Math.Abs(before), Math.Abs(after), 0);
+        EdgeTowardsTrack();
+        // Rückgängig stellt die alte Seite wieder her
+        session.Undo();
+        var back = session.Plan.Scenery.First(s => s.Id == item.Id);
+        var near3 = back.Points.OrderBy(q => Math.Abs(q.X - mid.X) + Math.Abs(q.Y - mid.Y)).First();
+        Assert.Equal(before, R(near3) - leg.Radius, 0);
+    }
+
+    [Fact]
+    public void Gerade_Stuetzmauer_wechselt_die_Seite()
+    {
+        var plan = LayoutPlan.Empty("H0");
+        var straight = Catalog.Gauges.First(x => x.Id == "H0").Systems.SelectMany(s => s.Pieces).First(p => p.Kind == PieceKind.Straight && p.Length > 150);
+        var p = plan.Add(straight.Key);
+        p.X = 200; p.Y = 400;
+        var def = BuiltinModels.All.First(m => m.Id == "tm.stuetzmauer");
+        var r = ModelPlacement.AlongTracks(plan, def, new HashSet<int> { p.Id })!;
+        Assert.Empty(r.Item.Points);
+        Assert.Equal(straight.Length, r.Item.Width, 0);
+        var y0 = r.Item.Y - 400;
+        Assert.True(Math.Abs(y0) > plan.Gauge.TrackWidth);
+        Assert.True(ModelPlacement.FlipSide(plan, def, r.Item));
+        Assert.Equal(-y0, r.Item.Y - 400, 1);
+        plan.Scenery.Add(r.Item);
+        var placed = ModelLibrary.Placed(plan, r.Item)!;
+        var b = def.Bounds();
+        Assert.True(Math.Abs(placed.Map(0, b.Y0).Y - 400) < Math.Abs(placed.Map(0, b.Y1).Y - 400));
+    }
+
+    /// <summary>Rampe über die Gleise der Kette: ab <paramref name="start"/> mm mit <paramref name="grade"/> Steigung.</summary>
+    private static double Ramp(LayoutPlan plan, HashSet<int> ids, double start, double grade)
+    {
+        var chain = TrackChain.Order(plan, Connectivity.Analyze(plan), ids);
+        var z = start;
+        foreach (var c in chain)
+        {
+            c.Piece.Grade = c.Entry == 0 ? grade : -grade;
+            c.Piece.Height = c.Entry == 0 ? z : z + c.Length * grade;
+            z += c.Length * grade;
+        }
+        return chain.Sum(c => c.Length);
+    }
+
+    private static List<ModelVertex> Vertices(LayoutPlan plan, SceneryItem item)
+    {
+        var placed = ModelLibrary.Placed(plan, item, trackHeight: true)!;
+        return placed.WorldTriangles(ModelPlacement.BaseGround(plan, item)).SelectMany(t => new[] { t.A, t.B, t.C }).Select(q => new ModelVertex(q.X, q.Y, q.Z)).ToList();
+    }
+
+    private sealed record ModelVertex(double X, double Y, double Z);
+
+    [Fact]
+    public void Stuetzmauer_folgt_der_Gleishoehe_und_laesst_sich_beidseitig_setzen()
+    {
+        var (session, _, ids) = CurveChain();
+        var plan = session.Plan;
+        var total = Ramp(plan, ids, 20, 0.03);
+        session.Commit();
+        foreach (var id in ids) session.Selection.Add(id);
+        var wall = session.PlaceModelOnSelection("tm.stuetzmauer")!;
+        var def = ModelLibrary.Of(plan, wall)!;
+        Assert.Equal(ids.Order(), wall.Tracks.Order());
+        var rise = ModelPlacement.TrackRise(plan, wall, def)!;
+        Assert.Equal(wall.Points.Count, rise.Length);
+        Assert.True(rise.Min() >= 19 && rise.Max() - rise.Min() > total * 0.03 * 0.8, $"{rise.Min()}–{rise.Max()} bei {total} mm");
+        Assert.Equal(Lang.T("Höhe über Gleis (mm)"), ModelPlacement.HeightInfo(plan, def, wall).HeightLabel);
+        // 3D: die Mauer reicht an jeder Stelle bis Gleishöhe + eigene Höhe, unten bleibt sie am Boden
+        var v = Vertices(plan, wall);
+        Assert.Equal(0, v.Min(q => q.Z), 3);
+        Assert.Equal(rise.Max() + wall.Height, v.Max(q => q.Z), 0);
+
+        // gespeichert und wieder geladen: die Gleise bleiben verknüpft
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(plan), out _);
+        var wall2 = back.Scenery.Last(x => x.Model == wall.Model);
+        Assert.Equal(wall.Tracks.Count, wall2.Tracks.Count);
+        Assert.Equal(rise, ModelPlacement.TrackRise(back, wall2, def));
+
+        // beidseitig: zweite Mauer gegenüber, ebenso an der Gleishöhe
+        var other = session.AddModelOtherSide(wall.Id)!;
+        Assert.NotEqual(wall.Id, other.Id);
+        Assert.Equal(2, plan.Scenery.Count(x => x.Model == wall.Model));
+        Assert.Equal(Enumerable.Reverse(rise), ModelPlacement.TrackRise(plan, other, def)!, new Near(1.5));
+        var c0 = wall.Points[wall.Points.Count / 2];
+        var c1 = other.Points[other.Points.Count / 2];
+        Assert.True(Math.Sqrt((c0.X - c1.X) * (c0.X - c1.X) + (c0.Y - c1.Y) * (c0.Y - c1.Y)) > plan.Gauge.TrackWidth * 2);
+    }
+
+    private sealed class Near(double tol) : IEqualityComparer<double>
+    {
+        public bool Equals(double a, double b) => Math.Abs(a - b) <= tol;
+        public int GetHashCode(double v) => 0;
+    }
+
+    [Fact]
+    public void Stuetzmauer_am_ebenen_Gleis_bleibt_wie_bisher()
+    {
+        var (session, _, ids) = CurveChain();
+        foreach (var id in ids) session.Selection.Add(id);
+        var wall = session.PlaceModelOnSelection("tm.stuetzmauer")!;
+        var def = ModelLibrary.Of(session.Plan, wall)!;
+        Assert.Null(ModelPlacement.TrackRise(session.Plan, wall, def));
+        Assert.Equal((Lang.T("Höhe (mm)"), (string?)null), ModelPlacement.HeightInfo(session.Plan, def, wall));
+        Assert.Equal(wall.Height, Vertices(session.Plan, wall).Max(q => q.Z), 0);
+    }
+
+    [Fact]
+    public void Mauer_und_Bruecke_folgen_spaeter_angehobenen_Gleisen()
+    {
+        var (session, _, ids) = CurveChain();
+        var plan = session.Plan;
+        foreach (var id in ids) session.Selection.Add(id);
+        var wall = session.PlaceModelOnSelection("tm.stuetzmauer")!;
+        foreach (var id in ids) session.Selection.Add(id);
+        var bridge = session.PlaceModelOnSelection("tm.kastenbruecke")!;
+        Assert.Equal(wall.Height, Vertices(plan, wall).Max(q => q.Z), 0);
+
+        // Gleise nachträglich als Rampe anheben: beide Modelle passen sich ohne neues Setzen an
+        Ramp(plan, ids, 40, 0.02);
+        session.Commit();
+        var wallDef = ModelLibrary.Of(plan, wall)!;
+        var rise = ModelPlacement.TrackRise(plan, wall, wallDef)!;
+        Assert.True(rise.Min() >= 39, $"{rise.Min()}");
+        Assert.Equal(rise.Max() + wall.Height, Vertices(plan, wall).Max(q => q.Z), 0);
+        // Brücke reicht an der höchsten Stelle bis unter das Gleis, an der tiefsten weniger hoch
+        var top = ModelPlacement.TrackRise(plan, bridge, ModelLibrary.Of(plan, bridge)!)!;
+        var bv = Vertices(plan, bridge);
+        Assert.Equal(top.Max(), bv.Max(q => q.Z), 0);
+        Assert.Equal(0, bv.Min(q => q.Z), 3);
+        Assert.True(top.Max() - top.Min() > 10);
+    }
+
+    [Fact]
+    public void Modelle_auf_dem_Gleis_stehen_auf_Gleishoehe_und_wechseln_mit_die_Ebene()
+    {
+        var plan = LayoutPlan.Empty("H0");
+        var straight = Catalog.Gauges.First(x => x.Id == "H0").Systems.SelectMany(s => s.Pieces).First(p => p.Kind == PieceKind.Straight && p.Length > 150);
+        var p = plan.Add(straight.Key);
+        p.X = 200; p.Y = 400;
+        var def = BuiltinModels.All.First(m => m.Snap == ModelSnap.Quer);
+        var mid = p.WorldLegs()[0].At(0.5);
+        var r = ModelPlacement.Place(plan, def, mid.X, mid.Y + 3, 10);
+        Assert.True(r.Snapped);
+        Assert.Equal([p.Id], r.Item.Tracks);
+        plan.Scenery.Add(r.Item);
+        var h = Vertices(plan, r.Item).Max(q => q.Z);
+        // Gleis 50 mm höher: das Modell steht als Ganzes auf der neuen Höhe
+        p.Height = 50;
+        var v = Vertices(plan, r.Item);
+        Assert.Equal(50, v.Min(q => q.Z), 0);
+        Assert.Equal(h + 50, v.Max(q => q.Z), 0);
+
+        // Gleis auf eine andere Ebene: das Modell geht mit
+        plan.Levels.Add(new PlanLevel { Name = "Oben", Height = 50 });
+        p.Level = 1;
+        ModelPlacement.SyncLevels(plan);
+        Assert.Equal(1, r.Item.Level);
+        // Gleis gelöscht: Verknüpfung entfällt, das Modell steht wieder frei
+        plan.Pieces.Remove(p);
+        ModelPlacement.SyncLevels(plan);
+        Assert.Empty(r.Item.Tracks);
+        Assert.Null(ModelPlacement.TrackRise(plan, r.Item, def));
+    }
+
+    [Fact]
+    public void Ohne_Auswahl_oder_bei_freien_Modellen_wird_wie_gewohnt_geklickt()
+    {
+        var (session, _, ids) = CurveChain();
+        Assert.Null(session.PlaceModelOnSelection("tm.kastenbruecke"));
+        foreach (var id in ids) session.Selection.Add(id);
+        Assert.Null(session.PlaceModelOnSelection("tm.wohnhaus"));
+        Assert.Null(session.PlaceModelOnSelection("tm.tunnelportal-1"));
+        Assert.Equal(ids.Count, session.Selection.Count);
+    }
+
+    [Fact]
+    public void Bruecke_per_Klick_im_Bogen_wird_gebogen()
+    {
+        var plan = SamplePlan.Build();
+        var curve = plan.Pieces.First(p => p.Def.Kind == PieceKind.Curve && p.Level == 0);
+        var mid = curve.WorldLegs()[0].At(0.5);
+        var def = BuiltinModels.All.First(m => m.Id == "tm.kastenbruecke");
+        var r = ModelPlacement.Place(plan, def, mid.X, mid.Y, 20);
+        Assert.True(r.Snapped);
+        Assert.True(r.Item.Points.Count > 5);
+    }
+
     [Fact]
     public void Basis_darf_Grundmodelle_einfuegen_aber_keine_eigenen_aus_der_Bibliothek()
     {

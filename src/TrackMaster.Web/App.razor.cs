@@ -296,6 +296,8 @@ public partial class App : ComponentBase, IAppHost
         Add("toolTree", Lang.T("Vegetation"), () => SetTool(CanvasTool.Tree));
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
+        Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
+        Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
         Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () =>
@@ -361,6 +363,8 @@ public partial class App : ComponentBase, IAppHost
     /// <summary>Modell für das Werkzeug „Modell einfügen“ wählen.</summary>
     private void SetModelTool(string id)
     {
+        // Gleise gewählt und Brücke, Stützmauer oder Bahnsteig: gleich entlang der Auswahl setzen
+        if (_session.Tool != CanvasTool.Model && _session.PlaceModelOnSelection(id) is not null) { _session.ModelId = id; _view.Invalidate(); Refresh(); return; }
         _session.ModelId = id;
         if (_session.Tool != CanvasTool.Model) SetTool(CanvasTool.Model);
         else { _view.Invalidate(); Refresh(); }
@@ -442,6 +446,7 @@ public partial class App : ComponentBase, IAppHost
         "toolTree" => _session.Tool == CanvasTool.Tree,
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
+        "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
@@ -464,7 +469,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolFeeder", "toolIsolation", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolIsolation", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn",
     ];
@@ -485,7 +490,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende ansetzen und ziehen, es rastet an Gleisenden ein."),
         CanvasTool.Building => Lang.T("Gebäude: klicken oder Rechteck aufziehen."),
         CanvasTool.Model => _session.CurrentModel is { } model
-            ? Lang.F($"{model.Name}: in den Plan klicken.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein."))
+            ? Lang.F($"{model.Name}: in den Plan klicken.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(model) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : "")
             : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis klicken."),
@@ -496,6 +501,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
+        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
             ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")
@@ -521,6 +527,7 @@ public partial class App : ComponentBase, IAppHost
             if (key == "Escape") { DismissDialog(); return true; }
             return false;
         }
+        if (_editModel is not null) return EditorKeyDown(key, ctrl);
         if (_open3D)
         {
             if (key == "Escape") { Close3D(); return true; }
@@ -574,7 +581,7 @@ public partial class App : ComponentBase, IAppHost
             Run(cmd);
             return true;
         }
-        if (!ctrl && _session.Selection.Count > 0 && key is "ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")
+        if (!ctrl && _session.CanNudge && key is "ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")
         {
             var step = shift ? 10 : 1;
             var dx = key == "ArrowLeft" ? -step : key == "ArrowRight" ? step : 0;

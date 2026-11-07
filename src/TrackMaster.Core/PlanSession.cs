@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -124,6 +124,8 @@ public sealed partial class PlanSession
         Plan.SystemId = CurrentSystem.Id;
         Connections = Connectivity.Analyze(Plan);
         Selection.RemoveWhere(id => Plan.Find(id) is null);
+        // Ausstattung am Gleis wechselt mit dem Gleis die Ebene (die Höhe bestimmt die 3D-Ansicht jedes Mal neu)
+        ModelPlacement.SyncLevels(Plan);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
         if (Active is { } a && Connections.Find(a.PieceId, a.Index) is not { IsOpen: true }) Active = null;
         Changed?.Invoke();
@@ -161,7 +163,7 @@ public sealed partial class PlanSession
     /// <summary>Neuer Plan mit Spur und Plattenform.</summary>
     public void NewPlan(BoardSetup setup)
     {
-        var (gaugeId, shape, width, height, depth, turn, legLeft, legRight) = setup;
+        var (gaugeId, shape, width, height, depth, turn, legLeft, legRight, bench) = setup;
         Record();
         Plan = LayoutPlan.Empty(gaugeId);
         Plan.BoardShape = shape;
@@ -173,11 +175,17 @@ public sealed partial class PlanSession
         Plan.BoardLegRight = shape == BoardShape.U ? Math.Max(0, legRight) : 0;
         // Modulanlage: Breite und Tiefe sind die Maße des ersten Moduls
         if (shape == BoardShape.Module) ModuleLayout.Single(Plan, Plan.BoardWidth, Plan.BoardHeight);
+        if (bench is not null && Core.Benchwork.Validate(bench).Count == 0) Plan.Benchwork = bench.Clone();
         FilePath = null;
         Selection.Clear();
         Active = null;
         Commit();
-        Say(Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}. Rückgängig holt den vorherigen zurück."));
+        var text = Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}.");
+        if (Plan.Benchwork is { Manual: true })
+            text += " " + Lang.T("Rahmenbau selbst zeichnen: Zargen, Querriegel, Diagonalen und Streben mit Gelände › Leiste ziehen, dann Gelände › Platte auflegen; Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+        else if (Plan.Benchwork is not null)
+            text += " " + Lang.T("Der Rahmenbau ist angelegt: Gelände › Unterbau… zeigt Maße, Zuschnitt und Materialliste, die 3D-Ansicht das Gestell.");
+        Say(text + " " + Lang.T("Rückgängig holt den vorherigen Plan zurück."));
     }
 
     /// <summary>Übernimmt Lage und Größe der Module (verschobene Module nehmen ihre Gleise mit).</summary>
@@ -514,6 +522,8 @@ public sealed partial class PlanSession
             item.Id = Plan.NextId++;
             item.MoveBy(dx, dy);
             item.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
+            // mitkopierte Gleise: Verknüpfung übernehmen, sonst gehört das Modell zu keinem Gleis mehr
+            item.Tracks = item.Tracks.Where(map.ContainsKey).Select(id => map[id]).ToList();
             Plan.Scenery.Add(item);
             pastedObject = item.Id;
         }
@@ -554,8 +564,21 @@ public sealed partial class PlanSession
         return next.Pose;
     }
 
+    /// <summary>Gibt es etwas, das die Pfeiltasten verschieben können (Gleise oder ein gewähltes Objekt wie eine Leiste)?</summary>
+    public bool CanNudge => Selection.Count > 0 || NudgeObject is not null;
+
+    private SceneryItem? NudgeObject => Selection.Count == 0 && SelectedObject is { } so ? Plan.Scenery.FirstOrDefault(s => s.Id == so) : null;
+
+    /// <summary>Auswahl mit den Pfeiltasten verschieben: gewählte Gleise oder, ohne Gleise, das gewählte Objekt (z. B. eine Leiste).</summary>
     public void Nudge(double dx, double dy, bool record)
     {
+        if (NudgeObject is { } item)
+        {
+            if (record) Record();
+            item.MoveBy(dx, dy);
+            Commit();
+            return;
+        }
         if (Selection.Count == 0) return;
         var movable = MovablePieces;
         if (LockedNotice(movable)) return;
@@ -1284,6 +1307,34 @@ public sealed partial class PlanSession
         }
     }
 
+    /// <summary>
+    /// Ersetzt das gewählte Gleis durch eine Weiche (Höhe, Steigung und Ebene bleiben) und schließt die Lücke zum nächsten Gleis
+    /// mit Flexgleis. Die neue Weiche ist danach gewählt. Null, wenn es nicht geht (Grund in der Statuszeile).
+    /// </summary>
+    public PlacedPiece? InsertSwitch(string switchKey, bool reverse = false, bool otherSide = false)
+    {
+        if (SelectedPieces is not [var piece]) { Say(Lang.T("Weiche einsetzen: genau ein Gleis wählen, an dessen Stelle die Weiche kommt.")); return null; }
+        if (piece.Locked) { Say(Lang.T("Das Gleis ist gesperrt.")); return null; }
+        Record();
+        try
+        {
+            var r = SwitchInsert.Build(Plan, piece, switchKey, CurrentFlex.SystemId, reverse, otherSide);
+            Selection.Clear();
+            Selection.Add(r.Switch.Id);
+            Active = null;
+            SelectedObject = null;
+            Commit();
+            Say(r.Message);
+            return r.Switch;
+        }
+        catch (InvalidOperationException e)
+        {
+            History.DiscardLast();
+            Say(e.Message);
+            return null;
+        }
+    }
+
     /// <summary>Beschriftung an einer Stelle des Plans.</summary>
     public SceneryItem AddLabel(string text, double x, double y)
     {
@@ -1305,6 +1356,47 @@ public sealed partial class PlanSession
         return item;
     }
 
+    /// <summary>Holzleiste des Unterbaus von a nach b (Diagonale, Strebe), Querschnitt wie die Zarge, Oberkante unter der Platte.</summary>
+    public SceneryItem? AddBeam((double X, double Y) a, (double X, double Y) b)
+    {
+        var len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+        if (len < BeamLayout.MinLength) return null;
+        var (w, d, top) = BeamLayout.Defaults(Plan);
+        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Beam, Points = [a, b], Width = w, Depth = d, Height = top });
+        Say(Lang.F($"Leiste {Fmt.Num(len, 0)} mm gesetzt ({BeamLayout.Section(item)} mm). Querschnitt, Höhe und Länge stehen in den Eigenschaften, im Unterbau steht sie in Zuschnitt und Materialliste."));
+        return item;
+    }
+
+    /// <summary>Deckplatte nach den Maßen des Rahmens auf den Unterbau legen (über den gezeichneten Leisten bzw. der Platte des Plans).</summary>
+    public SceneryItem AddPlate()
+    {
+        var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
+        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Plate, X = x, Y = y, Width = w, Depth = d, Variant = t, Height = top });
+        Say(Lang.F($"Deckplatte {PlateLayout.Size(item)} mm, {t} mm stark, aufgelegt (Oberkante {Fmt.Num(top, 0)} mm). Lage, Größe, Stärke und Oberkante stehen in den Eigenschaften; verschieben mit der Maus oder den Pfeiltasten."));
+        return item;
+    }
+
+    /// <summary>Gewählte Deckplatte wieder auf die Maße des Rahmens bringen.</summary>
+    public void FitPlate(SceneryItem s)
+    {
+        if (!s.IsPlate) return;
+        Record();
+        var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
+        (s.X, s.Y, s.Width, s.Depth) = (x, y, w, d);
+        s.Height = Math.Round(top - t + PlateLayout.Thickness(s), 1);   // auf dem Rahmen, eigene Stärke bleibt
+        Commit();
+    }
+
+    /// <summary>Länge einer Leiste ändern: der Anfang bleibt, die Richtung auch.</summary>
+    public static void SetBeamLength(SceneryItem s, double length)
+    {
+        if (!s.IsBeam || s.Points.Count != 2) return;
+        var (a, b) = (s.Points[0], s.Points[1]);
+        var l = BeamLayout.Length(s);
+        if (l < 1e-9) return;
+        s.Points = [a, (Math.Round(a.X + (b.X - a.X) / l * length, 1), Math.Round(a.Y + (b.Y - a.Y) / l * length, 1))];
+    }
+
     /// <summary>
     /// Setzt das gewählte Ausstattungsmodell an (x, y) und rastet es am Gleis ein (Umkreis <paramref name="tolerance"/> in mm).
     /// Eigene Modelle aus der Bibliothek brauchen Pro; im Plan mitgespeicherte Modelle gehen auch in der Basis.
@@ -1324,6 +1416,56 @@ public sealed partial class PlanSession
         Commit();
         Say(result.Message);
         return item;
+    }
+
+    /// <summary>
+    /// Setzt ein Modell (Brücke, Stützmauer, Bahnsteig, Halle) entlang der gewählten Gleise. Null, wenn keine Gleise gewählt sind
+    /// oder das Modell nicht am Gleis entlang liegt – dann wird es wie gewohnt per Klick gesetzt.
+    /// </summary>
+    public SceneryItem? PlaceModelOnSelection(string modelId)
+    {
+        if (Selection.Count == 0 || ModelLibrary.Find(Plan, modelId) is not { } def || !ModelPlacement.FitsSelection(def)) return null;
+        if (!def.IsBuiltin && !Plan.Models.ContainsKey(def.Id) && !RequirePro(Lang.T("Eigene Modelle"))) return null;
+        if (ModelPlacement.AlongTracks(Plan, def, Selection) is not { } result) return null;
+        Record();
+        if (!def.IsBuiltin) Plan.Models[def.Id] = def.Clone();
+        var item = result.Item;
+        item.Id = Plan.NextId++;
+        Plan.Scenery.Add(item);
+        SelectedObject = item.Id;
+        Selection.Clear();
+        Commit();
+        Say(result.Message);
+        return item;
+    }
+
+    /// <summary>Kann das gewählte Objekt auf die andere Gleisseite (Stützmauer, Bahnsteig)?</summary>
+    public bool CanFlipModelSide(int id)
+        => Plan.Scenery.FirstOrDefault(s => s.Id == id) is { IsModel: true } item && ModelLibrary.Of(Plan, item) is { Snap: ModelSnap.Neben };
+
+    /// <summary>Zweite Stützmauer bzw. zweiten Bahnsteig gegenüber auf die andere Gleisseite setzen (beidseitig).</summary>
+    public SceneryItem? AddModelOtherSide(int id)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsModel: true } item || ModelLibrary.Of(Plan, item) is not { Snap: ModelSnap.Neben } def) return null;
+        Record();
+        var copy = item.Clone();
+        copy.Id = Plan.NextId++;
+        ModelPlacement.FlipSide(Plan, def, copy);
+        Plan.Scenery.Add(copy);
+        SelectedObject = copy.Id;
+        Commit();
+        Say(Lang.F($"{def.Name} auch auf der anderen Gleisseite gesetzt."));
+        return copy;
+    }
+
+    /// <summary>Stützmauer oder Bahnsteig auf die andere Seite des Gleises setzen.</summary>
+    public void FlipModelSide(int id)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsModel: true } item || ModelLibrary.Of(Plan, item) is not { Snap: ModelSnap.Neben } def) return;
+        Record();
+        ModelPlacement.FlipSide(Plan, def, item);
+        Commit();
+        Say(Lang.F($"{def.Name} auf die andere Gleisseite gesetzt."));
     }
 
     /// <summary>

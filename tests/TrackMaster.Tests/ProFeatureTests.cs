@@ -160,6 +160,28 @@ public class ProFeatureTests
     }
 
     [Fact]
+    public void Tunnelstrecken_lassen_sich_in_3D_ausblenden_samt_Zug()
+    {
+        var plan = SamplePlan.Build();
+        Assert.Null(Scene3DModel.TunnelMask(plan));
+        var tunnel = plan.Pieces.Where(p => !p.Def.IsTable).Take(4).ToList();
+        foreach (var p in tunnel) p.Tunnel = true;
+        var shown = new Scene3DModel(plan).TriangleCount;
+        var hidden = new Scene3DModel(plan, tunnels: false).TriangleCount;
+        Assert.True(hidden < shown, $"{hidden} / {shown}");
+        // Der Zug verschwindet nur dort, wo der Tunnel liegt
+        var mask = Scene3DModel.TunnelMask(plan)!;
+        var mid = tunnel[1].WorldLegs()[0].At(0.5);
+        Assert.True(mask(mid.X, mid.Y));
+        var open = plan.Pieces.First(p => !p.Tunnel && !p.Def.IsTable && Scene3DModel.TunnelMask(plan)!(p.WorldLegs()[0].At(0.5).X, p.WorldLegs()[0].At(0.5).Y) == false).WorldLegs()[0].At(0.5);
+        Assert.False(mask(open.X, open.Y));
+        var path = RidePath.Build(plan, tunnel[1].Id);
+        var train = new Train3D(plan, coaches: 0);
+        Assert.Equal(0, train.Build(path, train.Length).Values.Sum(m => m.TriangleCount) == 0 ? 1 : 0);
+        Assert.Equal(0, train.Build(path, train.Length, (_, _) => true).Values.Sum(m => m.TriangleCount));
+    }
+
+    [Fact]
     public void Gelaende_Elektrik_und_Hoehen_werden_gespeichert()
     {
         var plan = SamplePlan.Build();

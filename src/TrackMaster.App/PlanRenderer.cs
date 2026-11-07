@@ -198,6 +198,7 @@ public sealed class PlanScene
             dc.Pop();
         }
         dc.DrawGeometry(null, new Pen(Theme.BoardStrokeBrush, 1.2 / z) { LineJoin = PenLineJoin.Round }, board);
+        DrawBeams(dc, z, o, selPen);
 
         if (o.Scenery)
         {
@@ -307,6 +308,20 @@ public sealed class PlanScene
     private static readonly Brush OtherFill = Frozen(Color.FromArgb(0x80, 0xA0, 0xA0, 0xA0));
     private static readonly Brush DetectorBrush = Frozen(Color.FromRgb(0x6B, 0x3F, 0xA0));
     private static readonly Brush LockBrush = Frozen(Color.FromRgb(0x5C, 0x5C, 0x5C));
+
+    private static readonly Brush BeamFill = Frozen(Color.FromArgb(0xC8, 0xD4, 0xB4, 0x82));
+    private static readonly Brush BeamStroke = Frozen(Color.FromRgb(0x8A, 0x6B, 0x4A));
+
+    /// <summary>Frei gezogene Leisten des Unterbaus (Diagonale, Streben): Holzfarbe, immer sichtbar.</summary>
+    private static readonly Brush PlateFill = Frozen(Color.FromArgb(0x50, 0xC8, 0xA8, 0x78));
+
+    private void DrawBeams(DrawingContext dc, double z, RenderOptions o, Pen selPen)
+    {
+        foreach (var p in _plan.Scenery.Where(s => s.IsPlate))
+            dc.DrawGeometry(PlateFill, p.Id == o.SelectedObject ? selPen : new Pen(BeamStroke, 1.5 / z) { DashStyle = new DashStyle([6, 3], 0) }, Polygon(PlateLayout.Outline(p)));
+        foreach (var b in _plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2))
+            dc.DrawGeometry(BeamFill, b.Id == o.SelectedObject ? selPen : new Pen(BeamStroke, 1.2 / z), Polygon(BeamLayout.Outline(b)));
+    }
 
     private void DrawRooms(DrawingContext dc, double z, RenderOptions o, Pen selPen)
     {

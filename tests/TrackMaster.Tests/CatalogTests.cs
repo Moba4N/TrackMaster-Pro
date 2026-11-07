@@ -278,3 +278,34 @@ public class PiccoloTests
         Assert.Equal("9187", Catalog.Get("N|picc|9167").Number);
     }
 }
+
+public class PecoCode55Tests
+{
+    [Theory]
+    [InlineData("N|peco-55-n|SLE391F", 123, 10)]
+    [InlineData("N|peco-55-n|SLE392F", 123, 10)]
+    [InlineData("N|peco-55-n|SLU395F", 137, 10)]
+    [InlineData("N|peco-55-n|SLE388F", 164, 10)]
+    [InlineData("TT|peco-55-tt|SLU1291", 135, 11.25)]
+    [InlineData("TT|peco-55-tt|SLU1295", 180, 11.25)]
+    [InlineData("TT|peco-55-tt|SLU1296", 180, 11.25)]
+    public void Weichen_haben_Laenge_und_Winkel_der_Peco_Artikelseite(string key, double length, double angle)
+    {
+        var d = Catalog.Get(key);
+        Assert.True(d.Verified, key);
+        var paths = TrackGeometry.LocalPaths(d, false);
+        Assert.Equal(length, paths[0][^1].End.X, 1);
+        var branch = paths[1][^1].End;
+        Assert.Equal(length, branch.X, 0);
+        Assert.Equal(angle, Math.Abs(Angles.Normalize(branch.Heading)), 1);
+    }
+
+    [Fact]
+    public void Code_55_gibt_es_in_N_und_TT_mit_Peco_Flexgleis()
+    {
+        Assert.Equal("SL300F", Catalog.GetSystem("N", "peco-55-n")!.FlexNumber);
+        Assert.Equal("SL1200", Catalog.GetSystem("TT", "peco-55-tt")!.FlexNumber);
+        Assert.Equal(10, Catalog.Get("N|peco-55-n|SLE390F").Angle);
+        Assert.Equal(154, Catalog.Get("N|peco-55-n|SLE390F").Length);
+    }
+}

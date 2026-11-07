@@ -171,6 +171,11 @@
         <button class="st-toggle @(_session.ShowGrid ? "on" : "")" title="@Lang.T("Raster anzeigen")" @onclick="@(() => Run("grid"))">@Lang.T("Raster")</button>
     </footer>
 
+    @if (_editModel is { } editModel)
+    {
+        <ModelEditorPanel @ref="_editor" Model="editModel" Gauge="_session.Plan.Gauge" OnSave="SaveOwnModel" OnClose="CloseModelEditor" />
+    }
+
     @if (_open3D)
     {
         <div class="view3d" role="dialog" aria-label="@Lang.T("3D-Ansicht")">
@@ -195,6 +200,7 @@
                     <button class="btn @(_scenery3D ? "on" : "")" title="@Lang.T("Gelände, Gewässer, Gebäude und Bäume zeigen")" @onclick="@(() => SetScenery3D(true))">@Lang.T("Mit Gelände")</button>
                     <button class="btn @(!_scenery3D ? "on" : "")" title="@Lang.T("Nur Platte und Gleise zeigen")" @onclick="@(() => SetScenery3D(false))">@Lang.T("Nur Gleisplan")</button>
                     <button class="btn @(_piers3D ? "on" : "")" title="@Lang.T("Stützen unter hochliegenden Gleisen zeigen")" @onclick="TogglePiers3D">@Lang.T("Stützen")</button>
+                    <button class="btn @(_tunnels3D ? "on" : "")" title="@Lang.T("Tunnelstrecken zeigen – ausgeschaltet sind Tunnelgleise, Röhren und der Zug darin ausgeblendet")" @onclick="ToggleTunnels3D">@Lang.T("Tunnel")</button>
                     <span class="secondary small" style="margin-left:12px">@Lang.T("Drehen:")</span>
                     <button class="btn" disabled="@_riding" title="@Lang.T("Um die Querachse kippen (X)")" @onclick="@(() => Js.GlTurn(0, 15))">X ↻</button>
                     <button class="btn" disabled="@_riding" title="@Lang.T("Um die Hochachse drehen (Y)")" @onclick="@(() => Js.GlTurn(1, 15))">Y ↻</button>
@@ -304,7 +310,9 @@
                 new(Lang.T("An Modulkante trennen"), "Isolate", "cutJoints", false, Lang.T("Gleise, die über eine Modulkante laufen, genau an der Kante in zwei Flexgleisstücke teilen (gewählte Gleise, ohne Auswahl alle). Auch per Rechtsklick auf das Gleis.")),
                 new(Lang.T("Platte ziehen"), "Resize", "toolBoard", true, Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
                 new(Lang.T("Anlage 90° drehen"), "RotateRight", "boardRotate", false, Lang.T("Platte, Gleise und Gelände zusammen um 90° im Uhrzeigersinn drehen. Frei in alle Richtungen drehen geht in der 3D-Ansicht.")),
-                new(Lang.T("Unterbau…"), "Table", "benchwork", true, Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt."))]),
+                new(Lang.T("Unterbau…"), "Table", "benchwork", true, Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt.")),
+                new(Lang.T("Leiste ziehen"), "Beam", "toolBeam", false, Lang.T("Einzelne Holzleiste frei ziehen, z. B. eine Diagonale unter versetzten Modulen und Streben dazu. Anfang und Ende anklicken; Kanten, Ecken und andere Leisten rasten ein.")),
+                new(Lang.T("Platte auflegen"), "Plate", "addPlate", false, Lang.T("Deckplatte nach den Maßen der gezeichneten Leisten bzw. des Rahmens auf den Unterbau legen. Lage, Größe und Stärke in mm in den Eigenschaften; verschieben mit Maus oder Pfeiltasten."))]),
             new(Lang.T("Landschaft"), [new(Lang.T("Gelände formen"), "Terrain", "toolTerrain", true, Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 new(Lang.T("Gewässer"), "Water", "toolWater", false), new(Lang.T("Gebäude"), "Building", "toolBuilding", false), new(Lang.T("Vegetation"), "Tree", "toolTree", false), new("Tunnel", "Tunnel", "tunnel", false)]),
             new(Lang.T("Anzeigen"), [new(Lang.T("Gelände zeigen"), "Terrain", "scenery", false)]),
@@ -431,6 +439,8 @@
         _d["shape"] = BoardShape.Rechteck.ToString();
         _d["turn"] = "0";
         _d["legL"] = _d["legR"] = "";
+        _d["start"] = "direct";
+        _d["template"] = BenchTemplate.All[0].Id;
         SuggestBoard();
         var d = Show(Lang.T("Neuer Plan"), NewPlanBody, keepFields: true);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
@@ -511,6 +521,26 @@
                 <div><label class="field-label">@Lang.T("Rechter Schenkel lang (mm)")</label><input class="input" inputmode="decimal" placeholder="@Lang.T("ganz")" @bind='_d["legR"]' @bind:event="oninput" /></div>
             </div>
         }
+        <label class="field-label">@Lang.T("Bauweise")</label>
+        <select class="input" value="@D("start")" @onchange="@(e => _d["start"] = e.Value?.ToString() ?? "direct")">
+            <option value="direct">@Lang.T("Direkt auf Ebene 1 planen")</option>
+            <option value="template">@Lang.T("Rahmenbau mit Vorlage")</option>
+            <option value="manual">@Lang.T("Rahmenbau selbst zeichnen")</option>
+        </select>
+        @if (D("start") == "template")
+        {
+            <select class="input" value="@D("template")" @onchange="@(e => _d["template"] = e.Value?.ToString() ?? "")">
+                @foreach (var bt in BenchTemplate.All)
+                {
+                    <option value="@bt.Id">@bt.Name</option>
+                }
+            </select>
+            @Hint((BenchTemplate.Find(D("template")) ?? BenchTemplate.All[0]).Description + " " + Lang.T("Alle Maße lassen sich später unter Gelände › Unterbau… ändern."))
+        }
+        else if (D("start") == "manual")
+        {
+            @Hint(Lang.T("Rahmen ohne Vorgabe: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv), danach legt Gelände › Platte auflegen die Deckplatte nach diesen Maßen auf. Gelände › Unterbau… zeigt Zuschnitt und Materialliste."))
+        }
         @if (valid)
         {
             var area = BoardGeometry.Rects(shape, bw, bh, bd, t, l1, l2).Sum(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)) / 1e6;
@@ -539,7 +569,15 @@
         if (!Fail(errors)) return false;
         var t = int.TryParse(D("turn"), out var tt) ? tt : 0;
         var full = t % 2 == 0 ? bh : bw;
-        _session.NewPlan(new BoardSetup(D("gauge"), shape, bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2));
+        var gauge = Catalog.GetGauge(D("gauge"));
+        var bench = D("start") switch
+        {
+            "template" => (BenchTemplate.Find(D("template")) ?? BenchTemplate.All[0]).Spec(gauge),
+            "manual" => BenchTemplate.Manual(gauge),
+            _ => null,
+        };
+        _session.NewPlan(new BoardSetup(D("gauge"), shape, bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2, bench));
+        if (bench is { Manual: true }) _session.Tool = CanvasTool.Beam;
         _view.Fit();
         return true;
     }
@@ -646,10 +684,30 @@
         _d["style"] = ((int)s.LegStyle).ToString(); _d["lw"] = N(s.LegWidth); _d["ld"] = N(s.LegDepth); _d["lspace"] = N(s.LegSpacing);
         _d["braces"] = s.Braces ? "1" : ""; _d["bh"] = N(s.BraceHeight); _d["feet"] = s.Feet ? "1" : ""; _d["foot"] = N(s.FootHeight);
         _d["stock"] = N(s.StockLength); _d["sw"] = N(s.SheetWidth); _d["sd"] = N(s.SheetDepth);
+        _d["manual"] = s.Manual ? "1" : "";
+        void Fill(BenchworkSpec v)
+        {
+            _d["height"] = N(v.Height); _d["top"] = N(v.TopThickness); _d["ft"] = N(v.FrameThickness); _d["fh"] = N(v.FrameHeight); _d["cross"] = N(v.CrossSpacing);
+            _d["style"] = ((int)v.LegStyle).ToString(); _d["lw"] = N(v.LegWidth); _d["ld"] = N(v.LegDepth); _d["lspace"] = N(v.LegSpacing);
+            _d["braces"] = v.Braces ? "1" : ""; _d["bh"] = N(v.BraceHeight); _d["feet"] = v.Feet ? "1" : ""; _d["foot"] = N(v.FootHeight);
+            _d["manual"] = v.Manual ? "1" : "";
+        }
         RenderFragment Field(string key, string label) => @<div><label class="field-label">@label</label><input class="input" inputmode="decimal" @bind='_d[key]' @bind:event="oninput" /></div>;
         var d = Show(Lang.T("Unterbau"), @<div class="form">
             @Hint(Lang.F($"Holzkonstrukt unter der Platte ({BoardGeometry.Describe(plan)}): Zargen rundum und Querriegel unter jedem Plattenteil, Beine innen in den Ecken und entlang der langen Seiten. Alle Maße in mm. Die 3D-Ansicht zeigt den Unterbau."))
             <div class="cols">
+                <div>
+                    <label class="field-label">@Lang.T("Vorlage übernehmen")</label>
+                    <select class="input" value="" @onchange="@(e => { if (BenchTemplate.Find(e.Value?.ToString()) is { } bt) Fill(bt.Spec(plan.Gauge)); })">
+                        <option value="">…</option>
+                        @foreach (var bt in BenchTemplate.All)
+                        {
+                            <option value="@bt.Id">@bt.Name</option>
+                        }
+                    </select>
+                </div>
+                <div><label class="field-label"><input type="checkbox" checked="@(D("manual") == "1")" @onchange="@(e => _d["manual"] = e.Value is true ? "1" : "")" /> @Lang.T("Rahmen selbst zeichnen")</label>
+                    <div class="secondary">@Lang.T("Nur eigene Leisten und aufgelegte Deckplatten (Gelände › Leiste ziehen, Platte auflegen), kein berechneter Rahmen.")</div></div>
                 @Field("height", Lang.T("Höhe Oberkante Platte über Boden"))
                 @Field("top", Lang.T("Plattenstärke (0 = offener Rahmen)"))
                 @Field("ft", Lang.T("Latte für Rahmen: Stärke"))
@@ -683,7 +741,7 @@
                 Height = V("height"), TopThickness = V("top"), FrameThickness = V("ft"), FrameHeight = V("fh"), CrossSpacing = V("cross"),
                 LegStyle = D("style") == "1" ? BenchLegStyle.LBein : BenchLegStyle.Kantholz, LegWidth = V("lw"), LegDepth = V("ld"), LegSpacing = V("lspace"),
                 Braces = D("braces") == "1", BraceHeight = V("bh"), Feet = D("feet") == "1", FootHeight = V("foot"),
-                StockLength = V("stock"), SheetWidth = V("sw"), SheetDepth = V("sd"),
+                StockLength = V("stock"), SheetWidth = V("sw"), SheetDepth = V("sd"), Manual = D("manual") == "1",
             };
             errors.AddRange(Benchwork.Validate(spec));
             if (!Fail(errors)) return false;
@@ -1610,6 +1668,93 @@
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
 
+    // ---------- Eigene Modelle (Dialoge, Logik in App.Equipment.cs) ----------
+
+    private void PickModel(string title, IReadOnlyList<ModelDefinition> models, Action<ModelDefinition> pick)
+    {
+        var d = Show(title, @<div class="list">
+            @foreach (var m in models)
+            {
+                var model = m;
+                <button class="list-item model-choice" @onclick="@(() => { CloseDialog(); pick(model); })">
+                    <span class="model-pic">@((MarkupString)Pictures.Model(m))</span>
+                    <span class="texts">
+                        <span class="strong">@m.Name</span>
+                        <span class="secondary">@(string.IsNullOrWhiteSpace(m.Category) ? ModelLibrary.OwnCategory : m.Category)</span>
+                    </span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void ShowModelLibrary()
+    {
+        var used = _session.Plan.Scenery.Where(s => s.IsModel).Select(s => s.Model!).ToHashSet();
+        var own = ModelLibrary.Own.OrderBy(m => m.Category).ThenBy(m => m.Name).ToList();
+        var planOnly = _session.PlanModelsNotInLibrary();
+        RenderFragment Row(ModelDefinition m, bool inLibrary) => @<div class="list-item me-lib-item">
+            <span class="model-pic">@((MarkupString)Pictures.Model(m))</span>
+            <span class="texts">
+                <span class="strong">@m.Name</span>
+                <span class="secondary">@(string.IsNullOrWhiteSpace(m.Category) ? ModelLibrary.OwnCategory : m.Category)@(inLibrary ? (used.Contains(m.Id) ? " · " + Lang.T("im Plan verwendet") : "") : " · " + Lang.T("nur im Plan"))</span>
+                <span class="button-row">
+                    @if (inLibrary)
+                    {
+                        <button class="btn small" @onclick="@(() => OpenModelEditor(m))">@Lang.T("Bearbeiten")</button>
+                    }
+                    else
+                    {
+                        <button class="btn small" @onclick="@(() => { if (SaveOwnModel(m.Clone())) ShowModelLibrary(); })">@Lang.T("In Bibliothek übernehmen")</button>
+                    }
+                    <button class="btn small" @onclick="@(() => OpenModelEditor(ModelEditor.CopyOf(m)))">@Lang.T("Kopie bearbeiten")</button>
+                    <button class="btn small" @onclick="@(() => { CloseAllDialogs(); SetModelTool(m.Id); })">@Lang.T("In den Plan einfügen")</button>
+                    <button class="btn small" @onclick="@(() => ExportModel(m))">@Lang.T("Exportieren…")</button>
+                    <button class="btn small" title="@Lang.T("STL für den 3D-Druck, OBJ mit Farben für 3D-Programme – im Maßstab der Spur")" @onclick="@(() => Export3D(m, true))">STL</button>
+                    <button class="btn small" @onclick="@(() => Export3D(m, false))">OBJ</button>
+                    @if (inLibrary)
+                    {
+                        <button class="btn small danger" @onclick="@(() => AskDeleteModel(m))">@Lang.T("Löschen")</button>
+                    }
+                </span>
+            </span>
+        </div>;
+        var d = Show(Lang.T("Eigene Modelle"), @<div class="list">
+            @if (own.Count == 0 && planOnly.Count == 0)
+            {
+                <div class="secondary">@Lang.T("Noch keine eigenen Modelle. Mit „Neues Modell“ oder „Aus Vorlage…“ eines bauen oder Modelle importieren.")</div>
+            }
+            @foreach (var m in own)
+            {
+                @Row(m, true)
+            }
+            @foreach (var m in planOnly)
+            {
+                @Row(m, false)
+            }
+            <div class="secondary">@Lang.T("Eigene Modelle liegen im Speicher dieses Browsers. Zur Sicherung oder für andere Geräte bitte exportieren (ZIP).")</div>
+        </div>, wide: true);
+        d.Buttons.Add(new(Lang.T("Neues Modell"), () => { OpenModelEditor(ModelEditor.NewModel(Lang.T("Neues Modell"))); return false; }));
+        d.Buttons.Add(new(Lang.T("Aus Vorlage…"), () => { PickModel(Lang.T("Vorlage für ein eigenes Modell"), ModelLibrary.All.ToList(), m => OpenModelEditor(ModelEditor.CopyOf(m))); return false; }));
+        d.Buttons.Add(new(Lang.T("Importieren…"), () => { CloseDialog(); _ = ImportModels(); return false; }));
+        if (own.Count > 0) d.Buttons.Add(new(Lang.T("Alle exportieren (ZIP)…"), () => { ExportAllModels(); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    private void AskDeleteModel(ModelDefinition m)
+    {
+        var d = Show(Lang.T("Eigene Modelle"), MessageBody(Lang.F($"„{m.Name}“ aus der Bibliothek löschen?") + "\n\n" + Lang.T("Pläne, die das Modell verwenden, behalten ihre mitgespeicherte Fassung.")));
+        d.Buttons.Add(new(Lang.T("Löschen"), () =>
+        {
+            ModelLibrary.RemoveOwn(m.Id);
+            StoreOwnModels();
+            CloseAllDialogs();
+            ShowModelLibrary();
+            return false;
+        }, true));
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
     private void AskSignalType(SignalType current, Action<SignalType> pick)
     {
         var d = Show(Lang.T("Signal setzen"), @<div class="list">
@@ -1902,7 +2047,11 @@
                       placeholder="@Lang.T("Inhalt der Lizenzdatei hier einfügen (Strg+V oder lange tippen > Einfügen)")"
                       @bind='_d["lic"]' @bind:event="oninput"></textarea>
             @Hint(Lang.T("Eine Pro-Lizenz ist eine Datei „trackmaster.lic“. Sie gilt für Windows, Android und die Webversion. Entweder über „Lizenzdatei wählen“ einspielen oder den Text der Datei oben einfügen und „Eingefügte Lizenz übernehmen“ tippen. ") +
-                  Lang.T("Die Lizenz wird nur in diesem Browser gespeichert. Die Gerätekennung gehört zu diesem Browser; nach dem Löschen der Website-Daten entsteht eine neue."))
+                  Lang.T("Die Lizenz wird in diesem Browser gespeichert. Die Gerätekennung gehört zu diesem Browser; nach dem Löschen der Website-Daten entsteht eine neue."))
+            @if (_license.Activation is not null)
+            {
+                @Hint(LicenseActivation.PrivacyNotice)
+            }
         </div>, wide: true);
         _d["lic"] = "";
         if (_license.Result.IsValid && _license.Activation is { } act && act.Applies(_license.Result.License))

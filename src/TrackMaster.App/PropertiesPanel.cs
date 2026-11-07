@@ -299,7 +299,31 @@ public sealed class PropertiesPanel : DockPanel
         if (conns.Count > 1) buttons.Add(Cmd(Lang.T("Anschluss wechseln"), "Swap", "swap"));
         buttons.Add(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true));
         _body.Children.Add(Buttons([.. buttons]));
+
+        if (SwitchInsert.CanReplace(p) && SwitchInsert.Switches(_session.Plan, _session.CurrentSystem.Id) is { Count: > 0 } switches)
+        {
+            Section(Lang.T("Weiche einsetzen"));
+            _body.Children.Add(new TextBlock { Text = Lang.T("Ersetzt dieses Gleis durch eine Weiche – Höhe, Steigung und Ebene bleiben, eine Lücke schließt ein Flexgleis. Auch in der Gleiswendel; in engen Bögen eine Bogenweiche wählen."), TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Foreground = Theme.TextSecondaryBrush, Margin = new Thickness(0, 0, 0, 6) });
+            var choice = new ComboBox { Height = 28 };
+            foreach (var w in switches)
+                choice.Items.Add(new ComboBoxItem { Content = $"{w.Number} · {w.Name}" + (w.SystemId == _session.CurrentSystem.Id ? "" : $" ({w.SystemName})"), Tag = w.Key, IsSelected = w.Key == (_insertKey ?? switches[0].Key) });
+            if (choice.SelectedItem is null) choice.SelectedIndex = 0;
+            choice.SelectionChanged += (_, _) => _insertKey = (choice.SelectedItem as ComboBoxItem)?.Tag as string;
+            _body.Children.Add(choice);
+            var reverse = new CheckBox { Content = Lang.T("in Gegenrichtung (Weichenspitze am anderen Ende)"), IsChecked = _insertReverse, Margin = new Thickness(0, 6, 0, 4) };
+            reverse.Click += (_, _) => _insertReverse = reverse.IsChecked == true;
+            var other = new CheckBox { Content = Lang.T("Abzweig auf die andere Seite"), IsChecked = _insertOther, Margin = new Thickness(0, 0, 0, 6) };
+            other.Click += (_, _) => _insertOther = other.IsChecked == true;
+            _body.Children.Add(reverse);
+            _body.Children.Add(other);
+            var insert = Theme.Button(Lang.T("Weiche einsetzen"), accent: true);
+            insert.Click += (_, _) => _session.InsertSwitch((choice.SelectedItem as ComboBoxItem)?.Tag as string ?? switches[0].Key, _insertReverse, _insertOther);
+            _body.Children.Add(Buttons(insert));
+        }
     }
+
+    private string? _insertKey;
+    private bool _insertReverse, _insertOther;
 
     private void MultiView(IReadOnlyList<PlacedPiece> sel)
     {
@@ -369,6 +393,32 @@ public sealed class PropertiesPanel : DockPanel
                             Theme.Field(Lang.T("Schrifthöhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 2, 500), 0))));
                         Rows((Lang.T("Länge"), $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null));
                         break;
+                    case SceneryKind.Beam when s.Points.Count == 2:
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, BeamLayout.MinSection, BeamLayout.MaxWidth), 0)),
+                            Theme.Field(Lang.T("Höhe der Latte (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, BeamLayout.MinSection, BeamLayout.MaxDepth), 0))));
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Länge (mm)"), NumberBox(BeamLayout.Length(s), v => PlanSession.SetBeamLength(s, Math.Clamp(v, BeamLayout.MinLength, 20000)), 0)),
+                            Theme.Field(Lang.T("Oberkante (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, BeamLayout.MinTop, BeamLayout.MaxTop), 0))));
+                        Rows((Lang.T("Winkel"), $"{Fmt.Num(BeamLayout.Angle(s), 1)}°", null));
+                        break;
+                    case SceneryKind.Plate:
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Links (mm)"), NumberBox(s.X, v => s.X = Math.Clamp(v, -20000, 20000), 1)),
+                            Theme.Field(Lang.T("Oben (mm)"), NumberBox(s.Y, v => s.Y = Math.Clamp(v, -20000, 20000), 1))));
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, PlateLayout.MinSize, PlateLayout.MaxSize), 1)),
+                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, PlateLayout.MinSize, PlateLayout.MaxSize), 1))));
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Stärke (mm)"), NumberBox(PlateLayout.Thickness(s), v => s.Variant = (int)Math.Round(Math.Clamp(v, PlateLayout.MinThickness, PlateLayout.MaxThickness)), 0)),
+                            Theme.Field(Lang.T("Oberkante (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, BeamLayout.MinTop, BeamLayout.MaxTop), 0))));
+                        Rows((Lang.T("Fläche"), $"{Fmt.Num(s.Width * s.Depth / 1e6, 2)} m²", null));
+                        var fit = Theme.Button(Lang.T("An Rahmen anpassen"), "Resize");
+                        fit.ToolTip = Lang.T("Legt die Platte wieder genau über die gezeichneten Leisten bzw. den Rahmen.");
+                        fit.Click += (_, _) => _session.FitPlate(s);
+                        _body.Children.Add(Buttons(fit));
+                        _body.Children.Add(Tip(Lang.T("Links und Oben: linke obere Ecke im Plan. Oberkante über der Plattenoberkante des Plans (0 = Gleisebene). Mit Unterbau steht die Platte in der Materialliste.")));
+                        break;
                     case SceneryKind.Terrain:
                         _body.Children.Add(Columns(2, Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, -500, 3000), 0))));
                         Rows((Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null));
@@ -379,11 +429,12 @@ public sealed class PropertiesPanel : DockPanel
                         break;
                     case SceneryKind.Building when ModelLibrary.Of(plan, s) is { } model:
                         _headerRight.Text = model.Name;
+                        var (heightLabel, trackHeight) = ModelPlacement.HeightInfo(plan, model, s);
                         if (s.Points.Count >= 2)
                         {
                             _body.Children.Add(Columns(2,
                                 Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
-                                Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                                Theme.Field(heightLabel, NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
                             Rows((Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null));
                         }
                         else
@@ -391,9 +442,10 @@ public sealed class PropertiesPanel : DockPanel
                             _body.Children.Add(Columns(3,
                                 Theme.Field(Lang.T("Länge (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 0.5, 20000), 1)),
                                 Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, 0.5, 5000), 1)),
-                                Theme.Field(Lang.T("Höhe (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
+                                Theme.Field(heightLabel, NumberBox(s.Height, v => s.Height = Math.Clamp(v, 0.5, 2000), 1))));
                             _body.Children.Add(Columns(3, Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
                         }
+                        if (trackHeight is not null) Rows((Lang.T("Gleishöhe"), trackHeight, null));
                         var colors = new ComboBox { Height = 28 };
                         foreach (var (cname, hex) in ModelLibrary.MainColors)
                             colors.Items.Add(new ComboBoxItem { Content = cname, Tag = hex ?? "", IsSelected = string.Equals(hex ?? "", s.Color ?? "", StringComparison.OrdinalIgnoreCase) });
@@ -411,6 +463,16 @@ public sealed class PropertiesPanel : DockPanel
                             : Lang.T("Pro: öffnet das Modell im Modell-Editor; Änderungen gelten für alle Objekte mit diesem Modell.");
                         editModel.Click += (_, _) => _run("modelEditSelected");
                         _body.Children.Add(Buttons(reset, editModel));
+                        if (model.Snap == ModelSnap.Neben)
+                        {
+                            var flip = Theme.Button(Lang.T("Seite wechseln"), "Mirror");
+                            flip.ToolTip = Lang.T("Setzt das Modell auf die andere Seite des Gleises.");
+                            flip.Click += (_, _) => _session.FlipModelSide(s.Id);
+                            var both = Theme.Button(Lang.T("Beidseitig"), "Copy");
+                            both.ToolTip = Lang.T("Setzt dasselbe Modell zusätzlich auf die andere Seite des Gleises.");
+                            both.Click += (_, _) => _session.AddModelOtherSide(s.Id);
+                            _body.Children.Add(Buttons(flip, both));
+                        }
                         if (!string.IsNullOrWhiteSpace(model.Description)) _body.Children.Add(Tip(model.Description));
                         break;
                     case SceneryKind.Building:

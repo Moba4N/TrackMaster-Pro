@@ -89,18 +89,39 @@ public sealed class Scene3DModel
     /// <summary>Gelände zeigen (Wiese, Hügel, Gewässer, Gebäude, Bäume) oder nur Platte und Gleise.</summary>
     public bool Scenery { get; }
 
+    /// <summary>Unterbau ohne Deckplatte (offener Rahmen, Spantenbau) oder selbst gezeichnet: 3D zeigt nur Rahmen, Leisten, aufgelegte Deckplatten und Gleise.</summary>
+    public bool OpenFrame { get; }
+
     /// <summary>Stützen unter hochliegenden Gleisen zeigen (je eine rechts und links neben dem Gleis) oder weglassen.</summary>
     public bool Piers { get; }
 
     public static readonly Rgb PierColor = new(0xA8, 0xA4, 0x9C);
 
-    public Scene3DModel(LayoutPlan plan, bool scenery = true, bool piers = false)
+    /// <summary>Tunnelstrecken (Gleise mit Tunnelröhre) zeigen oder ausblenden, damit man die übrige Anlage frei sieht.</summary>
+    public bool Tunnels { get; }
+
+    public Scene3DModel(LayoutPlan plan, bool scenery = true, bool piers = false, bool tunnels = true)
     {
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
-        Scenery = scenery;
+        // Offener Rahmen (Spantenbau, ohne Deckplatte): nur das Holzgerüst zeigen, ohne Platte, Wiese und Gelände
+        OpenFrame = plan.Benchwork is { TopThickness: <= 0 } or { Manual: true };
+        Scenery = scenery && !OpenFrame;
         Piers = piers;
+        Tunnels = tunnels;
         Build();
+    }
+
+    /// <summary>
+    /// Prüft, ob ein Punkt (x, y im Plan) auf einer Tunnelstrecke liegt – damit ausgeblendete Tunnel auch den Zug darin verbergen.
+    /// Null, wenn der Plan keine Tunnel hat.
+    /// </summary>
+    public static Func<double, double, bool>? TunnelMask(LayoutPlan plan)
+    {
+        var tunnels = plan.Pieces.Where(p => p.Tunnel && !p.Def.IsTable).ToList();
+        if (tunnels.Count == 0) return null;
+        var tol = plan.Gauge.TrackWidth;
+        return (x, y) => ModelPlacement.Nearest(tunnels, x, y, tol) is not null;
     }
 
     public int TriangleCount => Meshes.Values.Sum(m => m.TriangleCount);
@@ -131,11 +152,23 @@ public sealed class Scene3DModel
             var z = module?.Height ?? 0;
             var t = module is { Thickness: > 0 } ? module.Thickness : thickness;
             var bottom = z - t;
+            if (OpenFrame && module is not { Thickness: > 0 }) continue;
             Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, bottom), P(r.X1, r.Y1, z), top: false);
             if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, bottom - Math.Min(t, thickness) * 0.6), P(r.X1 + 2, r.Y1 + 2, bottom));
             if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1, z);
             else Mesh(new Rgb(0xC9, 0xB8, 0x96)).Quad(P(r.X0, r.Y0, z), P(r.X0, r.Y1, z), P(r.X1, r.Y1, z), P(r.X1, r.Y0, z));
         }
+
+        // Frei gezogene Leisten des Unterbaus (Diagonale, Streben), auch ohne berechneten Unterbau
+        foreach (var s in plan.Scenery.Where(x => x.IsBeam && x.Points.Count == 2))
+        {
+            var wood = new Rgb(0xD4, 0xB4, 0x82);
+            Prism(BeamLayout.Outline(s), s.Height - s.Depth, s.Height, wood, new Rgb(0xC2, 0x9E, 0x6C), SurfaceKind.Matte);
+        }
+
+        // Aufgelegte Deckplatten
+        foreach (var s in plan.Scenery.Where(x => x.IsPlate))
+            Mesh(new Rgb(0xC8, 0xA8, 0x78)).Box(P(s.X, s.Y, s.Height - PlateLayout.Thickness(s)), P(s.X + s.Width, s.Y + s.Depth, s.Height));
 
         foreach (var s in Scenery ? plan.Scenery : [])
             switch (s.Kind)
@@ -149,9 +182,9 @@ public sealed class Scene3DModel
         var totalLength = plan.Pieces.Sum(p => p.Def.TrackLength);
         var sleepers = totalLength / g < 8000;
         if (Scenery) IndexTracks(plan);
-        foreach (var p in plan.Pieces) Track(p, sleepers);
+        foreach (var p in plan.Pieces.Where(p => Tunnels || !p.Tunnel)) Track(p, sleepers);
         foreach (var p in plan.Pieces.Where(p => p.Def.IsTable)) Table(p);
-        foreach (var sig in plan.Signals) SignalModel(sig);
+        foreach (var sig in plan.Signals.Where(x => Tunnels || plan.Find(x.PieceId) is not { Tunnel: true })) SignalModel(sig);
     }
 
     /// <summary>Drehscheibe bzw. Schiebebühne: Grube, Ring, Bühne mit Gleis in Richtung Anschluss 0.</summary>
@@ -225,7 +258,7 @@ public sealed class Scene3DModel
             {
                 BenchKind.Bein => new Rgb(0xA8, 0x80, 0x52),
                 BenchKind.Traverse => new Rgb(0xC2, 0x9E, 0x6C),
-                BenchKind.Platte => (Rgb?)null,
+                BenchKind.Platte or BenchKind.Leiste => (Rgb?)null,
                 _ => new Rgb(0xD4, 0xB4, 0x82),
             };
             if (color is { } c) Mesh(c).Box(P(p.X0, p.Y0, p.Z0), P(p.X1, p.Y1, p.Z1));
@@ -331,7 +364,7 @@ public sealed class Scene3DModel
 
     private void Building(SceneryItem s)
     {
-        if (ModelLibrary.Placed(_plan, s) is { } model) { Model(s, model); return; }
+        if (ModelLibrary.Placed(_plan, s, trackHeight: true) is { } model) { Model(s, model); return; }
         var o = s.Outline();
         // Auf dem Hügel: auf die tiefste Ecke stellen, bergseitig steckt das Haus im Hang
         var ground = o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y));
@@ -382,8 +415,7 @@ public sealed class Scene3DModel
     /// <summary>Ausstattungsmodell: auf den tiefsten Punkt des Umrisses gestellt (mindestens auf die Höhe seiner Ebene).</summary>
     private void Model(SceneryItem s, PlacedModel model)
     {
-        var o = s.Outline();
-        var ground = Math.Max(o.Min(c => TerrainField.GroundAt(_plan, c.X, c.Y)), s.Level > 0 ? _plan.Level(s.Level).Height : double.MinValue);
+        var ground = ModelPlacement.BaseGround(_plan, s);
         foreach (var (color, kind, a, b, c) in model.WorldTriangles(ground))
             Mesh(color, kind).Triangle(P(a.X, a.Y, a.Z), P(b.X, b.Y, b.Z), P(c.X, c.Y, c.Z));
     }

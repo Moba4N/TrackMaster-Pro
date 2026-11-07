@@ -165,6 +165,7 @@ public sealed class MainActivity : Activity
         Add("new", Lang.T("Neu"), () => Dialogs.AskNewPlan(this, _session.Plan.GaugeId, setup =>
         {
             _session.NewPlan(setup);
+            if (setup.Benchwork is { Manual: true }) SetTool(CanvasTool.Beam);
             _library.Refresh(force: true);
             _canvas.Fit();
         }));
@@ -246,6 +247,8 @@ public sealed class MainActivity : Activity
         Add("toolTree", Lang.T("Vegetation"), () => SetTool(CanvasTool.Tree));
         Add("toolLabel", "Text", () => SetTool(CanvasTool.Label));
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
+        Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
+        Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
         Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
@@ -303,6 +306,8 @@ public sealed class MainActivity : Activity
 
     private void SetModelTool(string id)
     {
+        // Gleise gewählt und Brücke, Stützmauer oder Bahnsteig: gleich entlang der Auswahl setzen
+        if (_session.Tool != CanvasTool.Model && _session.PlaceModelOnSelection(id) is not null) { _session.ModelId = id; UpdateToolBar(); RefreshActions(); return; }
         _session.ModelId = id;
         if (_session.Tool == CanvasTool.Model) { UpdateToolBar(); RefreshActions(); return; }
         SetTool(CanvasTool.Model);
@@ -462,6 +467,7 @@ public sealed class MainActivity : Activity
     private async Task CheckForUpdates(bool manual)
     {
         if (UpdateCheck.ConfiguredUrl(typeof(MainActivity).Assembly) is not { } url) return;
+        if (!manual && !UpdateCheck.AutoEnabled) return;
         var info = await UpdateCheck.FetchAsync(url, TimeSpan.FromSeconds(manual ? 15 : 5));
         var current = typeof(MainActivity).Assembly.GetName().Version;
         RunOnUiThread(() =>
@@ -476,6 +482,8 @@ public sealed class MainActivity : Activity
             if (info?.Url is { } link && UpdateCheck.IsNewer(info, current))
                 b.SetPositiveButton(Lang.T("Download-Seite öffnen"), (_, _) => StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(link))))!.SetNegativeButton(Lang.T("Später"), (_, _) => { });
             else b.SetPositiveButton("OK", (_, _) => { });
+            b.SetNeutralButton(Lang.T("Beim Start…"), (_, _) => new AlertDialog.Builder(this).SetTitle(Lang.T("Updates"))!.SetMessage(UpdateCheck.AutoQuestion)!
+                .SetPositiveButton(Lang.T("Ja"), (_, _) => UpdateCheck.AutoEnabled = true)!.SetNegativeButton(Lang.T("Nein"), (_, _) => UpdateCheck.AutoEnabled = false)!.Show());
             b.Show();
         });
     }
@@ -532,7 +540,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Ausstattung"), [.. ModelCommands.Select(m => (m.Category + "…", m.Command, true)), (Lang.T("Einfaches Gebäude"), "toolBuilding", true)]),
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
@@ -732,6 +740,7 @@ public sealed class MainActivity : Activity
         "toolTree" => _session.Tool == CanvasTool.Tree,
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
+        "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
@@ -826,7 +835,7 @@ public sealed class MainActivity : Activity
             CanvasTool.Flex => Lang.T("Flexgleis ziehen: am offenen Gleisende aufsetzen und ziehen, es rastet an Gleisenden ein."),
             CanvasTool.Building => Lang.T("Gebäude: antippen oder Rechteck aufziehen."),
             CanvasTool.Model => _session.CurrentModel is { } model
-                ? Lang.F($"{model.Name}: in den Plan tippen.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein."))
+                ? Lang.F($"{model.Name}: in den Plan tippen.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(model) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : "")
                 : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
             CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis tippen."),

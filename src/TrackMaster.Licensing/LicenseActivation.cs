@@ -106,6 +106,13 @@ public sealed class LicenseActivation
 
     public const string FileName = "aktivierung.json";
 
+    /// <summary>Datenschutzerklärung mit dem Abschnitt zu TrackMaster Pro.</summary>
+    public const string PrivacyUrl = "https://www.jm-jungwirth.de/datenschutz.php#trackmaster";
+
+    /// <summary>Was bei der Online-Aktivierung übertragen und gespeichert wird (für den Lizenzdialog).</summary>
+    public static string PrivacyNotice => Lang.T("Datenschutz: Bei der Online-Aktivierung und der wöchentlichen Prüfung schickt das Programm die Lizenzdatei (Lizenznummer, Inhaber, Gültigkeit), eine zufällige bzw. technische Gerätekennung, den Gerätenamen, die Plattform und die Programmversion an www.jm-jungwirth.de. Gespeichert werden dort Lizenznummer, Inhaber, Gerätekennung, Gerätename, Plattform, Version sowie Datum der ersten und letzten Meldung – nur um die erlaubte Geräteanzahl einzuhalten. Geräte ohne Meldung seit 12 Monaten werden automatisch gelöscht; „Dieses Gerät freigeben“ löscht den Eintrag sofort. Pläne werden nie übertragen.")
+        + " " + PrivacyUrl;
+
     public string? ServerUrl { get; }
     public string DeviceId { get; }
     public string Platform { get; }

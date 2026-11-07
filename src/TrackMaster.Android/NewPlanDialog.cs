@@ -46,6 +46,25 @@ public static partial class Dialogs
         body.AddView(uLegs);
         var info = Ui.Label(c, "", 12.5, color: Ui.TextSecondary);
         body.AddView(info);
+        // Bauweise: direkt auf Ebene 1, Rahmenbau mit Vorlage oder Rahmen selbst zeichnen
+        var startChoice = Choice(c, [Lang.T("Direkt auf Ebene 1 planen"), Lang.T("Rahmenbau mit Vorlage"), Lang.T("Rahmenbau selbst zeichnen")], 0);
+        body.AddView(Ui.Field(c, Lang.T("Bauweise"), startChoice));
+        var templates = BenchTemplate.All;
+        var templateChoice = Choice(c, templates.Select(t => t.Name).ToList(), 0);
+        body.AddView(templateChoice);
+        var startHint = Hint(c, "");
+        body.AddView(startHint);
+        void UpdateStart()
+        {
+            templateChoice.Visibility = startChoice.SelectedItemPosition == 1 ? ViewStates.Visible : ViewStates.Gone;
+            startHint.Visibility = startChoice.SelectedItemPosition == 0 ? ViewStates.Gone : ViewStates.Visible;
+            startHint.Text = startChoice.SelectedItemPosition == 1
+                ? templates[Math.Max(0, templateChoice.SelectedItemPosition)].Description + " " + Lang.T("Alle Maße lassen sich später unter Gelände › Unterbau… ändern.")
+                : Lang.T("Rahmen ohne Vorgabe: Zargen, Querriegel, Diagonalen und Streben ziehst du selbst mit Gelände › Leiste ziehen (das Werkzeug ist danach gleich aktiv), danach legt Gelände › Platte auflegen die Deckplatte nach diesen Maßen auf. Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+        }
+        startChoice.ItemSelected += (_, _) => UpdateStart();
+        templateChoice.ItemSelected += (_, _) => UpdateStart();
+        UpdateStart();
         var error = Error(c);
         body.AddView(error);
 
@@ -100,7 +119,14 @@ public static partial class Dialogs
             if (errors.Count > 0) return false;
             var t = turn.SelectedItemPosition;
             var full = t % 2 == 0 ? bh : bw;
-            create(new BoardSetup(gauges[Math.Max(0, gauge.SelectedItemPosition)].Id, Shape(), bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2));
+            var g = gauges[Math.Max(0, gauge.SelectedItemPosition)];
+            var bench = startChoice.SelectedItemPosition switch
+            {
+                1 => templates[Math.Max(0, templateChoice.SelectedItemPosition)].Spec(g),
+                2 => BenchTemplate.Manual(g),
+                _ => null,
+            };
+            create(new BoardSetup(g.Id, Shape(), bw, bh, bd, t, l1 >= full ? 0 : l1, l2 >= full ? 0 : l2, bench));
             return true;
         });
     }

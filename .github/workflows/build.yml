@@ -146,6 +146,9 @@ jobs:
           Hb "parallel" @("--select", "--dialog", "parallel")
           Hb "rueckmelder" @("--dialog", "toolDetector")
           Hb "start-anordnen" @("--select")
+          Hb "ausstattung" @("--tab", "Ausstattung", "--models")
+          Hb "ausstattung-3d" @("--models", "--3d", "orbit")
+          Hb "modell-editor" @("--pro", "--dialog", "modelleditor")
           # Dieselben Bilder mit englischer Oberfläche für das englische Handbuch
           New-Item -ItemType Directory -Force artifacts/handbuch-en | Out-Null
           function HbEn($name, [string[]]$more) {
@@ -176,6 +179,9 @@ jobs:
           HbEn "spantenbau" @("--pro", "--dialog", "frame")
           HbEn "raum" @("--tab", "Raum", "--room")
           HbEn "raum-dialog" @("--dialog", "roomRect")
+          HbEn "ausstattung" @("--tab", "Ausstattung", "--models")
+          HbEn "ausstattung-3d" @("--models", "--3d", "orbit")
+          HbEn "modell-editor" @("--pro", "--dialog", "modelleditor")
           HbEn "parallel" @("--select", "--dialog", "parallel")
           HbEn "rueckmelder" @("--dialog", "toolDetector")
           HbEn "start-anordnen" @("--select")
@@ -346,9 +352,99 @@ jobs:
           path: artifacts/android-shots
           if-no-files-found: ignore
 
+  web:
+    # Webversion bauen und im Browser starten (nur Prüfung; das Paket für die Webseite entsteht wie bisher von Hand)
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Webversion veröffentlichen
+        run: |
+          dotnet publish src/TrackMaster.Web -c Release -o artifacts/web
+          test -f artifacts/web/wwwroot/index.html
+          ls artifacts/web/wwwroot/_framework | grep -v -E '\.(br|gz)$' | grep -v -E '^(System|Microsoft)\.' || true
+          test -f artifacts/web/wwwroot/_framework/dotnet.js
+          du -sh artifacts/web/wwwroot
+
+      - name: Webversion im Browser starten
+        run: |
+          cd artifacts/web/wwwroot
+          python3 -m http.server 8099 >/dev/null 2>&1 &
+          cd "$GITHUB_WORKSPACE"
+          npm install --no-save --silent playwright@1.48.2
+          npx playwright install --with-deps chromium >/dev/null
+          node .github/scripts/web-smoke.js http://localhost:8099/
+
+  handbuch:
+    # Handbuch (Deutsch und Englisch) als PDF mit den Bildschirmfotos dieses Builds
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Bildschirmfotos
+          path: shots
+
+      - name: Werkzeuge
+        run: |
+          sudo apt-get update -q >/dev/null
+          sudo apt-get install -y -q fonts-inter fonts-dejavu-core python3-pypdf >/dev/null
+          cd docs/handbuch
+          npm install --no-save --silent playwright@1.48.2
+          npx playwright install --with-deps chromium >/dev/null
+
+      - name: Handbuch als PDF
+        run: |
+          cd docs/handbuch
+          mkdir -p img img-en
+          cp ../../shots/handbuch/*.png img/
+          cp ../../shots/handbuch-en/*.png img-en/
+          cp img-logo.png img/logo.png
+          cp img-logo.png img-en/logo.png
+          # Jedes Bild, das die Quelle nennt, muss da sein
+          missing=0
+          for src in handbuch.html:img manual.html:img-en; do
+            f=${src%%:*}; d=${src##*:}
+            for i in $(grep -o "src=\"$d/[^\"]*\"" "$f" | sed 's/^src="//; s/"$//' | sort -u); do
+              [ -f "$i" ] || { echo "::error::$f: Bild fehlt: $i"; missing=1; }
+            done
+          done
+          [ $missing = 0 ]
+          mkdir -p ../../artifacts/handbuch
+          node build.js "$GITHUB_WORKSPACE/artifacts/handbuch/TrackMaster-Pro-Handbuch.pdf"
+          node build.js "$GITHUB_WORKSPACE/artifacts/handbuch/TrackMaster-Pro-Manual.pdf" manual.html
+          ls -la ../../artifacts/handbuch
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Handbuch
+          path: artifacts/handbuch
+
+      - name: Vorschau in den Zweig handbuch-vorschau
+        # Zum Prüfen und Einchecken nach docs/: PDFs und Bilder des letzten Builds eines Zweigs außer main
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        run: |
+          mkdir -p vorschau && cd vorschau
+          cp ../artifacts/handbuch/*.pdf .
+          cp -r ../shots/handbuch ../shots/handbuch-en .
+          git init -q -b handbuch-vorschau
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Handbuch $GITHUB_REF_NAME $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY" handbuch-vorschau
+
   release:
     # Installer, APK und Handbuch als Release zum Herunterladen; Bildschirmfotos für das Handbuch in einen eigenen Zweig
-    needs: [windows, android]
+    needs: [windows, android, web, handbuch]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -372,6 +468,10 @@ jobs:
         with:
           name: Android-Bildschirmfotos
           path: shots/android
+      - uses: actions/download-artifact@v4
+        with:
+          name: Handbuch
+          path: handbuch
 
       - name: Release aktualisieren
         env:
@@ -379,8 +479,10 @@ jobs:
         run: |
           v=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
           tag="v$v"
-          if [ -f docs/TrackMaster-Pro-Handbuch.pdf ]; then cp docs/TrackMaster-Pro-Handbuch.pdf out/; fi
-          if [ -f docs/TrackMaster-Pro-Manual.pdf ]; then cp docs/TrackMaster-Pro-Manual.pdf out/; fi
+          # Handbücher frisch aus diesem Build, sonst die eingecheckten
+          for f in TrackMaster-Pro-Handbuch.pdf TrackMaster-Pro-Manual.pdf; do
+            if [ -f handbuch/$f ]; then cp handbuch/$f out/; elif [ -f docs/$f ]; then cp docs/$f out/; fi
+          done
           mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
           # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
           # "url" ist die Release-Seite dieser Version mit MSI, APK und Handbuch

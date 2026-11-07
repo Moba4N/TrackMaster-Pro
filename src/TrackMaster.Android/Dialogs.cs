@@ -300,6 +300,22 @@ public static partial class Dialogs
         var scroll = new HorizontalScrollView(c);
         scroll.AddView(buttons);
         body.AddView(scroll);
+        if (SwitchInsert.CanReplace(p) && SwitchInsert.Switches(session.Plan, session.CurrentSystem.Id) is { Count: > 0 } switches)
+        {
+            body.AddView(Section(c, Lang.T("Weiche einsetzen")));
+            body.AddView(Ui.Label(c, Lang.T("Ersetzt dieses Gleis durch eine Weiche – Höhe, Steigung und Ebene bleiben, eine Lücke schließt ein Flexgleis. Auch in der Gleiswendel; in engen Bögen eine Bogenweiche wählen."), 12, color: Ui.TextSecondary));
+            var choice = Choice(c, switches.Select(w => $"{w.Number} · {w.Name}" + (w.SystemId == session.CurrentSystem.Id ? "" : $" ({w.SystemName})")).ToList(), 0);
+            body.AddView(choice);
+            var reverse = new CheckBox(c) { Text = Lang.T("in Gegenrichtung (Weichenspitze am anderen Ende)") };
+            var other = new CheckBox(c) { Text = Lang.T("Abzweig auf die andere Seite") };
+            body.AddView(reverse);
+            body.AddView(other);
+            body.AddView(Ui.Button(c, Lang.T("Weiche einsetzen"), () =>
+            {
+                dialog?.Dismiss();
+                session.InsertSwitch(switches[Math.Max(0, choice.SelectedItemPosition)].Key, reverse.Checked, other.Checked);
+            }), Ui.Wrap());
+        }
         dialog = Show(c, Lang.T("Gleis"), body, Lang.T("Übernehmen"), () =>
         {
             var errors = new List<string>();
@@ -410,6 +426,28 @@ public static partial class Dialogs
                             Ui.Field(c, Lang.T("Schrifthöhe (mm)"), Num(s.Height, Lang.T("Schrifthöhe"), 2, 500, v => s.Height = v))));
                         body.AddView(Rows(c, (Lang.T("Länge"), $"{Fmt.Num(Annotation.Dimension(s, s.Height).Length, 1)} mm", null)));
                         break;
+                    case SceneryKind.Beam when s.Points.Count == 2:
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), BeamLayout.MinSection, BeamLayout.MaxWidth, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Höhe der Latte (mm)"), Num(s.Depth, Lang.T("Höhe der Latte"), BeamLayout.MinSection, BeamLayout.MaxDepth, v => s.Depth = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Länge (mm)"), Num(BeamLayout.Length(s), Lang.T("Länge"), BeamLayout.MinLength, 20000, v => PlanSession.SetBeamLength(s, v))),
+                            Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
+                        body.AddView(Rows(c, (Lang.T("Winkel"), $"{Fmt.Num(BeamLayout.Angle(s), 1)}°", null)));
+                        break;
+                    case SceneryKind.Plate:
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => s.X = v)),
+                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => s.Y = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v)),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v))));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Stärke (mm)"), Num(PlateLayout.Thickness(s), Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v))),
+                            Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
+                        body.AddView(Ui.Button(c, Lang.T("An Rahmen anpassen"), () => { dialog?.Dismiss(); session.FitPlate(s); }), Ui.Wrap());
+                        body.AddView(Hint(c, Lang.T("Links und Oben: linke obere Ecke im Plan. Oberkante über der Plattenoberkante des Plans (0 = Gleisebene). Mit Unterbau steht die Platte in der Materialliste.")));
+                        break;
                     case SceneryKind.Terrain:
                         body.AddView(Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), -500, 3000, v => s.Height = v)));
                         body.AddView(Rows(c, (Lang.T("Eckpunkte"), s.Points.Count.ToString(), null), (Lang.T("Fläche"), $"{Fmt.Num(Math.Abs(Geometry2D.SignedArea(s.Points)) / 1e6, 2)} m²", null)));
@@ -420,11 +458,12 @@ public static partial class Dialogs
                         break;
                     case SceneryKind.Building when ModelLibrary.Of(plan, s) is { } model:
                     {
+                        var (heightLabel, trackHeight) = ModelPlacement.HeightInfo(plan, model, s);
                         if (s.Points.Count >= 2)
                         {
                             body.AddView(Columns(c,
                                 Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1)),
-                                Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
+                                Ui.Field(c, heightLabel, Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1))));
                             body.AddView(Rows(c, (Lang.T("Länge entlang des Gleises"), $"{Fmt.Num(PlacedModel.PathLength(s.Points), 0)} mm", null)));
                         }
                         else
@@ -433,9 +472,10 @@ public static partial class Dialogs
                                 Ui.Field(c, Lang.T("Länge (mm)"), Num(s.Width, Lang.T("Länge"), 0.5, 20000, v => s.Width = v, 1)),
                                 Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), 0.5, 5000, v => s.Depth = v, 1))));
                             body.AddView(Columns(c,
-                                Ui.Field(c, Lang.T("Höhe (mm)"), Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1)),
+                                Ui.Field(c, heightLabel, Num(s.Height, Lang.T("Höhe"), 0.5, 2000, v => s.Height = v, 1)),
                                 Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
                         }
+                        if (trackHeight is not null) body.AddView(Rows(c, (Lang.T("Gleishöhe"), trackHeight, null)));
                         var colors = ModelLibrary.MainColors;
                         var ci = colors.ToList().FindIndex(x => string.Equals(x.Hex ?? "", s.Color ?? "", StringComparison.OrdinalIgnoreCase));
                         modelColor = Choice(c, colors.Select(x => x.Name).ToList(), Math.Max(0, ci));
@@ -444,6 +484,11 @@ public static partial class Dialogs
                             (Lang.T("Vorbild"), Lang.F($"{Fmt.Num(model.Size.W, 1)} × {Fmt.Num(model.Size.D, 1)} × {Fmt.Num(model.Size.H, 1)} m"), null),
                             (Lang.T("Maßstab"), plan.Gauge.Scale, null)));
                         body.AddView(Ui.Button(c, Lang.T("Originalgröße"), () => { dialog?.Dismiss(); session.ResetModelSize(s.Id); }), Ui.Wrap());
+                        if (model.Snap == ModelSnap.Neben)
+                        {
+                            body.AddView(Ui.Button(c, Lang.T("Seite wechseln"), () => { dialog?.Dismiss(); session.FlipModelSide(s.Id); }), Ui.Wrap());
+                            body.AddView(Ui.Button(c, Lang.T("Beidseitig"), () => { dialog?.Dismiss(); session.AddModelOtherSide(s.Id); }), Ui.Wrap());
+                        }
                         if (!string.IsNullOrWhiteSpace(model.Description)) body.AddView(Hint(c, model.Description));
                         break;
                     }
@@ -1192,6 +1237,7 @@ public static partial class Dialogs
                 }), Ui.Wrap());
             }
         }
+        if (license.Activation is not null) body.AddView(Hint(c, LicenseActivation.PrivacyNotice));
         body.AddView(Section(c, Lang.T("Basis")));
         body.AddView(Ui.Label(c, string.Join("\n", EditionInfo.Basis.Select(x => "• " + x)), 13.5));
         body.AddView(Section(c, Lang.T("Pro")));

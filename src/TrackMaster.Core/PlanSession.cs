@@ -564,8 +564,21 @@ public sealed partial class PlanSession
         return next.Pose;
     }
 
+    /// <summary>Gibt es etwas, das die Pfeiltasten verschieben können (Gleise oder ein gewähltes Objekt wie eine Leiste)?</summary>
+    public bool CanNudge => Selection.Count > 0 || NudgeObject is not null;
+
+    private SceneryItem? NudgeObject => Selection.Count == 0 && SelectedObject is { } so ? Plan.Scenery.FirstOrDefault(s => s.Id == so) : null;
+
+    /// <summary>Auswahl mit den Pfeiltasten verschieben: gewählte Gleise oder, ohne Gleise, das gewählte Objekt (z. B. eine Leiste).</summary>
     public void Nudge(double dx, double dy, bool record)
     {
+        if (NudgeObject is { } item)
+        {
+            if (record) Record();
+            item.MoveBy(dx, dy);
+            Commit();
+            return;
+        }
         if (Selection.Count == 0) return;
         var movable = MovablePieces;
         if (LockedNotice(movable)) return;

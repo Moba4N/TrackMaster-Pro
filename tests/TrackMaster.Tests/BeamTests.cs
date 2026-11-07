@@ -93,3 +93,38 @@ public class NewPlanBenchworkTests
         Assert.True(back.Benchwork!.Manual);
     }
 }
+
+public class OpenFrameAndNudgeTests
+{
+    [Fact]
+    public void Offener_Rahmen_zeigt_in_3D_keine_Platte_und_kein_Gelaende()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0, Benchwork: BenchTemplate.Find("offen")!.Spec(s.Plan.Gauge)));
+        s.AddScenery(new SceneryItem { Kind = SceneryKind.Terrain, Points = [(100, 100), (500, 100), (500, 500)], Height = 80 });
+        var m = new Scene3DModel(s.Plan, scenery: true);
+        Assert.True(m.OpenFrame);
+        Assert.False(m.Scenery);
+        Assert.DoesNotContain(m.Meshes.Keys, k => k.Color == new Rgb(0x6E, 0x5A, 0x40));
+
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1000, 600, 0, Benchwork: BenchTemplate.Find("platte")!.Spec(s.Plan.Gauge)));
+        var full = new Scene3DModel(s.Plan, scenery: true);
+        Assert.False(full.OpenFrame);
+        Assert.Contains(full.Meshes.Keys, k => k.Color == new Rgb(0x6E, 0x5A, 0x40));
+    }
+
+    [Fact]
+    public void Pfeiltasten_verschieben_die_gewaehlte_Leiste()
+    {
+        var s = new PlanSession();
+        var b = s.AddBeam((0, 0), (1000, 0))!;
+        Assert.Equal(b.Id, s.SelectedObject);
+        Assert.True(s.CanNudge);
+        s.Nudge(0, 10, record: true);
+        s.Nudge(-1, 0, record: true);
+        Assert.Equal((-1.0, 10.0), b.Points[0]);
+        Assert.Equal((999.0, 10.0), b.Points[1]);
+        s.Undo();
+        Assert.Equal((0.0, 10.0), s.Plan.Scenery.Single(x => x.IsBeam).Points[0]);
+    }
+}

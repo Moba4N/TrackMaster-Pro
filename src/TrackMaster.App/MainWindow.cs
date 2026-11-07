@@ -1215,7 +1215,7 @@ public sealed partial class MainWindow : Window
             e.Handled = true;
             return;
         }
-        if (!ctrl && Session.Selection.Count > 0 && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+        if (!ctrl && Session.CanNudge && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
         {
             var step = shift ? 10 : 1;
             var dx = e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0;

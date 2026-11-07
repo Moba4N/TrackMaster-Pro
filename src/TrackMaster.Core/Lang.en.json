@@ -546,6 +546,7 @@
  "Ein Prellbock hat nur einen Anschluss.": "A buffer stop has only one connector.",
  "Ein Zug fährt über die Anlage, die Ansicht bleibt frei drehbar.": "A train runs over the layout; the view can still be rotated freely.",
  "Ein gewähltes Objekt lässt sich mit dem Finger verschieben.": "A selected object can be moved with your finger.",
+ "Ein gewähltes Objekt lässt sich mit der Maus (oder dem Finger) und mit den Pfeiltasten verschieben (1 mm, mit Umschalt 10 mm).": "A selected object can be moved with the mouse (or a finger) and with the arrow keys (1 mm, with Shift 10 mm).",
  "Ein gewähltes Objekt lässt sich mit der Maus (oder dem Finger) verschieben.": "A selected object can be moved with the mouse (or a finger).",
  "Ein- oder ausblenden": "Show or hide",
  "Eine Ecke (Quadrat) in einer Ansicht anklicken, um sie zu ziehen oder ihre Werte einzugeben.": "Click a corner (square) in a view to drag it or to enter its values.",

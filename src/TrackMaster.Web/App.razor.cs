@@ -580,7 +580,7 @@ public partial class App : ComponentBase, IAppHost
             Run(cmd);
             return true;
         }
-        if (!ctrl && _session.Selection.Count > 0 && key is "ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")
+        if (!ctrl && _session.CanNudge && key is "ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")
         {
             var step = shift ? 10 : 1;
             var dx = key == "ArrowLeft" ? -step : key == "ArrowRight" ? step : 0;

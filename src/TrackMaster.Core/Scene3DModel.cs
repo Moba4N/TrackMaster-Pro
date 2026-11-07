@@ -89,6 +89,9 @@ public sealed class Scene3DModel
     /// <summary>Gelände zeigen (Wiese, Hügel, Gewässer, Gebäude, Bäume) oder nur Platte und Gleise.</summary>
     public bool Scenery { get; }
 
+    /// <summary>Unterbau ohne Deckplatte (offener Rahmen, Spantenbau): 3D zeigt nur Rahmen, Leisten und Gleise.</summary>
+    public bool OpenFrame { get; }
+
     /// <summary>Stützen unter hochliegenden Gleisen zeigen (je eine rechts und links neben dem Gleis) oder weglassen.</summary>
     public bool Piers { get; }
 
@@ -101,7 +104,9 @@ public sealed class Scene3DModel
     {
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
-        Scenery = scenery;
+        // Offener Rahmen (Spantenbau, ohne Deckplatte): nur das Holzgerüst zeigen, ohne Platte, Wiese und Gelände
+        OpenFrame = plan.Benchwork is { TopThickness: <= 0 };
+        Scenery = scenery && !OpenFrame;
         Piers = piers;
         Tunnels = tunnels;
         Build();
@@ -147,6 +152,7 @@ public sealed class Scene3DModel
             var z = module?.Height ?? 0;
             var t = module is { Thickness: > 0 } ? module.Thickness : thickness;
             var bottom = z - t;
+            if (OpenFrame && module is not { Thickness: > 0 }) continue;
             Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, bottom), P(r.X1, r.Y1, z), top: false);
             if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, bottom - Math.Min(t, thickness) * 0.6), P(r.X1 + 2, r.Y1 + 2, bottom));
             if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1, z);

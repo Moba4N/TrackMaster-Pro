@@ -147,13 +147,22 @@
                     <button class="btn" @onclick="() => SetTool(CanvasTool.Select)">@Lang.T("Beenden")</button>
                 </div>
             }
-            @if (_issueNav is { } nav && _dialog is null && _session.FocusedIssue is { } fi && _session.Issues.Count > 0)
+            @if (_issueNav is { } nav && _dialog is null && _session.Issues.Count > 0)
             {
-                var idx = IndexOf(nav.Issues, fi);
-                var cls = fi.Level switch { IssueLevel.Fehler => "danger", IssueLevel.Warnung => "warn", _ => "accent" };
                 <div class="issue-bar" role="status">
                     <button class="icon-btn" title="@Lang.T("Vorheriger Befund")" @onclick="() => StepIssue(-1)">‹</button>
-                    <span class="issue-text"><span class="strong small @cls">@($"{fi.Level.Text()} · {fi.Category}") (@(idx + 1)/@nav.Issues.Count)</span> @fi.Text</span>
+                    @if (_session.FocusedIssue is { } fi)
+                    {
+                        var idx = IndexOf(nav.Issues, fi);
+                        var cls = fi.Level switch { IssueLevel.Fehler => "danger", IssueLevel.Warnung => "warn", _ => "accent" };
+                        <span class="issue-text"><span class="strong small @cls">@($"{fi.Level.Text()} · {fi.Category}") (@(idx + 1)/@nav.Issues.Count)</span> @fi.Text</span>
+                    }
+                    else
+                    {
+                        var ne = nav.Issues.Count(i => i.Level == IssueLevel.Fehler);
+                        var nw = nav.Issues.Count(i => i.Level == IssueLevel.Warnung);
+                        <span class="issue-text"><span class="strong small">@nav.Title</span> @Lang.F($"{ne} Fehler · {nw} Warnungen · {nav.Issues.Count - ne - nw} Hinweise sind im Plan markiert. ✕ oder Esc entfernt die Markierungen.")</span>
+                    }
                     <button class="icon-btn" title="@Lang.T("Nächster Befund")" @onclick="() => StepIssue(1)">›</button>
                     <button class="btn small" @onclick="() => ShowIssues(nav.Title, nav.Issues, nav.Footer)">@Lang.T("Liste")</button>
                     <button class="icon-btn" title="@Lang.T("Hervorhebung beenden")" @onclick="CloseIssueNav">✕</button>
@@ -1849,6 +1858,7 @@
 
     private void ShowIssues(string title, IReadOnlyList<PlanIssue> issues, string? footer)
     {
+        if (issues.Count == 0) { _issueNav = null; _session.Issues = []; _session.ClearFocus(); }
         var d = Show(title, @<div class="list">
             @if (issues.Count == 0)
             {
@@ -1874,6 +1884,7 @@
                 @Hint(footer)
             }
         </div>, wide: true);
+        if (issues.Count > 0) d.Buttons.Add(new(Lang.T("Markierungen entfernen"), () => { CloseIssueNav(); return true; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 

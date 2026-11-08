@@ -193,6 +193,7 @@ public sealed class MainActivity : Activity
         Add("props", Lang.T("Eigenschaften"), () => Dialogs.ShowProperties(this, _session, Run));
         Pro("bom", Lang.T("Stückliste"), () => Dialogs.ShowBillOfMaterials(this, _session, _license.IsPro, () => Run("csv"), () => Pick(RequestPrices, "text/*")));
         Add("check", Lang.T("Planprüfung"), ShowCheck);
+        Add("clearIssues", Lang.T("Markierungen entfernen"), ClearIssues, () => _session.Issues.Count > 0);
         Add("fit", Lang.T("Einpassen"), _canvas_Fit);
         Add("zoomIn", Lang.T("Vergrößern"), () => _canvas.ZoomBy(1.3f));
         Add("zoomOut", Lang.T("Verkleinern"), () => _canvas.ZoomBy(1 / 1.3f));
@@ -551,7 +552,7 @@ public sealed class MainActivity : Activity
                    (Lang.T("Nächstes Gleisende"), "nextEnd", false), (Lang.T("Sperren"), "lock", false), (Lang.T("Gruppieren"), "group", false), (Lang.T("Gruppe auflösen"), "ungroup", false),
                    (Lang.T("Links ausrichten"), "alignL", false), (Lang.T("Rechts ausrichten"), "alignR", false), (Lang.T("Oben ausrichten"), "alignT", false), (Lang.T("Unten ausrichten"), "alignB", false),
                    (Lang.T("Mittig waagrecht"), "alignCX", false), (Lang.T("Mittig senkrecht"), "alignCY", false),
-                   ("Text", "toolLabel", true), (Lang.T("Maß"), "toolDimension", true), (Lang.T("Stückliste"), "bom", false), (Lang.T("Planprüfung"), "check", false)]),
+                   ("Text", "toolLabel", true), (Lang.T("Maß"), "toolDimension", true), (Lang.T("Stückliste"), "bom", false), (Lang.T("Planprüfung"), "check", false), (Lang.T("Markierungen entfernen"), "clearIssues", false)]),
         (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
@@ -564,7 +565,7 @@ public sealed class MainActivity : Activity
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true),
                       (Lang.T("Stromart…"), "current", false), (Lang.T("Kabel verlegen…"), "toolWire", true), (Lang.T("Anschlüsse am Gleis…"), "connections", false),
-                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
+                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
                      (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), (Lang.T("Ebenen…"), "levels", false), (Lang.T("Ansicht ↺ 15°"), "viewRotL", false), (Lang.T("Ansicht ↻ 15°"), "viewRotR", false),
                      (Lang.T("Gerade ausrichten"), "viewReset", false), (Lang.T("Ansicht drehen…"), "viewAngle", false), (Lang.T("Design und Schrift…"), "appearance", false)]),
@@ -914,7 +915,7 @@ public sealed class MainActivity : Activity
         var issues = PlanCheck.Run(_session.Plan);
         _session.Issues = issues;
         _canvas.Invalidate();
-        Dialogs.ShowIssues(this, Lang.T("Planprüfung"), issues, Pick);
+        Dialogs.ShowIssues(this, Lang.T("Planprüfung"), issues, Pick, clear: ClearIssues);
     }
 
     private void ShowElectricCheck()
@@ -924,7 +925,16 @@ public sealed class MainActivity : Activity
         if (!_session.ShowSections) { _session.ShowSections = true; _session.Commit(); }
         _canvas.Invalidate();
         Dialogs.ShowIssues(this, Lang.T("Elektrik prüfen"), report.Issues, Pick,
-            Lang.F($"{Electrics.CurrentName(report.Current)}: {report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}"));
+            Lang.F($"{Electrics.CurrentName(report.Current)}: {report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}"), ClearIssues);
+    }
+
+    /// <summary>Markierungen der letzten Prüfung (Kreise und hervorgehobene Gleise) aus dem Plan entfernen.</summary>
+    private void ClearIssues()
+    {
+        _session.Issues = [];
+        _session.ClearFocus();
+        _canvas.Invalidate();
+        RefreshActions();
     }
 
     private void Pick(PlanIssue issue)

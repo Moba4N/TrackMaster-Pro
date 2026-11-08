@@ -1145,7 +1145,7 @@ public static partial class Dialogs
 
     // ---------- Prüfen und Listen ----------
 
-    public static void ShowIssues(Context c, string title, IReadOnlyList<PlanIssue> issues, Action<PlanIssue> pick, string? footer = null)
+    public static void ShowIssues(Context c, string title, IReadOnlyList<PlanIssue> issues, Action<PlanIssue> pick, string? footer = null, Action? clear = null)
     {
         var body = Ui.Column(c, 6);
         AlertDialog? dialog = null;
@@ -1172,7 +1172,8 @@ public static partial class Dialogs
             }
         }
         if (footer is not null) body.AddView(Hint(c, footer));
-        dialog = Show(c, title, body, Lang.T("Schließen"), cancelText: null);
+        dialog = Show(c, title, body, Lang.T("Schließen"), cancelText: null,
+            neutral: clear is not null && issues.Count > 0 ? ((string Text, Action Click)?)(Lang.T("Markierungen entfernen"), () => { dialog?.Dismiss(); clear(); }) : null);
     }
 
     public static void ShowAddresses(Context c, PlanSession session, Action wiring)

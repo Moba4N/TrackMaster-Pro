@@ -583,6 +583,8 @@ public partial class App : ComponentBase, IAppHost
             else SetTool(CanvasTool.Select);
             return true;
         }
+        // Esc entfernt zuerst die Markierungen der letzten Prüfung
+        if (key == "Escape" && !ctrl && _session.Issues.Count > 0) { CloseIssueNav(); return true; }
         string? cmd = (ctrl, k) switch
         {
             (true, "z") => shift ? "redo" : "undo",

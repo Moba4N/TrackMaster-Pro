@@ -47,7 +47,7 @@ public static class BillOfMaterials
         if (drives > 0) rows.Add(new(Lang.T("Weichenantrieb"), Lang.T("je Weiche einer, DKW zwei"), drives));
         foreach (var g in plan.Signals.GroupBy(s => s.Type).OrderBy(g => g.Key))
             rows.Add(new(Signal.TypeName(g.Key), Lang.T("Lichtsignal"), g.Count()));
-        if (plan.Feeders.Count > 0) rows.Add(new(Lang.T("Anschlussgleis / Einspeiser"), Lang.T("Einspeisungen"), plan.Feeders.Count));
+        if (plan.Feeders.Count > 0) rows.Add(new(Lang.T("Anschlussgleis / Einspeiser"), Lang.T("Gleisanschlüsse"), plan.Feeders.Count));
         if (plan.Isolations.Count > 0)
         {
             var threeRail = Electrics.IsThreeRail(plan);

@@ -122,6 +122,7 @@ public sealed partial class MainWindow : Window
         Session.ProRequired += feature => { if (Dialogs.ShowProRequired(this, feature)) Run("license"); };
         Canvas.ViewChanged += () => { _zoomText.Text = $"{Fmt.Num(Canvas.Zoom * 100, 0)} %"; UpdateStatus(); };
         Canvas.LabelRequested += (x, y) => { if (Dialogs.AskText(this, Lang.T("Beschriftung"), "Text") is { } text) Session.AddLabel(text, x, y); };
+        Canvas.PowerPlaced += () => SetTool(CanvasTool.Select);
         Canvas.ContextRequested += ShowPlanContextMenu;
         Canvas.CursorMoved += p => _cursorText.Text = p is { } w ? $"X {Fmt.Num(w.X, 0)} · Y {Fmt.Num(w.Y, 0)} mm" : "X – · Y –";
         _messageTimer.Tick += (_, _) => { _messageTimer.Stop(); _statusMessage.Text = Lang.T("Bereit"); };
@@ -190,6 +191,11 @@ public sealed partial class MainWindow : Window
         Add("toolBeam", () => SetTool(CanvasTool.Beam));
         Add("addPlate", () => { SetTool(CanvasTool.Select); Session.AddPlate(); });
         Add("toolFeeder", () => SetTool(CanvasTool.Feeder));
+        foreach (var t in Enum.GetValues<PowerSourceType>())
+        {
+            var type = t;
+            Add("power" + type, () => { Session.PowerType = type; SetTool(CanvasTool.Power); });
+        }
         Add("toolIsolation", () => SetTool(CanvasTool.Isolation));
         foreach (var t in Enum.GetValues<SignalType>())
         {
@@ -568,14 +574,15 @@ public sealed partial class MainWindow : Window
         CanvasTool.Water => Lang.T("Gewässer: Uferpunkte anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
         CanvasTool.Tree => Lang.T("Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug."),
-        CanvasTool.Feeder => Lang.T("Einspeisung: Auf ein Gleis klicken; ein Klick auf eine Einspeisung entfernt sie wieder. Den Stromkreis stellt man in den Eigenschaften ein."),
+        CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
+        CanvasTool.Power => Lang.T("Trafo / Zentrale: an die Stelle im Plan klicken, wo das Gerät stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
         CanvasTool.Signal => Lang.T("Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder."),
         CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
         CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
-        CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – an Einspeisungen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
+        CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – an Gleisanschlüssen, Zentrale/Trafo, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
         CanvasTool.Model => Lang.T("Modell einfügen: in den Plan klicken. Tunnelportale, Bahnsteige, Brücken und Bahnübergänge rasten am nächsten Gleis ein. Esc beendet das Werkzeug."),
         _ => "",
     };
@@ -802,7 +809,7 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Bearbeiten"),
                 Small(Lang.T("15° links drehen"), "RotateLeft", "rotL", Lang.T("Umschalt+R")), Small(Lang.T("15° rechts drehen"), "RotateRight", "rotR", "R"), Small(Lang.T("Frei drehen…"), "RotateFree", "rotFree", Lang.T("Auswahl um einen beliebigen Winkel drehen.")), Small(Lang.T("Spiegeln"), "Mirror", "flip", Lang.T("Bögen, Weichen und Kreuzungen spiegeln (F).")),
                 Small(Lang.T("Anschluss wechseln"), "Swap", "swap", Lang.T("Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A).")), Small(Lang.T("Duplizieren"), "Copy", "duplicate", Lang.T("Strg+D")), Small(Lang.T("Gleis wiederholen"), "Redo", "repeat", Lang.T("Das zuletzt angesetzte Gleis noch einmal am aktiven Gleisende ansetzen (Eingabetaste oder Leertaste) – z. B. mehrere Flexgleise hintereinander.")), Small(Lang.T("Löschen"), "Delete", "delete", Lang.T("Entf")),
-                Small(Lang.T("Kopieren"), "Copy", "copy", Lang.T("Gewählte Gleise samt Einspeisungen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan.")),
+                Small(Lang.T("Kopieren"), "Copy", "copy", Lang.T("Gewählte Gleise samt Gleisanschlüssen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan.")),
                 Small(Lang.T("Einfügen"), "Paste", "paste", Lang.T("Kopiertes an der Mausposition einfügen (Strg+V)."))),
             Group(Lang.T("Anordnen"),
                 Small(Lang.T("Sperren"), "Lock", "lock", Lang.T("Gewählte Gleise gegen Verschieben, Drehen und Löschen sperren – ein zweiter Klick entsperrt sie.")),
@@ -890,19 +897,44 @@ public sealed partial class MainWindow : Window
             signalMenu.Items.Add(new RibbonMenuItem { Header = Signal.TypeName(t), ImageSource = PlanScene.SignalImage(t), ToolTip = SignalFace.For(t).Description, Command = _commands["signal" + t] });
         var currentMenu = new RibbonMenuButton
         {
-            Label = Lang.T("Stromart"), LargeImageSource = Icons.Get("Current"), SmallImageSource = Icons.Get("Current"), ToolTipTitle = Lang.T("Stromart"),
-            ToolTipDescription = Lang.T("Gleichstrom (Zweileiter) oder Wechselstrom (Mittelleiter). Davon hängen Polung, Kehrschleifen und Kabelfarben ab."),
+            Label = Lang.T("Betrieb / Stromart"), LargeImageSource = Icons.Get("Current"), SmallImageSource = Icons.Get("Current"), ToolTipTitle = Lang.T("Betrieb / Stromart"),
+            ToolTipDescription = Lang.T("Digital (Zentrale, Booster) oder analog (Fahrtrafo) sowie Gleichstrom (Zweileiter) oder Wechselstrom (Mittelleiter). Danach richten sich Prüfung, Polung und Kabelfarben."),
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
         };
+        var modeItems = new List<(RibbonMenuItem Item, PowerMode Mode)>();
+        foreach (var m in Enum.GetValues<PowerMode>())
+        {
+            var item = new RibbonMenuItem { Header = Lang.F($"Betrieb: {PowerSupply.ModeName(m)}"), IsCheckable = true, Command = new RelayCommand(() => { Session.SetOperation(m); Canvas.Rebuild(); }) };
+            modeItems.Add((item, m));
+            currentMenu.Items.Add(item);
+        }
+        currentMenu.Items.Add(new RibbonSeparator());
+        var currentItems = new List<(RibbonMenuItem Item, CurrentKind Kind)>();
         foreach (var k in Enum.GetValues<CurrentKind>())
         {
             var item = new RibbonMenuItem { Header = Electrics.CurrentName(k), IsCheckable = true, Command = new RelayCommand(() => { Session.SetCurrent(k); Canvas.Rebuild(); }) };
+            currentItems.Add((item, k));
             currentMenu.Items.Add(item);
         }
         currentMenu.DropDownOpened += (_, _) =>
         {
-            foreach (var (item, k) in currentMenu.Items.OfType<RibbonMenuItem>().Zip(Enum.GetValues<CurrentKind>())) item.IsChecked = Session.Plan.Current == k;
+            foreach (var (item, m) in modeItems) item.IsChecked = Session.Plan.Operation == m;
+            foreach (var (item, k) in currentItems) item.IsChecked = Session.Plan.Current == k;
         };
+        var powerMenu = new RibbonMenuButton
+        {
+            Label = Lang.T("Trafo / Zentrale"), LargeImageSource = Icons.Get("Power"), SmallImageSource = Icons.Get("Power"), ToolTipTitle = Lang.T("Trafo / Zentrale"),
+            ToolTipDescription = Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Die Gleisanschlüsse hängen daran."),
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        powerMenu.DropDownOpened += (_, _) =>
+        {
+            powerMenu.Items.Clear();
+            foreach (var t in PowerSupply.TypesFor(Session.Plan.Operation))
+                powerMenu.Items.Add(new RibbonMenuItem { Header = PowerSupply.TypeName(t), ToolTip = PowerSupply.Description(t), Command = _commands["power" + t] });
+        };
+        foreach (var t in PowerSupply.TypesFor(Session.Plan.Operation))
+            powerMenu.Items.Add(new RibbonMenuItem { Header = PowerSupply.TypeName(t), ToolTip = PowerSupply.Description(t), Command = _commands["power" + t] });
         var wireMenu = new RibbonMenuButton
         {
             Label = Lang.T("Kabel verlegen"), LargeImageSource = Icons.Get("Wire"), SmallImageSource = Icons.Get("Wire"), ToolTipTitle = Lang.T("Kabel verlegen"),
@@ -913,25 +945,26 @@ public sealed partial class MainWindow : Window
             wireMenu.Items.Add(new RibbonMenuItem { Header = WireLayout.UseName(u), Command = new RelayCommand(() => { Session.WireUse = u; SetTool(CanvasTool.Wire); }) });
         Ribbon.Items.Add(Tab(Lang.T("Elektrik"),
             Group(Lang.T("Stromversorgung"),
-                ToolToggle(Lang.T("Einspeisung"), "Bolt", true, CanvasTool.Feeder, "toolFeeder", Lang.T("Gleis an einen Stromkreis/Booster anschließen.")),
+                currentMenu, powerMenu,
+                ToolToggle(Lang.T("Gleisanschluss"), "Bolt", true, CanvasTool.Feeder, "toolFeeder", Lang.T("Stelle, an der der Fahrstrom ans Gleis geht. Sie hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt diese, wird sie angelegt.")),
                 ToolToggle(Lang.T("Trennstelle"), "Isolate", false, CanvasTool.Isolation, "toolIsolation", Lang.T("Isolierte Schienenverbinder an einer Gleisverbindung setzen.")),
                 Toggle(Lang.T("Stromkreise zeigen"), "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
                 Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
                     Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
-                Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Einspeisung, Kehrschleifen, doppelte Adressen, Polung und Kabel. Ein Klick auf einen Befund zeigt die Gleise."))),
-            Group(Lang.T("Verkabelung"), currentMenu, wireMenu),
+                Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Gleisanschluss, Stromquellen, Kehrschleifen, doppelte Adressen, Polung und Kabel. Ein Klick auf einen Befund zeigt die Gleise."))),
+            Group(Lang.T("Verkabelung"), wireMenu),
             Group(Lang.T("Anschlüsse am Gleis"),
-                Small(Lang.T("Einspeisung hinzufügen"), "Bolt", "connFeeder", Lang.T("Das gewählte Gleis an einen Stromkreis anschließen; bei Gleichstrom mit passender Polung.")),
-                Small(Lang.T("Einspeisung entfernen"), "Delete", "connFeederRemove", Lang.T("Alle Einspeisungen am gewählten Gleis entfernen.")),
-                Small(Lang.T("Polung tauschen"), "Swap", "connPolarity", Lang.T("Gleichstrom: Plus und Minus der Einspeisungen am gewählten Gleis tauschen.")),
+                Small(Lang.T("Gleisanschluss setzen"), "Bolt", "connFeeder", Lang.T("Das gewählte Gleis an die Zentrale bzw. den Trafo anschließen; bei Gleichstrom mit passender Polung.")),
+                Small(Lang.T("Gleisanschluss entfernen"), "Delete", "connFeederRemove", Lang.T("Alle Gleisanschlüsse am gewählten Gleis entfernen.")),
+                Small(Lang.T("Polung tauschen"), "Swap", "connPolarity", Lang.T("Gleichstrom: Plus und Minus der Gleisanschlüsse am gewählten Gleis tauschen.")),
                 Small(Lang.T("Gleis trennen"), "Isolate", "connIsolate", Lang.T("Trennstellen an allen verbundenen Enden des gewählten Gleises setzen oder entfernen.")),
                 Small(Lang.T("Rückmelder"), "Detector", "connDetector", Lang.T("Rückmelder auf das gewählte Gleis setzen oder entfernen.")),
-                Small(Lang.T("Kabel von hier"), "Wire", "connWire", Lang.T("Kabel an der Einspeisung des gewählten Gleises beginnen (legt sie bei Bedarf an)."))),
+                Small(Lang.T("Kabel von hier"), "Wire", "connWire", Lang.T("Kabel am Gleisanschluss des gewählten Gleises beginnen (legt ihn bei Bedarf an)."))),
             Group(Lang.T("Digital"),
                 Large(Lang.T("Decoder"), "Chip", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 signalMenu,
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
-                Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
+                Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Gleisanschlüsse, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));
 
@@ -1452,7 +1485,7 @@ public sealed partial class MainWindow : Window
         _issuesWindow.Closed += (_, _) => { Session.Issues = []; Session.ClearFocus(); Canvas.InvalidateVisual(); _issuesWindow = null; };
     }
 
-    /// <summary>Kabel an der Einspeisung des gewählten Gleises beginnen; fehlt sie, wird sie angelegt.</summary>
+    /// <summary>Kabel am Gleisanschluss des gewählten Gleises beginnen; fehlt er, wird er angelegt.</summary>
     private void StartWireFromPiece()
     {
         if (Session.ConnectionPiece is not { } p) return;
@@ -1475,7 +1508,7 @@ public sealed partial class MainWindow : Window
             menu.Items.Add(new MenuItem { Header = Lang.F($"Gleis {piece.Def.Number} – {Session.ConnectionSummary(piece.Id)}"), IsEnabled = false });
             var conn = new MenuItem { Header = Lang.T("Anschlüsse"), Icon = new System.Windows.Controls.Image { Source = Icons.Get("Bolt"), Width = 16, Height = 16 } };
             var feeders = Session.FeedersOn(piece.Id);
-            var add = new MenuItem { Header = Lang.T("Einspeisung hinzufügen") };
+            var add = new MenuItem { Header = Lang.T("Gleisanschluss setzen") };
             foreach (var c in Session.CircuitNames.Append(Session.NewCircuitName()).Distinct())
             {
                 var circuit = c;
@@ -1484,7 +1517,7 @@ public sealed partial class MainWindow : Window
             conn.Items.Add(add);
             if (feeders.Count > 0)
             {
-                conn.Items.Add(Cmd(Lang.T("Einspeisung entfernen"), "Delete", "connFeederRemove"));
+                conn.Items.Add(Cmd(Lang.T("Gleisanschluss entfernen"), "Delete", "connFeederRemove"));
                 if (Electrics.Current(Session.Plan) == CurrentKind.Gleichstrom) conn.Items.Add(Cmd(Lang.T("Polung tauschen"), "Swap", "connPolarity"));
             }
             conn.Items.Add(new Separator());

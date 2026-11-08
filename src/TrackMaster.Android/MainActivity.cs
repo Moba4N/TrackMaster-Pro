@@ -250,15 +250,27 @@ public sealed class MainActivity : Activity
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
-        Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
+        Add("toolFeeder", Lang.T("Gleisanschluss"), () => SetTool(CanvasTool.Feeder));
+        Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power) { SetTool(CanvasTool.Select); return; }
+            var types = PowerSupply.TypesFor(_session.Plan.Operation);
+            Dialogs.Choose(this, Lang.T("Trafo / Zentrale setzen"), types.Select(t => (PowerSupply.TypeName(t), (string?)PowerSupply.Description(t), false)).ToList(),
+                i => { _session.PowerType = types[i]; SetTool(CanvasTool.Power); },
+                Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan tippen – auch neben die Platte, wo das Gerät später steht."));
+        });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
         Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
-        Add("current", Lang.T("Stromart"), () =>
+        Add("current", Lang.T("Betrieb und Stromart"), () =>
         {
+            // erst Betrieb (digital / analog), dann Stromart (Gleich- / Wechselstrom)
+            var modes = Enum.GetValues<PowerMode>();
             var kinds = Enum.GetValues<CurrentKind>();
-            Dialogs.Choose(this, Lang.T("Stromart"), kinds.Select(k => (Electrics.CurrentName(k), (string?)null, _session.Plan.Current == k)).ToList(),
-                i => _session.SetCurrent(kinds[i]), Electrics.CurrentHint(_session.Plan));
+            var items = modes.Select(m => (Lang.F($"Betrieb: {PowerSupply.ModeName(m)}"), (string?)(m == PowerMode.Digital ? Lang.T("Zentrale und Booster") : Lang.T("Fahrtrafo")), _session.Plan.Operation == m))
+                .Concat(kinds.Select(k => (Electrics.CurrentName(k), (string?)null, _session.Plan.Current == k))).ToList();
+            Dialogs.Choose(this, Lang.T("Betrieb und Stromart"), items,
+                i => { if (i < modes.Length) _session.SetOperation(modes[i]); else _session.SetCurrent(kinds[i - modes.Length]); }, Electrics.CurrentHint(_session.Plan));
         });
         Add("elecLabels", Lang.T("Nur Elektrik beschriften"), () => Toggle(() => _session.ElectricLabelsOnly = !_session.ElectricLabelsOnly));
         Add("toolWire", Lang.T("Kabel verlegen"), () =>
@@ -563,8 +575,8 @@ public sealed class MainActivity : Activity
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Einspeisung"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true),
-                      (Lang.T("Stromart…"), "current", false), (Lang.T("Kabel verlegen…"), "toolWire", true), (Lang.T("Anschlüsse am Gleis…"), "connections", false),
+        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Gleisanschluss"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true),
+                      (Lang.T("Kabel verlegen…"), "toolWire", true), (Lang.T("Anschlüsse am Gleis…"), "connections", false),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
                      (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), (Lang.T("Ebenen…"), "levels", false), (Lang.T("Ansicht ↺ 15°"), "viewRotL", false), (Lang.T("Ansicht ↻ 15°"), "viewRotR", false),
@@ -645,6 +657,7 @@ public sealed class MainActivity : Activity
         _canvas = new PlanView(this, _session);
         _canvas.PropertiesRequested += () => Run("props");
         _canvas.PolygonChanged += UpdateToolBar;
+        _canvas.PowerPlaced += () => SetTool(CanvasTool.Select);
         _canvas.LabelRequested += (x, y) => Dialogs.AskText(this, Lang.T("Beschriftung"), "Text", text => _session.AddLabel(text, x, y));
         stage.AddView(_canvas, new FrameLayout.LayoutParams(-1, -1));
 
@@ -762,6 +775,7 @@ public sealed class MainActivity : Activity
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
+        "toolPower" => _session.Tool == CanvasTool.Power,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
         "toolRoom" => _session.Tool == CanvasTool.Room,
@@ -858,11 +872,12 @@ public sealed class MainActivity : Activity
                 ? Lang.F($"{model.Name}: in den Plan tippen.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(model) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : "")
                 : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
-            CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis tippen."),
+            CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis tippen. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
+            CanvasTool.Power => Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan tippen, wo sie stehen soll (auch neben der Platte)."),
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),
             CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
-            CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_canvas.PolygonPoints}) – an Einspeisungen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
+            CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_canvas.PolygonPoints}) – an Gleisanschlüssen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
             CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: antippen oder Rechteck aufziehen."),
             CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis tippen (Tippen auf einen Rückmelder entfernt ihn)."),
             _ => "",
@@ -943,7 +958,7 @@ public sealed class MainActivity : Activity
         _canvas.FitArea(x0, y0, x1, y1);
     }
 
-    /// <summary>Anschlüsse am gewählten Gleis: Einspeisung, Polung, Trennstellen, Rückmelder, Kabel.</summary>
+    /// <summary>Anschlüsse am gewählten Gleis: Gleisanschluss, Polung, Trennstellen, Rückmelder, Kabel.</summary>
     private void ShowConnections()
     {
         if (_session.ConnectionPiece is not { } p) return;
@@ -953,12 +968,12 @@ public sealed class MainActivity : Activity
         foreach (var circuit in _session.CircuitNames.Append(_session.NewCircuitName()).Distinct())
         {
             var name = circuit;
-            actions.Add((Lang.F($"Einspeisung: {name}"), feeders.Any(f => f.Circuit == name) ? Lang.T("schon angeschlossen – fügt eine weitere hinzu") : null, feeders.Any(f => f.Circuit == name), () => _session.AddFeederTo(p.Id, name)));
+            actions.Add((Lang.F($"Gleisanschluss → {name}"), feeders.Any(f => f.Circuit == name) ? Lang.T("schon angeschlossen – fügt eine weitere hinzu") : null, feeders.Any(f => f.Circuit == name), () => _session.AddFeederTo(p.Id, name)));
         }
         if (feeders.Count > 0)
         {
-            actions.Add((Lang.T("Einspeisung entfernen"), null, false, () => _session.RemoveFeedersOn(p.Id)));
-            if (dc) actions.Add((Lang.T("Polung tauschen"), Lang.T("Plus und Minus der Einspeisung an diesem Gleis tauschen."), feeders.Any(f => f.Reversed), () => { foreach (var f in feeders) _session.ToggleFeederPolarity(f.Id); }));
+            actions.Add((Lang.T("Gleisanschluss entfernen"), null, false, () => _session.RemoveFeedersOn(p.Id)));
+            if (dc) actions.Add((Lang.T("Polung tauschen"), Lang.T("Plus und Minus des Gleisanschlusses an diesem Gleis tauschen."), feeders.Any(f => f.Reversed), () => { foreach (var f in feeders) _session.ToggleFeederPolarity(f.Id); }));
         }
         var ends = _session.PieceEnds(p.Id);
         foreach (var e in ends.Where(e => e.Connected))

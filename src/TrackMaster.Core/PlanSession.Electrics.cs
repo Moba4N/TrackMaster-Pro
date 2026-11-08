@@ -117,23 +117,96 @@ public sealed partial class PlanSession
         return list;
     }
 
-    /// <summary>Stromkreise, die im Plan vorkommen (mindestens „Stromkreis 1“).</summary>
+    /// <summary>Stromkreise: die Fahrstromquellen im Plan (Zentrale, Booster, Trafo), dazu Stromkreise älterer Gleisanschlüsse ohne Symbol.</summary>
     public IReadOnlyList<string> CircuitNames
     {
         get
         {
-            var list = Plan.Feeders.Select(f => f.Circuit).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
-            return list.Count == 0 ? ["Stromkreis 1"] : list;
+            var list = PowerSupply.TrackSources(Plan).Select(s => s.Name)
+                .Concat(Plan.Feeders.Select(f => f.Circuit)).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
+            return list.Count == 0 ? [DefaultSourceName] : list;
         }
     }
 
-    /// <summary>Name für einen weiteren Stromkreis („Stromkreis n“).</summary>
-    public string NewCircuitName()
+    /// <summary>Name der Quelle, die ein neuer Gleisanschluss bekommt, wenn noch keine im Plan steht.</summary>
+    private string DefaultSourceName => PowerSupply.NewName(Plan, Plan.Operation == PowerMode.Analog ? PowerSourceType.Fahrtrafo : PowerSourceType.Zentrale);
+
+    // ---------- Stromquellen: Zentrale, Booster, Trafo ----------
+
+    /// <summary>Art der Quelle für das Werkzeug „Trafo / Zentrale“.</summary>
+    public PowerSourceType PowerType { get; set; } = PowerSourceType.Zentrale;
+
+    /// <summary>Betriebsart (analog/digital) umstellen. Quellen, die nicht passen, meldet die Elektrikprüfung.</summary>
+    public void SetOperation(PowerMode mode)
     {
-        var names = CircuitNames.ToHashSet();
-        for (var n = 1; ; n++)
-            if (!names.Contains($"Stromkreis {n}")) return $"Stromkreis {n}";
+        if (Plan.Operation == mode) return;
+        Record();
+        Plan.Operation = mode;
+        Commit();
+        PowerType = PowerSupply.TypesFor(mode)[0];
+        var wrong = PowerSupply.TrackSources(Plan).Count(s => !PowerSupply.Fits(PowerSupply.Type(s), mode));
+        Say(Lang.F($"Betrieb: {PowerSupply.ModeName(mode)}.") + (wrong > 0 ? " " + Lang.F($"{wrong} Stromquelle(n) passen nicht dazu – in den Eigenschaften die Art ändern.") : ""));
     }
+
+    /// <summary>Stromquelle als Symbol an diese Stelle setzen.</summary>
+    public SceneryItem AddPowerSource(PowerSourceType type, double x, double y)
+    {
+        var item = AddScenery(PowerSupply.Create(Plan, type, x, y));
+        Say(Lang.F($"{PowerSupply.TypeName(type)} „{item.Name}“ gesetzt.") + " " + (PowerSupply.FeedsTrack(type)
+            ? Lang.T("Gleisanschlüsse hängen über ihren Stromkreis daran; Kabel rasten an der Klemme unten ein.")
+            : Lang.T("Für Licht und Zubehör; Kabel rasten an der Klemme unten ein.")));
+        return item;
+    }
+
+    /// <summary>Art einer Quelle ändern (z. B. Trafo → Zentrale).</summary>
+    public void SetPowerType(int id, PowerSourceType type)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsPower: true } item || PowerSupply.Type(item) == type) return;
+        Record();
+        item.Variant = (int)type;
+        Commit();
+    }
+
+    /// <summary>Quelle umbenennen; die Gleisanschlüsse daran wandern mit.</summary>
+    public void RenamePowerSource(int id, string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0 || Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsPower: true } item || item.Name == name) return;
+        if (PowerSupply.Sources(Plan).Any(s => s.Id != id && s.Name == name)) { Say(Lang.F($"Es gibt schon eine Stromquelle „{name}“.")); return; }
+        Record();
+        foreach (var f in Plan.Feeders.Where(f => f.Circuit == item.Name)) f.Circuit = name;
+        item.Name = name;
+        Commit();
+    }
+
+    /// <summary>Stromkreis für einen neuen Gleisanschluss: der zuletzt benutzte, sonst die erste Fahrstromquelle; fehlt eine, wird sie angelegt.</summary>
+    private string CircuitForNewFeeder()
+    {
+        var sources = PowerSupply.TrackSources(Plan).ToList();
+        var last = Plan.Feeders.LastOrDefault()?.Circuit;
+        if (last is not null && (sources.Count == 0 || sources.Any(s => s.Name == last))) return last;
+        if ((sources.FirstOrDefault(s => PowerSupply.Fits(PowerSupply.Type(s), Plan.Operation)) ?? sources.FirstOrDefault()) is { } src) return src.Name;
+        // Noch keine Quelle: passende Zentrale bzw. Trafo neben die Platte stellen
+        var type = Plan.Operation == PowerMode.Analog ? PowerSourceType.Fahrtrafo : PowerSourceType.Zentrale;
+        var (x, y) = PowerSupply.DefaultSpot(Plan);
+        var item = PowerSupply.Create(Plan, type, x, y);
+        item.Id = Plan.NextId++;
+        item.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
+        Plan.Scenery.Add(item);
+        _autoSource = item;
+        return item.Name;
+    }
+
+    /// <summary>Beim letzten Gleisanschluss automatisch angelegte Quelle (für die Meldung).</summary>
+    private SceneryItem? _autoSource;
+
+    private string AutoSourceNote()
+    {
+        if (_autoSource is not { } a) return "";
+        _autoSource = null;
+        return " " + Lang.F($"Dafür steht jetzt „{a.Name}“ ({PowerSupply.TypeName(PowerSupply.Type(a))}) als Symbol unter der Platte – verschieben, wohin sie gehört.");
+    }
+
 
     /// <summary>
     /// Einspeisung an ein Gleis setzen; die Auswahl bleibt. Bei Gleichstrom wird die Polung so gewählt,
@@ -142,11 +215,12 @@ public sealed partial class PlanSession
     public Feeder AddFeederTo(int pieceId, string? circuit = null)
     {
         Record();
-        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = string.IsNullOrWhiteSpace(circuit) ? Plan.Feeders.LastOrDefault()?.Circuit ?? "Stromkreis 1" : circuit.Trim() };
+        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = string.IsNullOrWhiteSpace(circuit) ? CircuitForNewFeeder() : circuit.Trim() };
         f.Reversed = MatchingPolarity(pieceId);
+        if (!string.IsNullOrWhiteSpace(circuit) && !PowerSupply.Sources(Plan).Any(s => s.Name == f.Circuit)) AddSourceFor(f.Circuit);
         Plan.Feeders.Add(f);
         Commit();
-        Say(Lang.F($"Einspeisung an Gleis Nr. {pieceId} ({f.Circuit})."));
+        Say(Lang.F($"Gleisanschluss an Gleis Nr. {pieceId} → {f.Circuit}.") + AutoSourceNote());
         return f;
     }
 
@@ -169,9 +243,28 @@ public sealed partial class PlanSession
         if (Plan.Feeders.FirstOrDefault(f => f.Id == feederId) is not { } f || string.IsNullOrWhiteSpace(circuit) || f.Circuit == circuit.Trim()) return;
         Record();
         f.Circuit = circuit.Trim();
+        if (!PowerSupply.Sources(Plan).Any(s => s.Name == f.Circuit)) AddSourceFor(f.Circuit);
         Commit();
-        Say(Lang.F($"Einspeisung Nr. {f.Id} hängt jetzt an {f.Circuit}."));
+        Say(Lang.F($"Gleisanschluss Nr. {f.Id} hängt jetzt an {f.Circuit}.") + AutoSourceNote());
     }
+
+    /// <summary>Neuer Stromkreis ohne Symbol: Booster (digital) bzw. weiteren Trafo (analog) mit diesem Namen anlegen.</summary>
+    private void AddSourceFor(string name)
+    {
+        var digital = Plan.Operation == PowerMode.Digital;
+        var type = digital ? (PowerSupply.TrackSources(Plan).Any() ? PowerSourceType.Booster : PowerSourceType.Zentrale) : PowerSourceType.Fahrtrafo;
+        var (x, y) = PowerSupply.DefaultSpot(Plan);
+        var item = PowerSupply.Create(Plan, type, x, y);
+        item.Name = name;
+        item.Id = Plan.NextId++;
+        item.Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
+        Plan.Scenery.Add(item);
+        _autoSource = item;
+    }
+
+    /// <summary>Name für einen weiteren Stromkreis: nächster Booster (digital) bzw. Trafo (analog).</summary>
+    public string NewCircuitName() => PowerSupply.NewName(Plan, Plan.Operation == PowerMode.Analog ? PowerSourceType.Fahrtrafo
+        : PowerSupply.TrackSources(Plan).Any() ? PowerSourceType.Booster : PowerSourceType.Zentrale);
 
     public void ToggleFeederPolarity(int feederId)
     {
@@ -179,7 +272,7 @@ public sealed partial class PlanSession
         Record();
         f.Reversed = !f.Reversed;
         Commit();
-        Say(f.Reversed ? Lang.F($"Einspeisung Nr. {f.Id}: Polung getauscht.") : Lang.F($"Einspeisung Nr. {f.Id}: Polung wieder normal."));
+        Say(f.Reversed ? Lang.F($"Gleisanschluss Nr. {f.Id}: Polung getauscht.") : Lang.F($"Gleisanschluss Nr. {f.Id}: Polung wieder normal."));
     }
 
     /// <summary>Alle Einspeisungen eines Gleises entfernen; die Auswahl bleibt.</summary>
@@ -189,7 +282,7 @@ public sealed partial class PlanSession
         Record();
         var n = Plan.Feeders.RemoveAll(f => f.PieceId == pieceId);
         Commit();
-        Say(n == 1 ? Lang.T("Einspeisung entfernt.") : Lang.F($"{n} Einspeisungen entfernt."));
+        Say(n == 1 ? Lang.T("Gleisanschluss entfernt.") : Lang.F($"{n} Gleisanschlüsse entfernt."));
     }
 
     /// <summary>Rückmelder auf ein Gleis setzen oder (wenn schon einer da ist) entfernen; die Auswahl bleibt.</summary>
@@ -233,7 +326,7 @@ public sealed partial class PlanSession
     {
         var parts = new List<string>();
         var feeders = FeedersOn(pieceId);
-        if (feeders.Count > 0) parts.Add(Lang.F($"Einspeisung ({string.Join(", ", feeders.Select(f => f.Circuit).Distinct())})"));
+        if (feeders.Count > 0) parts.Add(Lang.F($"Gleisanschluss → {string.Join(", ", feeders.Select(f => f.Circuit).Distinct())}"));
         var iso = PieceEnds(pieceId).Count(e => e.Isolated);
         if (iso > 0) parts.Add(Lang.F($"{iso} Trennstelle(n)"));
         if (DetectorOn(pieceId) is { } d) parts.Add(Lang.F($"Rückmelder {d.Name}"));

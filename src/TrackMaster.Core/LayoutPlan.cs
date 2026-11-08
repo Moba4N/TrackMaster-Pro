@@ -78,7 +78,7 @@ public sealed class PlacedPiece
 
 /// <summary>Art eines Objekts; <see cref="Beam"/> = Holzleiste des Unterbaus (z. B. Diagonale oder Strebe), frei gezogen;
 /// <see cref="Wire"/> = selbst verlegtes Kabel (Linienzug, siehe <see cref="WireLayout"/>).</summary>
-public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate, Wire }
+public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate, Wire, Power }
 
 /// <summary>Art eines Raumelements (<see cref="SceneryKind.Obstacle"/>).</summary>
 public enum ObstacleType { Tuer, Fenster, Saeule, Heizkoerper, Moebel, Sonstiges }
@@ -134,6 +134,9 @@ public sealed class SceneryItem
     /// <summary>Kabel: <see cref="Points"/> = Linienzug, <see cref="Variant"/> = <see cref="WireUse"/>, <see cref="Color"/> = Aderfarbe (#RRGGBB),
     /// <see cref="Depth"/> = Querschnitt in mm² (0 = Vorgabe).</summary>
     public bool IsWire => Kind == SceneryKind.Wire;
+    /// <summary>Stromquelle (Zentrale, Booster, Trafo) als Symbol: Rechteck um (X, Y), <see cref="Variant"/> = <see cref="PowerSourceType"/>,
+    /// <see cref="Name"/> = Stromkreis der angeschlossenen Gleisanschlüsse.</summary>
+    public bool IsPower => Kind == SceneryKind.Power;
 
     /// <summary>Eckpunkte in Weltkoordinaten (Vieleck bzw. gedrehtes Rechteck; Bäume als Achteck).</summary>
     public IReadOnlyList<(double X, double Y)> Outline()
@@ -157,6 +160,7 @@ public sealed class SceneryItem
                 return PlacedModel.PathOutline(Points, Depth);
             case SceneryKind.Building:
             case SceneryKind.Obstacle:
+            case SceneryKind.Power:
                 var r = Rotation * Math.PI / 180;
                 double c = Math.Cos(r), s = Math.Sin(r), hw = Width / 2, hd = Depth / 2;
                 return new[] { (-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd) }
@@ -193,7 +197,7 @@ public sealed class SceneryItem
         }
         (X, Y) = Turn(X, Y);
         Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
-        if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle) Rotation = Angles.Normalize(Rotation + degrees);
+        if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle or SceneryKind.Power) Rotation = Angles.Normalize(Rotation + degrees);
     }
 
     public void MoveBy(double dx, double dy)
@@ -219,6 +223,7 @@ public sealed class SceneryItem
         SceneryKind.Beam => Lang.T("Leiste"),
         SceneryKind.Plate => Lang.T("Deckplatte"),
         SceneryKind.Wire => Lang.T("Kabel"),
+        SceneryKind.Power => Lang.T("Stromquelle"),
         _ => Lang.T("Baum"),
     };
 
@@ -415,6 +420,8 @@ public sealed class LayoutPlan
     public int NextId { get; set; } = 1;
     /// <summary>Stromart (Gleich- oder Wechselstrom); Auto = nach dem Gleissystem, siehe <see cref="Electrics.Current"/>.</summary>
     public CurrentKind Current { get; set; }
+    /// <summary>Betriebsart: digital (Zentrale, Booster) oder analog (Fahrtrafo).</summary>
+    public PowerMode Operation { get; set; }
 
     public Gauge Gauge => Catalog.GetGauge(GaugeId);
 
@@ -447,7 +454,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current,
+            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);

@@ -412,6 +412,7 @@ public static partial class Dialogs
                 body.AddView(Ui.Field(c, s.Kind == SceneryKind.Label ? "Text" : Lang.T("Name"), name));
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
                 Spinner? obstacleKind = null;
+                Spinner? powerKind = null;
                 Spinner? modelColor = null;
                 EditText Num(double v, string label, double min, double max, Action<double> apply, int decimals = 0)
                 {
@@ -525,6 +526,28 @@ public static partial class Dialogs
                             body.AddView(Hint(c, Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")));
                         break;
                     }
+                    case SceneryKind.Power:
+                    {
+                        var ptype = PowerSupply.Type(s);
+                        var ptypes = Enum.GetValues<PowerSourceType>();
+                        powerKind = Choice(c, ptypes.Select(PowerSupply.TypeName).ToList(), Array.IndexOf(ptypes, ptype));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Art"), powerKind),
+                            Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                        var prows = new List<(string, string, Color?)> { (Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null) };
+                        if (PowerSupply.FeedsTrack(ptype))
+                        {
+                            var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
+                            prows.Add((Lang.T("Gleisanschlüsse"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
+                            prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
+                            if (!PowerSupply.Fits(ptype, plan.Operation))
+                                prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Ui.OpenEnd));
+                        }
+                        body.AddView(Rows(c, prows.ToArray()));
+                        body.AddView(Hint(c, PowerSupply.Description(ptype) + " " + Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")));
+                        break;
+                    }
                     case SceneryKind.Tree:
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Durchmesser (mm)"), Num(s.Width, Lang.T("Durchmesser"), 3, 1000, v => { s.Width = v; s.Depth = v; })),
@@ -533,7 +556,7 @@ public static partial class Dialogs
                 }
                 DeleteButton();
                 body.AddView(Hint(c, Lang.T("Ein gewähltes Objekt lässt sich mit dem Finger verschieben.")));
-                dialog = Show(c, SceneryItem.KindName(s.Kind), body, Lang.T("Übernehmen"), () =>
+                dialog = Show(c, s.IsPower ? PowerSupply.TypeName(PowerSupply.Type(s)) : SceneryItem.KindName(s.Kind), body, Lang.T("Übernehmen"), () =>
                 {
                     var errors = new List<string>();
                     var values = fields.Select(f => (f, ok: Read(f.Box, f.Name, f.Min, f.Max, errors, out var v), v)).ToList();
@@ -541,30 +564,34 @@ public static partial class Dialogs
                     var n = (name.Text ?? "").Trim();
                     session.Edit(() =>
                     {
-                        if (n.Length > 0) s.Name = n;
+                        if (n.Length > 0 && !s.IsPower) s.Name = n;
                         foreach (var (f, _, v) in values) f.Apply(v);
+                        if (powerKind is not null) s.Variant = (int)Enum.GetValues<PowerSourceType>()[Math.Max(0, powerKind.SelectedItemPosition)];
                         if (obstacleKind is not null) s.Variant = (int)Enum.GetValues<ObstacleType>()[Math.Max(0, obstacleKind.SelectedItemPosition)];
                         if (modelColor is not null) s.Color = ModelLibrary.MainColors[Math.Clamp(modelColor.SelectedItemPosition, 0, ModelLibrary.MainColors.Count - 1)].Hex;
                     });
+                    // Stromquelle: Gleisanschlüsse wandern mit dem Namen mit
+                    if (s.IsPower && n.Length > 0) session.RenamePowerSource(s.Id, n);
                     return true;
                 });
                 break;
             }
             case Feeder f:
             {
-                var circuits = plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct().ToList();
+                var circuits = session.CircuitNames.Append(f.Circuit).Append(session.NewCircuitName()).Distinct().ToList();
                 var circuit = new AutoCompleteTextView(c) { Text = f.Circuit, Threshold = 0 };
                 circuit.Adapter = new ArrayAdapter<string>(c, global::Android.Resource.Layout.SimpleDropDownItem1Line, circuits);
                 circuit.Click += (_, _) => circuit.ShowDropDown();
-                body.AddView(Ui.Field(c, Lang.T("Stromkreis / Booster"), circuit));
+                body.AddView(Ui.Field(c, plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"), circuit));
+                if (PowerSupply.SourceOf(plan, f) is null) body.AddView(Hint(c, Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")));
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
                 body.AddView(Rows(c, (Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null)));
                 DeleteButton();
-                dialog = Show(c, Lang.T("Einspeisung"), body, Lang.T("Übernehmen"), () =>
+                dialog = Show(c, Lang.T("Gleisanschluss"), body, Lang.T("Übernehmen"), () =>
                 {
                     var t = (circuit.Text ?? "").Trim();
-                    if (t.Length > 0 && t != f.Circuit) session.Edit(() => f.Circuit = t);
+                    if (t.Length > 0 && t != f.Circuit) session.SetFeederCircuit(f.Id, t);
                     return true;
                 });
                 break;

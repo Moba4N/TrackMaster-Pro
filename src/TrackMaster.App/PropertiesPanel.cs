@@ -203,7 +203,7 @@ public sealed class PropertiesPanel : DockPanel
              (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
              (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Theme.DangerBrush : null),
              (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
+             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count} Gleisanschl. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
              (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Theme.OpenEndBrush : Theme.SuccessBrush));
         _body.Children.Add(Buttons(Cmd(Lang.T("Stückliste"), "List", "bom"), Cmd(Lang.T("Planprüfung"), "Shield", "check")));
         _body.Children.Add(new Border
@@ -300,11 +300,11 @@ public sealed class PropertiesPanel : DockPanel
             _body.Children.Add(new TextBlock { Text = _session.ConnectionSummary(p.Id), TextWrapping = TextWrapping.Wrap, Foreground = Theme.TextSecondaryBrush, FontSize = 12, Margin = new Thickness(0, 0, 6, 4) });
             var hasFeeder = _session.FeedersOn(p.Id).Count > 0;
             _body.Children.Add(Buttons(
-                hasFeeder ? Cmd(Lang.T("Einspeisung entfernen"), "Delete", "connFeederRemove") : Cmd(Lang.T("Einspeisung"), "Bolt", "connFeeder"),
+                hasFeeder ? Cmd(Lang.T("Gleisanschluss entfernen"), "Delete", "connFeederRemove") : Cmd(Lang.T("Gleisanschluss"), "Bolt", "connFeeder"),
                 Cmd(Lang.T("Trennen"), "Isolate", "connIsolate"),
                 Cmd(Lang.T("Rückmelder"), "Detector", "connDetector"),
                 Cmd(Lang.T("Kabel"), "Wire", "connWire")));
-            _body.Children.Add(Tip(Lang.T("Weitere Anschlüsse (Stromkreis, Trennstelle je Ende, Polung) über das Kontextmenü: rechte Maustaste auf das Gleis.")));
+            _body.Children.Add(Tip(Lang.T("Weitere Anschlüsse (Zentrale bzw. Trafo, Trennstelle je Ende, Polung) über das Kontextmenü: rechte Maustaste auf das Gleis.")));
         }
 
         var buttons = new List<Button> { Cmd(Lang.T("Drehen"), "RotateRight", "rotR") };
@@ -382,13 +382,15 @@ public sealed class PropertiesPanel : DockPanel
         switch (o)
         {
             case SceneryItem s:
-                _headerRight.Text = SceneryItem.KindName(s.Kind);
+                _headerRight.Text = s.IsPower ? PowerSupply.TypeName(PowerSupply.Type(s)) : SceneryItem.KindName(s.Kind);
                 var name = new TextBox { Text = s.Name };
                 void CommitName()
                 {
                     var n = name.Text.Trim();
                     if (n.Length == 0 || n == s.Name) { name.Text = s.Name; return; }
-                    _session.Edit(() => s.Name = n);
+                    // Stromquelle: Gleisanschlüsse wandern mit, doppelte Namen werden abgelehnt
+                    if (s.IsPower) { _session.RenamePowerSource(s.Id, n); if (s.Name != n) name.Text = s.Name; }
+                    else _session.Edit(() => s.Name = n);
                 }
                 name.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitName(); Keyboard.ClearFocus(); } };
                 name.LostKeyboardFocus += (_, _) => { CommitName(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
@@ -535,6 +537,27 @@ public sealed class PropertiesPanel : DockPanel
                              (Lang.T("Punkte"), s.Points.Count.ToString(), null));
                         _body.Children.Add(Tip(Electrics.CurrentHint(plan)));
                         break;
+                    case SceneryKind.Power:
+                        var ptype = PowerSupply.Type(s);
+                        var pkind = new ComboBox { Height = 28 };
+                        foreach (var t in Enum.GetValues<PowerSourceType>()) pkind.Items.Add(new ComboBoxItem { Content = PowerSupply.TypeName(t), Tag = t, IsSelected = t == ptype });
+                        pkind.SelectionChanged += (_, _) => { if (pkind.SelectedItem is ComboBoxItem { Tag: PowerSourceType t }) _session.SetPowerType(s.Id, t); };
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Art"), pkind),
+                            Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        var prows = new List<(string, string, System.Windows.Media.Brush?)> { (Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null) };
+                        if (PowerSupply.FeedsTrack(ptype))
+                        {
+                            var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
+                            prows.Add((Lang.T("Gleisanschlüsse"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
+                            prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
+                            if (!PowerSupply.Fits(ptype, plan.Operation))
+                                prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Theme.OpenEndBrush));
+                        }
+                        Rows(prows.ToArray());
+                        _body.Children.Add(Tip(PowerSupply.Description(ptype) + " " + Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")));
+                        break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Durchmesser (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
@@ -546,20 +569,22 @@ public sealed class PropertiesPanel : DockPanel
                 break;
 
             case Feeder f:
-                _headerRight.Text = Lang.T("Einspeisung");
+                _headerRight.Text = Lang.T("Gleisanschluss");
                 var circuit = new ComboBox { IsEditable = true, Text = f.Circuit, Height = 28 };
-                foreach (var c in plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct())
+                foreach (var c in _session.CircuitNames.Append(f.Circuit).Append(_session.NewCircuitName()).Distinct())
                     circuit.Items.Add(c);
                 void CommitCircuit()
                 {
                     var t = circuit.Text.Trim();
                     if (t.Length == 0 || t == f.Circuit) return;
-                    _session.Edit(() => f.Circuit = t);
+                    _session.SetFeederCircuit(f.Id, t);
                 }
                 circuit.LostKeyboardFocus += (_, _) => { CommitCircuit(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
                 circuit.SelectionChanged += (_, _) => { if (circuit.SelectedItem is string sel) { circuit.Text = sel; CommitCircuit(); } };
-                _body.Children.Add(Theme.Label(Lang.T("Stromkreis / Booster"), 11, false, Theme.TextSecondaryBrush));
+                _body.Children.Add(Theme.Label(plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"), 11, false, Theme.TextSecondaryBrush));
                 _body.Children.Add(circuit);
+                if (PowerSupply.SourceOf(plan, f) is null)
+                    _body.Children.Add(Theme.Label(Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan."), 11, false, Theme.OpenEndBrush));
                 _body.Children.Add(new Border { Height = 8 });
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
                 Rows((Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),

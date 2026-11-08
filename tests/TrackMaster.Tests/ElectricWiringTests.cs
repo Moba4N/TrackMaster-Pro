@@ -88,7 +88,7 @@ public class ElectricWiringTests
         Assert.Null(s.DetectorOn(a.Id));
 
         s.AddFeederTo(a.Id);
-        Assert.Contains("Einspeisung", s.ConnectionSummary(a.Id));
+        Assert.Contains("Gleisanschluss", s.ConnectionSummary(a.Id));
         s.RemoveFeedersOn(a.Id);
         Assert.Empty(s.Plan.Feeders);
         // Die Auswahl bleibt beim Bearbeiten der Anschlüsse
@@ -107,7 +107,7 @@ public class ElectricWiringTests
         Assert.NotNull(wire);
         Assert.Equal(700, WireLayout.Length(wire), 3);
         Assert.Equal("#D32F2F", WireLayout.ColorOf(wire, CurrentKind.Gleichstrom));
-        Assert.Contains("Einspeisung", WireLayout.EndAnchor(s.Plan, wire, false)!.Text);
+        Assert.Contains("Gleisanschluss", WireLayout.EndAnchor(s.Plan, wire, false)!.Text);
         Assert.Null(WireLayout.EndAnchor(s.Plan, wire, true));
 
         var text = Electrics.WiringPlan(s.Plan);
@@ -152,6 +152,44 @@ public class ElectricWiringTests
         Assert.True(x1 - x0 >= s.Plan.Gauge.TrackWidth * 25 - 1e-6 && y1 - y0 >= s.Plan.Gauge.TrackWidth * 25 - 1e-6);
         s.Issues = [];
         Assert.Empty(s.FocusPieces);
+    }
+
+    [Fact]
+    public void Gleisanschluss_legt_Zentrale_bzw_Trafo_als_Symbol_an()
+    {
+        Assert.DoesNotContain(Electrics.Analyze(SamplePlan.Build()).Issues, i => i.Category == "Stromversorgung");
+
+        var (plan, a, b) = TwoStraights(false);
+        var s = new PlanSession();
+        s.Replace(plan, null);
+        var f = s.AddFeederTo(a.Id);
+        var central = Assert.Single(PowerSupply.Sources(s.Plan));
+        Assert.Equal(PowerSourceType.Zentrale, PowerSupply.Type(central));
+        Assert.Equal(central.Name, f.Circuit);
+        Assert.Same(central, PowerSupply.SourceOf(s.Plan, f));
+        Assert.Contains(WireLayout.Anchors(s.Plan), x => x.Text.StartsWith(central.Name));
+        Assert.DoesNotContain(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Stromversorgung");
+
+        // Umbenennen nimmt die Gleisanschlüsse mit
+        s.RenamePowerSource(central.Id, "CS3");
+        Assert.Equal("CS3", s.Plan.Feeders[0].Circuit);
+
+        // Analogbetrieb: eine Zentrale passt nicht, neue Anschlüsse in einem neuen Stromkreis bekommen einen Trafo
+        s.SetOperation(PowerMode.Analog);
+        Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Stromversorgung" && i.ObjectId == central.Id);
+        var f2 = s.AddFeederTo(b.Id, s.NewCircuitName());
+        Assert.Equal(PowerSourceType.Fahrtrafo, PowerSupply.Type(PowerSupply.SourceOf(s.Plan, f2)!));
+        Assert.Contains("Stromversorgung (Analog)", Electrics.WiringPlan(s.Plan));
+
+        // Zubehörtrafo darf kein Gleis speisen
+        var light = s.AddPowerSource(PowerSourceType.Zubehoertrafo, 100, 900);
+        s.SetFeederCircuit(f2.Id, light.Name);
+        Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Stromversorgung" && i.Level == IssueLevel.Fehler);
+
+        var copy = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.Equal(PowerMode.Analog, copy.Operation);
+        Assert.Equal(3, PowerSupply.Sources(copy).Count());
+        Assert.Contains(PowerSupply.Sources(copy), x => PowerSupply.Type(x) == PowerSourceType.Zubehoertrafo && x.Width > 0);
     }
 
     [Fact]

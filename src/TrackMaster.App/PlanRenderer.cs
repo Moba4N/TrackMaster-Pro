@@ -264,6 +264,7 @@ public sealed class PlanScene
         DrawLocks(dc, z);
         DrawElectrics(dc, z, o);
         DrawWires(dc, z, o);
+        DrawPowerSources(dc, plan, _gauge, z, o.SelectedObject);
         DrawAnnotations(dc, plan, z, o.SelectedObject);
     }
 
@@ -568,6 +569,94 @@ public sealed class PlanScene
         }
         g.Freeze();
         return g;
+    }
+
+    /// <summary>Stromquellen als Symbol (Zentrale, Booster, Trafo, Zubehörtrafo) mit gestrichelter Verbindung zu ihren Gleisanschlüssen.</summary>
+    public static void DrawPowerSources(DrawingContext dc, LayoutPlan plan, double g, double z, int? selected)
+    {
+        var sources = PowerSupply.Sources(plan).ToList();
+        if (sources.Count == 0) return;
+        foreach (var src in sources)
+        {
+            var rgb = ModelBody.ParseColor(PowerSupply.Color(PowerSupply.Type(src))) ?? new Rgb(0x37, 0x47, 0x4F);
+            var (tx, ty) = PowerSupply.Terminal(src);
+            var t = Math.Max(g * 0.18, 1.3 / z);
+            var pen = new Pen(B(rgb, 0xB0), t) { DashStyle = new DashStyle([Math.Max(g * 1.2, 6 / z) / t, Math.Max(g * 0.8, 4 / z) / t], 0) };
+            foreach (var f in PowerSupply.FeedersOf(plan, src))
+                if (plan.Find(f.PieceId) is { } piece)
+                {
+                    var (fx, fy) = Electrics.FeederPoint(piece, g);
+                    dc.DrawLine(pen, new Point(tx, ty), new Point(fx, fy));
+                }
+        }
+        foreach (var src in sources) DrawPowerSymbol(dc, src, g, z, src.Id == selected);
+    }
+
+    private static void DrawPowerSymbol(DrawingContext dc, SceneryItem src, double g, double z, bool selected)
+    {
+        var type = PowerSupply.Type(src);
+        var rgb = ModelBody.ParseColor(PowerSupply.Color(type)) ?? new Rgb(0x37, 0x47, 0x4F);
+        var color = B(rgb);
+        double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
+        dc.PushTransform(new TranslateTransform(src.X, src.Y));
+        dc.PushTransform(new RotateTransform(src.Rotation));
+        var corner = d * 0.12;
+        dc.DrawRoundedRectangle(color, selected ? new Pen(Theme.AccentBrush, 3 / z) : new Pen(Brushes.White, 1.2 / z), new Rect(-hw, -hd, w, d), corner, corner);
+
+        // Kennzeichen links: Bildschirm (Zentrale), Blitz (Booster), Drehknopf (Fahrtrafo), Trafo-Spulen (Zubehör)
+        double ix = -hw + d * 0.42, r = d * 0.26;
+        var white = new Pen(Brushes.White, Math.Max(d * 0.06, 1 / z)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        switch (type)
+        {
+            case PowerSourceType.Zentrale:
+                dc.DrawRectangle(B(new Rgb(0xB9, 0xF6, 0xCA)), null, new Rect(ix - r, -r * 0.75, 2 * r, 1.5 * r));
+                break;
+            case PowerSourceType.Booster:
+                var bolt = new StreamGeometry();
+                using (var ctx = bolt.Open())
+                {
+                    ctx.BeginFigure(new Point(ix + r * 0.2, -r), false, false);
+                    ctx.LineTo(new Point(ix - r * 0.45, r * 0.1), true, false);
+                    ctx.LineTo(new Point(ix + r * 0.35, r * 0.1), true, false);
+                    ctx.LineTo(new Point(ix - r * 0.2, r), true, false);
+                }
+                dc.DrawGeometry(null, white, bolt);
+                break;
+            case PowerSourceType.Fahrtrafo:
+                dc.DrawEllipse(null, white, new Point(ix, 0), r, r);
+                dc.DrawLine(white, new Point(ix, 0), new Point(ix + r * 0.6, -r * 0.6));
+                break;
+            default:
+                dc.DrawEllipse(null, white, new Point(ix - r * 0.35, 0), r * 0.6, r * 0.6);
+                dc.DrawEllipse(null, white, new Point(ix + r * 0.35, 0), r * 0.6, r * 0.6);
+                break;
+        }
+
+        // Art und Name
+        var culture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        var bold = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var normal = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        var shortName = PowerSupply.ShortName(type);
+        var tx = ix + r + (hw - (ix + r)) / 2;
+        var room = hw - (ix + r) - d * 0.08;
+        void Text(string s, Typeface face, double size, double cy)
+        {
+            var t = new FormattedText(s, culture, FlowDirection.LeftToRight, face, Math.Max(size, 0.5), Brushes.White, 1.0);
+            if (t.Width > room && t.Width > 0) t.SetFontSize(Math.Max(size * room / t.Width, 0.5));
+            dc.DrawText(t, new Point(tx - t.Width / 2, cy - t.Height / 2));
+        }
+        if (src.Name == shortName) Text(shortName, bold, d * 0.3, 0);
+        else
+        {
+            Text(shortName, bold, d * 0.24, -d * 0.15);
+            Text(src.Name, normal, d * 0.22, d * 0.2);
+        }
+
+        // Anschlussklemme unten
+        var tr = Math.Max(g * 0.55, 3.5 / z);
+        dc.DrawEllipse(Brushes.White, new Pen(color, Math.Max(tr * 0.35, 1 / z)), new Point(0, hd), tr, tr);
+        dc.Pop();
+        dc.Pop();
     }
 
     /// <summary>Selbst verlegte Kabel: Linienzug in der Aderfarbe mit dunkler Kante, Enden als Punkte.</summary>

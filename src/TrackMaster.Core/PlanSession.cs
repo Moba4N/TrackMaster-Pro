@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire, Power }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -1537,7 +1537,7 @@ public sealed partial class PlanSession
     /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
     public void RemoveObject(int id)
     {
-        var what = FindObject(id) switch { Feeder => Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
+        var what = FindObject(id) switch { Feeder => Lang.T("Gleisanschluss"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
         Record();
         if (!Plan.RemoveObject(id)) { History.DiscardLast(); return; }
         if (SelectedObject == id) SelectedObject = null;
@@ -1548,13 +1548,13 @@ public sealed partial class PlanSession
     public void AddFeeder(int pieceId)
     {
         Record();
-        var circuit = Plan.Feeders.LastOrDefault()?.Circuit ?? "Stromkreis 1";
+        var circuit = CircuitForNewFeeder();
         var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = circuit, Reversed = MatchingPolarity(pieceId) };
         Plan.Feeders.Add(f);
         SelectedObject = f.Id;
         Selection.Clear();
         Commit();
-        Say(Lang.F($"Einspeisung an Gleis Nr. {pieceId} ({circuit})."));
+        Say(Lang.F($"Gleisanschluss an Gleis Nr. {pieceId} → {circuit}.") + AutoSourceNote());
     }
 
     /// <summary>Setzt oder entfernt eine Trennstelle an einem Gleisende (an verbundenen Enden auch auf der Gegenseite).</summary>

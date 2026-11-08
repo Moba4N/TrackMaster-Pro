@@ -42,6 +42,7 @@ public static class PlanSerializer
         [JsonPropertyName("background"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BackgroundDto? Background { get; set; }
         [JsonPropertyName("models"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModelFile.ModelDto>? Models { get; set; }
         [JsonPropertyName("current"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Current { get; set; }
+        [JsonPropertyName("operation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Operation { get; set; }
     }
 
     private sealed class DetectorDto
@@ -245,6 +246,7 @@ public static class PlanSerializer
             Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed }).ToList(),
             Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
+            Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
                 { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
@@ -294,6 +296,7 @@ public static class PlanSerializer
             VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
             TrainLength = dto.Train is double tl && double.IsFinite(tl) ? Math.Clamp(tl, 0, 100000) : 0,
             Current = dto.Current switch { "ac" => CurrentKind.Wechselstrom, "dc" => CurrentKind.Gleichstrom, _ => CurrentKind.Auto },
+            Operation = dto.Operation == "analog" ? PowerMode.Analog : PowerMode.Digital,
         };
         foreach (var (k, v) in dto.Prices ?? [])
             if (double.IsFinite(v) && v >= 0) plan.Prices[k] = v;
@@ -377,7 +380,7 @@ public static class PlanSerializer
             var item = new SceneryItem
             {
                 Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
-                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate || kind == SceneryKind.Wire && Enum.IsDefined((WireUse)s.Variant) ? s.Variant : 0,
+                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate || kind == SceneryKind.Wire && Enum.IsDefined((WireUse)s.Variant) || kind == SceneryKind.Power && Enum.IsDefined((PowerSourceType)s.Variant) ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
                 Model = kind == SceneryKind.Building && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
                 Color = kind is SceneryKind.Building or SceneryKind.Wire && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
@@ -387,6 +390,11 @@ public static class PlanSerializer
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
             if (kind == SceneryKind.Wire && item.Points.Count < 2) continue;
+            if (kind == SceneryKind.Power)
+            {
+                item.Points = [];
+                if (item.Width <= 0 || item.Depth <= 0) (item.Width, item.Depth) = PowerSupply.Size(plan.Gauge);
+            }
             if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
             if (kind == SceneryKind.Plate && !PlateLayout.Valid(item)) PlateLayout.Repair(item);
             plan.Scenery.Add(item);

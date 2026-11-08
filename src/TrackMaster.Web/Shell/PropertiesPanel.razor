@@ -59,8 +59,9 @@
 
     private string Kind => _target switch
     {
+        SceneryItem { IsPower: true } p => PowerSupply.TypeName(PowerSupply.Type(p)),
         SceneryItem s => SceneryItem.KindName(s.Kind),
-        Feeder => Lang.T("Einspeisung"),
+        Feeder => Lang.T("Gleisanschluss"),
         Isolation => Lang.T("Trennstelle"),
         Signal => "Signal",
         Detector => Lang.T("Rückmelder"),
@@ -572,11 +573,23 @@
                 Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
                 if (int.TryParse(F("variant"), out var variant) && Enum.IsDefined((ObstacleType)variant)) apply.Add(() => s.Variant = variant);
                 break;
+            case SceneryKind.Power:
+                Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
+                if (int.TryParse(F("variant"), out var ptype) && Enum.IsDefined((PowerSourceType)ptype)) apply.Add(() => s.Variant = ptype);
+                break;
         }
         if (Fail(errors)) return;
         var n = F("name").Trim();
+        if (s.IsPower && n != s.Name && PowerSupply.Sources(Plan).Any(x => x.Id != s.Id && x.Name == n))
+        {
+            Fail([Lang.F($"Es gibt schon eine Stromquelle „{n}“.")]);
+            return;
+        }
         Session.Edit(() =>
         {
+            // Gleisanschlüsse hängen über den Namen an der Quelle und wandern beim Umbenennen mit
+            if (s.IsPower && n.Length > 0 && n != s.Name)
+                foreach (var fd in Plan.Feeders.Where(x => x.Circuit == s.Name)) fd.Circuit = n;
             if (n.Length > 0) s.Name = n;
             foreach (var a in apply) a();
         });
@@ -640,6 +653,33 @@
                     <dt>@Lang.T("Punkte")</dt><dd>@s.Points.Count</dd>
                 </dl>
                 <div class="tip-box">@Electrics.CurrentHint(Plan)</div>
+                break;
+            case SceneryKind.Power:
+                var ptype = PowerSupply.Type(s);
+                var attached = PowerSupply.FeedersOf(Plan, s).ToList();
+                <label class="field-label">@Lang.T("Art")</label>
+                <select class="input" value="@F("variant")" @onchange="@(e => Set("variant", e, ApplyScenery))">
+                    @foreach (var t in Enum.GetValues<PowerSourceType>())
+                    {
+                        <option value="@((int)t)">@PowerSupply.TypeName(t)</option>
+                    }
+                </select>
+                <div class="cols">@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
+                <dl class="rows">
+                    <dt>@Lang.T("Betrieb")</dt><dd>@PowerSupply.ModeName(Plan.Operation)</dd>
+                    @if (PowerSupply.FeedsTrack(ptype))
+                    {
+                        <dt>@Lang.T("Gleisanschlüsse")</dt><dd>@attached.Count</dd>
+                        var sections = Electrics.Sections(Plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
+                        <dt>@Lang.T("Stromabschnitte")</dt><dd>@(sections.Count == 0 ? "–" : string.Join(", ", sections.Select(x => x.Number)))</dd>
+                        <dt>@Lang.T("Gleislänge")</dt><dd>@Fmt.Num(sections.Sum(x => x.LengthMm) / 1000, 2) m</dd>
+                    }
+                </dl>
+                @if (PowerSupply.FeedsTrack(ptype) && !PowerSupply.Fits(ptype, Plan.Operation))
+                {
+                    <div class="error-box">@(Plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."))</div>
+                }
+                <div class="tip-box">@PowerSupply.Description(ptype) @Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")</div>
                 break;
             case SceneryKind.Plate:
                 <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>
@@ -742,21 +782,27 @@
     {
         if (_target is not Feeder f) return;
         var t = F("circuit").Trim();
-        if (t.Length > 0 && t != f.Circuit) Session.Edit(() => f.Circuit = t);
+        if (t == "+") t = Session.NewCircuitName();
+        if (t.Length > 0 && t != f.Circuit) Session.SetFeederCircuit(f.Id, t);
     }
 
     private RenderFragment FeederForm(Feeder f) => __builder =>
     {
-        var circuits = Plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct().ToList();
+        var circuits = Session.CircuitNames.Append(f.Circuit).Distinct().ToList();
         var section = Electrics.Sections(Plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
-        <label class="field-label">@Lang.T("Stromkreis / Booster")</label>
-        <input class="input" list="tm-circuits" value="@F("circuit")" @onchange="@(e => Set("circuit", e, ApplyFeeder))" />
-        <datalist id="tm-circuits">
+        var source = PowerSupply.SourceOf(Plan, f);
+        <label class="field-label">@(Plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"))</label>
+        <select class="input" value="@f.Circuit" @onchange="@(e => Set("circuit", e, ApplyFeeder))">
             @foreach (var c in circuits)
             {
-                <option value="@c"></option>
+                <option value="@c">@c</option>
             }
-        </datalist>
+            <option value="+">@(Plan.Operation == PowerMode.Analog ? Lang.F($"+ weiterer Trafo ({Session.NewCircuitName()})") : Lang.F($"+ neuer Booster ({Session.NewCircuitName()})"))</option>
+        </select>
+        @if (source is null)
+        {
+            <div class="error-box">@Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")</div>
+        }
         <dl class="rows">
             <dt>@Lang.T("Gleis")</dt><dd>@Plan.Find(f.PieceId)?.Def.Number (Nr. @f.PieceId)</dd>
             <dt>@Lang.T("Stromabschnitt")</dt><dd>@(section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m")</dd>

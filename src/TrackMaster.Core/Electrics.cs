@@ -65,7 +65,7 @@ public static class Electrics
     /// <summary>Kurzbeschreibung der Stromart mit Leitersystem und Aderfarben.</summary>
     public static string CurrentHint(LayoutPlan plan) => Current(plan) == CurrentKind.Wechselstrom
         ? Lang.T("Wechselstrom (Mittelleiter): Fahrstrom über den Mittelleiter (rotes Kabel), Masse über beide Schienen (braunes Kabel). Polung und Kehrschleifen spielen keine Rolle.")
-        : Lang.T("Gleichstrom (Zweileiter): je eine Schiene an Plus und Minus (z. B. rotes und blaues Kabel). Alle Einspeisungen eines Abschnitts brauchen dieselbe Polung, Kehrschleifen eine Umpolung.");
+        : Lang.T("Gleichstrom (Zweileiter): je eine Schiene an Plus und Minus (z. B. rotes und blaues Kabel). Alle Gleisanschlüsse eines Abschnitts brauchen dieselbe Polung, Kehrschleifen eine Umpolung.");
 
     /// <summary>Lage des Einspeisungs-Symbols: neben der Gleismitte (links in Richtung Anschluss 0 → 1).</summary>
     public static (double X, double Y) FeederPoint(PlacedPiece p, double gauge)
@@ -248,9 +248,9 @@ public static class Electrics
         {
             var mid = plan.Find(s.PieceIds[0])!.Middle();
             if (s.Feeders.Count == 0)
-                issues.Add(new(IssueLevel.Fehler, Lang.T("Einspeisung"), Lang.F($"Abschnitt {s.Number} ({Fmt.Num(s.LengthMm / 1000, 2)} m, {s.PieceIds.Count} Gleise) hat keine Einspeisung."), s.PieceIds, mid.X, mid.Y));
+                issues.Add(new(IssueLevel.Fehler, Lang.T("Gleisanschluss"), Lang.F($"Abschnitt {s.Number} ({Fmt.Num(s.LengthMm / 1000, 2)} m, {s.PieceIds.Count} Gleise) hat keinen Gleisanschluss – er bekommt keinen Fahrstrom."), s.PieceIds, mid.X, mid.Y));
             else if (s.LengthMm / s.Feeders.Count > spacing * 1.2)
-                issues.Add(new(IssueLevel.Hinweis, Lang.T("Einspeisung"), Lang.F($"Abschnitt {s.Number}: {Fmt.Num(s.LengthMm / 1000, 2)} m Gleis mit {s.Feeders.Count} Einspeisung(en) – empfohlen ist etwa alle {Fmt.Num(spacing / 1000, 1)} m eine."), s.PieceIds, mid.X, mid.Y));
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Gleisanschluss"), Lang.F($"Abschnitt {s.Number}: {Fmt.Num(s.LengthMm / 1000, 2)} m Gleis mit {s.Feeders.Count} Gleisanschluss/-anschlüssen – empfohlen ist etwa alle {Fmt.Num(spacing / 1000, 1)} m einer."), s.PieceIds, mid.X, mid.Y));
             if (s.Circuits.Count > 1)
                 issues.Add(new(IssueLevel.Fehler, Lang.T("Stromkreise"), Lang.F($"Abschnitt {s.Number} wird aus mehreren Stromkreisen gespeist ({string.Join(", ", s.Circuits)}). Dazwischen gehört eine Trennstelle."), s.PieceIds, mid.X, mid.Y));
         }
@@ -283,16 +283,17 @@ public static class Electrics
             {
                 var p = plan.Find(wrong[0].PieceId)!.Middle();
                 issues.Add(new(IssueLevel.Fehler, Lang.T("Polung"),
-                    Lang.F($"Abschnitt {s.Number}: Einspeisung(en) Nr. {string.Join(", ", wrong.Select(f => f.Id))} sind andersherum gepolt als die übrigen – das gibt einen Kurzschluss. Polung tauschen (Anschlüsse des Gleises)."),
+                    Lang.F($"Abschnitt {s.Number}: Gleisanschluss/-anschlüsse Nr. {string.Join(", ", wrong.Select(f => f.Id))} sind andersherum gepolt als die übrigen – das gibt einen Kurzschluss. Polung tauschen (Anschlüsse des Gleises)."),
                     wrong.Select(f => f.PieceId).Distinct().ToList(), p.X, p.Y));
             }
         }
+        PowerIssues(plan, issues);
         foreach (var w in plan.Scenery.Where(x => x.IsWire && x.Points.Count >= 2))
         {
             if (WireLayout.EndAnchor(plan, w, false) is null && WireLayout.EndAnchor(plan, w, true) is null)
             {
                 var (mx, my) = WireLayout.Middle(w);
-                issues.Add(new(IssueLevel.Hinweis, Lang.T("Kabel"), Lang.F($"{w.Name} ({Fmt.Num(WireLayout.Length(w) / 1000, 2)} m) ist an keinem Ende an eine Einspeisung, einen Rückmelder, ein Signal oder ein anderes Kabel angeschlossen."), [], mx, my, w.Id));
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Kabel"), Lang.F($"{w.Name} ({Fmt.Num(WireLayout.Length(w) / 1000, 2)} m) ist an keinem Ende an einen Gleisanschluss, eine Zentrale bzw. einen Trafo, einen Rückmelder, ein Signal oder ein anderes Kabel angeschlossen."), [], mx, my, w.Id));
             }
         }
         foreach (var l in loops)
@@ -392,6 +393,42 @@ public static class Electrics
     }
 
     /// <summary>Kabelplan als Text: Abschnitte mit Einspeisungen, Trennstellen, Kehrschleifen und Decoderbelegung.</summary>
+    /// <summary>Stromquellen: fehlende Zentrale bzw. Trafo, unpassende Quelle zur Betriebsart, Zubehörtrafo am Gleis, Quelle ohne Gleisanschluss.</summary>
+    private static void PowerIssues(LayoutPlan plan, List<PlanIssue> issues)
+    {
+        var mode = plan.Operation;
+        var sources = PowerSupply.Sources(plan).ToList();
+        foreach (var g in plan.Feeders.Where(f => plan.Find(f.PieceId) is not null).GroupBy(f => f.Circuit))
+        {
+            var src = sources.FirstOrDefault(s => s.Name == g.Key);
+            var pieces = g.Select(f => f.PieceId).Distinct().ToList();
+            var m = plan.Find(pieces[0])!.Middle();
+            if (src is null)
+                issues.Add(new(IssueLevel.Warnung, Lang.T("Stromversorgung"),
+                    Lang.F($"{g.Count()} Gleisanschluss/-anschlüsse hängen an „{g.Key}“, dafür steht aber keine Zentrale bzw. kein Trafo im Plan. Elektrik › Trafo / Zentrale setzen und so benennen."), pieces, m.X, m.Y));
+            else if (!PowerSupply.FeedsTrack(PowerSupply.Type(src)))
+                issues.Add(new(IssueLevel.Fehler, Lang.T("Stromversorgung"),
+                    Lang.F($"„{src.Name}“ ist ein Zubehörtrafo für Licht und Weichen, an ihm hängen aber {g.Count()} Gleisanschluss/-anschlüsse. Fahrstrom kommt von der Zentrale, einem Booster oder einem Fahrtrafo."), pieces, src.X, src.Y, src.Id));
+        }
+        foreach (var src in sources)
+        {
+            var type = PowerSupply.Type(src);
+            var count = PowerSupply.FeedersOf(plan, src).Count();
+            if (PowerSupply.FeedsTrack(type) && !PowerSupply.Fits(type, mode))
+                issues.Add(new(IssueLevel.Warnung, Lang.T("Stromversorgung"), mode == PowerMode.Analog
+                    ? Lang.F($"„{src.Name}“ ist eine {PowerSupply.TypeName(type)}, die Anlage ist aber auf Analogbetrieb gestellt. Betrieb auf digital stellen oder die Quelle zum Fahrtrafo machen.")
+                    : Lang.F($"„{src.Name}“ ist ein Fahrtrafo, die Anlage ist aber auf Digitalbetrieb gestellt. Im Digitalbetrieb kommt der Fahrstrom von Zentrale und Boostern; der Trafo darf nicht zusätzlich ans Gleis."), [], src.X, src.Y, src.Id));
+            else if (PowerSupply.FeedsTrack(type) && count == 0 && plan.Pieces.Count > 0)
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Stromversorgung"),
+                    Lang.F($"An „{src.Name}“ ({PowerSupply.TypeName(type)}) hängt noch kein Gleisanschluss."), [], src.X, src.Y, src.Id));
+        }
+        if (mode == PowerMode.Digital && sources.Count(s => PowerSupply.Type(s) == PowerSourceType.Zentrale) > 1)
+        {
+            var second = sources.Where(s => PowerSupply.Type(s) == PowerSourceType.Zentrale).Skip(1).First();
+            issues.Add(new(IssueLevel.Hinweis, Lang.T("Stromversorgung"), Lang.T("Im Plan stehen mehrere Digitalzentralen. Üblich ist eine Zentrale; weitere Stromkreise speisen Booster."), [], second.X, second.Y, second.Id));
+        }
+    }
+
     public static string WiringPlan(LayoutPlan plan)
     {
         var r = Analyze(plan);
@@ -400,13 +437,23 @@ public static class Electrics
         sb.AppendLine(new string('=', 60));
         sb.AppendLine(CurrentHint(plan));
         sb.AppendLine();
+        sb.AppendLine(Lang.F($"Stromversorgung ({PowerSupply.ModeName(plan.Operation)})"));
+        var sources = PowerSupply.Sources(plan).ToList();
+        if (sources.Count == 0) sb.AppendLine(Lang.T("  noch keine Zentrale bzw. kein Trafo im Plan"));
+        foreach (var src in sources)
+        {
+            var fs = PowerSupply.FeedersOf(plan, src).ToList();
+            sb.AppendLine(Lang.F($"  {src.Name}: {PowerSupply.TypeName(PowerSupply.Type(src))}") +
+                          (PowerSupply.FeedsTrack(PowerSupply.Type(src)) ? Lang.F($", {fs.Count} Gleisanschluss/-anschlüsse") : ""));
+        }
+        sb.AppendLine();
         sb.AppendLine(Lang.T("Stromabschnitte"));
         foreach (var s in r.Sections)
         {
             sb.AppendLine(Lang.F($"  Abschnitt {s.Number}: {s.PieceIds.Count} Gleise, {Fmt.Num(s.LengthMm / 1000, 2)} m"));
-            if (s.Feeders.Count == 0) sb.AppendLine(Lang.T("    keine Einspeisung!"));
+            if (s.Feeders.Count == 0) sb.AppendLine(Lang.T("    kein Gleisanschluss!"));
             foreach (var f in s.Feeders)
-                sb.AppendLine(Lang.F($"    Einspeisung Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}") + (r.Current == CurrentKind.Gleichstrom && f.Reversed ? Lang.T(" (Polung getauscht)") : ""));
+                sb.AppendLine(Lang.F($"    Gleisanschluss Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}") + (r.Current == CurrentKind.Gleichstrom && f.Reversed ? Lang.T(" (Polung getauscht)") : ""));
         }
         sb.AppendLine();
         sb.AppendLine(Lang.F($"Trennstellen ({plan.Isolations.Count})"));

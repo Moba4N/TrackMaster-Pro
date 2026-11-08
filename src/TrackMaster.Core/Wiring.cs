@@ -111,8 +111,13 @@ public static class WireLayout
             if (plan.Find(f.PieceId) is { } p)
             {
                 var (x, y) = Electrics.FeederPoint(p, g);
-                list.Add(new(x, y, Lang.F($"Einspeisung an Gleis Nr. {p.Id}")));
+                list.Add(new(x, y, Lang.F($"Gleisanschluss an Gleis Nr. {p.Id}")));
             }
+        foreach (var src in PowerSupply.Sources(plan))
+        {
+            var (x, y) = PowerSupply.Terminal(src);
+            list.Add(new(x, y, Lang.F($"{src.Name} ({PowerSupply.TypeName(PowerSupply.Type(src))})")));
+        }
         foreach (var d in plan.Detectors)
             if (plan.Find(d.PieceId) is { } p)
             {

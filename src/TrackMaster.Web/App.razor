@@ -105,7 +105,7 @@
                             var allIsolated = connectedEnds.Count > 0 && connectedEnds.All(e => e.Isolated);
                             <div class="ctx-sep" role="separator"></div>
                             <button role="menuitem" @onclick="@(() => CtxRun("connections"))">@((MarkupString)Icons.Svg("Connector", 16))<span>@Lang.T("Anschlüsse…")</span></button>
-                            <button role="menuitem" @onclick="@(() => CtxRun("connFeeder"))">@((MarkupString)Icons.Svg("Bolt", 16))<span>@(hasFeeder ? Lang.T("Einspeisung entfernen") : Lang.T("Einspeisung hinzufügen"))</span></button>
+                            <button role="menuitem" @onclick="@(() => CtxRun("connFeeder"))">@((MarkupString)Icons.Svg("Bolt", 16))<span>@(hasFeeder ? Lang.T("Gleisanschluss entfernen") : Lang.T("Gleisanschluss setzen"))</span></button>
                             @if (connectedEnds.Count > 0)
                             {
                                 <button role="menuitem" @onclick="@(() => CtxRun("connIsolate"))">@((MarkupString)Icons.Svg("Isolate", 16))<span>@(allIsolated ? Lang.T("Trennstellen entfernen") : Lang.T("Trennstellen an allen Enden"))</span></button>
@@ -385,17 +385,18 @@
         ]),
         new(Lang.T("Elektrik"),
         [
-            new(Lang.T("Stromversorgung"), [new(Lang.T("Stromart…"), "Current", "current", true, Lang.T("Gleichstrom (Zweileiter, z. B. Märklin Z, Fleischmann, Roco) oder Wechselstrom (Mittelleiter, Märklin H0). Danach richten sich Prüfung, Polung und Kabelfarben.")),
-                new(Lang.T("Einspeisung"), "Bolt", "toolFeeder", true, Lang.T("Gleis an einen Stromkreis/Booster anschließen.")),
-                new(Lang.T("Kabel verlegen"), "Wire", "toolWire", true, Lang.T("Kabel selbst verlegen: Punkte anklicken, Doppelklick beendet. Die Enden rasten an Einspeisungen, Rückmeldern, Signalen und Weichenantrieben ein; Länge und Farbe stehen im Kabelplan.")),
+            new(Lang.T("Stromversorgung"), [new(Lang.T("Betrieb / Stromart…"), "Current", "current", true, Lang.T("Digital (Zentrale, Booster) oder analog (Fahrtrafo) sowie Gleichstrom (Zweileiter) oder Wechselstrom (Mittelleiter). Danach richten sich Prüfung, Polung und Kabelfarben.")),
+                new(Lang.T("Trafo / Zentrale"), "Power", "toolPower", true, Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Die Gleisanschlüsse hängen daran.")),
+                new(Lang.T("Gleisanschluss"), "Bolt", "toolFeeder", true, Lang.T("Stelle, an der der Fahrstrom ans Gleis geht. Sie hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt diese, wird sie angelegt.")),
+                new(Lang.T("Kabel verlegen"), "Wire", "toolWire", true, Lang.T("Kabel selbst verlegen: Punkte anklicken, Doppelklick beendet. Die Enden rasten an Gleisanschlüssen, Rückmeldern, Signalen und Weichenantrieben ein; Länge und Farbe stehen im Kabelplan.")),
                 new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
                 new(Lang.T("Nur Elektrik beschriften"), "Hash", "elecLabels", false, Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern an den Gleisen ausblenden und stattdessen die Abschnitte beschriften.")),
                 new(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", false)]),
-            new(Lang.T("Anschlüsse am Gleis"), [new(Lang.T("Anschlüsse…"), "Connector", "connections", true, Lang.T("Alle Anschlüsse des gewählten Gleises: Einspeisung mit Stromkreis und Polung, Trennstellen an jedem Ende, Rückmelder, Kabel. Auch per Rechtsklick auf das Gleis.")),
-                new(Lang.T("Einspeisung"), "Bolt", "connFeeder", false, Lang.T("Einspeisung am gewählten Gleis setzen oder entfernen.")),
+            new(Lang.T("Anschlüsse am Gleis"), [new(Lang.T("Anschlüsse…"), "Connector", "connections", true, Lang.T("Alle Anschlüsse des gewählten Gleises: Gleisanschluss an Zentrale bzw. Trafo mit Polung, Trennstellen an jedem Ende, Rückmelder, Kabel. Auch per Rechtsklick auf das Gleis.")),
+                new(Lang.T("Gleisanschluss"), "Bolt", "connFeeder", false, Lang.T("Gleisanschluss am gewählten Gleis setzen oder entfernen.")),
                 new(Lang.T("Trennen"), "Isolate", "connIsolate", false, Lang.T("Trennstellen an allen Enden des gewählten Gleises setzen oder entfernen.")),
                 new(Lang.T("Rückmelder"), "Detector", "connDetector", false, Lang.T("Rückmelder auf das gewählte Gleis setzen oder entfernen.")),
-                new(Lang.T("Polung tauschen"), "Swap", "connPolarity", false, Lang.T("Gleichstrom: Plus und Minus der Einspeisung am gewählten Gleis tauschen."))]),
+                new(Lang.T("Polung tauschen"), "Swap", "connPolarity", false, Lang.T("Gleichstrom: Plus und Minus des Gleisanschlusses am gewählten Gleis tauschen."))]),
             new(Lang.T("Digital"), [new(Lang.T("Decoder"), "Chip", "addresses", true, Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
@@ -2655,7 +2656,21 @@
 
     private void AskCurrent()
     {
-        var d = Show(Lang.T("Stromart"), @<div class="list">
+        var d = Show(Lang.T("Betrieb und Stromart"), @<div class="list">
+            <div class="section">@Lang.T("Betrieb")</div>
+            @foreach (var m in Enum.GetValues<PowerMode>())
+            {
+                var mode = m;
+                <button class="list-item @(_session.Plan.Operation == m ? "on" : "")" @onclick="@(() => { _session.SetOperation(mode); Refresh(); })">
+                    <span class="texts">
+                        <span class="strong">@PowerSupply.ModeName(m)</span>
+                        <span class="secondary">@(m == PowerMode.Digital
+                            ? Lang.T("Digitalzentrale (z. B. Märklin CS3, ESU ECoS, Roco Z21) und bei Bedarf Booster speisen das Gleis; Loks mit Decoder.")
+                            : Lang.T("Ein oder mehrere Fahrtrafos bzw. Fahrregler speisen je einen Stromkreis."))</span>
+                    </span>
+                </button>
+            }
+            <div class="section">@Lang.T("Stromart")</div>
             @Hint(Lang.F($"Erkannt aus dem Gleis: {(Electrics.IsThreeRail(_session.Plan) ? Lang.T("Mittelleiter → Wechselstrom") : Lang.T("Zweileiter → Gleichstrom"))}."))
             @foreach (var k in Enum.GetValues<CurrentKind>())
             {
@@ -2665,13 +2680,32 @@
                         <span class="strong">@Electrics.CurrentName(k)</span>
                         <span class="secondary">@(k switch
                         {
-                            CurrentKind.Gleichstrom => Lang.T("Zweileiter-Gleis (z. B. Märklin Z, Fleischmann, Roco, Trix, Piko). Je Einspeisung Plus und Minus an die beiden Schienen; die Polung muss im ganzen Abschnitt gleich sein, Kehrschleifen brauchen eine Umpolung."),
+                            CurrentKind.Gleichstrom => Lang.T("Zweileiter-Gleis (z. B. Märklin Z, Fleischmann, Roco, Trix, Piko). Je Gleisanschluss Plus und Minus an die beiden Schienen; die Polung muss im ganzen Abschnitt gleich sein, Kehrschleifen brauchen eine Umpolung."),
                             CurrentKind.Wechselstrom => Lang.T("Mittelleiter-Gleis (Märklin H0, auch Märklin-Digital). Fahrstrom über den Mittelleiter (rot), Masse über die Schienen (braun); Kehrschleifen ohne Sonderschaltung."),
                             _ => Lang.T("Richtet sich nach dem verlegten Gleis: Mittelleiter → Wechselstrom, sonst Gleichstrom."),
                         })</span>
                     </span>
                 </button>
             }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void AskPowerType(Action<PowerSourceType> pick)
+    {
+        var d = Show(Lang.T("Trafo / Zentrale setzen"), @<div class="list">
+            @Hint(Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan klicken – auch neben die Platte, wo das Gerät später steht."))
+            @foreach (var t in PowerSupply.TypesFor(_session.Plan.Operation))
+            {
+                var type = t;
+                <button class="list-item @(_session.PowerType == t ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(type); })">
+                    <span class="texts">
+                        <span class="strong"><span class="wire-swatch" style="background:@PowerSupply.Color(t)"></span> @PowerSupply.TypeName(t)</span>
+                        <span class="secondary">@PowerSupply.Description(t)</span>
+                    </span>
+                </button>
+            }
+            <button class="link small" @onclick="@(() => { CloseDialog(); AskCurrent(); })">@Lang.T("Betrieb ändern (analog / digital)…")</button>
         </div>);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
@@ -2717,12 +2751,12 @@
                 var ends = _session.PieceEnds(pieceId);
                 var det = _session.DetectorOn(pieceId);
                 <div class="strong">@Lang.F($"Gleis {p.Def.Number} (Nr. {p.Id}) · {_session.ConnectionSummary(pieceId)}")</div>
-                <div class="secondary small">@Electrics.CurrentName(Electrics.Current(_session.Plan)) · <button class="link" @onclick="AskCurrent">@Lang.T("Stromart ändern…")</button></div>
+                <div class="secondary small">@PowerSupply.ModeName(_session.Plan.Operation) · @Electrics.CurrentName(Electrics.Current(_session.Plan)) · <button class="link" @onclick="AskCurrent">@Lang.T("Betrieb / Stromart ändern…")</button></div>
 
-                <div class="section">@Lang.T("Einspeisung")</div>
+                <div class="section">@Lang.T("Gleisanschluss (Fahrstrom)")</div>
                 @if (feeders.Count == 0)
                 {
-                    <div class="secondary small">@Lang.T("Keine Einspeisung an diesem Gleis.")</div>
+                    <div class="secondary small">@(_session.Plan.Operation == PowerMode.Analog ? Lang.T("Dieses Gleis ist noch an keinen Trafo angeschlossen.") : Lang.T("Dieses Gleis ist noch an keine Zentrale und keinen Booster angeschlossen."))</div>
                 }
                 @foreach (var f in feeders)
                 {
@@ -2734,7 +2768,7 @@
                             var circuit = c;
                             <button class="chip small @(f.Circuit == c ? "on" : "")" @onclick="@(() => _session.SetFeederCircuit(fid, circuit))">@c</button>
                         }
-                        <button class="chip small" title="@Lang.T("Neuen Stromkreis anlegen (z. B. für einen zweiten Booster oder Trafo)")" @onclick="@(() => _session.SetFeederCircuit(fid, _session.NewCircuitName()))">+ @Lang.T("Stromkreis")</button>
+                        <button class="chip small" title="@Lang.T("Neuen Stromkreis mit eigenem Booster bzw. Trafo anlegen; das Symbol erscheint unter der Platte.")" @onclick="@(() => _session.SetFeederCircuit(fid, _session.NewCircuitName()))">+ @_session.NewCircuitName()</button>
                         @if (dc)
                         {
                             <button class="chip small @(f.Reversed ? "on" : "")" title="@Lang.T("Plus und Minus tauschen")" @onclick="@(() => _session.ToggleFeederPolarity(fid))">@(f.Reversed ? Lang.T("Polung getauscht") : Lang.T("Polung normal"))</button>
@@ -2743,7 +2777,7 @@
                     </div>
                 }
                 <div class="button-row">
-                    <button class="btn small" @onclick="@(() => _session.AddFeederTo(pieceId))">+ @Lang.T("Einspeisung")</button>
+                    <button class="btn small" @onclick="@(() => _session.AddFeederTo(pieceId))">+ @Lang.T("Gleisanschluss")</button>
                     @if (feeders.Count > 0)
                     {
                         <button class="btn small" @onclick="@(() => { CloseDialog(); StartWireFromFeeder(pieceId); })">@Lang.T("Kabel von hier verlegen")</button>

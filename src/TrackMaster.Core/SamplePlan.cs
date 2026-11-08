@@ -46,7 +46,10 @@ public static class SamplePlan
         foreach (var (x, y, h) in new[] { (500.0, 560.0, 90.0), (640, 640, 110), (560, 760, 80), (1220, 560, 100), (1600, 560, 90), (1660, 980, 110), (300, 1180, 90), (1880, 160, 100) })
             Scenery(new SceneryItem { Kind = SceneryKind.Tree, X = x, Y = y, Width = h * 0.6, Depth = h * 0.6, Height = h, Name = Lang.T("Baum") });
 
-        plan.Feeders.Add(new Feeder { Id = plan.NextId++, PieceId = 3, Circuit = Lang.T("Fahrstrom") });
+        // Digitalzentrale als Symbol unter der Platte; der Gleisanschluss hängt über ihren Namen daran
+        var central = PowerSupply.Create(plan, PowerSourceType.Zentrale, 1700, plan.BoardHeight + 90);
+        Scenery(central);
+        plan.Feeders.Add(new Feeder { Id = plan.NextId++, PieceId = 3, Circuit = central.Name });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 4, Index = 1, Type = SignalType.Hauptsignal, Name = "A1" });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 14, Index = 1, Type = SignalType.Ausfahrsignal, Name = "N1" });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 2, Index = 0, Type = SignalType.Vorsignal, Name = "V1" });

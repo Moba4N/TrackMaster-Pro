@@ -8,7 +8,7 @@ namespace TrackMaster.App;
 
 /// <summary>
 /// Zeichenfläche des Gleisplans. Weltkoordinaten in mm; Ansicht = Verschiebung + Zoom (Pixel je mm).
-/// Linke Maustaste: wählen, ziehen, Rahmen – oder das gewählte Werkzeug (Gelände, Gebäude, Baum, Einspeisung, Trennstelle, Signal).
+/// Linke Maustaste: wählen, ziehen, Rahmen – oder das gewählte Werkzeug (Gelände, Gebäude, Baum, Gleisanschluss, Stromquelle, Trennstelle, Signal).
 /// Rechte/mittlere Taste oder Leertaste: Ansicht verschieben. Mausrad: zoomen.
 /// </summary>
 public sealed class PlanCanvas : FrameworkElement
@@ -173,6 +173,9 @@ public sealed class PlanCanvas : FrameworkElement
 
     /// <summary>Werkzeug Beschriftung: Klick auf diese Stelle (Weltkoordinaten); das Hauptfenster fragt den Text ab.</summary>
     public event Action<double, double>? LabelRequested;
+
+    /// <summary>Eine Stromquelle wurde gesetzt (danach zurück zum Auswählen, damit die Eigenschaften erscheinen).</summary>
+    public event Action? PowerPlaced;
     private (double X, double Y)? _dimStart;
 
     /// <summary>Schließt das gerade gezeichnete Vieleck ab (Doppelklick oder Eingabetaste).</summary>
@@ -211,24 +214,24 @@ public sealed class PlanCanvas : FrameworkElement
         InvalidateVisual();
     }
 
-    /// <summary>Kabel: Punkt setzen; an Einspeisungen, Rückmeldern, Signalen, Weichenantrieben und Kabelenden rastet er ein.</summary>
+    /// <summary>Kabel: Punkt setzen; an Gleisanschlüssen, Rückmeldern, Signalen, Weichenantrieben und Kabelenden rastet er ein.</summary>
     private void AddWirePoint(Point world)
     {
         var (sx, sy, anchor) = WireLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom);
         _polygon.Add((sx, sy));
         _session.Say(anchor is not null
             ? Lang.F($"Kabel: angeschlossen an {anchor.Text}. Weitere Punkte setzen, Doppelklick oder Eingabetaste beendet.")
-            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Einspeisungen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder Eingabetaste beendet.")
+            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Gleisanschlüssen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder Eingabetaste beendet.")
             : Lang.F($"Kabel: {_polygon.Count} Punkte."));
         InvalidateVisual();
     }
 
-    /// <summary>Kabel an einem festen Punkt beginnen (z. B. an der Einspeisung aus dem Kontextmenü).</summary>
+    /// <summary>Kabel an einem festen Punkt beginnen (z. B. am Gleisanschluss aus dem Kontextmenü).</summary>
     public void StartWireAt(double x, double y)
     {
         _polygon.Clear();
         _polygon.Add((x, y));
-        _session.Say(Lang.T("Kabel beginnt an der Einspeisung: weitere Punkte setzen, Doppelklick oder Eingabetaste beendet."));
+        _session.Say(Lang.T("Kabel beginnt am Gleisanschluss: weitere Punkte setzen, Doppelklick oder Eingabetaste beendet."));
         InvalidateVisual();
     }
 
@@ -280,6 +283,7 @@ public sealed class PlanCanvas : FrameworkElement
         if (_session.ShowScenery) DrawSceneryNames(dc, plan);
         if (_session.ShowSections) DrawSectionLabels(dc, plan);
         DrawWireNames(dc, plan);
+        DrawPowerNames(dc, plan);
         DrawSignalNames(dc, plan);
         DrawConnectors(dc);
         DrawIssues(dc);
@@ -478,7 +482,7 @@ public sealed class PlanCanvas : FrameworkElement
 
     private void DrawSceneryNames(DrawingContext dc, LayoutPlan plan)
     {
-        foreach (var s in plan.Scenery.Where(s => s.Kind is not (SceneryKind.Tree or SceneryKind.Room or SceneryKind.Wire) && !s.IsAnnotation))
+        foreach (var s in plan.Scenery.Where(s => s.Kind is not (SceneryKind.Tree or SceneryKind.Room or SceneryKind.Wire or SceneryKind.Power) && !s.IsAnnotation))
         {
             var outline = s.Outline();
             var w = (outline.Max(p => p.X) - outline.Min(p => p.X)) * _zoom;
@@ -492,6 +496,18 @@ public sealed class PlanCanvas : FrameworkElement
                 _ => $"{s.Name} · {Fmt.Num(s.Height, 0)} mm",
             };
             DrawTag(dc, text, ToScreen(cx, cy), Theme.TextSecondaryBrush, 10);
+        }
+    }
+
+    /// <summary>Stromquellen: Name unter dem Symbol, solange es auf dem Bildschirm zu klein für die eigene Schrift ist.</summary>
+    private void DrawPowerNames(DrawingContext dc, LayoutPlan plan)
+    {
+        foreach (var src in PowerSupply.Sources(plan))
+        {
+            if (src.Width * _zoom >= 110) continue;
+            var (tx, ty) = PowerSupply.Terminal(src);
+            var p = ToScreen(tx, ty);
+            DrawTag(dc, src.Name, new Point(p.X, p.Y + 12), Theme.TextBrush, 10);
         }
     }
 
@@ -518,7 +534,7 @@ public sealed class PlanCanvas : FrameworkElement
             var m = first.Middle();
             var p = ToScreen(m.X, m.Y);
             var color = PlanScene.SectionColors[(s.Number - 1) % PlanScene.SectionColors.Length];
-            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Einspeisung") : string.Join(", ", s.Circuits);
+            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Gleisanschluss") : string.Join(", ", s.Circuits);
             DrawTag(dc, Lang.F($"Abschnitt {s.Number} · {circuits}"), new Point(p.X, p.Y + _gauge * 1.8 * _zoom + 10), new SolidColorBrush(color), 10.5);
         }
     }
@@ -641,7 +657,7 @@ public sealed class PlanCanvas : FrameworkElement
         return best ?? TableShape.Hit(_session.View, world.X, world.Y);
     }
 
-    /// <summary>Kleine Objekte (Signal, Einspeisung, Trennstelle) nach Bildschirmabstand, dann Bäume und Gebäude.</summary>
+    /// <summary>Kleine Objekte (Signal, Gleisanschluss, Trennstelle) nach Bildschirmabstand, dann Bäume und Gebäude.</summary>
     private int? HitSmallObject(Point screen, Point world)
     {
         var plan = _session.View;
@@ -677,6 +693,7 @@ public sealed class PlanCanvas : FrameworkElement
             }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (plan.Scenery.Where(s => s.IsPower).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } power) return power.Id;
         if (plan.Scenery.Where(s => s.IsWire).Reverse().FirstOrDefault(s => WireLayout.Distance(s, world.X, world.Y) <= Math.Max(_gauge * 0.4, 7 / _zoom)) is { } wire) return wire.Id;
         if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, 8 / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
@@ -773,11 +790,15 @@ public sealed class PlanCanvas : FrameworkElement
                 var size = _gauge * (2.6 + _random.NextDouble() * 1.4);
                 _session.AddScenery(new SceneryItem { Kind = SceneryKind.Tree, X = Math.Round(world.X), Y = Math.Round(world.Y), Width = Math.Round(size), Height = Math.Round(size * 2.2), Name = Lang.T("Baum") });
                 return;
+            case CanvasTool.Power:
+                _session.AddPowerSource(_session.PowerType, world.X, world.Y);
+                PowerPlaced?.Invoke();
+                return;
             case CanvasTool.Feeder:
-                // Klick auf eine vorhandene Einspeisung entfernt sie wieder
+                // Klick auf einen vorhandenen Gleisanschluss entfernt ihn wieder
                 if (HitSmallObject(screen, world) is { } fo && _session.View.Feeders.Any(f => f.Id == fo)) _session.RemoveObject(fo);
                 else if (HitPiece(world) is { } fp) _session.AddFeeder(fp.Id);
-                else _session.Say(Lang.T("Für eine Einspeisung bitte direkt auf ein Gleis klicken."));
+                else _session.Say(Lang.T("Für einen Gleisanschluss bitte direkt auf ein Gleis klicken."));
                 return;
             case CanvasTool.Detector:
                 // Klick auf einen vorhandenen Rückmelder entfernt ihn wieder

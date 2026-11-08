@@ -110,7 +110,7 @@ public static class WireLayout
         foreach (var f in plan.Feeders)
             if (plan.Find(f.PieceId) is { } p)
             {
-                var (x, y) = Electrics.FeederPoint(p, g);
+                var (x, y) = Electrics.FeederPoint(plan, p, f);
                 list.Add(new(x, y, Lang.F($"Gleisanschluss an Gleis Nr. {p.Id}")));
             }
         foreach (var src in PowerSupply.Sources(plan))

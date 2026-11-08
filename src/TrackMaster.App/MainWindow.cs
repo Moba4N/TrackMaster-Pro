@@ -1491,7 +1491,7 @@ public sealed partial class MainWindow : Window
         if (Session.ConnectionPiece is not { } p) return;
         if (Session.FeedersOn(p.Id).Count == 0) Session.AddFeederTo(p.Id);
         var piece = Session.Plan.Find(p.Id)!;
-        var (x, y) = Electrics.FeederPoint(piece, Session.Plan.Gauge.TrackWidth);
+        var (x, y) = Electrics.FeederPoint(Session.Plan, piece, Session.FeedersOn(p.Id).FirstOrDefault());
         Session.WireUse = WireUse.Fahrstrom;
         SetTool(CanvasTool.Wire);
         Canvas.StartWireAt(x, y);

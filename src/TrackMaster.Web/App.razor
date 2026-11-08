@@ -2730,11 +2730,11 @@
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
 
-    /// <summary>Kabel an der Einspeisung des Gleises beginnen: Werkzeug „Kabel verlegen“ mit dem ersten Punkt dort.</summary>
+    /// <summary>Kabel am Gleisanschluss des Gleises beginnen: Werkzeug „Kabel verlegen“ mit dem ersten Punkt dort.</summary>
     private void StartWireFromFeeder(int pieceId)
     {
         if (_session.Plan.Find(pieceId) is not { } p) return;
-        var (x, y) = Electrics.FeederPoint(p, _session.Plan.Gauge.TrackWidth);
+        var (x, y) = Electrics.FeederPoint(_session.Plan, p, _session.FeedersOn(pieceId).FirstOrDefault());
         _session.WireUse = WireUse.Fahrstrom;
         SetTool(CanvasTool.Wire);
         _view.StartWireAt(x, y);

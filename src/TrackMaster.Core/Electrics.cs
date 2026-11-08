@@ -67,12 +67,20 @@ public static class Electrics
         ? Lang.T("Wechselstrom (Mittelleiter): Fahrstrom über den Mittelleiter (rotes Kabel), Masse über beide Schienen (braunes Kabel). Polung und Kehrschleifen spielen keine Rolle.")
         : Lang.T("Gleichstrom (Zweileiter): je eine Schiene an Plus und Minus (z. B. rotes und blaues Kabel). Alle Gleisanschlüsse eines Abschnitts brauchen dieselbe Polung, Kehrschleifen eine Umpolung.");
 
-    /// <summary>Lage des Einspeisungs-Symbols: neben der Gleismitte (links in Richtung Anschluss 0 → 1).</summary>
-    public static (double X, double Y) FeederPoint(PlacedPiece p, double gauge)
+    /// <summary>
+    /// Lage des Gleisanschlusses in der Gleismitte (Länge): bei Wechselstrom auf dem Mittelleiter, bei Gleichstrom
+    /// auf einer Schiene – links in Richtung Anschluss 0 → 1, bei getauschter Polung rechts.
+    /// </summary>
+    public static (double X, double Y) FeederPoint(PlacedPiece p, double gauge, CurrentKind current, bool reversed = false)
     {
         var m = p.Middle();
-        return (m.X - Math.Sin(m.HeadingRad) * gauge * 2.2, m.Y + Math.Cos(m.HeadingRad) * gauge * 2.2);
+        var side = current == CurrentKind.Wechselstrom ? 0 : (reversed ? -0.5 : 0.5) * gauge;
+        return (m.X - Math.Sin(m.HeadingRad) * side, m.Y + Math.Cos(m.HeadingRad) * side);
     }
+
+    /// <summary>Lage dieses Gleisanschlusses nach Stromart und Polung des Plans.</summary>
+    public static (double X, double Y) FeederPoint(LayoutPlan plan, PlacedPiece p, Feeder? f)
+        => FeederPoint(p, plan.Gauge.TrackWidth, Current(plan), f?.Reversed ?? false);
 
     private static bool Isolated(LayoutPlan plan, ConnectorRef c)
         => plan.Isolations.Any(i => (i.PieceId == c.PieceId && i.Index == c.Index) || (c.Link is { } l && i.PieceId == l.PieceId && i.Index == l.Index));

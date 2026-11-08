@@ -96,13 +96,28 @@ public class ElectricWiringTests
     }
 
     [Fact]
+    public void Gleisanschluss_liegt_bei_Gleichstrom_an_einer_Schiene_und_bei_Wechselstrom_in_der_Mitte()
+    {
+        var (plan, a, _) = TwoStraights(false);
+        var g = plan.Gauge.TrackWidth;
+        var m = a.Middle();
+        double Off((double X, double Y) q) => Math.Sqrt((q.X - m.X) * (q.X - m.X) + (q.Y - m.Y) * (q.Y - m.Y));
+        var dc = Electrics.FeederPoint(a, g, CurrentKind.Gleichstrom);
+        var dcReversed = Electrics.FeederPoint(a, g, CurrentKind.Gleichstrom, reversed: true);
+        Assert.Equal(g / 2, Off(dc), 6);
+        Assert.Equal(g / 2, Off(dcReversed), 6);
+        Assert.Equal(g, Math.Sqrt((dc.X - dcReversed.X) * (dc.X - dcReversed.X) + (dc.Y - dcReversed.Y) * (dc.Y - dcReversed.Y)), 6);
+        Assert.Equal(0, Off(Electrics.FeederPoint(a, g, CurrentKind.Wechselstrom)), 6);
+    }
+
+    [Fact]
     public void Kabel_wird_verlegt_gemessen_gespeichert_und_im_Kabelplan_gefuehrt()
     {
         var (plan, a, _) = TwoStraights(false);
         var s = new PlanSession();
         s.Replace(plan, null);
         var f = s.AddFeederTo(a.Id);
-        var start = Electrics.FeederPoint(s.Plan.Find(a.Id)!, s.Plan.Gauge.TrackWidth);
+        var start = Electrics.FeederPoint(s.Plan, s.Plan.Find(a.Id)!, f);
         var wire = s.AddWire([start, (start.X, start.Y + 300), (start.X + 400, start.Y + 300)], WireUse.Fahrstrom)!;
         Assert.NotNull(wire);
         Assert.Equal(700, WireLayout.Length(wire), 3);

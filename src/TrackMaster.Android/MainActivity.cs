@@ -985,7 +985,7 @@ public sealed class MainActivity : Activity
         actions.Add((Lang.T("Kabel von hier verlegen"), null, false, () =>
         {
             if (_session.FeedersOn(p.Id).Count == 0) _session.AddFeederTo(p.Id);
-            var (x, y) = Electrics.FeederPoint(_session.Plan.Find(p.Id)!, _session.Plan.Gauge.TrackWidth);
+            var (x, y) = Electrics.FeederPoint(_session.Plan, _session.Plan.Find(p.Id)!, _session.FeedersOn(p.Id).FirstOrDefault());
             _session.WireUse = WireUse.Fahrstrom;
             if (_session.Tool != CanvasTool.Wire) SetTool(CanvasTool.Wire);
             _canvas.StartWireAt(x, y);

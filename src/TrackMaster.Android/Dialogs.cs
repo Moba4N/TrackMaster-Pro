@@ -176,7 +176,7 @@ public static partial class Dialogs
             (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
             (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Ui.Danger : null),
             (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
+            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Gleisanschl. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
             (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Ui.OpenEnd : Ui.Success)));
         body.AddView(Hint(c, Lang.T("So geht’s: Tippe ein orangefarbenes Gleisende an und dann ein Gleis in der Bibliothek – es wird dort angesetzt. ") +
                              Lang.T("Gewählte Gleise lassen sich mit dem Finger verschieben und rasten an freien Enden ein. Zwei Finger zoomen und verschieben die Ansicht, ") +

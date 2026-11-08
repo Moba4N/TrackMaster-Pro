@@ -294,7 +294,7 @@
             <dt>@Lang.T("Kleinster Radius")</dt><dd>@(stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–")</dd>
             <dt>@Lang.T("Größte Steigung")</dt><dd class="@(stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? "danger" : "")">@(stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"))</dd>
             <dt>@Lang.T("Höchster Punkt")</dt><dd>@Fmt.Num(stats.MaxHeight, 0) mm</dd>
-            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
+            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Gleisanschl. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
             <dt>@Lang.T("Offene Gleisenden")</dt><dd class="@(stats.OpenEnds > 0 ? "open" : "ok")">@stats.OpenEnds</dd>
         </dl>
         <div class="button-row">

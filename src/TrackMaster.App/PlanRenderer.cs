@@ -516,11 +516,10 @@ public sealed class PlanScene
         foreach (var f in plan.Feeders)
         {
             if (plan.Find(f.PieceId) is not { } p) continue;
-            var m = p.Middle();
-            var r = Math.Max(g * 0.9, 5 / z);
-            var (fx, fy) = Electrics.FeederPoint(p, g);
+            // sitzt direkt auf der Schiene (Gleichstrom) bzw. dem Mittelleiter (Wechselstrom)
+            var r = Math.Max(g * 0.35, 5 / z);
+            var (fx, fy) = Electrics.FeederPoint(plan, p, f);
             var center = new Point(fx, fy);
-            dc.DrawLine(new Pen(FeederBrush, Math.Max(g * 0.15, 1 / z)), new Point(m.X, m.Y), center);
             dc.DrawEllipse(FeederBrush, f.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), center, r, r);
             var bolt = new StreamGeometry();
             using (var ctx = bolt.Open())
@@ -585,7 +584,7 @@ public sealed class PlanScene
             foreach (var f in PowerSupply.FeedersOf(plan, src))
                 if (plan.Find(f.PieceId) is { } piece)
                 {
-                    var (fx, fy) = Electrics.FeederPoint(piece, g);
+                    var (fx, fy) = Electrics.FeederPoint(plan, piece, f);
                     dc.DrawLine(pen, new Point(tx, ty), new Point(fx, fy));
                 }
         }

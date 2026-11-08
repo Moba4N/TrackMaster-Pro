@@ -2174,6 +2174,7 @@
  "{0} Module, zusammen {1}": "{0} modules, together {1}",
  "{0} Nr. {1} in {2} cm: {3}": "{0} no. {1} in {2} cm: {3}",
  "{0} Obj. · {1} Einsp. · {2} Sig.": "{0} obj. · {1} feeders · {2} sig.",
+ "{0} Obj. · {1} Gleisanschl. · {2} Sig.": "{0} obj. · {1} track conn. · {2} sig.",
  "{0} Objekte eingefügt.": "{0} objects pasted.",
  "{0} Objekte kopiert.": "{0} objects copied.",
  "{0} Objekte · {1} Einsp. · {2} Signale": "{0} objects · {1} feeders · {2} signals",

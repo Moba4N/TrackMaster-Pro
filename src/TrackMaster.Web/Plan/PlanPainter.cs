@@ -514,12 +514,11 @@ public sealed class PlanPainter
         foreach (var f in plan.Feeders)
         {
             if (plan.Find(f.PieceId) is not { } p) continue;
-            var m = p.Middle();
-            var r = Math.Max(g * 0.9f, 5 * d / z);
-            var (fpx, fpy) = Electrics.FeederPoint(p, g);
+            // sitzt direkt auf der Schiene (Gleichstrom) bzw. dem Mittelleiter (Wechselstrom)
+            var r = Math.Max(g * 0.35f, 5 * d / z);
+            var (fpx, fpy) = Electrics.FeederPoint(plan, p, f);
             var cx = (float)fpx;
             var cy = (float)fpy;
-            c.DrawLine((float)m.X, (float)m.Y, cx, cy, Stroke(FeederColor, Math.Max(g * 0.15f, 1 / z)));
             c.DrawCircle(cx, cy, r, Fill(FeederColor));
             c.DrawCircle(cx, cy, r, f.Id == selectedObject ? Stroke(Ui.Accent, 2.5f * d / z) : Stroke(Color.White, 1 / z));
             var bolt = new Path();
@@ -574,7 +573,7 @@ public sealed class PlanPainter
             foreach (var f in PowerSupply.FeedersOf(plan, src))
                 if (plan.Find(f.PieceId) is { } piece)
                 {
-                    var (fx, fy) = Electrics.FeederPoint(piece, g);
+                    var (fx, fy) = Electrics.FeederPoint(plan, piece, f);
                     // als Pfad, damit die Strichelung greift
                     using var link = new Path();
                     link.MoveTo((float)tx, (float)ty);

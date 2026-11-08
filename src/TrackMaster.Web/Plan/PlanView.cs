@@ -801,7 +801,7 @@ public sealed class PlanView
         foreach (var f in plan.Feeders)
             if (plan.Find(f.PieceId) is { } p)
             {
-                var (fx, fy) = Electrics.FeederPoint(p, _gauge);
+                var (fx, fy) = Electrics.FeederPoint(plan, p, f);
                 Try(f.Id, fx, fy);
             }
         foreach (var i in plan.Isolations)

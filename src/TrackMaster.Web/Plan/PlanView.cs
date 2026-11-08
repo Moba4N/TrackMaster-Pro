@@ -614,10 +614,11 @@ public sealed class PlanView
     /// <summary>Stromquellen: Name unter dem Symbol, solange es auf dem Bildschirm zu klein für die eigene Schrift ist.</summary>
     private void DrawPowerNames(Canvas c, LayoutPlan plan)
     {
-        foreach (var src in PowerSupply.Sources(plan))
+        foreach (var src in PowerSupply.Items(plan))
         {
-            if (src.Width * _zoom >= Ui.Dp(110)) continue;
-            var (tx, ty) = PowerSupply.Terminal(src);
+            // Verteiler haben keinen Platz für Schrift: Name immer darunter
+            if (src.Width * _zoom >= Ui.Dp(110) && PowerSupply.Type(src) != PowerSourceType.Verteiler) continue;
+            var (tx, ty) = PowerSupply.Local(src, 0, src.Depth / 2);
             var p = ToScreen(tx, ty);
             DrawTag(c, src.Name, p.X, p.Y + Ui.Dp(12), Ui.Text, 10);
         }

@@ -240,7 +240,7 @@ public static class PlanSerializer
                 Name = s.Name,
                 Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
-                Model = s.IsModel ? s.Model : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
+                Model = s.IsModel ? s.Model : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
                 Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
@@ -383,7 +383,7 @@ public static class PlanSerializer
                 Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate || kind == SceneryKind.Wire && Enum.IsDefined((WireUse)s.Variant) || kind == SceneryKind.Power && Enum.IsDefined((PowerSourceType)s.Variant) ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
                 Model = kind == SceneryKind.Building && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
-                Color = kind is SceneryKind.Building or SceneryKind.Wire && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
+                Color = kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
             };
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
@@ -393,7 +393,7 @@ public static class PlanSerializer
             if (kind == SceneryKind.Power)
             {
                 item.Points = [];
-                if (item.Width <= 0 || item.Depth <= 0) (item.Width, item.Depth) = PowerSupply.Size(plan.Gauge);
+                if (item.Width <= 0 || item.Depth <= 0) (item.Width, item.Depth) = PowerSupply.Type(item) == PowerSourceType.Verteiler ? PowerSupply.DistributorSize(plan.Gauge) : PowerSupply.Size(plan.Gauge);
             }
             if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
             if (kind == SceneryKind.Plate && !PlateLayout.Valid(item)) PlateLayout.Repair(item);

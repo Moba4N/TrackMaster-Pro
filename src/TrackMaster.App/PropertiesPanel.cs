@@ -545,7 +545,23 @@ public sealed class PropertiesPanel : DockPanel
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Art"), pkind),
                             Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
-                        var prows = new List<(string, string, System.Windows.Media.Brush?)> { (Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null) };
+                        var prows = new List<(string, string, System.Windows.Media.Brush?)>();
+                        if (ptype == PowerSourceType.Verteiler)
+                        {
+                            var dcolor = new ComboBox { Height = 28 };
+                            foreach (var c in PowerSupply.DistributorColors)
+                                dcolor.Items.Add(new ComboBoxItem { Content = Lang.T(c.Name), Tag = c.Hex, IsSelected = string.Equals(c.Hex, PowerSupply.DistributorColor(s), StringComparison.OrdinalIgnoreCase) });
+                            dcolor.SelectionChanged += (_, _) => { if (dcolor.SelectedItem is ComboBoxItem { Tag: string h }) _session.SetDistributorColor(s.Id, h); };
+                            _body.Children.Add(Theme.Field(Lang.T("Farbe"), dcolor));
+                            prows.Add((Lang.T("Klemmen"), PowerSupply.Clamps.ToString(), null));
+                            prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        }
+                        else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
+                        if (PowerSupply.GroundTerminal(s) is { } gt)
+                        {
+                            var grounded = WireLayout.WiresAt(plan, gt).Any();
+                            prows.Add((Lang.T("Masse (0)"), grounded ? Lang.T("angeschlossen") : Lang.T("fehlt"), grounded ? null : Theme.OpenEndBrush));
+                        }
                         if (PowerSupply.FeedsTrack(ptype))
                         {
                             var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
@@ -556,7 +572,9 @@ public sealed class PropertiesPanel : DockPanel
                                 prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Theme.OpenEndBrush));
                         }
                         Rows(prows.ToArray());
-                        _body.Children.Add(Tip(PowerSupply.Description(ptype) + " " + Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")));
+                        _body.Children.Add(Tip(PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.HasGround(ptype)
+                            ? Lang.T("Die rote Linie führt vom Bahnstrom (B) zu den Gleisanschlüssen. Die Masse (0) daneben mit einem braunen Kabel zum Gleis oder zu einem Masse-Verteiler legen.")
+                            : Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")))));
                         break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,

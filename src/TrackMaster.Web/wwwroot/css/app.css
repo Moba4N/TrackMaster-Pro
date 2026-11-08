@@ -484,6 +484,7 @@ textarea.license-text { width: 100%; box-sizing: border-box; resize: vertical; m
 .tip-box { background: var(--tip-back); color: var(--text-secondary); }
 .warn-box { background: var(--warning-back); color: var(--warning); }
 .error-box { background: #FDE7E9; color: var(--danger); margin-top: 8px; }
+.error-text { color: var(--danger); font-weight: 600; }
 .check, .radio { display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; }
 .check input, .radio input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
 input[type=range] { accent-color: var(--accent); }

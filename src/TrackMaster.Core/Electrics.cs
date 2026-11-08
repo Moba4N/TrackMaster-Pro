@@ -430,6 +430,39 @@ public static class Electrics
                 issues.Add(new(IssueLevel.Hinweis, Lang.T("Stromversorgung"),
                     Lang.F($"An „{src.Name}“ ({PowerSupply.TypeName(type)}) hängt noch kein Gleisanschluss."), [], src.X, src.Y, src.Id));
         }
+        // Masse (0) von Zentrale und Booster: angeschlossen und untereinander verbunden?
+        var nets = WireLayout.Nets(plan);
+        var current = Current(plan);
+        var grounds = new List<(SceneryItem Src, int Net)>();
+        foreach (var src in sources.Where(s => PowerSupply.HasGround(PowerSupply.Type(s))))
+        {
+            var gt = PowerSupply.GroundTerminal(src)!.Value;
+            if (nets(gt) is { } net) grounds.Add((src, net));
+            else if (plan.Pieces.Count > 0)
+                issues.Add(new(IssueLevel.Warnung, Lang.T("Stromversorgung"),
+                    Lang.F($"Die Masse (0) von „{src.Name}“ ist nicht angeschlossen – ohne Masse fließt kein Fahrstrom. Ein braunes Kabel von der Masse-Klemme zum Gleisanschluss oder zu einem Masse-Verteiler legen."), [], gt.X, gt.Y, src.Id));
+        }
+        if (grounds.Select(g => g.Net).Distinct().Count() > 1)
+        {
+            var first = grounds[0];
+            foreach (var other in grounds.Where(g => g.Net != first.Net).GroupBy(g => g.Net).Select(g => g.First()))
+                issues.Add(new(IssueLevel.Warnung, Lang.T("Stromversorgung"),
+                    Lang.F($"Die Masse von „{other.Src.Name}“ ist nicht mit der Masse von „{first.Src.Name}“ verbunden. Zentrale und Booster brauchen eine gemeinsame Masse, z. B. über einen braunen Verteiler."), [], other.Src.X, other.Src.Y, other.Src.Id));
+        }
+        // Verteiler: Kabel in anderer Farbe, leere Leisten
+        foreach (var d in PowerSupply.Distributors(plan))
+        {
+            var color = PowerSupply.DistributorColor(d);
+            var wires = PowerSupply.ClampPoints(d).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).ToList();
+            if (wires.Count == 0 && plan.Pieces.Count > 0)
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Stromversorgung"), Lang.F($"Am Verteiler „{d.Name}“ hängt noch kein Kabel."), [], d.X, d.Y, d.Id));
+            foreach (var w in wires.Where(w => !string.Equals(WireLayout.ColorOf(w, current), color, StringComparison.OrdinalIgnoreCase)))
+            {
+                var (mx, my) = WireLayout.Middle(w);
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Stromversorgung"),
+                    Lang.F($"{w.Name} ({WireLayout.ColorName(WireLayout.ColorOf(w, current))}) hängt am Verteiler „{d.Name}“ ({WireLayout.ColorName(color)}) – Farben besser gleich halten, sonst verwechselt man die Leitungen."), [], mx, my, w.Id));
+            }
+        }
         if (mode == PowerMode.Digital && sources.Count(s => PowerSupply.Type(s) == PowerSourceType.Zentrale) > 1)
         {
             var second = sources.Where(s => PowerSupply.Type(s) == PowerSourceType.Zentrale).Skip(1).First();
@@ -452,7 +485,13 @@ public static class Electrics
         {
             var fs = PowerSupply.FeedersOf(plan, src).ToList();
             sb.AppendLine(Lang.F($"  {src.Name}: {PowerSupply.TypeName(PowerSupply.Type(src))}") +
-                          (PowerSupply.FeedsTrack(PowerSupply.Type(src)) ? Lang.F($", {fs.Count} Gleisanschluss/-anschlüsse") : ""));
+                          (PowerSupply.FeedsTrack(PowerSupply.Type(src)) ? Lang.F($", {fs.Count} Gleisanschluss/-anschlüsse") : "") +
+                          (PowerSupply.GroundTerminal(src) is { } gt ? (WireLayout.WiresAt(plan, gt).Any() ? Lang.T(", Masse angeschlossen") : Lang.T(", Masse fehlt!")) : ""));
+        }
+        foreach (var d in PowerSupply.Distributors(plan))
+        {
+            var n = PowerSupply.ClampPoints(d).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count();
+            sb.AppendLine(Lang.F($"  {d.Name}: Verteiler {WireLayout.ColorName(PowerSupply.DistributorColor(d))}, {n} Kabel"));
         }
         sb.AppendLine();
         sb.AppendLine(Lang.T("Stromabschnitte"));

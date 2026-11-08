@@ -49,7 +49,19 @@ public static class SamplePlan
         // Digitalzentrale als Symbol unter der Platte; der Gleisanschluss hängt über ihren Namen daran
         var central = PowerSupply.Create(plan, PowerSourceType.Zentrale, 1700, plan.BoardHeight + 90);
         Scenery(central);
-        plan.Feeders.Add(new Feeder { Id = plan.NextId++, PieceId = 3, Circuit = central.Name });
+        var feeder = new Feeder { Id = plan.NextId++, PieceId = 3, Circuit = central.Name };
+        plan.Feeders.Add(feeder);
+        // Masse (braun) von der Zentrale zum Gleisanschluss
+        if (PowerSupply.GroundTerminal(central) is { } gt && plan.Find(3) is { } fedPiece)
+        {
+            var fp = Electrics.FeederPoint(plan, fedPiece, feeder);
+            Scenery(new SceneryItem
+            {
+                Kind = SceneryKind.Wire, Name = Lang.T("Masse"), Variant = (int)WireUse.Rueckleiter, X = gt.X, Y = gt.Y,
+                Points = [gt, (gt.X, gt.Y + 40), (fp.X, gt.Y + 40), fp],
+                Color = WireLayout.DefaultColor(WireUse.Rueckleiter, Electrics.Current(plan)), Depth = WireLayout.DefaultSection(WireUse.Rueckleiter, plan.Gauge),
+            });
+        }
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 4, Index = 1, Type = SignalType.Hauptsignal, Name = "A1" });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 14, Index = 1, Type = SignalType.Ausfahrsignal, Name = "N1" });
         plan.Signals.Add(new Signal { Id = plan.NextId++, PieceId = 2, Index = 0, Type = SignalType.Vorsignal, Name = "V1" });

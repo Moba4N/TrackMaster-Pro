@@ -561,15 +561,15 @@ public sealed class PlanPainter
     /// </summary>
     public static void DrawPowerSources(Canvas c, LayoutPlan plan, float g, float z, int? selectedObject, float density)
     {
-        var sources = PowerSupply.Sources(plan).ToList();
-        if (sources.Count == 0) return;
+        var items = PowerSupply.Items(plan).ToList();
+        if (items.Count == 0) return;
         using var p = new Paint(PaintFlags.AntiAlias);
-        foreach (var src in sources)
+        // Verbindung Zentrale/Booster/Trafo → Gleisanschluss: immer rot wie die Bahnstromleitung
+        foreach (var src in PowerSupply.TrackSources(plan))
         {
-            var color = C(ModelBody.ParseColor(PowerSupply.Color(PowerSupply.Type(src))) ?? new Rgb(0x37, 0x47, 0x4F));
             var (tx, ty) = PowerSupply.Terminal(src);
             p.SetStyle(Paint.Style.Stroke);
-            p.Color = Color.Argb(0xB0, color.R, color.G, color.B);
+            p.Color = Color.Argb(0xC8, 0xD3, 0x2F, 0x2F);
             p.StrokeWidth = Math.Max(g * 0.18f, 1.3f * density / z);
             p.SetPathEffect(new DashPathEffect([Math.Max(g * 1.2f, 6 / z), Math.Max(g * 0.8f, 4 / z)], 0));
             foreach (var f in PowerSupply.FeedersOf(plan, src))
@@ -584,7 +584,45 @@ public sealed class PlanPainter
                 }
             p.SetPathEffect(null);
         }
-        foreach (var src in sources) DrawPowerSymbol(c, src, g, z, src.Id == selectedObject, density, p);
+        foreach (var src in items)
+            if (PowerSupply.Type(src) == PowerSourceType.Verteiler) DrawDistributor(c, src, z, src.Id == selectedObject, density, p);
+            else DrawPowerSymbol(c, src, g, z, src.Id == selectedObject, density, p);
+    }
+
+    /// <summary>Verteilerleiste: Leiste in Aderfarbe mit Klemmen auf der Mittellinie.</summary>
+    private static void DrawDistributor(Canvas c, SceneryItem src, float z, bool selected, float density, Paint p)
+    {
+        var rgb = ModelBody.ParseColor(PowerSupply.DistributorColor(src)) ?? new Rgb(0x79, 0x55, 0x48);
+        var color = C(rgb);
+        float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
+        c.Save();
+        c.Translate((float)src.X, (float)src.Y);
+        c.Rotate((float)src.Rotation);
+        var body = new RectF(-hw, -hd, hw, hd);
+        var corner = d * 0.2f;
+        p.SetPathEffect(null);
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = color;
+        c.DrawRoundRect(body, corner, corner, p);
+        p.SetStyle(Paint.Style.Stroke);
+        p.Color = selected ? Ui.Accent : C(rgb.Scale(0.55));
+        p.StrokeWidth = selected ? 3 * density / z : 1.2f * density / z;
+        c.DrawRoundRect(body, corner, corner, p);
+        var step = w / PowerSupply.Clamps;
+        var r = Math.Min(step * 0.3f, d * 0.3f);
+        for (var i = 0; i < PowerSupply.Clamps; i++)
+        {
+            var x = -hw + step * (i + 0.5f);
+            p.SetStyle(Paint.Style.Fill);
+            p.Color = Color.Rgb(0xE0, 0xE0, 0xE0);
+            c.DrawCircle(x, 0, r, p);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = Color.Rgb(0x42, 0x42, 0x42);
+            p.StrokeWidth = Math.Max(r * 0.25f, 0.6f / z);
+            c.DrawCircle(x, 0, r, p);
+            c.DrawLine(x - r * 0.6f, 0, x + r * 0.6f, 0, p);
+        }
+        c.Restore();
     }
 
     private static void DrawPowerSymbol(Canvas c, SceneryItem src, float g, float z, bool selected, float density, Paint p)
@@ -592,6 +630,7 @@ public sealed class PlanPainter
         var type = PowerSupply.Type(src);
         var color = C(ModelBody.ParseColor(PowerSupply.Color(type)) ?? new Rgb(0x37, 0x47, 0x4F));
         float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
+        var ground = PowerSupply.HasGround(type);
         c.Save();
         c.Translate((float)src.X, (float)src.Y);
         c.Rotate((float)src.Rotation);
@@ -659,15 +698,30 @@ public sealed class PlanPainter
             c.DrawText(src.Name, tx, d * 0.3f, p);
         }
 
-        // Anschlussklemme unten
+        // Anschlussklemmen unten: Zentrale/Booster Bahnstrom (B, rot) und Masse (0, braun), sonst eine Klemme
         var tr = Math.Max(g * 0.55f, 3.5f * density / z);
-        p.SetStyle(Paint.Style.Fill);
-        p.Color = Color.White;
-        c.DrawCircle(0, hd, tr, p);
-        p.SetStyle(Paint.Style.Stroke);
-        p.Color = color;
-        p.StrokeWidth = Math.Max(tr * 0.35f, 1 / z);
-        c.DrawCircle(0, hd, tr, p);
+        void Clamp(float x, Color ring, string? mark)
+        {
+            p.SetStyle(Paint.Style.Fill);
+            p.Color = Color.White;
+            c.DrawCircle(x, hd, tr, p);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = ring;
+            p.StrokeWidth = Math.Max(tr * 0.35f, 1 / z);
+            c.DrawCircle(x, hd, tr, p);
+            if (mark is null) return;
+            p.SetStyle(Paint.Style.Fill);
+            p.SetTypeface(Ui.Font(true));
+            p.TextAlign = Paint.Align.Center;
+            p.TextSize = tr * 1.25f;
+            c.DrawText(mark, x, hd + tr * 0.45f, p);
+        }
+        if (ground)
+        {
+            Clamp(-w / 5, Color.Rgb(0xD3, 0x2F, 0x2F), "B");
+            Clamp(w / 5, Color.Rgb(0x79, 0x55, 0x48), "0");
+        }
+        else Clamp(0, color, null);
         c.Restore();
     }
 

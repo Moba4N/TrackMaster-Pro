@@ -303,8 +303,13 @@ public partial class App : ComponentBase, IAppHost
         Add("toolFeeder", Lang.T("Gleisanschluss"), () => SetTool(CanvasTool.Feeder));
         Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
         {
-            if (_session.Tool == CanvasTool.Power) SetTool(CanvasTool.Select);
+            if (_session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
             else AskPowerType(t => { _session.PowerType = t; SetTool(CanvasTool.Power); });
+        });
+        Add("toolDistributor", Lang.T("Verteiler"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
+            else AskDistributorColor(hex => { _session.DistributorColor = hex; _session.PowerType = PowerSourceType.Verteiler; SetTool(CanvasTool.Power); });
         });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () =>
@@ -479,7 +484,8 @@ public partial class App : ComponentBase, IAppHost
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
-        "toolPower" => _session.Tool == CanvasTool.Power,
+        "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler,
+        "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
         "toolRoom" => _session.Tool == CanvasTool.Room,
@@ -501,7 +507,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolPower", "toolIsolation", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolPower", "toolDistributor", "toolIsolation", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connFeeder", "connDetector", "connIsolate",
     ];
@@ -527,7 +533,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
         CanvasTool.Power => Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan klicken, wo sie stehen soll (auch neben der Platte)."),
-        CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_view.PolygonPoints}) – an Gleisanschlüssen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
+        CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_view.PolygonPoints}) – an Gleisanschlüssen, Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
         CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),
         CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: klicken oder Rechteck aufziehen."),
         CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis klicken (Klick auf einen Rückmelder entfernt ihn)."),

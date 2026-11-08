@@ -575,14 +575,14 @@ public sealed partial class MainWindow : Window
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
         CanvasTool.Tree => Lang.T("Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => Lang.T("Trafo / Zentrale: an die Stelle im Plan klicken, wo das Gerät stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
+        CanvasTool.Power => Lang.T("Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
         CanvasTool.Signal => Lang.T("Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder."),
         CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
         CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
-        CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – an Gleisanschlüssen, Zentrale/Trafo, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
+        CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – an Gleisanschlüssen, Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
         CanvasTool.Model => Lang.T("Modell einfügen: in den Plan klicken. Tunnelportale, Bahnsteige, Brücken und Bahnübergänge rasten am nächsten Gleis ein. Esc beendet das Werkzeug."),
         _ => "",
     };
@@ -935,6 +935,21 @@ public sealed partial class MainWindow : Window
         };
         foreach (var t in PowerSupply.TypesFor(Session.Plan.Operation))
             powerMenu.Items.Add(new RibbonMenuItem { Header = PowerSupply.TypeName(t), ToolTip = PowerSupply.Description(t), Command = _commands["power" + t] });
+        var distributorMenu = new RibbonMenuButton
+        {
+            Label = Lang.T("Verteiler"), LargeImageSource = Icons.Get("Distributor"), SmallImageSource = Icons.Get("Distributor"), ToolTipTitle = Lang.T("Verteiler"),
+            ToolTipDescription = Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis."),
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        foreach (var c in PowerSupply.DistributorColors)
+        {
+            var hex = c.Hex;
+            distributorMenu.Items.Add(new RibbonMenuItem
+            {
+                Header = Lang.F($"Verteiler {Lang.T(c.Name)}"),
+                Command = new RelayCommand(() => { Session.DistributorColor = hex; Session.PowerType = PowerSourceType.Verteiler; SetTool(CanvasTool.Power); }),
+            });
+        }
         var wireMenu = new RibbonMenuButton
         {
             Label = Lang.T("Kabel verlegen"), LargeImageSource = Icons.Get("Wire"), SmallImageSource = Icons.Get("Wire"), ToolTipTitle = Lang.T("Kabel verlegen"),
@@ -963,6 +978,7 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Digital"),
                 Large(Lang.T("Decoder"), "Chip", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 signalMenu,
+                distributorMenu,
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Gleisanschlüsse, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),

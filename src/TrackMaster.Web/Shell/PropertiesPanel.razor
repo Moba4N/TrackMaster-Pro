@@ -102,6 +102,7 @@
                 _f["variant"] = s.Variant.ToString();
                 if (s.IsBeam) _f["length"] = N(BeamLayout.Length(s), 0);
                 if (s.IsWire) { _f["depth"] = N(WireLayout.Section(s, Plan.Gauge), 2); _f["color"] = WireLayout.ColorOf(s, Electrics.Current(Plan)); }
+                if (s.IsPower) _f["color"] = PowerSupply.DistributorColor(s);
                 if (s.IsPlate) { _f["x"] = N(s.X, 1); _f["y"] = N(s.Y, 1); _f["thick"] = N(PlateLayout.Thickness(s), 0); }
                 break;
             case Detector det:
@@ -575,12 +576,13 @@
                 break;
             case SceneryKind.Power:
                 Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
-                if (int.TryParse(F("variant"), out var ptype) && Enum.IsDefined((PowerSourceType)ptype)) apply.Add(() => s.Variant = ptype);
+                if (int.TryParse(F("variant"), out var ptype) && Enum.IsDefined((PowerSourceType)ptype)) apply.Add(() => PowerSupply.ApplyType(s, (PowerSourceType)ptype, Plan.Gauge, Session.DistributorColor));
+                if (PowerSupply.DistributorColors.Any(c => c.Hex == F("color"))) { var dcol = F("color"); apply.Add(() => { if (PowerSupply.Type(s) == PowerSourceType.Verteiler) s.Color = dcol; }); }
                 break;
         }
         if (Fail(errors)) return;
         var n = F("name").Trim();
-        if (s.IsPower && n != s.Name && PowerSupply.Sources(Plan).Any(x => x.Id != s.Id && x.Name == n))
+        if (s.IsPower && n != s.Name && PowerSupply.Items(Plan).Any(x => x.Id != s.Id && x.Name == n))
         {
             Fail([Lang.F($"Es gibt schon eine Stromquelle „{n}“.")]);
             return;
@@ -664,9 +666,32 @@
                         <option value="@((int)t)">@PowerSupply.TypeName(t)</option>
                     }
                 </select>
+                @if (ptype == PowerSourceType.Verteiler)
+                {
+                    <label class="field-label">@Lang.T("Farbe")</label>
+                    <select class="input" value="@F("color")" @onchange="@(e => Set("color", e, ApplyScenery))">
+                        @foreach (var c in PowerSupply.DistributorColors)
+                        {
+                            <option value="@c.Hex">@Lang.T(c.Name)</option>
+                        }
+                    </select>
+                }
                 <div class="cols">@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
                 <dl class="rows">
-                    <dt>@Lang.T("Betrieb")</dt><dd>@PowerSupply.ModeName(Plan.Operation)</dd>
+                    @if (ptype == PowerSourceType.Verteiler)
+                    {
+                        <dt>@Lang.T("Klemmen")</dt><dd>@PowerSupply.Clamps</dd>
+                        <dt>@Lang.T("Kabel")</dt><dd>@PowerSupply.ClampPoints(s).SelectMany(c => WireLayout.WiresAt(Plan, c)).DistinctBy(w => w.Id).Count()</dd>
+                    }
+                    else
+                    {
+                        <dt>@Lang.T("Betrieb")</dt><dd>@PowerSupply.ModeName(Plan.Operation)</dd>
+                    }
+                    @if (PowerSupply.GroundTerminal(s) is { } gt)
+                    {
+                        var grounded = WireLayout.WiresAt(Plan, gt).Any();
+                        <dt>@Lang.T("Masse (0)")</dt><dd class="@(grounded ? "" : "error-text")">@(grounded ? Lang.T("angeschlossen") : Lang.T("fehlt"))</dd>
+                    }
                     @if (PowerSupply.FeedsTrack(ptype))
                     {
                         <dt>@Lang.T("Gleisanschlüsse")</dt><dd>@attached.Count</dd>
@@ -679,7 +704,9 @@
                 {
                     <div class="error-box">@(Plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."))</div>
                 }
-                <div class="tip-box">@PowerSupply.Description(ptype) @Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")</div>
+                <div class="tip-box">@PowerSupply.Description(ptype) @(ptype == PowerSourceType.Verteiler ? "" : PowerSupply.HasGround(ptype)
+                    ? Lang.T("Die rote Linie führt vom Bahnstrom (B) zu den Gleisanschlüssen. Die Masse (0) daneben mit einem braunen Kabel zum Gleis oder zu einem Masse-Verteiler legen.")
+                    : Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein."))</div>
                 break;
             case SceneryKind.Plate:
                 <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>

@@ -573,14 +573,14 @@ public sealed class PlanScene
     /// <summary>Stromquellen als Symbol (Zentrale, Booster, Trafo, Zubehörtrafo) mit gestrichelter Verbindung zu ihren Gleisanschlüssen.</summary>
     public static void DrawPowerSources(DrawingContext dc, LayoutPlan plan, double g, double z, int? selected)
     {
-        var sources = PowerSupply.Sources(plan).ToList();
-        if (sources.Count == 0) return;
-        foreach (var src in sources)
+        var items = PowerSupply.Items(plan).ToList();
+        if (items.Count == 0) return;
+        // Verbindung Zentrale/Booster/Trafo → Gleisanschluss: immer rot wie die Bahnstromleitung
+        foreach (var src in PowerSupply.TrackSources(plan))
         {
-            var rgb = ModelBody.ParseColor(PowerSupply.Color(PowerSupply.Type(src))) ?? new Rgb(0x37, 0x47, 0x4F);
             var (tx, ty) = PowerSupply.Terminal(src);
             var t = Math.Max(g * 0.18, 1.3 / z);
-            var pen = new Pen(B(rgb, 0xB0), t) { DashStyle = new DashStyle([Math.Max(g * 1.2, 6 / z) / t, Math.Max(g * 0.8, 4 / z) / t], 0) };
+            var pen = new Pen(B(new Rgb(0xD3, 0x2F, 0x2F), 0xC8), t) { DashStyle = new DashStyle([Math.Max(g * 1.2, 6 / z) / t, Math.Max(g * 0.8, 4 / z) / t], 0) };
             foreach (var f in PowerSupply.FeedersOf(plan, src))
                 if (plan.Find(f.PieceId) is { } piece)
                 {
@@ -588,7 +588,32 @@ public sealed class PlanScene
                     dc.DrawLine(pen, new Point(tx, ty), new Point(fx, fy));
                 }
         }
-        foreach (var src in sources) DrawPowerSymbol(dc, src, g, z, src.Id == selected);
+        foreach (var src in items)
+            if (PowerSupply.Type(src) == PowerSourceType.Verteiler) DrawDistributor(dc, src, z, src.Id == selected);
+            else DrawPowerSymbol(dc, src, g, z, src.Id == selected);
+    }
+
+    /// <summary>Verteilerleiste: Leiste in Aderfarbe mit Klemmen auf der Mittellinie.</summary>
+    private static void DrawDistributor(DrawingContext dc, SceneryItem src, double z, bool selected)
+    {
+        var rgb = ModelBody.ParseColor(PowerSupply.DistributorColor(src)) ?? new Rgb(0x79, 0x55, 0x48);
+        double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
+        dc.PushTransform(new TranslateTransform(src.X, src.Y));
+        dc.PushTransform(new RotateTransform(src.Rotation));
+        var corner = d * 0.2;
+        dc.DrawRoundedRectangle(B(rgb), selected ? new Pen(Theme.AccentBrush, 3 / z) : new Pen(B(rgb.Scale(0.55)), 1.2 / z), new Rect(-hw, -hd, w, d), corner, corner);
+        var step = w / PowerSupply.Clamps;
+        var r = Math.Min(step * 0.3, d * 0.3);
+        var ring = new Pen(B(new Rgb(0x42, 0x42, 0x42)), Math.Max(r * 0.25, 0.6 / z));
+        var fill = B(new Rgb(0xE0, 0xE0, 0xE0));
+        for (var i = 0; i < PowerSupply.Clamps; i++)
+        {
+            var x = -hw + step * (i + 0.5);
+            dc.DrawEllipse(fill, ring, new Point(x, 0), r, r);
+            dc.DrawLine(ring, new Point(x - r * 0.6, 0), new Point(x + r * 0.6, 0));
+        }
+        dc.Pop();
+        dc.Pop();
     }
 
     private static void DrawPowerSymbol(DrawingContext dc, SceneryItem src, double g, double z, bool selected)
@@ -651,9 +676,21 @@ public sealed class PlanScene
             Text(src.Name, normal, d * 0.22, d * 0.2);
         }
 
-        // Anschlussklemme unten
+        // Anschlussklemmen unten: Zentrale/Booster Bahnstrom (B, rot) und Masse (0, braun), sonst eine Klemme
         var tr = Math.Max(g * 0.55, 3.5 / z);
-        dc.DrawEllipse(Brushes.White, new Pen(color, Math.Max(tr * 0.35, 1 / z)), new Point(0, hd), tr, tr);
+        void Clamp(double x, Brush ring, string? mark)
+        {
+            dc.DrawEllipse(Brushes.White, new Pen(ring, Math.Max(tr * 0.35, 1 / z)), new Point(x, hd), tr, tr);
+            if (mark is null) return;
+            var t = new FormattedText(mark, culture, FlowDirection.LeftToRight, bold, Math.Max(tr * 1.25, 0.5), ring, 1.0);
+            dc.DrawText(t, new Point(x - t.Width / 2, hd - t.Height / 2));
+        }
+        if (PowerSupply.HasGround(type))
+        {
+            Clamp(-w / 5, B(new Rgb(0xD3, 0x2F, 0x2F)), "B");
+            Clamp(w / 5, B(new Rgb(0x79, 0x55, 0x48)), "0");
+        }
+        else Clamp(0, color, null);
         dc.Pop();
         dc.Pop();
     }

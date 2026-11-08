@@ -251,9 +251,17 @@ public sealed class MainActivity : Activity
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
         Add("toolFeeder", Lang.T("Gleisanschluss"), () => SetTool(CanvasTool.Feeder));
+        Add("toolDistributor", Lang.T("Verteiler"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler) { SetTool(CanvasTool.Select); return; }
+            var colors = PowerSupply.DistributorColors;
+            Dialogs.Choose(this, Lang.T("Verteiler setzen"), colors.Select(c => (Lang.F($"Verteiler {Lang.T(c.Name)}"), (string?)null, string.Equals(c.Hex, _session.DistributorColor, StringComparison.OrdinalIgnoreCase))).ToList(),
+                i => { _session.DistributorColor = colors[i].Hex; _session.PowerType = PowerSourceType.Verteiler; SetTool(CanvasTool.Power); },
+                Lang.T("Farbe wählen, dann an die Stelle im Plan tippen. Üblich: braun für Masse, rot für Bahnstrom, gelb für Weichen und Signale, blau und schwarz für Licht und Zubehör."));
+        });
         Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
         {
-            if (_session.Tool == CanvasTool.Power) { SetTool(CanvasTool.Select); return; }
+            if (_session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler) { SetTool(CanvasTool.Select); return; }
             var types = PowerSupply.TypesFor(_session.Plan.Operation);
             Dialogs.Choose(this, Lang.T("Trafo / Zentrale setzen"), types.Select(t => (PowerSupply.TypeName(t), (string?)PowerSupply.Description(t), false)).ToList(),
                 i => { _session.PowerType = types[i]; SetTool(CanvasTool.Power); },
@@ -575,7 +583,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Gleisanschluss"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true),
+        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Gleisanschluss"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
                       (Lang.T("Kabel verlegen…"), "toolWire", true), (Lang.T("Anschlüsse am Gleis…"), "connections", false),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
@@ -775,7 +783,8 @@ public sealed class MainActivity : Activity
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
-        "toolPower" => _session.Tool == CanvasTool.Power,
+        "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler,
+        "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
         "toolRoom" => _session.Tool == CanvasTool.Room,
@@ -877,7 +886,7 @@ public sealed class MainActivity : Activity
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),
             CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
-            CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_canvas.PolygonPoints}) – an Gleisanschlüssen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
+            CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_canvas.PolygonPoints}) – an Gleisanschlüssen, Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
             CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: antippen oder Rechteck aufziehen."),
             CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis tippen (Tippen auf einen Rückmelder entfernt ihn)."),
             _ => "",

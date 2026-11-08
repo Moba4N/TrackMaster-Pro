@@ -8,7 +8,7 @@ public sealed record WireColor(string Name, string Hex);
 
 /// <summary>
 /// Selbst verlegte Kabel (<see cref="SceneryKind.Wire"/>): Linienzug von Punkt zu Punkt, Länge, Farbe und Querschnitt.
-/// Die Enden rasten an Einspeisungen, Rückmeldern, Signalen, Gleisenden und anderen Kabeln ein.
+/// Die Enden rasten an Gleisanschlüssen, Zentrale/Booster (Bahnstrom und Masse), Verteilern, Rückmeldern, Signalen, Gleisenden und anderen Kabeln ein.
 /// </summary>
 public static class WireLayout
 {
@@ -115,8 +115,16 @@ public static class WireLayout
             }
         foreach (var src in PowerSupply.Sources(plan))
         {
+            var type = PowerSupply.Type(src);
+            var name = Lang.F($"{src.Name} ({PowerSupply.TypeName(type)})");
             var (x, y) = PowerSupply.Terminal(src);
-            list.Add(new(x, y, Lang.F($"{src.Name} ({PowerSupply.TypeName(PowerSupply.Type(src))})")));
+            list.Add(new(x, y, PowerSupply.HasGround(type) ? Lang.F($"{name} – Bahnstrom (B)") : name));
+            if (PowerSupply.GroundTerminal(src) is { } gt) list.Add(new(gt.X, gt.Y, Lang.F($"{name} – Masse (0)")));
+        }
+        foreach (var d in PowerSupply.Distributors(plan))
+        {
+            var name = Lang.F($"{d.Name} ({ColorName(PowerSupply.DistributorColor(d))})");
+            foreach (var (x, y) in PowerSupply.ClampPoints(d)) list.Add(new(x, y, name));
         }
         foreach (var d in plan.Detectors)
             if (plan.Find(d.PieceId) is { } p)
@@ -162,6 +170,44 @@ public static class WireLayout
         var (x, y) = end ? wire.Points[^1] : wire.Points[0];
         return Anchors(plan, wire.Id).Where(a => Math.Abs(a.X - x) <= tolerance && Math.Abs(a.Y - y) <= tolerance).FirstOrDefault();
     }
+
+    /// <summary>
+    /// Leitende Verbindungen aus Kabeln: beide Enden eines Kabels, Kabelenden am selben Punkt und alle Klemmen einer Verteilerleiste
+    /// gehören zum selben Netz. Liefert für einen Punkt die Netznummer (oder null, wenn dort nichts angeschlossen ist).
+    /// </summary>
+    public static Func<(double X, double Y), int?> Nets(LayoutPlan plan, double tolerance = 1)
+    {
+        var points = new List<(double X, double Y)>();
+        var parent = new List<int>();
+        int Add((double X, double Y) p) { points.Add(p); parent.Add(parent.Count); return parent.Count - 1; }
+        int Root(int i) { while (parent[i] != i) i = parent[i] = parent[parent[i]]; return i; }
+        void Join(int a, int b) => parent[Root(a)] = Root(b);
+        foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2)) Join(Add(w.Points[0]), Add(w.Points[^1]));
+        foreach (var d in PowerSupply.Distributors(plan))
+        {
+            var first = -1;
+            foreach (var c in PowerSupply.ClampPoints(d))
+            {
+                var i = Add(c);
+                if (first < 0) first = i; else Join(i, first);
+            }
+        }
+        bool Near((double X, double Y) a, (double X, double Y) b) => Math.Abs(a.X - b.X) <= tolerance && Math.Abs(a.Y - b.Y) <= tolerance;
+        for (var i = 0; i < points.Count; i++)
+            for (var j = i + 1; j < points.Count; j++)
+                if (Near(points[i], points[j])) Join(i, j);
+        return p =>
+        {
+            for (var i = 0; i < points.Count; i++)
+                if (Near(points[i], p)) return Root(i);
+            return null;
+        };
+    }
+
+    /// <summary>Kabel, die mit einem Ende an diesem Punkt enden.</summary>
+    public static IEnumerable<SceneryItem> WiresAt(LayoutPlan plan, (double X, double Y) p, double tolerance = 1)
+        => plan.Scenery.Where(w => w.IsWire && w.Points.Count >= 2 &&
+            new[] { w.Points[0], w.Points[^1] }.Any(e => Math.Abs(e.X - p.X) <= tolerance && Math.Abs(e.Y - p.Y) <= tolerance));
 
     /// <summary>Gesamtlänge je Farbe und Querschnitt in Metern (mit <see cref="Reserve"/>), für Kabelplan und Stückliste.</summary>
     public static IReadOnlyList<(string Color, double Section, double Meters)> Totals(LayoutPlan plan)

@@ -413,6 +413,7 @@ public static partial class Dialogs
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
                 Spinner? obstacleKind = null;
                 Spinner? powerKind = null;
+                Spinner? distColor = null;
                 Spinner? modelColor = null;
                 EditText Num(double v, string label, double min, double max, Action<double> apply, int decimals = 0)
                 {
@@ -534,7 +535,21 @@ public static partial class Dialogs
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Art"), powerKind),
                             Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
-                        var prows = new List<(string, string, Color?)> { (Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null) };
+                        var prows = new List<(string, string, Color?)>();
+                        if (ptype == PowerSourceType.Verteiler)
+                        {
+                            var dcols = PowerSupply.DistributorColors;
+                            distColor = Choice(c, dcols.Select(x => Lang.T(x.Name)).ToList(), Math.Max(0, dcols.ToList().FindIndex(x => string.Equals(x.Hex, PowerSupply.DistributorColor(s), StringComparison.OrdinalIgnoreCase))));
+                            body.AddView(Ui.Field(c, Lang.T("Farbe"), distColor));
+                            prows.Add((Lang.T("Klemmen"), PowerSupply.Clamps.ToString(), null));
+                            prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(x => WireLayout.WiresAt(plan, x)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        }
+                        else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
+                        if (PowerSupply.GroundTerminal(s) is { } gt)
+                        {
+                            var grounded = WireLayout.WiresAt(plan, gt).Any();
+                            prows.Add((Lang.T("Masse (0)"), grounded ? Lang.T("angeschlossen") : Lang.T("fehlt"), grounded ? null : Ui.OpenEnd));
+                        }
                         if (PowerSupply.FeedsTrack(ptype))
                         {
                             var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
@@ -545,7 +560,9 @@ public static partial class Dialogs
                                 prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Ui.OpenEnd));
                         }
                         body.AddView(Rows(c, prows.ToArray()));
-                        body.AddView(Hint(c, PowerSupply.Description(ptype) + " " + Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")));
+                        body.AddView(Hint(c, PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.HasGround(ptype)
+                            ? Lang.T("Die rote Linie führt vom Bahnstrom (B) zu den Gleisanschlüssen. Die Masse (0) daneben mit einem braunen Kabel zum Gleis oder zu einem Masse-Verteiler legen.")
+                            : Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")))));
                         break;
                     }
                     case SceneryKind.Tree:
@@ -566,7 +583,8 @@ public static partial class Dialogs
                     {
                         if (n.Length > 0 && !s.IsPower) s.Name = n;
                         foreach (var (f, _, v) in values) f.Apply(v);
-                        if (powerKind is not null) s.Variant = (int)Enum.GetValues<PowerSourceType>()[Math.Max(0, powerKind.SelectedItemPosition)];
+                        if (distColor is not null) s.Color = PowerSupply.DistributorColors[Math.Clamp(distColor.SelectedItemPosition, 0, PowerSupply.DistributorColors.Count - 1)].Hex;
+                        if (powerKind is not null) PowerSupply.ApplyType(s, Enum.GetValues<PowerSourceType>()[Math.Max(0, powerKind.SelectedItemPosition)], plan.Gauge, session.DistributorColor);
                         if (obstacleKind is not null) s.Variant = (int)Enum.GetValues<ObstacleType>()[Math.Max(0, obstacleKind.SelectedItemPosition)];
                         if (modelColor is not null) s.Color = ModelLibrary.MainColors[Math.Clamp(modelColor.SelectedItemPosition, 0, ModelLibrary.MainColors.Count - 1)].Hex;
                     });

@@ -170,6 +170,47 @@ public class ElectricWiringTests
     }
 
     [Fact]
+    public void Booster_braucht_gemeinsame_Masse_ueber_Verteiler()
+    {
+        var (plan, a, b) = TwoStraights(false);
+        var s = new PlanSession();
+        s.Replace(plan, null);
+        var central = s.AddPowerSource(PowerSourceType.Zentrale, 200, 800);
+        var booster = s.AddPowerSource(PowerSourceType.Booster, 600, 800);
+        s.AddFeederTo(a.Id, central.Name);
+        s.AddFeederTo(b.Id, booster.Name);
+        var g1 = PowerSupply.GroundTerminal(central)!.Value;
+        var g2 = PowerSupply.GroundTerminal(booster)!.Value;
+        Assert.Equal(2, Electrics.Analyze(s.Plan).Issues.Count(i => i.Text.Contains("Masse (0)")));
+
+        // Masse jeweils an ein eigenes Kabelende: angeschlossen, aber nicht verbunden
+        s.AddWire([g1, (g1.X, g1.Y + 100)], WireUse.Rueckleiter);
+        s.AddWire([g2, (g2.X, g2.Y + 100)], WireUse.Rueckleiter);
+        Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Text.Contains("gemeinsame Masse") && i.ObjectId == booster.Id);
+
+        // brauner Verteiler verbindet beide
+        s.DistributorColor = "#795548";
+        var dist = s.AddPowerSource(PowerSourceType.Verteiler, 400, 1100);
+        Assert.Empty(PowerSupply.Sources(s.Plan).Where(x => x.Id == dist.Id));
+        var clamps = PowerSupply.ClampPoints(dist);
+        s.AddWire([(g1.X, g1.Y + 100), clamps[0]], WireUse.Rueckleiter);
+        s.AddWire([(g2.X, g2.Y + 100), clamps[^1]], WireUse.Rueckleiter);
+        var issues = Electrics.Analyze(s.Plan).Issues;
+        Assert.DoesNotContain(issues, i => i.Text.Contains("gemeinsame Masse") || i.Text.Contains("Masse (0)"));
+        Assert.Contains("Masse angeschlossen", Electrics.WiringPlan(s.Plan));
+
+        // rotes Kabel am braunen Verteiler gibt einen Hinweis
+        s.AddWire([clamps[3], (clamps[3].X, clamps[3].Y + 80)], WireUse.Fahrstrom);
+        Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Level == IssueLevel.Hinweis && i.Text.Contains(dist.Name));
+
+        // Farbe bleibt beim Speichern erhalten
+        s.SetDistributorColor(dist.Id, "#F2C200");
+        var loaded = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        var back = Assert.Single(PowerSupply.Distributors(loaded));
+        Assert.Equal("#F2C200", PowerSupply.DistributorColor(back));
+    }
+
+    [Fact]
     public void Gleisanschluss_legt_Zentrale_bzw_Trafo_als_Symbol_an()
     {
         Assert.DoesNotContain(Electrics.Analyze(SamplePlan.Build()).Issues, i => i.Category == "Stromversorgung");
@@ -183,6 +224,11 @@ public class ElectricWiringTests
         Assert.Equal(central.Name, f.Circuit);
         Assert.Same(central, PowerSupply.SourceOf(s.Plan, f));
         Assert.Contains(WireLayout.Anchors(s.Plan), x => x.Text.StartsWith(central.Name));
+        // ohne Masse meldet die Prüfung die Zentrale, mit braunem Kabel zum Gleisanschluss nicht mehr
+        var issue = Assert.Single(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Stromversorgung");
+        Assert.Contains("Masse", issue.Text);
+        var gt = PowerSupply.GroundTerminal(central)!.Value;
+        Assert.NotNull(s.AddWire([gt, Electrics.FeederPoint(s.Plan, a, f)], WireUse.Rueckleiter));
         Assert.DoesNotContain(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Stromversorgung");
 
         // Umbenennen nimmt die Gleisanschlüsse mit

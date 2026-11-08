@@ -400,6 +400,7 @@
             new(Lang.T("Digital"), [new(Lang.T("Decoder"), "Chip", "addresses", true, Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
+                new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),
         ]),
         new(Lang.T("Ansicht"),
@@ -2706,6 +2707,21 @@
                 </button>
             }
             <button class="link small" @onclick="@(() => { CloseDialog(); AskCurrent(); })">@Lang.T("Betrieb ändern (analog / digital)…")</button>
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void AskDistributorColor(Action<string> pick)
+    {
+        var d = Show(Lang.T("Verteiler setzen"), @<div class="list">
+            @Hint(Lang.T("Farbe wählen, dann an die Stelle im Plan klicken. Üblich: braun für Masse, rot für Bahnstrom, gelb für Weichen und Signale, blau und schwarz für Licht und Zubehör."))
+            @foreach (var c in PowerSupply.DistributorColors)
+            {
+                var hex = c.Hex;
+                <button class="list-item @(string.Equals(_session.DistributorColor, hex, StringComparison.OrdinalIgnoreCase) ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(hex); })">
+                    <span class="texts"><span class="strong"><span class="wire-swatch" style="background:@hex"></span> @Lang.F($"Verteiler {Lang.T(c.Name)}")</span></span>
+                </button>
+            }
         </div>);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }

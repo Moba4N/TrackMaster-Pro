@@ -136,6 +136,9 @@ public sealed partial class PlanSession
     /// <summary>Art der Quelle für das Werkzeug „Trafo / Zentrale“.</summary>
     public PowerSourceType PowerType { get; set; } = PowerSourceType.Zentrale;
 
+    /// <summary>Farbe für neue Verteilerleisten (Werkzeug „Verteiler“).</summary>
+    public string DistributorColor { get; set; } = "#795548";
+
     /// <summary>Betriebsart (analog/digital) umstellen. Quellen, die nicht passen, meldet die Elektrikprüfung.</summary>
     public void SetOperation(PowerMode mode)
     {
@@ -151,8 +154,12 @@ public sealed partial class PlanSession
     /// <summary>Stromquelle als Symbol an diese Stelle setzen.</summary>
     public SceneryItem AddPowerSource(PowerSourceType type, double x, double y)
     {
-        var item = AddScenery(PowerSupply.Create(Plan, type, x, y));
-        Say(Lang.F($"{PowerSupply.TypeName(type)} „{item.Name}“ gesetzt.") + " " + (PowerSupply.FeedsTrack(type)
+        var item = AddScenery(PowerSupply.Create(Plan, type, x, y, DistributorColor));
+        Say(Lang.F($"{PowerSupply.TypeName(type)} „{item.Name}“ gesetzt.") + " " + (type == PowerSourceType.Verteiler
+            ? Lang.T("Kabel rasten an jeder Klemme der Leiste ein; alles, was dort hängt, ist miteinander verbunden.")
+            : PowerSupply.HasGround(type)
+            ? Lang.T("Gleisanschlüsse hängen über die rote Linie an der Bahnstrom-Klemme (B); die Masse (0) daneben mit einem braunen Kabel anschließen.")
+            : PowerSupply.FeedsTrack(type)
             ? Lang.T("Gleisanschlüsse hängen über ihren Stromkreis daran; Kabel rasten an der Klemme unten ein.")
             : Lang.T("Für Licht und Zubehör; Kabel rasten an der Klemme unten ein.")));
         return item;
@@ -163,7 +170,17 @@ public sealed partial class PlanSession
     {
         if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsPower: true } item || PowerSupply.Type(item) == type) return;
         Record();
-        item.Variant = (int)type;
+        PowerSupply.ApplyType(item, type, Plan.Gauge, DistributorColor);
+        Commit();
+    }
+
+    /// <summary>Farbe einer Verteilerleiste ändern.</summary>
+    public void SetDistributorColor(int id, string hex)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsPower: true } item || PowerSupply.Type(item) != PowerSourceType.Verteiler
+            || string.Equals(PowerSupply.DistributorColor(item), hex, StringComparison.OrdinalIgnoreCase)) return;
+        Record();
+        item.Color = hex;
         Commit();
     }
 
@@ -172,7 +189,7 @@ public sealed partial class PlanSession
     {
         name = name.Trim();
         if (name.Length == 0 || Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { IsPower: true } item || item.Name == name) return;
-        if (PowerSupply.Sources(Plan).Any(s => s.Id != id && s.Name == name)) { Say(Lang.F($"Es gibt schon eine Stromquelle „{name}“.")); return; }
+        if (PowerSupply.Items(Plan).Any(s => s.Id != id && s.Name == name)) { Say(Lang.F($"Es gibt schon eine Stromquelle „{name}“.")); return; }
         Record();
         foreach (var f in Plan.Feeders.Where(f => f.Circuit == item.Name)) f.Circuit = name;
         item.Name = name;

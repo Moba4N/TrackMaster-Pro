@@ -333,6 +333,21 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
 .ctx-menu { position: absolute; z-index: 31; min-width: 200px; padding: 4px; background: var(--panel); color: inherit; border: 1px solid var(--border, #ccc); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); display: flex; flex-direction: column; }
 .ctx-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; border-radius: 5px; cursor: pointer; }
 .ctx-menu button:hover, .ctx-menu button:focus-visible { background: var(--hover, rgba(0,0,0,.06)); outline: none; }
+.ctx-menu { max-height: calc(100% - 8px); overflow-y: auto; }
+.ctx-sep { height: 1px; margin: 3px 6px; background: var(--border, #ddd); }
+/* Befunde im Plan durchblättern */
+.issue-bar {
+    position: absolute; z-index: 20; left: 50%; bottom: 58px; transform: translateX(-50%);
+    width: min(720px, calc(100% - 24px)); display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px 6px 6px; background: var(--panel); border: 1px solid var(--border, #ccc);
+    border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18);
+}
+.issue-bar .issue-text { flex: 1; min-width: 0; font-size: .88em; line-height: 1.3; max-height: 3.9em; overflow: hidden; }
+.issue-bar .warn { color: var(--warning); }
+.wire-swatch { display: inline-block; width: 22px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; border: 1px solid rgba(0,0,0,.35); }
+.conn-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.chip:disabled { opacity: .5; }
+button.link { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
 #plan-canvas { display: block; touch-action: none; outline: none; user-select: none; -webkit-user-select: none; }
 
 .toolbar {

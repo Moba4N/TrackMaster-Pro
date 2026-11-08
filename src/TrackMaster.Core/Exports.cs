@@ -61,6 +61,8 @@ public static class BillOfMaterials
             rows.Add(new(Detector.TypeName(g.Key), Lang.T("Rückmelder"), g.Count()));
         if (plan.Detectors.Count > 0)
             rows.Add(new(Lang.F($"Rückmeldemodul ({Detector.InputsPerModule} Eingänge)"), Lang.F($"{plan.Detectors.Count} Rückmelder"), (int)Math.Ceiling(plan.Detectors.Count / (double)Detector.InputsPerModule)));
+        foreach (var (color, section, meters) in WireLayout.Totals(plan))
+            rows.Add(new(Lang.F($"Kabel {WireLayout.ColorName(color)} {WireLayout.SectionText(section)}"), Lang.F($"Meter, mit {Fmt.Num(WireLayout.Reserve * 100, 0)} % Zugabe"), (int)Math.Ceiling(meters)));
         return rows;
     }
 

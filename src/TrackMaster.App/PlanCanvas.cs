@@ -111,6 +111,13 @@ public sealed class PlanCanvas : FrameworkElement
     {
         if (ActualWidth <= 0) return;
         var (x0, y0, x1, y1) = _session.View.Bounds();
+        FitArea(x0, y0, x1, y1);
+    }
+
+    /// <summary>Zeigt einen Bereich ganz (z. B. die Gleise eines Befunds), mittig in der Ansicht.</summary>
+    public void FitArea(double x0, double y0, double x1, double y1)
+    {
+        if (ActualWidth <= 0) return;
         const double pad = 48;
         var (c, s) = Turn;
         var turned = new[] { (x0, y0), (x1, y0), (x1, y1), (x0, y1) }.Select(p => (X: p.Item1 * c - p.Item2 * s, Y: p.Item1 * s + p.Item2 * c)).ToList();
@@ -171,6 +178,14 @@ public sealed class PlanCanvas : FrameworkElement
     /// <summary>Schließt das gerade gezeichnete Vieleck ab (Doppelklick oder Eingabetaste).</summary>
     public void FinishPolygon()
     {
+        if (_session.Tool == CanvasTool.Wire)
+        {
+            if (_polygon.Count < 2) { _session.Say(Lang.T("Ein Kabel braucht mindestens zwei Punkte: Anfang und Ende anklicken.")); return; }
+            _session.AddWire([.. _polygon]);
+            _polygon.Clear();
+            InvalidateVisual();
+            return;
+        }
         if (_polygon.Count < 3)
         {
             if (_polygon.Count > 0) _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
@@ -195,6 +210,30 @@ public sealed class PlanCanvas : FrameworkElement
         _session.Say(water ? Lang.T("Gewässer angelegt. Tiefe und Name stehen in den Eigenschaften.") : Lang.T("Höhenfläche angelegt. Höhe und Name stehen in den Eigenschaften."));
         InvalidateVisual();
     }
+
+    /// <summary>Kabel: Punkt setzen; an Einspeisungen, Rückmeldern, Signalen, Weichenantrieben und Kabelenden rastet er ein.</summary>
+    private void AddWirePoint(Point world)
+    {
+        var (sx, sy, anchor) = WireLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom);
+        _polygon.Add((sx, sy));
+        _session.Say(anchor is not null
+            ? Lang.F($"Kabel: angeschlossen an {anchor.Text}. Weitere Punkte setzen, Doppelklick oder Eingabetaste beendet.")
+            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Einspeisungen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder Eingabetaste beendet.")
+            : Lang.F($"Kabel: {_polygon.Count} Punkte."));
+        InvalidateVisual();
+    }
+
+    /// <summary>Kabel an einem festen Punkt beginnen (z. B. an der Einspeisung aus dem Kontextmenü).</summary>
+    public void StartWireAt(double x, double y)
+    {
+        _polygon.Clear();
+        _polygon.Add((x, y));
+        _session.Say(Lang.T("Kabel beginnt an der Einspeisung: weitere Punkte setzen, Doppelklick oder Eingabetaste beendet."));
+        InvalidateVisual();
+    }
+
+    /// <summary>Rechtsklick ohne Ziehen: das Hauptfenster öffnet das Kontextmenü (Gleis bzw. Objekt ist dann gewählt).</summary>
+    public event Action? ContextRequested;
 
     public void CancelPolygon()
     {
@@ -224,18 +263,23 @@ public sealed class PlanCanvas : FrameworkElement
         scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject),
             d =>
             {
-                if (!_session.ShowGrid) return;
-                d.PushClip(PlanScene.BoardOutline(plan));
-                DrawGrid(d, board);
-                d.Pop();
+                if (_session.ShowGrid)
+                {
+                    d.PushClip(PlanScene.BoardOutline(plan));
+                    DrawGrid(d, board);
+                    d.Pop();
+                }
+                DrawFocus(d, plan);
             });
         DrawToolPreview(dc);
         dc.Pop();
 
         DrawDimensions(dc, plan);
-        if (_session.ShowLabels) DrawLabels(dc, plan);
-        if (_session.ShowHeights) DrawHeights(dc, plan);
+        if (_session.LabelsVisible) DrawLabels(dc, plan);
+        if (_session.HeightsVisible) DrawHeights(dc, plan);
         if (_session.ShowScenery) DrawSceneryNames(dc, plan);
+        if (_session.ShowSections) DrawSectionLabels(dc, plan);
+        DrawWireNames(dc, plan);
         DrawSignalNames(dc, plan);
         DrawConnectors(dc);
         DrawIssues(dc);
@@ -284,7 +328,19 @@ public sealed class PlanCanvas : FrameworkElement
             foreach (var g in BoardGeometry.LegGrips(plan))
                 dc.DrawEllipse(g.Length ? Theme.AccentBrush : Brushes.White, outline, new Point(g.X, g.Y), h, h);
         }
-        if (_polygon.Count > 0)
+        if (_polygon.Count > 0 && _session.Tool == CanvasTool.Wire)
+        {
+            var rgb = ModelBody.ParseColor(WireLayout.DefaultColor(_session.WireUse, Electrics.Current(_session.Plan)));
+            Brush wire = rgb is { } wc ? new SolidColorBrush(Color.FromRgb(wc.R, wc.G, wc.B)) : Theme.AccentBrush;
+            var width = Math.Max(_gauge * 0.35, 2.2 / z);
+            dc.DrawGeometry(null, new Pen(wire, width) { LineJoin = PenLineJoin.Round }, PlanScene.Polyline(_polygon));
+            var (sx, sy, anchor) = WireLayout.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z);
+            var last = _polygon[^1];
+            dc.DrawLine(new Pen(wire, width * 0.7) { DashStyle = DashStyles.Dash }, new Point(last.X, last.Y), new Point(sx, sy));
+            if (anchor is not null) dc.DrawEllipse(null, new Pen(Theme.AccentBrush, 2.5 / z), new Point(sx, sy), 7 / z, 7 / z);
+            foreach (var p in _polygon) dc.DrawEllipse(Brushes.White, new Pen(wire, 2 / z), new Point(p.X, p.Y), 4 / z, 4 / z);
+        }
+        else if (_polygon.Count > 0)
         {
             var pts = _polygon.Append((_lastWorld.X, _lastWorld.Y)).ToList();
             var fill = _session.Tool switch
@@ -422,7 +478,7 @@ public sealed class PlanCanvas : FrameworkElement
 
     private void DrawSceneryNames(DrawingContext dc, LayoutPlan plan)
     {
-        foreach (var s in plan.Scenery.Where(s => s.Kind is not (SceneryKind.Tree or SceneryKind.Room) && !s.IsAnnotation))
+        foreach (var s in plan.Scenery.Where(s => s.Kind is not (SceneryKind.Tree or SceneryKind.Room or SceneryKind.Wire) && !s.IsAnnotation))
         {
             var outline = s.Outline();
             var w = (outline.Max(p => p.X) - outline.Min(p => p.X)) * _zoom;
@@ -438,6 +494,56 @@ public sealed class PlanCanvas : FrameworkElement
             DrawTag(dc, text, ToScreen(cx, cy), Theme.TextSecondaryBrush, 10);
         }
     }
+
+    /// <summary>Kabel: Name und Länge in der Mitte, sobald das Kabel lang genug auf dem Bildschirm ist.</summary>
+    private void DrawWireNames(DrawingContext dc, LayoutPlan plan)
+    {
+        foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
+        {
+            var len = WireLayout.Length(w);
+            if (len * _zoom < 90 && w.Id != _session.SelectedObject) continue;
+            var (mx, my) = WireLayout.Middle(w);
+            var p = ToScreen(mx, my);
+            DrawTag(dc, $"{w.Name} · {Fmt.Num(len / 1000, 2)} m", new Point(p.X, p.Y - 12), Theme.TextSecondaryBrush, 9.5);
+        }
+    }
+
+    /// <summary>Elektrik markiert: Nummer und Stromkreis jedes Abschnitts an seinem längsten Gleis.</summary>
+    private void DrawSectionLabels(DrawingContext dc, LayoutPlan plan)
+    {
+        foreach (var s in Electrics.Sections(plan))
+        {
+            var first = s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().OrderByDescending(p => p.Def.TrackLength).FirstOrDefault();
+            if (first is null) continue;
+            var m = first.Middle();
+            var p = ToScreen(m.X, m.Y);
+            var color = PlanScene.SectionColors[(s.Number - 1) % PlanScene.SectionColors.Length];
+            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Einspeisung") : string.Join(", ", s.Circuits);
+            DrawTag(dc, Lang.F($"Abschnitt {s.Number} · {circuits}"), new Point(p.X, p.Y + _gauge * 1.8 * _zoom + 10), new SolidColorBrush(color), 10.5);
+        }
+    }
+
+    /// <summary>Gleise des Befunds, zu dem gesprungen wurde, kräftig in der Farbe der Stufe hinterlegen.</summary>
+    private void DrawFocus(DrawingContext dc, LayoutPlan plan)
+    {
+        var ids = _session.FocusPieces;
+        if (ids.Count == 0 || _session.FocusedIssue is not { } issue) return;
+        var set = ids.ToHashSet();
+        var legs = plan.Pieces.Where(p => set.Contains(p.Id)).SelectMany(p => p.WorldLegs()).ToList();
+        if (legs.Count == 0) return;
+        var color = IssueColor(issue.Level);
+        var geo = TrackDrawing.Build(legs, 0);
+        var soft = new SolidColorBrush(Color.FromArgb(0x55, color.R, color.G, color.B));
+        dc.DrawGeometry(null, new Pen(soft, Math.Max(_gauge * 7, 18 / _zoom)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, geo);
+        dc.DrawGeometry(null, new Pen(new SolidColorBrush(color), Math.Max(_gauge * 4.4, 9 / _zoom)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, geo);
+    }
+
+    private static Color IssueColor(IssueLevel level) => level switch
+    {
+        IssueLevel.Fehler => Theme.DangerBrush.Color,
+        IssueLevel.Warnung => Theme.OpenEndBrush.Color,
+        _ => Theme.AccentBrush.Color,
+    };
 
     private void DrawSignalNames(DrawingContext dc, LayoutPlan plan)
     {
@@ -480,11 +586,11 @@ public sealed class PlanCanvas : FrameworkElement
 
     private void DrawIssues(DrawingContext dc)
     {
-        foreach (var i in _session.Issues.Where(i => i.Level != IssueLevel.Hinweis))
+        foreach (var i in _session.Issues.Where(i => i.Level != IssueLevel.Hinweis || i == _session.FocusedIssue))
         {
             var s = ToScreen(i.X, i.Y);
-            var brush = i.Level == IssueLevel.Fehler ? Theme.DangerBrush : Theme.OpenEndBrush;
-            dc.DrawEllipse(null, new Pen(brush, 2.5), s, 16, 16);
+            var brush = new SolidColorBrush(IssueColor(i.Level));
+            dc.DrawEllipse(null, new Pen(brush, i == _session.FocusedIssue ? 4 : 2.5), s, 16, 16);
             dc.DrawEllipse(brush, new Pen(Brushes.White, 1.5), new Point(s.X + 12, s.Y - 12), 8, 8);
             var t = Text("!", 11, Brushes.White, true);
             dc.DrawText(t, new Point(s.X + 12 - t.Width / 2, s.Y - 12 - t.Height / 2));
@@ -554,8 +660,8 @@ public sealed class PlanCanvas : FrameworkElement
         foreach (var f in plan.Feeders)
             if (plan.Find(f.PieceId) is { } p)
             {
-                var m = p.Middle();
-                Try(f.Id, m.X - Math.Sin(m.HeadingRad) * _gauge * 2.2, m.Y + Math.Cos(m.HeadingRad) * _gauge * 2.2);
+                var (fx, fy) = Electrics.FeederPoint(p, _gauge);
+                Try(f.Id, fx, fy);
             }
         foreach (var i in plan.Isolations)
             if (plan.Find(i.PieceId) is { } p && i.Index < p.WorldConnectors().Count)
@@ -571,6 +677,7 @@ public sealed class PlanCanvas : FrameworkElement
             }
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
+        if (plan.Scenery.Where(s => s.IsWire).Reverse().FirstOrDefault(s => WireLayout.Distance(s, world.X, world.Y) <= Math.Max(_gauge * 0.4, 7 / _zoom)) is { } wire) return wire.Id;
         if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, 8 / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;
@@ -633,6 +740,10 @@ public sealed class PlanCanvas : FrameworkElement
                 if (e.ClickCount == 2) { FinishPolygon(); return; }
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 InvalidateVisual();
+                return;
+            case CanvasTool.Wire:
+                if (e.ClickCount == 2) { FinishPolygon(); return; }
+                AddWirePoint(world);
                 return;
             case CanvasTool.Building:
             case CanvasTool.Obstacle:
@@ -743,7 +854,7 @@ public sealed class PlanCanvas : FrameworkElement
         var world = ToWorld(screen);
         _lastWorld = world;
         CursorMoved?.Invoke(world);
-        if (_polygon.Count > 0 || _dimStart is not null) InvalidateVisual();
+        if (_polygon.Count > 0 || _dimStart is not null || _session.Tool == CanvasTool.Wire) InvalidateVisual();
         switch (_drag)
         {
             case DragMode.Pan:
@@ -804,6 +915,11 @@ public sealed class PlanCanvas : FrameworkElement
         var mode = _drag;
         _drag = DragMode.None;
         Cursor = _session.Tool == CanvasTool.Pan ? Cursors.Hand : _session.Tool is CanvasTool.Select ? null : Cursors.Cross;
+        if (e.ChangedButton == MouseButton.Right && mode == DragMode.Pan && (e.GetPosition(this) - _dragStartScreen).Length < 4 && !IsDrawingPolygon)
+        {
+            OpenContext(e.GetPosition(this));
+            return;
+        }
         switch (mode)
         {
             case DragMode.Move:
@@ -861,6 +977,16 @@ public sealed class PlanCanvas : FrameworkElement
                 _flexEnd = null;
                 break;
         }
+    }
+
+    /// <summary>Wählt, was unter dem Zeiger liegt (Objekt oder Gleis), und fordert das Kontextmenü an.</summary>
+    private void OpenContext(Point screen)
+    {
+        var world = ToWorld(screen);
+        if (HitSmallObject(screen, world) is { } obj) _session.SelectObject(obj);
+        else if (HitPiece(world) is { } piece) { if (!_session.Selection.Contains(piece.Id)) _session.Select([piece.Id], add: false); }
+        else if (HitArea(world) is { } area) _session.SelectObject(area);
+        ContextRequested?.Invoke();
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)

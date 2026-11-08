@@ -206,6 +206,7 @@ public partial class App : ComponentBase, IAppHost
         => (item.Tip is null ? item.Label : $"{item.Label}\n{item.Tip}") + (locked ? Lang.T(" (Pro)") : "");
 
     private bool HasSelection() => _session.Selection.Count > 0;
+    private bool HasConnectionPiece() => _session.ConnectionPiece is not null;
     private bool IsModulePlan() => _session.Plan.BoardShape == BoardShape.Module && _session.Plan.Modules.Count > 1;
 
     /// <summary>Offenes Kontextmenü (Rechtsklick im Plan) an dieser Stelle der Zeichenfläche.</summary>
@@ -306,6 +307,25 @@ public partial class App : ComponentBase, IAppHost
             else AskSignalType(_session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); });
         });
         Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
+        Add("current", Lang.T("Stromart"), AskCurrent);
+        Add("elecLabels", Lang.T("Nur Elektrik beschriften"), () => Toggle(() => _session.ElectricLabelsOnly = !_session.ElectricLabelsOnly));
+        Add("toolWire", Lang.T("Kabel verlegen"), () =>
+        {
+            if (_session.Tool == CanvasTool.Wire) SetTool(CanvasTool.Select);
+            else AskWireUse(u => { _session.WireUse = u; SetTool(CanvasTool.Wire); });
+        });
+        Add("connections", Lang.T("Anschlüsse"), () => { if (_session.ConnectionPiece is { } p) ShowConnections(p.Id); }, HasConnectionPiece);
+        Add("connFeeder", Lang.T("Einspeisung am Gleis"), () =>
+        {
+            if (_session.ConnectionPiece is not { } p) return;
+            if (_session.FeedersOn(p.Id).Count > 0) _session.RemoveFeedersOn(p.Id); else _session.AddFeederTo(p.Id);
+        }, HasConnectionPiece);
+        Add("connIsolate", Lang.T("Gleis trennen"), () => { if (_session.ConnectionPiece is { } p) _session.ToggleAllIsolations(p.Id); }, HasConnectionPiece);
+        Add("connDetector", Lang.T("Rückmelder am Gleis"), () => { if (_session.ConnectionPiece is { } p) _session.ToggleDetectorOn(p.Id); }, HasConnectionPiece);
+        Add("connPolarity", Lang.T("Polung tauschen"), () =>
+        {
+            if (_session.ConnectionPiece is { } p) foreach (var f in _session.FeedersOn(p.Id)) _session.ToggleFeederPolarity(f.Id);
+        }, () => _session.ConnectionPiece is { } p && _session.FeedersOn(p.Id).Count > 0 && Electrics.Current(_session.Plan) == CurrentKind.Gleichstrom);
         Add("addresses", Lang.T("Decoder und Adressen"), ShowAddresses);
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
@@ -436,6 +456,11 @@ public partial class App : ComponentBase, IAppHost
         "heights" => _session.ShowHeights,
         "scenery" => _session.ShowScenery,
         "sections" => _session.ShowSections,
+        "elecLabels" => _session.ElectricLabelsOnly,
+        "toolWire" => _session.Tool == CanvasTool.Wire,
+        "connFeeder" => _session.ConnectionPiece is { } fp && _session.FeedersOn(fp.Id).Count > 0,
+        "connDetector" => _session.ConnectionPiece is { } dp && _session.DetectorOn(dp.Id) is not null,
+        "connIsolate" => _session.ConnectionPiece is { } ip && _session.PieceEnds(ip.Id).Where(e => e.Connected).ToList() is { Count: > 0 } ends && ends.All(e => e.Isolated),
         "toolSelect" => _session.Tool == CanvasTool.Select,
         "toolPan" => _session.Tool == CanvasTool.Pan,
         "toolBoard" => _session.Tool == CanvasTool.Board,
@@ -471,7 +496,7 @@ public partial class App : ComponentBase, IAppHost
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
         "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolIsolation", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
-        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn",
+        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connFeeder", "connDetector", "connIsolate",
     ];
 
     private void SetTool(CanvasTool tool)
@@ -494,6 +519,7 @@ public partial class App : ComponentBase, IAppHost
             : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis klicken."),
+        CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_view.PolygonPoints}) – an Einspeisungen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
         CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),
         CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: klicken oder Rechteck aufziehen."),
         CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis klicken (Klick auf einen Rückmelder entfernt ihn)."),
@@ -709,6 +735,7 @@ public partial class App : ComponentBase, IAppHost
         var issues = PlanCheck.Run(_session.Plan);
         _session.Issues = issues;
         _view.Invalidate();
+        _issueNav = (Lang.T("Planprüfung"), issues, null);
         ShowIssues(Lang.T("Planprüfung"), issues, null);
     }
 
@@ -718,15 +745,44 @@ public partial class App : ComponentBase, IAppHost
         _session.Issues = report.Issues;
         if (!_session.ShowSections) { _session.ShowSections = true; _view.Rebuild(); _session.Commit(); }
         _view.Invalidate();
-        ShowIssues(Lang.T("Elektrik prüfen"), report.Issues,
-            Lang.F($"{report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}"));
+        var footer = Lang.F($"{Electrics.CurrentName(report.Current)}: {report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}");
+        _issueNav = (Lang.T("Elektrik prüfen"), report.Issues, footer);
+        ShowIssues(Lang.T("Elektrik prüfen"), report.Issues, footer);
     }
+
+    /// <summary>Befunde der letzten Prüfung zum Durchblättern im Plan (Leiste unten), null = keine.</summary>
+    private (string Title, IReadOnlyList<PlanIssue> Issues, string? Footer)? _issueNav;
 
     private void PickIssue(PlanIssue issue)
     {
         CloseDialog();
-        if (issue.PieceIds.Count > 0) _session.Select(issue.PieceIds, add: false);
-        _view.Reveal(issue.X, issue.Y);
+        var (x0, y0, x1, y1) = _session.FocusIssue(issue);
+        _view.Rebuild();
+        _view.FitArea(x0, y0, x1, y1);
+        Refresh();
+    }
+
+    private void StepIssue(int delta)
+    {
+        if (_issueNav is not { } nav || nav.Issues.Count == 0) return;
+        var i = _session.FocusedIssue is { } f ? IndexOf(nav.Issues, f) : -1;
+        var next = ((i < 0 ? (delta > 0 ? -1 : 0) : i) + delta + nav.Issues.Count) % nav.Issues.Count;
+        PickIssue(nav.Issues[next]);
+    }
+
+    private static int IndexOf(IReadOnlyList<PlanIssue> list, PlanIssue item)
+    {
+        for (var i = 0; i < list.Count; i++) if (ReferenceEquals(list[i], item)) return i;
+        return -1;
+    }
+
+    private void CloseIssueNav()
+    {
+        _issueNav = null;
+        _session.Issues = [];
+        _session.ClearFocus();
+        _view.Invalidate();
+        Refresh();
     }
 
     private void AskGradient()

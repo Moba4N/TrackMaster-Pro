@@ -100,6 +100,7 @@
                 _f["rotation"] = N(s.Rotation, 1);
                 _f["variant"] = s.Variant.ToString();
                 if (s.IsBeam) _f["length"] = N(BeamLayout.Length(s), 0);
+                if (s.IsWire) { _f["depth"] = N(WireLayout.Section(s, Plan.Gauge), 2); _f["color"] = WireLayout.ColorOf(s, Electrics.Current(Plan)); }
                 if (s.IsPlate) { _f["x"] = N(s.X, 1); _f["y"] = N(s.Y, 1); _f["thick"] = N(PlateLayout.Thickness(s), 0); }
                 break;
             case Detector det:
@@ -410,6 +411,9 @@
         <dl class="rows">
             <dt>@Lang.T("Verbindungen")</dt><dd class="@(linked == conns.Count ? "ok" : "open")">@Lang.F($"{linked} von {conns.Count} verbunden")</dd>
         </dl>
+        <div class="section">@Lang.T("Elektrik")</div>
+        <div class="secondary small">@Session.ConnectionSummary(p.Id)</div>
+        <div class="button-row"><button class="btn" @onclick="@(() => Run("connections"))">@((MarkupString)Icons.Svg("Connector", 16)) @Lang.T("Anschlüsse…")</button></div>
         <div class="button-row wrap">
             <button class="btn" @onclick="@(() => Run("rotR"))">@((MarkupString)Icons.Svg("RotateRight", 16)) @Lang.T("Drehen")</button>
             @if (d.CanFlip)
@@ -518,6 +522,11 @@
                 Num("height", Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v);
                 Num("length", Lang.T("Länge"), BeamLayout.MinLength, 20000, v => PlanSession.SetBeamLength(s, v));
                 break;
+            case SceneryKind.Wire:
+                Num("depth", Lang.T("Querschnitt"), 0.04, 10, v => s.Depth = v);
+                var wireColor = F("color");
+                apply.Add(() => s.Color = ModelBody.ParseColor(wireColor) is { } wc ? ModelBody.ToHex(wc) : s.Color);
+                break;
             case SceneryKind.Plate:
                 Num("x", Lang.T("Links"), -20000, 20000, v => s.X = v);
                 Num("y", Lang.T("Oben"), -20000, 20000, v => s.Y = v);
@@ -596,6 +605,41 @@
                 <div class="cols">@NumField(Lang.T("Länge (mm)"), "length", ApplyScenery)@NumField(Lang.T("Oberkante (mm)"), "height", ApplyScenery)</div>
                 <dl class="rows"><dt>@Lang.T("Winkel")</dt><dd>@Fmt.Num(BeamLayout.Angle(s), 1)°</dd></dl>
                 <div class="tip-box">@Lang.T("Oberkante über der Plattenoberkante: negativ = unter der Platte. Mit Unterbau steht die Leiste in Zuschnitt und Materialliste.")</div>
+                break;
+            case SceneryKind.Wire:
+                var current = Electrics.Current(Plan);
+                var wireHex = WireLayout.ColorOf(s, current);
+                <label class="field-label">@Lang.T("Verwendung")</label>
+                <select class="input" value="@((int)WireLayout.Use(s))" @onchange="@(e => { if (int.TryParse(e.Value as string, out var u) && Enum.IsDefined((WireUse)u)) Session.SetWireUse(s.Id, (WireUse)u); })">
+                    @foreach (var u in Enum.GetValues<WireUse>())
+                    {
+                        <option value="@((int)u)">@WireLayout.UseName(u)</option>
+                    }
+                </select>
+                <div class="cols">
+                    <div>
+                        <label class="field-label">@Lang.T("Aderfarbe")</label>
+                        <select class="input" value="@wireHex" @onchange="@(e => Set("color", e, ApplyScenery))">
+                            @foreach (var c in WireLayout.Colors)
+                            {
+                                <option value="@c.Hex">@Lang.T(c.Name)</option>
+                            }
+                            @if (!WireLayout.Colors.Any(c => string.Equals(c.Hex, wireHex, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <option value="@wireHex">@wireHex</option>
+                            }
+                        </select>
+                    </div>
+                    @NumField(Lang.T("Querschnitt (mm²)"), "depth", ApplyScenery)
+                </div>
+                <dl class="rows">
+                    <dt>@Lang.T("Länge")</dt><dd>@Fmt.Num(WireLayout.Length(s) / 1000, 2) m</dd>
+                    <dt>@Lang.T("Mit Zugabe")</dt><dd>@Fmt.Num(WireLayout.Length(s) * (1 + WireLayout.Reserve) / 1000, 2) m</dd>
+                    <dt>@Lang.T("Anfang")</dt><dd>@(WireLayout.EndAnchor(Plan, s, false)?.Text ?? Lang.T("frei"))</dd>
+                    <dt>@Lang.T("Ende")</dt><dd>@(WireLayout.EndAnchor(Plan, s, true)?.Text ?? Lang.T("frei"))</dd>
+                    <dt>@Lang.T("Punkte")</dt><dd>@s.Points.Count</dd>
+                </dl>
+                <div class="tip-box">@Electrics.CurrentHint(Plan)</div>
                 break;
             case SceneryKind.Plate:
                 <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>
@@ -716,7 +760,12 @@
         <dl class="rows">
             <dt>@Lang.T("Gleis")</dt><dd>@Plan.Find(f.PieceId)?.Def.Number (Nr. @f.PieceId)</dd>
             <dt>@Lang.T("Stromabschnitt")</dt><dd>@(section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m")</dd>
+            <dt>@Lang.T("Stromart")</dt><dd>@Electrics.CurrentName(Electrics.Current(Plan))</dd>
         </dl>
+        @if (Electrics.Current(Plan) == CurrentKind.Gleichstrom)
+        {
+            <label class="check"><input type="checkbox" checked="@f.Reversed" @onchange="@(_ => Session.ToggleFeederPolarity(f.Id))" /> @Lang.T("Polung getauscht (Plus und Minus vertauscht)")</label>
+        }
         <div class="button-row"><button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button></div>
     };
 

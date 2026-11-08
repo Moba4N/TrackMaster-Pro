@@ -293,6 +293,12 @@ public static partial class Dialogs
         AlertDialog? dialog = null;
         var buttons = Ui.Row(c, 6);
         void Cmd(string text, string command) => buttons.AddView(Ui.Button(c, text, () => { dialog?.Dismiss(); run(command); }));
+        if (!d.IsTable)
+        {
+            body.AddView(Section(c, Lang.T("Elektrik")));
+            body.AddView(Ui.Label(c, session.ConnectionSummary(p.Id), 13, color: Ui.TextSecondary));
+        }
+        if (!d.IsTable) Cmd(Lang.T("Anschlüsse…"), "connections");
         Cmd(Lang.T("Drehen"), "rotR");
         if (d.CanFlip) Cmd(Lang.T("Spiegeln"), "flip");
         if (conns.Count > 1) Cmd(Lang.T("Anschluss"), "swap");
@@ -1024,6 +1030,28 @@ public static partial class Dialogs
         foreach (var line in cut.ToText().Split(Environment.NewLine))
             body.AddView(Ui.Label(c, line, 12.5, color: line.StartsWith(Lang.T("Achtung")) ? Color.Rgb(0xC4, 0x2B, 0x1C) : null));
         Show(c, Lang.T("Trasse aus Auswahl"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("SVG-Dateien speichern"), saveSvg));
+    }
+
+    /// <summary>Einfache Auswahl: eine Zeile je Eintrag (Text, Hinweis); der aktuelle ist hervorgehoben.</summary>
+    public static void Choose(Context c, string title, IReadOnlyList<(string Label, string? Hint, bool Current)> items, Action<int> pick, string? footer = null)
+    {
+        var body = Ui.Column(c, 6);
+        AlertDialog? dialog = null;
+        for (var i = 0; i < items.Count; i++)
+        {
+            var index = i;
+            var (label, hint, current) = items[i];
+            var row = Ui.Column(c, 2);
+            row.SetPadding(Ui.Dp(10), Ui.Dp(8), Ui.Dp(10), Ui.Dp(8));
+            row.Background = Ui.Rounded(current ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), current ? Ui.Accent : Ui.Border);
+            row.Clickable = true;
+            row.AddView(Ui.Label(c, label, 15, true));
+            if (!string.IsNullOrEmpty(hint)) row.AddView(Ui.Label(c, hint, 12, color: Ui.TextSecondary));
+            row.Click += (_, _) => { dialog?.Dismiss(); pick(index); };
+            body.AddView(row);
+        }
+        if (footer is not null) body.AddView(Ui.Label(c, footer, 12, color: Ui.TextSecondary));
+        dialog = Show(c, title, body, okText: null);
     }
 
     public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)

@@ -26,7 +26,7 @@ public static class IssueLevels
 }
 
 /// <summary>Ein Befund aus Plan- oder Elektrikprüfung, mit Ort zum Hinspringen.</summary>
-public sealed record PlanIssue(IssueLevel Level, string Category, string Text, IReadOnlyList<int> PieceIds, double X, double Y);
+public sealed record PlanIssue(IssueLevel Level, string Category, string Text, IReadOnlyList<int> PieceIds, double X, double Y, int? ObjectId = null);
 
 /// <summary>Weiche, DKW oder Signal mit Digitaladresse.</summary>
 public sealed record SwitchingItem(string Kind, string Label, int? PieceId, int? SignalId, int? Address, int AddressCount, double X, double Y)
@@ -36,7 +36,7 @@ public sealed record SwitchingItem(string Kind, string Label, int? PieceId, int?
     public string AddressText => Address is not { } a ? "–" : AddressCount > 1 ? $"{a}–{a + AddressCount - 1}" : a.ToString(CultureInfo.InvariantCulture);
 }
 
-public sealed record ElectricReport(IReadOnlyList<PowerSection> Sections, IReadOnlyList<ReverseLoop> ReverseLoops, IReadOnlyList<PlanIssue> Issues, bool ThreeRail);
+public sealed record ElectricReport(IReadOnlyList<PowerSection> Sections, IReadOnlyList<ReverseLoop> ReverseLoops, IReadOnlyList<PlanIssue> Issues, bool ThreeRail, CurrentKind Current = CurrentKind.Gleichstrom);
 
 /// <summary>Stromabschnitte, Kehrschleifen, Einspeisungen und Digitaladressen.</summary>
 public static class Electrics
@@ -45,7 +45,34 @@ public static class Electrics
     public const double FeederSpacingH0 = 3.0;
 
     public static bool IsThreeRail(LayoutPlan plan)
-        => plan.Pieces.Any(p => Catalog.GetSystem(p.Def.GaugeId, p.Def.SystemId)?.ThreeRail == true);
+        => plan.Pieces.Any(IsThreeRail);
+
+    public static bool IsThreeRail(PlacedPiece p) => Catalog.GetSystem(p.Def.GaugeId, p.Def.SystemId)?.ThreeRail == true;
+
+    /// <summary>
+    /// Stromart, mit der der Plan geprüft wird: die eingestellte, sonst nach dem Gleis (Mittelleiter → Wechselstrom, Zweileiter → Gleichstrom).
+    /// </summary>
+    public static CurrentKind Current(LayoutPlan plan)
+        => plan.Current != CurrentKind.Auto ? plan.Current : IsThreeRail(plan) ? CurrentKind.Wechselstrom : CurrentKind.Gleichstrom;
+
+    public static string CurrentName(CurrentKind k) => k switch
+    {
+        CurrentKind.Gleichstrom => Lang.T("Gleichstrom"),
+        CurrentKind.Wechselstrom => Lang.T("Wechselstrom"),
+        _ => Lang.T("Automatisch (nach Gleis)"),
+    };
+
+    /// <summary>Kurzbeschreibung der Stromart mit Leitersystem und Aderfarben.</summary>
+    public static string CurrentHint(LayoutPlan plan) => Current(plan) == CurrentKind.Wechselstrom
+        ? Lang.T("Wechselstrom (Mittelleiter): Fahrstrom über den Mittelleiter (rotes Kabel), Masse über beide Schienen (braunes Kabel). Polung und Kehrschleifen spielen keine Rolle.")
+        : Lang.T("Gleichstrom (Zweileiter): je eine Schiene an Plus und Minus (z. B. rotes und blaues Kabel). Alle Einspeisungen eines Abschnitts brauchen dieselbe Polung, Kehrschleifen eine Umpolung.");
+
+    /// <summary>Lage des Einspeisungs-Symbols: neben der Gleismitte (links in Richtung Anschluss 0 → 1).</summary>
+    public static (double X, double Y) FeederPoint(PlacedPiece p, double gauge)
+    {
+        var m = p.Middle();
+        return (m.X - Math.Sin(m.HeadingRad) * gauge * 2.2, m.Y + Math.Cos(m.HeadingRad) * gauge * 2.2);
+    }
 
     private static bool Isolated(LayoutPlan plan, ConnectorRef c)
         => plan.Isolations.Any(i => (i.PieceId == c.PieceId && i.Index == c.Index) || (c.Link is { } l && i.PieceId == l.PieceId && i.Index == l.Index));
@@ -80,33 +107,7 @@ public static class Electrics
     public static IReadOnlyList<ReverseLoop> ReverseLoops(LayoutPlan plan, Connectivity? connectivity = null)
     {
         if (IsThreeRail(plan)) return [];
-        var conn = connectivity ?? Connectivity.Analyze(plan);
-        // Knoten = (Gleis, Abschnitt); Kanten mit "umgekehrt"-Kennzeichen
-        var edges = new Dictionary<(int, int), List<((int, int) To, bool Flip)>>();
-        void Edge((int, int) a, (int, int) b, bool flip)
-        {
-            if (!edges.TryGetValue(a, out var la)) edges[a] = la = [];
-            if (!edges.TryGetValue(b, out var lb)) edges[b] = lb = [];
-            la.Add((b, flip));
-            lb.Add((a, flip));
-        }
-        foreach (var p in plan.Pieces)
-        {
-            var paths = TrackGeometry.LocalPaths(p.Def, p.Flipped).Count;
-            for (var l = 0; l < paths; l++)
-                if (!edges.ContainsKey((p.Id, l))) edges[(p.Id, l)] = [];
-            // Weichen: alle Stränge beginnen an Anschluss 0, links bleibt links
-            if (p.Def.Kind == PieceKind.Switch)
-                for (var l = 1; l < paths; l++) Edge((p.Id, 0), (p.Id, l), false);
-        }
-        foreach (var c in conn.All)
-        {
-            if (c.Link is not { } l || c.PieceId > l.PieceId || (c.PieceId == l.PieceId && c.Index > l.Index) || Isolated(plan, c)) continue;
-            var a = LegOf(plan.Find(c.PieceId)!, c.Index);
-            var b = LegOf(plan.Find(l.PieceId)!, l.Index);
-            // Zeigen beide Anschlüsse auf dasselbe Abschnittsende (Anfang/Anfang oder Ende/Ende), kehrt sich links/rechts um
-            Edge((c.PieceId, a.Leg), (l.PieceId, b.Leg), a.AtEnd == b.AtEnd);
-        }
+        var edges = RailGraph(plan, connectivity ?? Connectivity.Analyze(plan));
         var color = new Dictionary<(int, int), bool>();
         var from = new Dictionary<(int, int), (int, int)?>();
         var loops = new List<ReverseLoop>();
@@ -140,6 +141,83 @@ public static class Electrics
         }
         // Größere Schleifen, die eine kleinere ganz enthalten, sind dieselbe Kehrschleife
         return loops.Where(a => !loops.Any(b => b != a && b.PieceIds.Count < a.PieceIds.Count && b.PieceIds.All(a.PieceIds.Contains))).ToList();
+    }
+
+    /// <summary>
+    /// Schienengraph: Knoten = (Gleis, Fahrweg); eine Kante mit „umgekehrt“ verbindet zwei Fahrwege, bei denen die linke Schiene
+    /// in die rechte übergeht. Trennstellen unterbrechen die Verbindung.
+    /// </summary>
+    private static Dictionary<(int, int), List<((int, int) To, bool Flip)>> RailGraph(LayoutPlan plan, Connectivity conn)
+    {
+        var edges = new Dictionary<(int, int), List<((int, int) To, bool Flip)>>();
+        void Edge((int, int) a, (int, int) b, bool flip)
+        {
+            if (!edges.TryGetValue(a, out var la)) edges[a] = la = [];
+            if (!edges.TryGetValue(b, out var lb)) edges[b] = lb = [];
+            la.Add((b, flip));
+            lb.Add((a, flip));
+        }
+        foreach (var p in plan.Pieces)
+        {
+            var paths = TrackGeometry.LocalPaths(p.Def, p.Flipped).Count;
+            for (var l = 0; l < paths; l++)
+                if (!edges.ContainsKey((p.Id, l))) edges[(p.Id, l)] = [];
+            // Weichen: alle Stränge beginnen an Anschluss 0, links bleibt links
+            if (p.Def.Kind == PieceKind.Switch)
+                for (var l = 1; l < paths; l++) Edge((p.Id, 0), (p.Id, l), false);
+        }
+        foreach (var c in conn.All)
+        {
+            if (c.Link is not { } l || c.PieceId > l.PieceId || (c.PieceId == l.PieceId && c.Index > l.Index) || Isolated(plan, c)) continue;
+            if (plan.Find(c.PieceId) is not { } pa || plan.Find(l.PieceId) is not { } pb) continue;
+            var a = LegOf(pa, c.Index);
+            var b = LegOf(pb, l.Index);
+            // Zeigen beide Anschlüsse auf dasselbe Abschnittsende (Anfang/Anfang oder Ende/Ende), kehrt sich links/rechts um
+            Edge((c.PieceId, a.Leg), (l.PieceId, b.Leg), a.AtEnd == b.AtEnd);
+        }
+        return edges;
+    }
+
+    /// <summary>
+    /// Gleichstrom: Liegt die linke Schiene jedes Gleises (Fahrweg 0) auf „Schiene A“ (false) oder „Schiene B“ (true) seines Abschnitts?
+    /// Ausgangspunkt je Abschnitt ist das Gleis mit der kleinsten Kennung. In einer Kehrschleife gilt der erste gefundene Weg.
+    /// </summary>
+    public static IReadOnlyDictionary<int, bool> RailSides(LayoutPlan plan, Connectivity? connectivity = null)
+    {
+        var edges = RailGraph(plan, connectivity ?? Connectivity.Analyze(plan));
+        var color = new Dictionary<(int, int), bool>();
+        foreach (var start in edges.Keys.OrderBy(k => k.Item1).ThenBy(k => k.Item2))
+        {
+            if (color.ContainsKey(start)) continue;
+            color[start] = false;
+            var queue = new Queue<(int, int)>();
+            queue.Enqueue(start);
+            while (queue.Count > 0)
+            {
+                var u = queue.Dequeue();
+                foreach (var (v, flip) in edges[u])
+                    if (!color.ContainsKey(v))
+                    {
+                        color[v] = color[u] ^ flip;
+                        queue.Enqueue(v);
+                    }
+            }
+        }
+        return plan.Pieces.ToDictionary(p => p.Id, p => color.TryGetValue((p.Id, 0), out var c) && c);
+    }
+
+    /// <summary>Gleichstrom: Einspeisungen eines Abschnitts, deren Plus auf verschiedenen Schienen liegt (Kurzschluss).</summary>
+    public static IReadOnlyList<(PowerSection Section, IReadOnlyList<Feeder> Feeders)> PolarityConflicts(LayoutPlan plan, IReadOnlyList<PowerSection> sections, Connectivity? connectivity = null)
+    {
+        var sides = RailSides(plan, connectivity);
+        var result = new List<(PowerSection, IReadOnlyList<Feeder>)>();
+        foreach (var s in sections.Where(s => s.Feeders.Count > 1))
+        {
+            // Plus an Schiene B? (rechte Schiene = Gegenseite der linken; vertauscht dreht es um)
+            var groups = s.Feeders.GroupBy(f => !(sides.TryGetValue(f.PieceId, out var left) && left) ^ f.Reversed).ToList();
+            if (groups.Count > 1) result.Add((s, groups.OrderBy(g => g.Count()).First().ToList()));
+        }
+        return result;
     }
 
     private static List<(int, int)> Cycle(Dictionary<(int, int), (int, int)?> from, (int, int) u, (int, int) v)
@@ -176,11 +254,54 @@ public static class Electrics
             if (s.Circuits.Count > 1)
                 issues.Add(new(IssueLevel.Fehler, Lang.T("Stromkreise"), Lang.F($"Abschnitt {s.Number} wird aus mehreren Stromkreisen gespeist ({string.Join(", ", s.Circuits)}). Dazwischen gehört eine Trennstelle."), s.PieceIds, mid.X, mid.Y));
         }
+        var current = Current(plan);
+        var threeRail = plan.Pieces.Where(IsThreeRail).Select(p => p.Id).ToList();
+        var twoRail = plan.Pieces.Where(p => !IsThreeRail(p)).Select(p => p.Id).ToList();
+        if (current == CurrentKind.Wechselstrom && twoRail.Count > 0)
+        {
+            var m = plan.Find(twoRail[0])!.Middle();
+            issues.Add(new(IssueLevel.Fehler, Lang.T("Stromart"), Lang.F($"Wechselstrom ist eingestellt, aber {twoRail.Count} Gleise sind Zweileiter-Gleise ohne Mittelleiter. Wechselstrom braucht Mittelleiter-Gleis (z. B. Märklin H0); sonst auf Gleichstrom umstellen."), twoRail, m.X, m.Y));
+        }
+        else if (current == CurrentKind.Gleichstrom && threeRail.Count > 0)
+        {
+            var m = plan.Find(threeRail[0])!.Middle();
+            issues.Add(new(IssueLevel.Warnung, Lang.T("Stromart"), Lang.F($"Gleichstrom ist eingestellt, aber {threeRail.Count} Gleise sind Mittelleiter-Gleise. Sie werden üblicherweise mit Wechselstrom bzw. Märklin-Digital betrieben."), threeRail, m.X, m.Y));
+        }
+        foreach (var s in sections)
+        {
+            if (s.PieceIds.Any(threeRail.Contains) && s.PieceIds.Any(twoRail.Contains))
+            {
+                var mixed = s.PieceIds.Where(threeRail.Contains).ToList();
+                var m = plan.Find(mixed[0])!.Middle();
+                issues.Add(new(IssueLevel.Fehler, Lang.T("Stromart"), Lang.F($"Abschnitt {s.Number} verbindet Mittelleiter- und Zweileiter-Gleise ohne Trennstelle. Am Übergang beide Schienen und den Mittelleiter trennen."), mixed, m.X, m.Y));
+            }
+        }
+        if (current == CurrentKind.Gleichstrom && threeRail.Count == 0)
+        {
+            var inLoops = loops.SelectMany(l => l.PieceIds).ToHashSet();
+            foreach (var (s, wrong) in PolarityConflicts(plan, sections.Where(x => !x.PieceIds.Any(inLoops.Contains)).ToList(), conn))
+            {
+                var p = plan.Find(wrong[0].PieceId)!.Middle();
+                issues.Add(new(IssueLevel.Fehler, Lang.T("Polung"),
+                    Lang.F($"Abschnitt {s.Number}: Einspeisung(en) Nr. {string.Join(", ", wrong.Select(f => f.Id))} sind andersherum gepolt als die übrigen – das gibt einen Kurzschluss. Polung tauschen (Anschlüsse des Gleises)."),
+                    wrong.Select(f => f.PieceId).Distinct().ToList(), p.X, p.Y));
+            }
+        }
+        foreach (var w in plan.Scenery.Where(x => x.IsWire && x.Points.Count >= 2))
+        {
+            if (WireLayout.EndAnchor(plan, w, false) is null && WireLayout.EndAnchor(plan, w, true) is null)
+            {
+                var (mx, my) = WireLayout.Middle(w);
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Kabel"), Lang.F($"{w.Name} ({Fmt.Num(WireLayout.Length(w) / 1000, 2)} m) ist an keinem Ende an eine Einspeisung, einen Rückmelder, ein Signal oder ein anderes Kabel angeschlossen."), [], mx, my, w.Id));
+            }
+        }
         foreach (var l in loops)
         {
             var mid = plan.Find(l.PieceIds[0])!.Middle();
             issues.Add(new(IssueLevel.Fehler, Lang.T("Kehrschleife"),
-                Lang.F($"Kehrschleife über {l.PieceIds.Count} Gleise: an beiden Enden Trennstellen setzen und den Abschnitt über ein Kehrschleifenmodul speisen."), l.PieceIds, mid.X, mid.Y));
+                current == CurrentKind.Wechselstrom
+                    ? Lang.F($"Kehrschleife über {l.PieceIds.Count} Gleise im Zweileiter-Gleis: an beiden Enden Trennstellen setzen und den Abschnitt über ein Kehrschleifenmodul speisen.")
+                    : Lang.F($"Kehrschleife über {l.PieceIds.Count} Gleise: an beiden Enden Trennstellen setzen und den Abschnitt über ein Kehrschleifenmodul (analog: Polwendeschalter) speisen."), l.PieceIds, mid.X, mid.Y));
         }
         var items = SwitchingItems(plan);
         foreach (var dup in AddressConflicts(items))
@@ -189,7 +310,7 @@ public static class Electrics
         var missing = items.Where(i => i.Address is null).ToList();
         if (missing.Count > 0)
             issues.Add(new(IssueLevel.Hinweis, Lang.T("Adressen"), Lang.F($"{missing.Count} Weichen/Signale haben noch keine Digitaladresse."), missing.Where(i => i.PieceId is not null).Select(i => i.PieceId!.Value).ToList(), missing[0].X, missing[0].Y));
-        return new ElectricReport(sections, loops, issues, IsThreeRail(plan));
+        return new ElectricReport(sections, loops, issues, IsThreeRail(plan), current);
     }
 
     public static IReadOnlyList<SwitchingItem> SwitchingItems(LayoutPlan plan)
@@ -275,8 +396,9 @@ public static class Electrics
     {
         var r = Analyze(plan);
         var sb = new StringBuilder();
-        sb.AppendLine(Lang.F($"Kabelplan – {plan.Name} (Spur {plan.GaugeId}, {(r.ThreeRail ? Lang.T("Mittelleiter") : Lang.T("Zweileiter"))})"));
+        sb.AppendLine(Lang.F($"Kabelplan – {plan.Name} (Spur {plan.GaugeId}, {(r.ThreeRail ? Lang.T("Mittelleiter") : Lang.T("Zweileiter"))}, {CurrentName(r.Current)})"));
         sb.AppendLine(new string('=', 60));
+        sb.AppendLine(CurrentHint(plan));
         sb.AppendLine();
         sb.AppendLine(Lang.T("Stromabschnitte"));
         foreach (var s in r.Sections)
@@ -284,7 +406,7 @@ public static class Electrics
             sb.AppendLine(Lang.F($"  Abschnitt {s.Number}: {s.PieceIds.Count} Gleise, {Fmt.Num(s.LengthMm / 1000, 2)} m"));
             if (s.Feeders.Count == 0) sb.AppendLine(Lang.T("    keine Einspeisung!"));
             foreach (var f in s.Feeders)
-                sb.AppendLine(Lang.F($"    Einspeisung Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}"));
+                sb.AppendLine(Lang.F($"    Einspeisung Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}") + (r.Current == CurrentKind.Gleichstrom && f.Reversed ? Lang.T(" (Polung getauscht)") : ""));
         }
         sb.AppendLine();
         sb.AppendLine(Lang.F($"Trennstellen ({plan.Isolations.Count})"));
@@ -297,6 +419,21 @@ public static class Electrics
             foreach (var d in plan.Detectors.OrderBy(d => d.Address ?? int.MaxValue))
                 sb.AppendLine(Lang.F($"  {(d.Name.Length > 0 ? d.Name : $"Nr. {d.Id}")}: {Detector.TypeName(d.Type)} an Gleis {plan.Find(d.PieceId)?.Def.Number} (Nr. {d.PieceId})") +
                               (d.Address is { } a ? Lang.F($", Kontakt {a} (Modul {(a - 1) / Detector.InputsPerModule + 1}, Eingang {(a - 1) % Detector.InputsPerModule + 1})") : Lang.T(", ohne Adresse")));
+        }
+        var wires = plan.Scenery.Where(x => x.IsWire && x.Points.Count >= 2).ToList();
+        if (wires.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine(Lang.F($"Kabel ({wires.Count})"));
+            foreach (var w in wires)
+            {
+                var from = WireLayout.EndAnchor(plan, w, false)?.Text ?? Lang.T("frei");
+                var to = WireLayout.EndAnchor(plan, w, true)?.Text ?? Lang.T("frei");
+                sb.AppendLine(Lang.F($"  {w.Name}: {WireLayout.UseName(WireLayout.Use(w))}, {WireLayout.ColorName(WireLayout.ColorOf(w, r.Current))}, {WireLayout.SectionText(WireLayout.Section(w, plan.Gauge))}, {Fmt.Num(WireLayout.Length(w) / 1000, 2)} m – {from} → {to}"));
+            }
+            sb.AppendLine(Lang.F($"  Einkauf (mit {Fmt.Num(WireLayout.Reserve * 100, 0)} % Zugabe):"));
+            foreach (var (color, section, meters) in WireLayout.Totals(plan))
+                sb.AppendLine(Lang.F($"    {WireLayout.ColorName(color)} {WireLayout.SectionText(section)}: {Fmt.Num(meters, 1)} m"));
         }
         sb.AppendLine();
         sb.AppendLine(Lang.T("Kehrschleifen"));

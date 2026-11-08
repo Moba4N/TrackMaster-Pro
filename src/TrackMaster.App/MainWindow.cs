@@ -122,6 +122,7 @@ public sealed partial class MainWindow : Window
         Session.ProRequired += feature => { if (Dialogs.ShowProRequired(this, feature)) Run("license"); };
         Canvas.ViewChanged += () => { _zoomText.Text = $"{Fmt.Num(Canvas.Zoom * 100, 0)} %"; UpdateStatus(); };
         Canvas.LabelRequested += (x, y) => { if (Dialogs.AskText(this, Lang.T("Beschriftung"), "Text") is { } text) Session.AddLabel(text, x, y); };
+        Canvas.ContextRequested += ShowPlanContextMenu;
         Canvas.CursorMoved += p => _cursorText.Text = p is { } w ? $"X {Fmt.Num(w.X, 0)} · Y {Fmt.Num(w.Y, 0)} mm" : "X – · Y –";
         _messageTimer.Tick += (_, _) => { _messageTimer.Stop(); _statusMessage.Text = Lang.T("Bereit"); };
         PreviewKeyDown += OnPreviewKeyDown;
@@ -159,6 +160,18 @@ public sealed partial class MainWindow : Window
         Add("license", ShowLicense);
         Add("check", () => ShowCheck(false));
         Add("elecCheck", () => ShowCheck(true));
+        bool HasConnectionPiece() => Session.ConnectionPiece is not null;
+        Add("toolWire", () => SetTool(CanvasTool.Wire));
+        Add("connFeeder", () => { if (Session.ConnectionPiece is { } p) Session.AddFeederTo(p.Id); }, HasConnectionPiece);
+        Add("connFeederRemove", () => { if (Session.ConnectionPiece is { } p) Session.RemoveFeedersOn(p.Id); },
+            () => Session.ConnectionPiece is { } p && Session.FeedersOn(p.Id).Count > 0);
+        Add("connIsolate", () => { if (Session.ConnectionPiece is { } p) Session.ToggleAllIsolations(p.Id); }, HasConnectionPiece);
+        Add("connDetector", () => { if (Session.ConnectionPiece is { } p) Session.ToggleDetectorOn(p.Id); }, HasConnectionPiece);
+        Add("connPolarity", () =>
+        {
+            if (Session.ConnectionPiece is { } p) foreach (var f in Session.FeedersOn(p.Id)) Session.ToggleFeederPolarity(f.Id);
+        }, () => Session.ConnectionPiece is { } p && Session.FeedersOn(p.Id).Count > 0 && Electrics.Current(Session.Plan) == CurrentKind.Gleichstrom);
+        Add("connWire", StartWireFromPiece, HasConnectionPiece);
         Add("flex", AddFlex);
         Add("toolFlex", () => SetTool(CanvasTool.Flex));
         Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
@@ -562,6 +575,7 @@ public sealed partial class MainWindow : Window
         CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
         CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
         CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
+        CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – an Einspeisungen, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
         CanvasTool.Model => Lang.T("Modell einfügen: in den Plan klicken. Tunnelportale, Bahnsteige, Brücken und Bahnübergänge rasten am nächsten Gleis ein. Esc beendet das Werkzeug."),
         _ => "",
     };
@@ -874,12 +888,45 @@ public sealed partial class MainWindow : Window
         };
         foreach (var t in Enum.GetValues<SignalType>())
             signalMenu.Items.Add(new RibbonMenuItem { Header = Signal.TypeName(t), ImageSource = PlanScene.SignalImage(t), ToolTip = SignalFace.For(t).Description, Command = _commands["signal" + t] });
+        var currentMenu = new RibbonMenuButton
+        {
+            Label = Lang.T("Stromart"), LargeImageSource = Icons.Get("Current"), SmallImageSource = Icons.Get("Current"), ToolTipTitle = Lang.T("Stromart"),
+            ToolTipDescription = Lang.T("Gleichstrom (Zweileiter) oder Wechselstrom (Mittelleiter). Davon hängen Polung, Kehrschleifen und Kabelfarben ab."),
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        foreach (var k in Enum.GetValues<CurrentKind>())
+        {
+            var item = new RibbonMenuItem { Header = Electrics.CurrentName(k), IsCheckable = true, Command = new RelayCommand(() => { Session.SetCurrent(k); Canvas.Rebuild(); }) };
+            currentMenu.Items.Add(item);
+        }
+        currentMenu.DropDownOpened += (_, _) =>
+        {
+            foreach (var (item, k) in currentMenu.Items.OfType<RibbonMenuItem>().Zip(Enum.GetValues<CurrentKind>())) item.IsChecked = Session.Plan.Current == k;
+        };
+        var wireMenu = new RibbonMenuButton
+        {
+            Label = Lang.T("Kabel verlegen"), LargeImageSource = Icons.Get("Wire"), SmallImageSource = Icons.Get("Wire"), ToolTipTitle = Lang.T("Kabel verlegen"),
+            ToolTipDescription = Lang.T("Verwendung wählen, dann Punkte im Plan anklicken. Farbe und Querschnitt folgen der Verwendung und stehen danach in den Eigenschaften."),
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        foreach (var u in Enum.GetValues<WireUse>())
+            wireMenu.Items.Add(new RibbonMenuItem { Header = WireLayout.UseName(u), Command = new RelayCommand(() => { Session.WireUse = u; SetTool(CanvasTool.Wire); }) });
         Ribbon.Items.Add(Tab(Lang.T("Elektrik"),
             Group(Lang.T("Stromversorgung"),
                 ToolToggle(Lang.T("Einspeisung"), "Bolt", true, CanvasTool.Feeder, "toolFeeder", Lang.T("Gleis an einen Stromkreis/Booster anschließen.")),
                 ToolToggle(Lang.T("Trennstelle"), "Isolate", false, CanvasTool.Isolation, "toolIsolation", Lang.T("Isolierte Schienenverbinder an einer Gleisverbindung setzen.")),
                 Toggle(Lang.T("Stromkreise zeigen"), "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
-                Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Einspeisung, Kehrschleifen, doppelte Adressen."))),
+                Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
+                    Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
+                Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Einspeisung, Kehrschleifen, doppelte Adressen, Polung und Kabel. Ein Klick auf einen Befund zeigt die Gleise."))),
+            Group(Lang.T("Verkabelung"), currentMenu, wireMenu),
+            Group(Lang.T("Anschlüsse am Gleis"),
+                Small(Lang.T("Einspeisung hinzufügen"), "Bolt", "connFeeder", Lang.T("Das gewählte Gleis an einen Stromkreis anschließen; bei Gleichstrom mit passender Polung.")),
+                Small(Lang.T("Einspeisung entfernen"), "Delete", "connFeederRemove", Lang.T("Alle Einspeisungen am gewählten Gleis entfernen.")),
+                Small(Lang.T("Polung tauschen"), "Swap", "connPolarity", Lang.T("Gleichstrom: Plus und Minus der Einspeisungen am gewählten Gleis tauschen.")),
+                Small(Lang.T("Gleis trennen"), "Isolate", "connIsolate", Lang.T("Trennstellen an allen verbundenen Enden des gewählten Gleises setzen oder entfernen.")),
+                Small(Lang.T("Rückmelder"), "Detector", "connDetector", Lang.T("Rückmelder auf das gewählte Gleis setzen oder entfernen.")),
+                Small(Lang.T("Kabel von hier"), "Wire", "connWire", Lang.T("Kabel an der Einspeisung des gewählten Gleises beginnen (legt sie bei Bedarf an)."))),
             Group(Lang.T("Digital"),
                 Large(Lang.T("Decoder"), "Chip", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
                 signalMenu,
@@ -1397,11 +1444,74 @@ public sealed partial class MainWindow : Window
         }
         _issuesWindow = Dialogs.ShowIssues(this, electrics ? Lang.T("Elektrik prüfen") : Lang.T("Kollisions- und Planprüfung"), Analyze, issue =>
         {
-            if (issue.PieceIds.Count > 0) Session.Select(issue.PieceIds, add: false);
-            Canvas.Reveal(issue.X, issue.Y);
+            var (x0, y0, x1, y1) = Session.FocusIssue(issue);
+            Canvas.Rebuild();
+            Canvas.FitArea(x0, y0, x1, y1);
             Activate();
         }, electrics && Electrics.IsThreeRail(Session.Plan) ? Lang.T("Mittelleiter-Gleis (Märklin): Kehrschleifen brauchen hier keine Sonderschaltung.") : null);
-        _issuesWindow.Closed += (_, _) => { Session.Issues = []; Canvas.InvalidateVisual(); _issuesWindow = null; };
+        _issuesWindow.Closed += (_, _) => { Session.Issues = []; Session.ClearFocus(); Canvas.InvalidateVisual(); _issuesWindow = null; };
+    }
+
+    /// <summary>Kabel an der Einspeisung des gewählten Gleises beginnen; fehlt sie, wird sie angelegt.</summary>
+    private void StartWireFromPiece()
+    {
+        if (Session.ConnectionPiece is not { } p) return;
+        if (Session.FeedersOn(p.Id).Count == 0) Session.AddFeederTo(p.Id);
+        var piece = Session.Plan.Find(p.Id)!;
+        var (x, y) = Electrics.FeederPoint(piece, Session.Plan.Gauge.TrackWidth);
+        Session.WireUse = WireUse.Fahrstrom;
+        SetTool(CanvasTool.Wire);
+        Canvas.StartWireAt(x, y);
+    }
+
+    /// <summary>Rechtsklick in den Plan: Gleis-Anschlüsse und die üblichen Bearbeitungsbefehle.</summary>
+    private void ShowPlanContextMenu()
+    {
+        var menu = new ContextMenu();
+        MenuItem Item(string header, string icon, ICommand command) => new() { Header = header, Icon = new System.Windows.Controls.Image { Source = Icons.Get(icon), Width = 16, Height = 16 }, Command = command };
+        MenuItem Cmd(string header, string icon, string id) => Item(header, icon, _commands[id]);
+        if (Session.ConnectionPiece is { } piece)
+        {
+            menu.Items.Add(new MenuItem { Header = Lang.F($"Gleis {piece.Def.Number} – {Session.ConnectionSummary(piece.Id)}"), IsEnabled = false });
+            var conn = new MenuItem { Header = Lang.T("Anschlüsse"), Icon = new System.Windows.Controls.Image { Source = Icons.Get("Bolt"), Width = 16, Height = 16 } };
+            var feeders = Session.FeedersOn(piece.Id);
+            var add = new MenuItem { Header = Lang.T("Einspeisung hinzufügen") };
+            foreach (var c in Session.CircuitNames.Append(Session.NewCircuitName()).Distinct())
+            {
+                var circuit = c;
+                add.Items.Add(new MenuItem { Header = circuit, Command = new RelayCommand(() => Session.AddFeederTo(piece.Id, circuit)) });
+            }
+            conn.Items.Add(add);
+            if (feeders.Count > 0)
+            {
+                conn.Items.Add(Cmd(Lang.T("Einspeisung entfernen"), "Delete", "connFeederRemove"));
+                if (Electrics.Current(Session.Plan) == CurrentKind.Gleichstrom) conn.Items.Add(Cmd(Lang.T("Polung tauschen"), "Swap", "connPolarity"));
+            }
+            conn.Items.Add(new Separator());
+            foreach (var end in Session.PieceEnds(piece.Id).Where(e => e.Connected))
+            {
+                var e = end;
+                conn.Items.Add(new MenuItem
+                {
+                    Header = Lang.F($"Trennstelle an Ende {e.Index + 1}"), IsCheckable = true, IsChecked = e.Isolated,
+                    Command = new RelayCommand(() => Session.ToggleIsolation(piece.Id, e.Index)),
+                });
+            }
+            conn.Items.Add(new MenuItem { Header = Lang.T("Rückmelder"), IsCheckable = true, IsChecked = Session.DetectorOn(piece.Id) is not null, Command = _commands["connDetector"] });
+            menu.Items.Add(conn);
+            menu.Items.Add(Cmd(Lang.T("Kabel von hier verlegen"), "Wire", "connWire"));
+            menu.Items.Add(new Separator());
+        }
+        if (Session.Selection.Count > 0 || Session.SelectedObject is not null)
+        {
+            menu.Items.Add(Cmd(Lang.T("Kopieren"), "Copy", "copy"));
+            menu.Items.Add(Cmd(Lang.T("Löschen"), "Delete", "delete"));
+        }
+        if (menu.Items.Count == 0) menu.Items.Add(Cmd(Lang.T("Ganze Anlage"), "Fit", "fit"));
+        if (menu.Items[menu.Items.Count - 1] is Separator) menu.Items.RemoveAt(menu.Items.Count - 1);
+        menu.PlacementTarget = Canvas;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        menu.IsOpen = true;
     }
 
     private void AddFlex()

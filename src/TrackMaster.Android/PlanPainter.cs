@@ -305,6 +305,7 @@ public sealed class PlanPainter
 
         DrawLocks(c, z);
         DrawElectrics(c, z, selectedObject);
+        DrawWires(c, z, selectedObject);
         DrawAnnotations(c, plan, z, selectedObject);
     }
 
@@ -514,8 +515,9 @@ public sealed class PlanPainter
             if (plan.Find(f.PieceId) is not { } p) continue;
             var m = p.Middle();
             var r = Math.Max(g * 0.9f, 5 * d / z);
-            var cx = (float)(m.X - Math.Sin(m.HeadingRad) * g * 2.2);
-            var cy = (float)(m.Y + Math.Cos(m.HeadingRad) * g * 2.2);
+            var (fpx, fpy) = Electrics.FeederPoint(p, g);
+            var cx = (float)fpx;
+            var cy = (float)fpy;
             c.DrawLine((float)m.X, (float)m.Y, cx, cy, Stroke(FeederColor, Math.Max(g * 0.15f, 1 / z)));
             c.DrawCircle(cx, cy, r, Fill(FeederColor));
             c.DrawCircle(cx, cy, r, f.Id == selectedObject ? Stroke(Ui.Accent, 2.5f * d / z) : Stroke(Color.White, 1 / z));
@@ -553,6 +555,27 @@ public sealed class PlanPainter
     }
 
     private static Color C(Rgb c, int alpha = 0xFF) => Color.Argb(alpha, c.R, c.G, c.B);
+
+    /// <summary>Selbst verlegte Kabel: Linienzug in der Aderfarbe mit dunkler Kante, Enden als Punkte.</summary>
+    private void DrawWires(Canvas c, float z, int? selectedObject)
+    {
+        var d = Ui.Density;
+        var current = Electrics.Current(_plan);
+        var width = Math.Max(_g * 0.35f, 2.2f * d / z);
+        foreach (var w in _plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
+        {
+            var rgb = ModelBody.ParseColor(WireLayout.ColorOf(w, current)) ?? new Rgb(0x21, 0x21, 0x21);
+            var path = Polygon(w.Points, close: false);
+            if (w.Id == selectedObject) c.DrawPath(path, Stroke(Ui.Accent, width + 5 * d / z, Paint.Cap.Round));
+            c.DrawPath(path, Stroke(C(rgb.Scale(0.55)), width + 1.4f * d / z, Paint.Cap.Round));
+            c.DrawPath(path, Stroke(C(rgb), width, Paint.Cap.Round));
+            foreach (var (x, y) in new[] { w.Points[0], w.Points[^1] })
+            {
+                c.DrawCircle((float)x, (float)y, width * 1.2f, Fill(C(rgb)));
+                c.DrawCircle((float)x, (float)y, width * 1.2f, Stroke(Color.White, 1 * d / z));
+            }
+        }
+    }
 
     /// <summary>
     /// Zeichnet ein Signalbild in Schirmkoordinaten (Ursprung Mitte der Schirmoberkante, y nach unten, 1 = Schirmbreite).

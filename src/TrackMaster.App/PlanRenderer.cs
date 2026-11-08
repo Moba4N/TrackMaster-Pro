@@ -263,6 +263,7 @@ public sealed class PlanScene
 
         DrawLocks(dc, z);
         DrawElectrics(dc, z, o);
+        DrawWires(dc, z, o);
         DrawAnnotations(dc, plan, z, o.SelectedObject);
     }
 
@@ -516,7 +517,8 @@ public sealed class PlanScene
             if (plan.Find(f.PieceId) is not { } p) continue;
             var m = p.Middle();
             var r = Math.Max(g * 0.9, 5 / z);
-            var center = new Point(m.X - Math.Sin(m.HeadingRad) * g * 2.2, m.Y + Math.Cos(m.HeadingRad) * g * 2.2);
+            var (fx, fy) = Electrics.FeederPoint(p, g);
+            var center = new Point(fx, fy);
             dc.DrawLine(new Pen(FeederBrush, Math.Max(g * 0.15, 1 / z)), new Point(m.X, m.Y), center);
             dc.DrawEllipse(FeederBrush, f.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), center, r, r);
             var bolt = new StreamGeometry();
@@ -549,6 +551,41 @@ public sealed class PlanScene
             dc.PushTransform(new MatrixTransform(m11, m12, m21, m22, ox, oy));
             DrawSignalFace(dc, face, s.Id == o.SelectedObject ? new Pen(Theme.AccentBrush, Math.Max(2.5 / z, g * 0.25) / scale) : null, 1 / (z * scale));
             dc.Pop();
+        }
+    }
+
+    /// <summary>Linienzug ohne Füllung (Kabel).</summary>
+    public static Geometry Polyline(IReadOnlyList<(double X, double Y)> pts)
+    {
+        var g = new StreamGeometry();
+        using (var ctx = g.Open())
+        {
+            if (pts.Count > 0)
+            {
+                ctx.BeginFigure(new Point(pts[0].X, pts[0].Y), false, false);
+                for (var i = 1; i < pts.Count; i++) ctx.LineTo(new Point(pts[i].X, pts[i].Y), true, true);
+            }
+        }
+        g.Freeze();
+        return g;
+    }
+
+    /// <summary>Selbst verlegte Kabel: Linienzug in der Aderfarbe mit dunkler Kante, Enden als Punkte.</summary>
+    private void DrawWires(DrawingContext dc, double z, RenderOptions o)
+    {
+        var current = Electrics.Current(_plan);
+        var width = Math.Max(_gauge * 0.35, 2.2 / z);
+        foreach (var w in _plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
+        {
+            var rgb = ModelBody.ParseColor(WireLayout.ColorOf(w, current)) ?? new Rgb(0x21, 0x21, 0x21);
+            var path = Polyline(w.Points);
+            Pen Round(Brush b, double t) => new(b, t) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            if (w.Id == o.SelectedObject) dc.DrawGeometry(null, Round(Theme.AccentBrush, width + 5 / z), path);
+            dc.DrawGeometry(null, Round(B(rgb.Scale(0.55)), width + 1.4 / z), path);
+            var fill = B(rgb);
+            dc.DrawGeometry(null, Round(fill, width), path);
+            foreach (var (x, y) in new[] { w.Points[0], w.Points[^1] })
+                dc.DrawEllipse(fill, new Pen(Brushes.White, 1 / z), new Point(x, y), width * 1.2, width * 1.2);
         }
     }
 

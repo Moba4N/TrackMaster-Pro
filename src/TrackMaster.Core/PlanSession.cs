@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -142,6 +142,7 @@ public sealed partial class PlanSession
         Selection.Clear();
         SelectedObject = null;
         Issues = [];
+        FocusedIssue = null;
         Active = null;
         Commit();
     }
@@ -500,7 +501,7 @@ public sealed partial class PlanSession
             Plan.Pieces.Add(q);
             Selection.Add(q.Id);
         }
-        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit });
+        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit, Reversed = f.Reversed });
         foreach (var i in src.Isolations) Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = map[i.PieceId], Index = i.Index });
         foreach (var g in src.Signals)
         {
@@ -1548,7 +1549,7 @@ public sealed partial class PlanSession
     {
         Record();
         var circuit = Plan.Feeders.LastOrDefault()?.Circuit ?? "Stromkreis 1";
-        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = circuit };
+        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = circuit, Reversed = MatchingPolarity(pieceId) };
         Plan.Feeders.Add(f);
         SelectedObject = f.Id;
         Selection.Clear();

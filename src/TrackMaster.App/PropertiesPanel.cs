@@ -294,6 +294,19 @@ public sealed class PropertiesPanel : DockPanel
         var linked = conns.Count(c => !c.IsOpen);
         Rows((Lang.T("Verbindungen"), Lang.F($"{linked} von {conns.Count} verbunden"), linked == conns.Count ? Theme.SuccessBrush : Theme.OpenEndBrush));
 
+        if (!d.IsTable)
+        {
+            Section(Lang.T("Elektrik"));
+            _body.Children.Add(new TextBlock { Text = _session.ConnectionSummary(p.Id), TextWrapping = TextWrapping.Wrap, Foreground = Theme.TextSecondaryBrush, FontSize = 12, Margin = new Thickness(0, 0, 6, 4) });
+            var hasFeeder = _session.FeedersOn(p.Id).Count > 0;
+            _body.Children.Add(Buttons(
+                hasFeeder ? Cmd(Lang.T("Einspeisung entfernen"), "Delete", "connFeederRemove") : Cmd(Lang.T("Einspeisung"), "Bolt", "connFeeder"),
+                Cmd(Lang.T("Trennen"), "Isolate", "connIsolate"),
+                Cmd(Lang.T("Rückmelder"), "Detector", "connDetector"),
+                Cmd(Lang.T("Kabel"), "Wire", "connWire")));
+            _body.Children.Add(Tip(Lang.T("Weitere Anschlüsse (Stromkreis, Trennstelle je Ende, Polung) über das Kontextmenü: rechte Maustaste auf das Gleis.")));
+        }
+
         var buttons = new List<Button> { Cmd(Lang.T("Drehen"), "RotateRight", "rotR") };
         if (d.CanFlip) buttons.Add(Cmd(Lang.T("Spiegeln"), "Mirror", "flip"));
         if (conns.Count > 1) buttons.Add(Cmd(Lang.T("Anschluss wechseln"), "Swap", "swap"));
@@ -500,6 +513,28 @@ public sealed class PropertiesPanel : DockPanel
                         if (s.Obstacle == ObstacleType.Tuer)
                             _body.Children.Add(Tip(Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")));
                         break;
+                    case SceneryKind.Wire:
+                        var current = Electrics.Current(plan);
+                        var use = new ComboBox { Height = 28 };
+                        foreach (var u in Enum.GetValues<WireUse>()) use.Items.Add(new ComboBoxItem { Content = WireLayout.UseName(u), Tag = u, IsSelected = u == WireLayout.Use(s) });
+                        use.SelectionChanged += (_, _) => { if (use.SelectedItem is ComboBoxItem { Tag: WireUse u } && u != WireLayout.Use(s)) _session.SetWireUse(s.Id, u); };
+                        _body.Children.Add(Theme.Field(Lang.T("Verwendung"), use));
+                        var wireHex = WireLayout.ColorOf(s, current);
+                        var color = new ComboBox { Height = 28 };
+                        foreach (var c in WireLayout.Colors)
+                            color.Items.Add(new ComboBoxItem { Content = Lang.T(c.Name), Tag = c.Hex, IsSelected = string.Equals(c.Hex, wireHex, StringComparison.OrdinalIgnoreCase) });
+                        color.SelectionChanged += (_, _) => { if (color.SelectedItem is ComboBoxItem { Tag: string h } && !string.Equals(h, s.Color, StringComparison.OrdinalIgnoreCase)) _session.Edit(() => s.Color = h); };
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Aderfarbe"), color),
+                            Theme.Field(Lang.T("Querschnitt (mm²)"), NumberBox(WireLayout.Section(s, plan.Gauge), v => s.Depth = Math.Clamp(v, 0.04, 10), 2))));
+                        var len = WireLayout.Length(s);
+                        Rows((Lang.T("Länge"), $"{Fmt.Num(len / 1000, 2)} m", null),
+                             (Lang.T("Mit Zugabe"), $"{Fmt.Num(len * (1 + WireLayout.Reserve) / 1000, 2)} m", null),
+                             (Lang.T("Anfang"), WireLayout.EndAnchor(plan, s, false)?.Text ?? Lang.T("frei"), null),
+                             (Lang.T("Ende"), WireLayout.EndAnchor(plan, s, true)?.Text ?? Lang.T("frei"), null),
+                             (Lang.T("Punkte"), s.Points.Count.ToString(), null));
+                        _body.Children.Add(Tip(Electrics.CurrentHint(plan)));
+                        break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Durchmesser (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
@@ -528,7 +563,14 @@ public sealed class PropertiesPanel : DockPanel
                 _body.Children.Add(new Border { Height = 8 });
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
                 Rows((Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
-                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null));
+                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null),
+                     (Lang.T("Stromart"), Electrics.CurrentName(Electrics.Current(plan)), null));
+                if (Electrics.Current(plan) == CurrentKind.Gleichstrom)
+                {
+                    var reversed = new CheckBox { Content = Lang.T("Polung getauscht (Plus und Minus vertauscht)"), IsChecked = f.Reversed, Margin = new Thickness(0, 0, 0, 8) };
+                    reversed.Click += (_, _) => _session.ToggleFeederPolarity(f.Id);
+                    _body.Children.Add(reversed);
+                }
                 _body.Children.Add(Buttons(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
                 break;
 

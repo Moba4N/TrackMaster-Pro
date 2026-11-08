@@ -12,10 +12,11 @@ public static class PlanSerializer
     /// <summary>
     /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. 3: Raum, Hintergrundbild,
     /// Rückmelder, Preise und Bestand, gesperrte und gruppierte Gleise. 4: Ausstattungsmodelle (Gebäude mit Modell und Farbe,
-    /// entlang des Gleises gebogene Bahnsteige, mitgespeicherte eigene Modelle). Ältere Programmversionen
+    /// entlang des Gleises gebogene Bahnsteige, mitgespeicherte eigene Modelle). 5: Stromart, Polung der Einspeisungen,
+    /// selbst verlegte Kabel. Ältere Programmversionen
     /// überspringen, was sie nicht kennen; neuere Dateien öffnet dieses Programm mit einem Hinweis.
     /// </summary>
-    public const int CurrentFormat = 4;
+    public const int CurrentFormat = 5;
 
     private sealed class FileDto
     {
@@ -40,6 +41,7 @@ public static class PlanSerializer
         [JsonPropertyName("stock"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, int>? Stock { get; set; }
         [JsonPropertyName("background"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BackgroundDto? Background { get; set; }
         [JsonPropertyName("models"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModelFile.ModelDto>? Models { get; set; }
+        [JsonPropertyName("current"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Current { get; set; }
     }
 
     private sealed class DetectorDto
@@ -95,6 +97,7 @@ public static class PlanSerializer
         [JsonPropertyName("id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Id { get; set; }
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("circuit")] public string? Circuit { get; set; }
+        [JsonPropertyName("rev"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Rev { get; set; }
     }
 
     private sealed class IsolationDto
@@ -234,13 +237,14 @@ public static class PlanSerializer
                 Id = withIds ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
-                Model = s.IsModel ? s.Model : null, Color = s.Kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
+                Model = s.IsModel ? s.Model : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
                 Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
-            Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit }).ToList(),
+            Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed }).ToList(),
+            Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
                 { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
@@ -289,6 +293,7 @@ public static class PlanSerializer
             BoardLegRight = Math.Max(0, dto.Board?.LegRight ?? 0),
             VehicleLength = Math.Clamp(dto.Vehicle ?? 0, 0, 5000),
             TrainLength = dto.Train is double tl && double.IsFinite(tl) ? Math.Clamp(tl, 0, 100000) : 0,
+            Current = dto.Current switch { "ac" => CurrentKind.Wechselstrom, "dc" => CurrentKind.Gleichstrom, _ => CurrentKind.Auto },
         };
         foreach (var (k, v) in dto.Prices ?? [])
             if (double.IsFinite(v) && v >= 0) plan.Prices[k] = v;
@@ -372,22 +377,23 @@ public static class PlanSerializer
             var item = new SceneryItem
             {
                 Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
-                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate ? s.Variant : 0,
+                Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate || kind == SceneryKind.Wire && Enum.IsDefined((WireUse)s.Variant) ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
                 Model = kind == SceneryKind.Building && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
-                Color = kind == SceneryKind.Building && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
+                Color = kind is SceneryKind.Building or SceneryKind.Wire && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
             };
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
+            if (kind == SceneryKind.Wire && item.Points.Count < 2) continue;
             if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
             if (kind == SceneryKind.Plate && !PlateLayout.Valid(item)) PlateLayout.Repair(item);
             plan.Scenery.Add(item);
         }
         foreach (var f in dto.Feeders ?? [])
             if (plan.Find(f.Piece) is not null)
-                plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit! });
+                plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev });
         foreach (var i in dto.Isolations ?? [])
             if (plan.Find(i.Piece) is { } ip && i.End >= 0 && i.End < ip.WorldConnectors().Count)
                 plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End });

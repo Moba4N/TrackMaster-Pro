@@ -76,8 +76,9 @@ public sealed class PlacedPiece
     };
 }
 
-/// <summary>Art eines Objekts; <see cref="Beam"/> = Holzleiste des Unterbaus (z. B. Diagonale oder Strebe), frei gezogen.</summary>
-public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate }
+/// <summary>Art eines Objekts; <see cref="Beam"/> = Holzleiste des Unterbaus (z. B. Diagonale oder Strebe), frei gezogen;
+/// <see cref="Wire"/> = selbst verlegtes Kabel (Linienzug, siehe <see cref="WireLayout"/>).</summary>
+public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate, Wire }
 
 /// <summary>Art eines Raumelements (<see cref="SceneryKind.Obstacle"/>).</summary>
 public enum ObstacleType { Tuer, Fenster, Saeule, Heizkoerper, Moebel, Sonstiges }
@@ -130,6 +131,9 @@ public sealed class SceneryItem
     /// <summary>Deckplatte auf dem Unterbau: <see cref="X"/>, <see cref="Y"/> = linke obere Ecke, <see cref="Width"/> × <see cref="Depth"/>,
     /// <see cref="Height"/> = Oberkante, <see cref="Variant"/> = Stärke in mm.</summary>
     public bool IsPlate => Kind == SceneryKind.Plate;
+    /// <summary>Kabel: <see cref="Points"/> = Linienzug, <see cref="Variant"/> = <see cref="WireUse"/>, <see cref="Color"/> = Aderfarbe (#RRGGBB),
+    /// <see cref="Depth"/> = Querschnitt in mm² (0 = Vorgabe).</summary>
+    public bool IsWire => Kind == SceneryKind.Wire;
 
     /// <summary>Eckpunkte in Weltkoordinaten (Vieleck bzw. gedrehtes Rechteck; Bäume als Achteck).</summary>
     public IReadOnlyList<(double X, double Y)> Outline()
@@ -139,6 +143,7 @@ public sealed class SceneryItem
             case SceneryKind.Terrain:
             case SceneryKind.Water:
             case SceneryKind.Room:
+            case SceneryKind.Wire:
                 return Points;
             case SceneryKind.Label:
                 return Annotation.LabelOutline(this);
@@ -165,11 +170,12 @@ public sealed class SceneryItem
     {
         if (Kind is SceneryKind.Dimension or SceneryKind.Beam && Points.Count == 2) return ((Points[0].X + Points[1].X) / 2, (Points[0].Y + Points[1].Y) / 2);
         if (Kind == SceneryKind.Plate) return (X + Width / 2, Y + Depth / 2);
+        if (Kind == SceneryKind.Wire && Points.Count > 0) return WireLayout.Middle(this);
         if ((!IsArea && Kind != SceneryKind.Room) || Points.Count == 0) return (X, Y);
         return (Points.Average(p => p.X), Points.Average(p => p.Y));
     }
 
-    public bool Contains(double px, double py) => Geometry2D.PointInPolygon(Outline(), px, py);
+    public bool Contains(double px, double py) => IsWire ? WireLayout.Distance(this, px, py) <= 3 : Geometry2D.PointInPolygon(Outline(), px, py);
 
     /// <summary>Dreht das Objekt um einen Punkt (Grad im Uhrzeigersinn bei y nach unten).</summary>
     public void RotateAround(double cx, double cy, double degrees)
@@ -212,6 +218,7 @@ public sealed class SceneryItem
         SceneryKind.Obstacle => Lang.T("Raumelement"),
         SceneryKind.Beam => Lang.T("Leiste"),
         SceneryKind.Plate => Lang.T("Deckplatte"),
+        SceneryKind.Wire => Lang.T("Kabel"),
         _ => Lang.T("Baum"),
     };
 
@@ -246,8 +253,13 @@ public sealed class Feeder
     public int Id { get; set; }
     public int PieceId { get; set; }
     public string Circuit { get; set; } = "Stromkreis 1";
-    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit };
+    /// <summary>Gleichstrom: Polung vertauscht (Plus an der linken statt an der rechten Schiene, in Richtung Anschluss 0 → 1 gesehen).</summary>
+    public bool Reversed { get; set; }
+    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit, Reversed = Reversed };
 }
+
+/// <summary>Stromart der Anlage. <see cref="Auto"/> richtet sich nach dem Gleis: Mittelleiter → Wechselstrom, sonst Gleichstrom.</summary>
+public enum CurrentKind { Auto, Gleichstrom, Wechselstrom }
 
 /// <summary>Trennstelle (isolierte Schienenverbinder) am Anschluss <see cref="Index"/> eines Gleises.</summary>
 public sealed class Isolation
@@ -401,6 +413,8 @@ public sealed class LayoutPlan
     public double EffectiveVehicleLength => VehicleLength > 0 ? VehicleLength : VehicleDefaults.Length(Gauge);
     /// <summary>Nächste freie Kennung; gilt für Gleise und alle anderen Objekte gemeinsam.</summary>
     public int NextId { get; set; } = 1;
+    /// <summary>Stromart (Gleich- oder Wechselstrom); Auto = nach dem Gleissystem, siehe <see cref="Electrics.Current"/>.</summary>
+    public CurrentKind Current { get; set; }
 
     public Gauge Gauge => Catalog.GetGauge(GaugeId);
 
@@ -433,7 +447,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength,
+            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);

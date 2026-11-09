@@ -545,7 +545,7 @@ public sealed class PlanScene
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            var face = SignalFace.For(s.Type);
+            var face = SignalFace.For(s);
             var scale = SignalFace.PlanScale(g, z);
             var (m11, m12, m21, m22, ox, oy) = SignalFace.PlanTransform(x, y, heading, scale, face);
             dc.PushTransform(new MatrixTransform(m11, m12, m21, m22, ox, oy));
@@ -741,7 +741,19 @@ public sealed class PlanScene
         }
         // Schirm
         var shield = new Rect(-f.Width / 2, 0, f.Width, f.Height);
-        dc.DrawRoundedRectangle(B(SignalFace.ShieldColor), new Pen(B(new Rgb(0x55, 0x55, 0x55)), line), shield, f.Corner, f.Corner);
+        void Part(SignalPart part)
+        {
+            var geo = new StreamGeometry();
+            using (var ctx = geo.Open())
+            {
+                ctx.BeginFigure(new Point(part.Points[0].X, part.Points[0].Y), true, true);
+                ctx.PolyLineTo(part.Points.Skip(1).Select(q => new Point(q.X, q.Y)).ToList(), true, true);
+            }
+            dc.DrawGeometry(B(part.Fill), null, geo);
+        }
+        foreach (var part in f.BackParts) Part(part);
+        if (f.Shield) dc.DrawRoundedRectangle(B(SignalFace.ShieldColor), new Pen(B(new Rgb(0x55, 0x55, 0x55)), line), shield, f.Corner, f.Corner);
+        foreach (var part in f.FrontParts) Part(part);
         foreach (var l in f.Lamps)
         {
             var c = new Point(l.X, l.Y);
@@ -783,9 +795,9 @@ public sealed class PlanScene
     }
 
     /// <summary>Signalbild als Symbol, z. B. für Menüs und Eigenschaften.</summary>
-    public static ImageSource SignalImage(SignalType type)
+    public static ImageSource SignalImage(SignalType type, SignalSystem system = SignalSystem.HV)
     {
-        var face = SignalFace.For(type);
+        var face = SignalFace.For(type, system);
         var group = new DrawingGroup();
         using (var dc = group.Open())
         {

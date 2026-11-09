@@ -698,7 +698,7 @@ public sealed class Scene3DModel
         var (x, y, heading) = Electrics.SignalPose(_plan, s);
         var g = _g;
         var z = (_plan.Find(s.PieceId)?.Height ?? 0) + RailTop(g);
-        var face = SignalFace.For(s.Type);
+        var face = SignalFace.For(s);
         var low = s.Type == SignalType.Sperrsignal;
         // Schirmbreite und Höhe der Schirmoberkante über der Schiene
         var w = low ? g * 0.42 : g * 0.48;
@@ -727,7 +727,25 @@ public sealed class Scene3DModel
                 Block(Mesh(i % 2 == 0 ? SignalFace.PlateWhite : SignalFace.PlateRed), -pw, pw,
                     py + SignalFace.PlateHeight * i / 5, py + SignalFace.PlateHeight * (i + 1) / 5, -0.06, 0.0);
         }
-        Block(Mesh(SignalFace.ShieldColor), -face.Width / 2, face.Width / 2, 0, face.Height, -0.18, 0.02);
+        if (face.Shield) Block(Mesh(SignalFace.ShieldColor), -face.Width / 2, face.Width / 2, 0, face.Height, -0.18, 0.02);
+        // Flügel, Scheiben, Signalköpfe und Ränder als flache Vielecke, von beiden Seiten sichtbar
+        void Part(SignalPart part, double depth)
+        {
+            var mesh = Mesh(part.Fill);
+            double cx = part.Points.Average(q => q.X), cy = part.Points.Average(q => q.Y);
+            var center = At(cx, cy, depth);
+            for (var k = 0; k < part.Points.Count; k++)
+            {
+                var (ax, ay) = part.Points[k];
+                var (bx, by) = part.Points[(k + 1) % part.Points.Count];
+                Vec3 a = At(ax, ay, depth), b = At(bx, by, depth);
+                mesh.Triangle(center, a, b);
+                mesh.Triangle(center, b, a);
+            }
+        }
+        foreach (var part in face.BackParts) Part(part, 0.0);
+        var step = 0;
+        foreach (var part in face.FrontParts) Part(part, 0.03 + 0.0015 * step++);
         foreach (var l in face.Lamps)
         {
             var mesh = l.Lit ? Mesh(l.Color, SurfaceKind.Lamp) : Mesh(SignalFace.Dark);

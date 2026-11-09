@@ -284,6 +284,9 @@ public sealed class Isolation
 
 public enum SignalType { Hauptsignal, Vorsignal, Ausfahrsignal, Sperrsignal, Blocksignal }
 
+/// <summary>Signalsystem (Land und Bauform), bestimmt das Signalbild. Die Art (<see cref="SignalType"/>) bleibt die Aufgabe des Signals.</summary>
+public enum SignalSystem { HV, Form, Ks, Hl, OeBB, SBB, SNCF, NS, UK, USA }
+
 /// <summary>Signal am Anschluss <see cref="Index"/> eines Gleises, rechts neben dem Gleis, gilt für Fahrten auf dieses Gleisende zu.</summary>
 public sealed class Signal
 {
@@ -291,9 +294,31 @@ public sealed class Signal
     public int PieceId { get; set; }
     public int Index { get; set; }
     public SignalType Type { get; set; } = SignalType.Hauptsignal;
+    public SignalSystem System { get; set; } = SignalSystem.HV;
     public string Name { get; set; } = "";
     public int? Address { get; set; }
-    public Signal Clone() => new() { Id = Id, PieceId = PieceId, Index = Index, Type = Type, Name = Name, Address = Address };
+    public Signal Clone() => new() { Id = Id, PieceId = PieceId, Index = Index, Type = Type, System = System, Name = Name, Address = Address };
+
+    public static string SystemName(SignalSystem s) => s switch
+    {
+        SignalSystem.HV => Lang.T("Deutschland – H/V-Lichtsignal"),
+        SignalSystem.Form => Lang.T("Deutschland – Formsignal"),
+        SignalSystem.Ks => Lang.T("Deutschland – Ks-Signal"),
+        SignalSystem.Hl => Lang.T("DDR – Hl-Signal"),
+        SignalSystem.OeBB => Lang.T("Österreich – Lichtsignal (ÖBB)"),
+        SignalSystem.SBB => Lang.T("Schweiz – Signalsystem L (SBB)"),
+        SignalSystem.SNCF => Lang.T("Frankreich – Lichtsignal (SNCF)"),
+        SignalSystem.NS => Lang.T("Niederlande – Lichtsignal (NS)"),
+        SignalSystem.UK => Lang.T("Großbritannien – Lichtsignal"),
+        _ => Lang.T("USA – Lichtsignal"),
+    };
+
+    /// <summary>Kurzname des Systems für Listen und Exporte.</summary>
+    public static string SystemShort(SignalSystem s) => s switch
+    {
+        SignalSystem.HV => "H/V", SignalSystem.Form => Lang.T("Formsignal"), SignalSystem.Ks => "Ks", SignalSystem.Hl => "Hl", SignalSystem.OeBB => "ÖBB",
+        SignalSystem.SBB => "SBB", SignalSystem.SNCF => "SNCF", SignalSystem.NS => "NS", SignalSystem.UK => "UK", _ => "USA",
+    };
 
     public static string TypeName(SignalType t) => t switch
     {

@@ -137,34 +137,34 @@ public sealed partial class PlanSession
     public PowerSourceType PowerType { get => _powerType; set { _powerType = value; ModuleModel = null; } }
     private PowerSourceType _powerType = PowerSourceType.Zentrale;
 
-    /// <summary>Decoder-Baustein, den das Werkzeug „Stromversorgung“ als Nächstes setzt (YaMoRC-Typ), sonst null.</summary>
+    /// <summary>Decoder-Baustein, den das Werkzeug „Stromversorgung“ als Nächstes setzt (Typ aus dem Decoder-Katalog), sonst null.</summary>
     public string? ModuleModel { get; private set; }
 
     /// <summary>Werkzeug auf einen Decoder-Baustein stellen; ein Klick in den Plan setzt ihn.</summary>
     public void SelectModule(string id)
     {
-        if (Yamorc.Find(id) is not { } m) return;
-        PowerType = Yamorc.PlacedAs(m);
+        if (Decoders.Find(id) is not { } m) return;
+        PowerType = Decoders.PlacedAs(m);
         ModuleModel = m.Id;
     }
 
     /// <summary>Decoder-Baustein setzen, mit der nächsten freien Startadresse.</summary>
     public SceneryItem? AddModule(string id, double x, double y)
     {
-        if (Yamorc.Find(id) is not { } m) return null;
-        var type = Yamorc.PlacedAs(m);
+        if (Decoders.Find(id) is not { } m) return null;
+        var type = Decoders.PlacedAs(m);
         var item = PowerSupply.Create(Plan, type, x, y);
         item.Model = m.Id;
         if (type == PowerSourceType.Baustein)
         {
-            (item.Width, item.Depth) = Yamorc.Size(Plan.Gauge, m);
-            item.Address = Yamorc.NextStart(Plan, m);
+            (item.Width, item.Depth) = Decoders.Size(Plan.Gauge, m);
+            item.Address = Decoders.NextStart(Plan, m);
             var used = Plan.Scenery.Select(s => s.Name).ToHashSet();
             for (var n = 1; ; n++)
-                if (!used.Contains($"{m.Id} {n}")) { item.Name = $"{m.Id} {n}"; break; }
+                if (!used.Contains($"{m.Short} {n}")) { item.Name = $"{m.Short} {n}"; break; }
         }
         item = AddScenery(item);
-        Say(Lang.F($"{m.Maker} {m.Title} „{item.Name}“ gesetzt.") + " " + (Yamorc.Range(item) is { } r
+        Say(Lang.F($"{m.Maker} {m.Title} „{item.Name}“ gesetzt.") + " " + (Decoders.Range(item) is { } r
             ? (m.Role == ModuleRole.Melden ? Lang.F($"Rückmeldekontakte {r.First}–{r.Last}: Rückmelder mit diesen Kontakten gehören zu diesem Baustein.")
                 : Lang.F($"Adressen {r.First}–{r.Last}: Weichen und Signale mit diesen Adressen hängen an diesem Baustein."))
             : m.Description));
@@ -245,7 +245,7 @@ public sealed partial class PlanSession
     /// <summary>Stromquelle als Symbol an diese Stelle setzen.</summary>
     public SceneryItem AddPowerSource(PowerSourceType type, double x, double y)
     {
-        if (ModuleModel is { } model && Yamorc.Find(model) is { } m && Yamorc.PlacedAs(m) == type && AddModule(model, x, y) is { } module) return module;
+        if (ModuleModel is { } model && Decoders.Find(model) is { } m && Decoders.PlacedAs(m) == type && AddModule(model, x, y) is { } module) return module;
         var item = AddScenery(PowerSupply.Create(Plan, type, x, y, DistributorColor));
         Say(Lang.F($"{PowerSupply.TypeName(type)} „{item.Name}“ gesetzt.") + " " + (type == PowerSourceType.Verteiler
             ? Lang.T("Kabel rasten an jeder Klemme der Leiste ein; alles, was dort hängt, ist miteinander verbunden.")

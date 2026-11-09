@@ -203,7 +203,7 @@ public sealed partial class MainWindow : Window
             Add("signal" + type, () => { Session.SignalType = type; SetTool(CanvasTool.Signal); });
         }
         Add("addresses", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
-        foreach (var m in Yamorc.Models)
+        foreach (var m in Decoders.Models)
         {
             var id = m.Id;
             Add("module" + id, () => { Session.SelectModule(id); SetTool(CanvasTool.Power); });
@@ -582,7 +582,7 @@ public sealed partial class MainWindow : Window
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
         CanvasTool.Tree => Lang.T("Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => Session.ModuleModel is { } mm ? Lang.F($"{mm}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
+        CanvasTool.Power => Decoders.Find(Session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
             : Lang.T("Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
@@ -897,16 +897,22 @@ public sealed partial class MainWindow : Window
 
         var moduleMenu = new RibbonMenuButton
         {
-            Label = Lang.T("YaMoRC-Decoder"), LargeImageSource = Icons.Get("Chip"), SmallImageSource = Icons.Get("Chip"), ToolTipTitle = Lang.T("YaMoRC-Decoder"),
-            ToolTipDescription = Lang.T("Decoder-Bausteine von YaMoRC (Weichen-, Servo-, Schalt- und Rückmeldedecoder, Zentrale, Booster …) aus dem Untermenü wählen und in den Plan setzen."),
+            Label = Lang.T("Digital-Decoder"), LargeImageSource = Icons.Get("Chip"), SmallImageSource = Icons.Get("Chip"), ToolTipTitle = Lang.T("Digital-Decoder"),
+            ToolTipDescription = Lang.T("Decoder-Bausteine aller gängigen Hersteller (Weichen-, Servo-, Schalt- und Rückmeldedecoder, Zentralen, Booster …) nach Hersteller aus dem Untermenü wählen und in den Plan setzen."),
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
         };
-        foreach (var (group, models) in Yamorc.Groups)
+        // Untermenü: Hersteller › Gruppe › Baustein
+        foreach (var (maker, groups) in Decoders.Makers)
         {
-            var sub = new RibbonMenuItem { Header = Yamorc.GroupName(group) };
-            foreach (var m in models)
-                sub.Items.Add(new RibbonMenuItem { Header = $"{m.Id} – {m.Name}", ToolTip = $"{m.Description} ({m.Bus})", Command = _commands["module" + m.Id] });
-            moduleMenu.Items.Add(sub);
+            var makerItem = new RibbonMenuItem { Header = maker };
+            foreach (var (group, models) in groups)
+            {
+                var sub = new RibbonMenuItem { Header = Decoders.GroupName(group) };
+                foreach (var m in models)
+                    sub.Items.Add(new RibbonMenuItem { Header = $"{m.Id} – {m.Name}", ToolTip = $"{m.Description} ({m.Bus})", Command = _commands["module" + m.Id] });
+                makerItem.Items.Add(sub);
+            }
+            moduleMenu.Items.Add(makerItem);
         }
         var signalMenu = new RibbonMenuButton
         {

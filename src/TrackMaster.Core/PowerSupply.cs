@@ -27,7 +27,7 @@ public static class PowerSupply
     };
 
     /// <summary>Text im Symbol: Gerätetyp (z. B. „YD7010“), sonst die Art.</summary>
-    public static string Label(SceneryItem s) => !string.IsNullOrEmpty(s.Model) ? s.Model : ShortName(Type(s));
+    public static string Label(SceneryItem s) => !string.IsNullOrEmpty(s.Model) ? Decoders.Find(s.Model)?.Short ?? s.Model : ShortName(Type(s));
 
     /// <summary>Kurzer Text im Symbol.</summary>
     public static string ShortName(PowerSourceType t) => t switch
@@ -46,7 +46,7 @@ public static class PowerSupply
         PowerSourceType.Booster => Lang.T("Digitalbetrieb: weiterer Stromkreis für große Anlagen; zwischen Booster-Abschnitten gehören Trennstellen."),
         PowerSourceType.Fahrtrafo => Lang.T("Analogbetrieb: Fahrregler bzw. Trafo, der einen Stromkreis mit Fahrstrom versorgt."),
         PowerSourceType.Verteiler => Lang.T("Verteilerleiste: verbindet alle Kabel, die an ihren Klemmen enden – z. B. die Masse (braun) von Zentrale, Booster und Gleis oder die Zubehörleitungen (gelb)."),
-        PowerSourceType.Baustein => Lang.T("Decoder-Baustein (z. B. YaMoRC): schaltet Weichen und Signale oder meldet besetzte Gleise; speist kein Gleis."),
+        PowerSourceType.Baustein => Lang.T("Decoder-Baustein (z. B. ESU, Märklin, YaMoRC): schaltet Weichen und Signale oder meldet besetzte Gleise; speist kein Gleis."),
         _ => Lang.T("Licht, Weichen und Signale (Zubehör); speist kein Gleis."),
     };
 
@@ -189,7 +189,7 @@ public static class PowerSupply
     {
         var was = Type(item) == PowerSourceType.Verteiler;
         // Gerät (z. B. YaMoRC-Zentrale) passt nach dem Wechsel der Art nicht mehr
-        if (Yamorc.ModelOf(item) is { } m && Yamorc.PlacedAs(m) != type) { item.Model = null; item.Address = null; }
+        if (Decoders.ModelOf(item) is { } m && Decoders.PlacedAs(m) != type) { item.Model = null; item.Address = null; }
         item.Variant = (int)type;
         if (was == (type == PowerSourceType.Verteiler)) return;
         (item.Width, item.Depth) = type == PowerSourceType.Verteiler ? DistributorSize(gauge) : Size(gauge);

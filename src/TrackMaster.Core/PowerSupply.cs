@@ -4,7 +4,7 @@ namespace TrackMaster.Core;
 public enum PowerMode { Digital, Analog }
 
 /// <summary>Art einer Stromquelle im Plan (<see cref="SceneryKind.Power"/>, <see cref="SceneryItem.Variant"/>).</summary>
-public enum PowerSourceType { Zentrale, Booster, Fahrtrafo, Zubehoertrafo, Verteiler }
+public enum PowerSourceType { Zentrale, Booster, Fahrtrafo, Zubehoertrafo, Verteiler, Baustein }
 
 /// <summary>
 /// Stromquellen als Symbol im Gleisplan: Digitalzentrale, Booster, Fahrtrafo (analog) und Zubehörtrafo (Licht, Weichen),
@@ -22,8 +22,12 @@ public static class PowerSupply
         PowerSourceType.Booster => Lang.T("Booster"),
         PowerSourceType.Fahrtrafo => Lang.T("Fahrtrafo"),
         PowerSourceType.Verteiler => Lang.T("Verteiler"),
+        PowerSourceType.Baustein => Lang.T("Decoder-Baustein"),
         _ => Lang.T("Zubehörtrafo"),
     };
+
+    /// <summary>Text im Symbol: Gerätetyp (z. B. „YD7010“), sonst die Art.</summary>
+    public static string Label(SceneryItem s) => !string.IsNullOrEmpty(s.Model) ? s.Model : ShortName(Type(s));
 
     /// <summary>Kurzer Text im Symbol.</summary>
     public static string ShortName(PowerSourceType t) => t switch
@@ -32,6 +36,7 @@ public static class PowerSupply
         PowerSourceType.Booster => Lang.T("Booster"),
         PowerSourceType.Fahrtrafo => Lang.T("Trafo"),
         PowerSourceType.Verteiler => Lang.T("Verteiler"),
+        PowerSourceType.Baustein => Lang.T("Decoder"),
         _ => Lang.T("Licht"),
     };
 
@@ -41,6 +46,7 @@ public static class PowerSupply
         PowerSourceType.Booster => Lang.T("Digitalbetrieb: weiterer Stromkreis für große Anlagen; zwischen Booster-Abschnitten gehören Trennstellen."),
         PowerSourceType.Fahrtrafo => Lang.T("Analogbetrieb: Fahrregler bzw. Trafo, der einen Stromkreis mit Fahrstrom versorgt."),
         PowerSourceType.Verteiler => Lang.T("Verteilerleiste: verbindet alle Kabel, die an ihren Klemmen enden – z. B. die Masse (braun) von Zentrale, Booster und Gleis oder die Zubehörleitungen (gelb)."),
+        PowerSourceType.Baustein => Lang.T("Decoder-Baustein (z. B. YaMoRC): schaltet Weichen und Signale oder meldet besetzte Gleise; speist kein Gleis."),
         _ => Lang.T("Licht, Weichen und Signale (Zubehör); speist kein Gleis."),
     };
 
@@ -59,7 +65,7 @@ public static class PowerSupply
     public const int Clamps = 10;
 
     /// <summary>Speist diese Quelle Gleise mit Fahrstrom?</summary>
-    public static bool FeedsTrack(PowerSourceType t) => t is not (PowerSourceType.Zubehoertrafo or PowerSourceType.Verteiler);
+    public static bool FeedsTrack(PowerSourceType t) => t is not (PowerSourceType.Zubehoertrafo or PowerSourceType.Verteiler or PowerSourceType.Baustein);
 
     /// <summary>Passt die Quelle zur Betriebsart (als Fahrstromquelle)?</summary>
     public static bool Fits(PowerSourceType t, PowerMode mode) => t switch
@@ -79,8 +85,11 @@ public static class PowerSupply
     /// <summary>Alle Symbole der Stromversorgung: Quellen und Verteiler.</summary>
     public static IEnumerable<SceneryItem> Items(LayoutPlan plan) => plan.Scenery.Where(s => s.Kind == SceneryKind.Power);
 
-    /// <summary>Stromquellen (ohne Verteiler).</summary>
-    public static IEnumerable<SceneryItem> Sources(LayoutPlan plan) => Items(plan).Where(s => Type(s) != PowerSourceType.Verteiler);
+    /// <summary>Stromquellen (ohne Verteiler und Decoder-Bausteine).</summary>
+    public static IEnumerable<SceneryItem> Sources(LayoutPlan plan) => Items(plan).Where(s => Type(s) is not (PowerSourceType.Verteiler or PowerSourceType.Baustein));
+
+    /// <summary>Decoder-Bausteine (Weichen-, Schalt-, Servo- und Rückmeldedecoder, Kehrschleifen- und Drehscheibenmodule).</summary>
+    public static IEnumerable<SceneryItem> Modules(LayoutPlan plan) => Items(plan).Where(s => Type(s) == PowerSourceType.Baustein);
 
     public static IEnumerable<SceneryItem> Distributors(LayoutPlan plan) => Items(plan).Where(s => Type(s) == PowerSourceType.Verteiler);
 
@@ -156,6 +165,7 @@ public static class PowerSupply
             PowerSourceType.Booster => Lang.T("Booster"),
             PowerSourceType.Fahrtrafo => Lang.T("Trafo"),
             PowerSourceType.Verteiler => Lang.T("Verteiler"),
+            PowerSourceType.Baustein => Lang.T("Decoder"),
             _ => Lang.T("Zubehörtrafo"),
         };
         if (t == PowerSourceType.Zentrale && !used.Contains(baseName)) return baseName;
@@ -178,6 +188,8 @@ public static class PowerSupply
     public static void ApplyType(SceneryItem item, PowerSourceType type, Gauge gauge, string distributorColor = "#795548")
     {
         var was = Type(item) == PowerSourceType.Verteiler;
+        // Gerät (z. B. YaMoRC-Zentrale) passt nach dem Wechsel der Art nicht mehr
+        if (Yamorc.ModelOf(item) is { } m && Yamorc.PlacedAs(m) != type) { item.Model = null; item.Address = null; }
         item.Variant = (int)type;
         if (was == (type == PowerSourceType.Verteiler)) return;
         (item.Width, item.Depth) = type == PowerSourceType.Verteiler ? DistributorSize(gauge) : Size(gauge);
@@ -201,6 +213,7 @@ public static class PowerSupply
         PowerSourceType.Booster => "#455A64",
         PowerSourceType.Fahrtrafo => "#1565C0",
         PowerSourceType.Verteiler => "#795548",
+        PowerSourceType.Baustein => "#1B5E20",
         _ => "#8D6E00",
     };
 }

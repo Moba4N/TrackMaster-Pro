@@ -126,6 +126,8 @@ public sealed class SceneryItem
     public string? Model { get; set; }
     /// <summary>Gebäude: Hauptfarbe als #RRGGBB; leer = Farbe des Modells.</summary>
     public string? Color { get; set; }
+    /// <summary>Decoder-Baustein (<see cref="PowerSourceType.Baustein"/>): erste Digitaladresse bzw. erster Rückmeldekontakt.</summary>
+    public int? Address { get; set; }
 
     /// <summary>Ist das ein Ausstattungsmodell (kein einfaches Gebäude)?</summary>
     public bool IsModel => Kind == SceneryKind.Building && !string.IsNullOrEmpty(Model);
@@ -221,7 +223,7 @@ public sealed class SceneryItem
 
     public SceneryItem Clone() => new()
     {
-        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], Tracks = [.. Tracks], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color,
+        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], Tracks = [.. Tracks], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color, Address = Address,
     };
 
     public static string KindName(SceneryKind k) => k switch

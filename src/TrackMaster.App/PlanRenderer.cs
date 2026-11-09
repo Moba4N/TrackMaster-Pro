@@ -590,7 +590,38 @@ public sealed class PlanScene
         }
         foreach (var src in items)
             if (PowerSupply.Type(src) == PowerSourceType.Verteiler) DrawDistributor(dc, src, z, src.Id == selected);
+            else if (PowerSupply.Type(src) == PowerSourceType.Baustein) DrawModule(dc, src, g, z, src.Id == selected);
             else DrawPowerSymbol(dc, src, g, z, src.Id == selected);
+    }
+
+    /// <summary>Decoder-Baustein: Platine mit Typ und Name, Klemmen für Ausgänge bzw. Melder an der Unterkante.</summary>
+    private static void DrawModule(DrawingContext dc, SceneryItem src, double g, double z, bool selected)
+    {
+        var m = Yamorc.ModelOf(src);
+        var body = m?.Role == ModuleRole.Melden ? new Rgb(0x0D, 0x47, 0xA1) : new Rgb(0x1B, 0x5E, 0x20);
+        double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
+        dc.PushTransform(new TranslateTransform(src.X, src.Y));
+        dc.PushTransform(new RotateTransform(src.Rotation));
+        var corner = d * 0.08;
+        dc.DrawRoundedRectangle(B(body), selected ? new Pen(Theme.AccentBrush, 3 / z) : new Pen(B(new Rgb(0xE0, 0xE0, 0xE0)), 1.2 / z), new Rect(-hw, -hd, w, d), corner, corner);
+        var culture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        var bold = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var normal = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        void Text(string s, Typeface face, double size, double cy)
+        {
+            var t = new FormattedText(s, culture, FlowDirection.LeftToRight, face, Math.Max(size, 0.5), Brushes.White, 1.0);
+            if (t.Width > w * 0.9 && t.Width > 0) t.SetFontSize(Math.Max(size * w * 0.9 / t.Width, 0.5));
+            dc.DrawText(t, new Point(-t.Width / 2, cy - t.Height / 2));
+        }
+        Text(m?.Id ?? src.Model ?? "", bold, d * 0.26, -d * 0.2);
+        Text(Yamorc.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name, normal, d * 0.18, d * 0.1);
+        var n = Math.Clamp(m?.Outputs ?? 0, 0, 16);
+        var step = n > 0 ? w / n : w;
+        var tr = Math.Min(step * 0.32, Math.Max(g * 0.45, 3 / z));
+        var ring = new Pen(B(new Rgb(0x42, 0x42, 0x42)), Math.Max(tr * 0.25, 0.6 / z));
+        for (var i = 0; i < n; i++) dc.DrawEllipse(B(new Rgb(0xF2, 0xC0, 0x00)), ring, new Point(-hw + step * (i + 0.5), hd), tr, tr);
+        dc.Pop();
+        dc.Pop();
     }
 
     /// <summary>Verteilerleiste: Leiste in Aderfarbe mit Klemmen auf der Mittellinie.</summary>
@@ -660,7 +691,7 @@ public sealed class PlanScene
         var culture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
         var bold = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         var normal = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-        var shortName = PowerSupply.ShortName(type);
+        var shortName = PowerSupply.Label(src);
         var tx = ix + r + (hw - (ix + r)) / 2;
         var room = hw - (ix + r) - d * 0.08;
         void Text(string s, Typeface face, double size, double cy)

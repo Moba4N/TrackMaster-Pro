@@ -582,7 +582,58 @@ public sealed class PlanPainter
         }
         foreach (var src in items)
             if (PowerSupply.Type(src) == PowerSourceType.Verteiler) DrawDistributor(c, src, z, src.Id == selectedObject, density, p);
+            else if (PowerSupply.Type(src) == PowerSourceType.Baustein) DrawModule(c, src, g, z, src.Id == selectedObject, density, p);
             else DrawPowerSymbol(c, src, g, z, src.Id == selectedObject, density, p);
+    }
+
+    /// <summary>Decoder-Baustein: Platine mit Typ und Name, Klemmen für Ausgänge bzw. Melder an der Unterkante.</summary>
+    private static void DrawModule(Canvas c, SceneryItem src, float g, float z, bool selected, float density, Paint p)
+    {
+        var m = Yamorc.ModelOf(src);
+        var feedback = m?.Role == ModuleRole.Melden;
+        var body = feedback ? new Rgb(0x0D, 0x47, 0xA1) : new Rgb(0x1B, 0x5E, 0x20);
+        float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
+        c.Save();
+        c.Translate((float)src.X, (float)src.Y);
+        c.Rotate((float)src.Rotation);
+        var rect = new RectF(-hw, -hd, hw, hd);
+        var corner = d * 0.08f;
+        p.SetPathEffect(null);
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = C(body);
+        c.DrawRoundRect(rect, corner, corner, p);
+        p.SetStyle(Paint.Style.Stroke);
+        p.Color = selected ? Ui.Accent : Color.Rgb(0xE0, 0xE0, 0xE0);
+        p.StrokeWidth = selected ? 3 * density / z : 1.2f * density / z;
+        c.DrawRoundRect(rect, corner, corner, p);
+        // Typ groß, Name und Adressen klein
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = Color.White;
+        p.TextAlign = Paint.Align.Center;
+        p.SetTypeface(true);
+        var title = m?.Id ?? src.Model ?? "";
+        p.TextSize = Fit(p, title, d * 0.26f, w * 0.9f);
+        c.DrawText(title, 0, -d * 0.12f, p);
+        p.SetTypeface(false);
+        var info = Yamorc.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name;
+        p.TextSize = Fit(p, info, d * 0.18f, w * 0.9f);
+        c.DrawText(info, 0, d * 0.14f, p);
+        // Klemmen
+        var n = Math.Clamp(m?.Outputs ?? 0, 0, 16);
+        var step = n > 0 ? w / n : w;
+        var tr = Math.Min(step * 0.32f, Math.Max(g * 0.45f, 3 * density / z));
+        for (var i = 0; i < n; i++)
+        {
+            var x = -hw + step * (i + 0.5f);
+            p.SetStyle(Paint.Style.Fill);
+            p.Color = Color.Rgb(0xF2, 0xC0, 0x00);
+            c.DrawCircle(x, hd, tr, p);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = Color.Rgb(0x42, 0x42, 0x42);
+            p.StrokeWidth = Math.Max(tr * 0.25f, 0.6f / z);
+            c.DrawCircle(x, hd, tr, p);
+        }
+        c.Restore();
     }
 
     /// <summary>Verteilerleiste: Leiste in Aderfarbe mit Klemmen auf der Mittellinie.</summary>
@@ -673,7 +724,7 @@ public sealed class PlanPainter
         }
 
         // Art und Name
-        var short_ = PowerSupply.ShortName(type);
+        var short_ = PowerSupply.Label(src);
         var tx = ix + r + (hw - (ix + r)) / 2;
         var room = hw - (ix + r) - d * 0.08f;
         p.SetStyle(Paint.Style.Fill);

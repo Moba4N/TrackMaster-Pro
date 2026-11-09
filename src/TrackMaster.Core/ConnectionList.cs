@@ -41,6 +41,15 @@ public static class ConnectionList
             rows.Add(new(Lang.T("Verteiler"), d.Name, Lang.T("Verteilerleiste"), "", string.Join(", ", wires), "",
                 WireLayout.ColorName(PowerSupply.DistributorColor(d)), "", "", "", Lang.F($"{PowerSupply.Clamps} Klemmen")));
         }
+        foreach (var mod in PowerSupply.Modules(plan))
+        {
+            var m = Yamorc.ModelOf(mod);
+            var wires = Yamorc.Ports(mod).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Select(w => w.Name);
+            var assigned = Yamorc.Assigned(plan, mod).Select(a => Lang.F($"{a.Port}: {a.Label}"));
+            var range = Yamorc.Range(mod) is { } r ? $"{r.First}–{r.Last}" : "";
+            rows.Add(new(Lang.T("Decoder-Baustein"), mod.Name, m is null ? mod.Model ?? "" : $"{m.Maker} {m.Title}", "", string.Join(", ", wires), string.Join("; ", assigned),
+                "", "", "", range, m?.Bus ?? ""));
+        }
         foreach (var f in plan.Feeders)
         {
             if (plan.Find(f.PieceId) is not { } p) continue;
@@ -59,12 +68,14 @@ public static class ConnectionList
         foreach (var d in plan.Detectors)
         {
             if (plan.Find(d.PieceId) is not { } p) continue;
+            var feedback = d.Address is { } da && Yamorc.ModuleFor(plan, da, ModuleRole.Melden) is { } fm ? Lang.F($"{fm.Name}, Melder {da - Yamorc.Range(fm)!.Value.First + 1}") : "";
             rows.Add(new(Lang.T("Rückmelder"), d.Name.Length > 0 ? d.Name : Lang.F($"Nr. {d.Id}"), Detector.TypeName(d.Type),
-                Join(Piece(d.PieceId), Section(d.PieceId)), Wires(Electrics.DetectorPoint(p, g)), "", "", "", "",
+                Join(Piece(d.PieceId), Section(d.PieceId)), Wires(Electrics.DetectorPoint(p, g)), feedback, "", "", "",
                 d.Address?.ToString(CultureInfo.InvariantCulture) ?? "", ""));
         }
         foreach (var i in Electrics.SwitchingItems(plan))
-            rows.Add(new(i.Kind, i.Label, "", i.PieceId is { } pid ? Piece(pid) : "", "", "", "", "", "",
+            rows.Add(new(i.Kind, i.Label, "", i.PieceId is { } pid ? Piece(pid) : "", i.Address is { } ma && Yamorc.ModuleFor(plan, ma, ModuleRole.Schalten) is { } mod
+                    ? Lang.F($"{mod.Name}, Ausgang {ma - Yamorc.Range(mod)!.Value.First + 1}") : "", "", "", "", "",
                 i.Address is { } a ? (i.AddressCount > 1 ? $"{a}–{a + i.AddressCount - 1}" : a.ToString(CultureInfo.InvariantCulture)) : "", ""));
         return rows;
     }

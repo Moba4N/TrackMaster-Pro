@@ -677,7 +677,7 @@ public static partial class Dialogs
         autoRow.Children.Add(first);
         autoRow.Children.Add(onlyMissing);
         var body = new StackPanel();
-        body.Children.Add(Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). An welchem Ausgang sie hängen, ergibt sich aus den Decoder-Bausteinen im Plan (Elektrik › Digital-Decoder) und deren Startadresse.")));
+        body.Children.Add(Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2).")));
         body.Children.Add(autoRow);
         body.Children.Add(grid);
         void Fill()

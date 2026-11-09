@@ -35,11 +35,12 @@ public class LevelTests
     }
 
     [Fact]
-    public void Hoechstens_zehn_Ebenen()
+    public void Hoechstens_25_Ebenen()
     {
+        Assert.Equal(25, LayoutPlan.MaxLevels);
         var s = Session();
-        var edits = Enumerable.Range(0, 14).Select(i => new LevelEdit(i == 0 ? 0 : -1, $"E{i}", i * 100, true)).ToList();
-        s.ApplyLevels(edits, 12);
+        var edits = Enumerable.Range(0, LayoutPlan.MaxLevels + 4).Select(i => new LevelEdit(i == 0 ? 0 : -1, $"E{i}", i * 100, true)).ToList();
+        s.ApplyLevels(edits, LayoutPlan.MaxLevels + 2);
         Assert.Equal(LayoutPlan.MaxLevels, s.Plan.Levels.Count);
         Assert.Equal(LayoutPlan.MaxLevels - 1, s.Plan.ActiveLevel);
     }

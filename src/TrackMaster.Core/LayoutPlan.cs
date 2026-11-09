@@ -416,7 +416,7 @@ public sealed record LevelEdit(int Index, string Name, double Height, bool Visib
 public sealed class LayoutPlan
 {
     /// <summary>Höchstens so viele Ebenen.</summary>
-    public const int MaxLevels = 10;
+    public const int MaxLevels = 25;
     public string Name { get; set; } = Lang.T("Neuer Plan");
     public string GaugeId { get; set; } = "H0";
     /// <summary>Gleissystem, mit dem im Plan gearbeitet wurde (wird beim Öffnen in der Bibliothek gewählt).</summary>

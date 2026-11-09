@@ -895,8 +895,36 @@ public sealed partial class MainWindow : Window
             ToolTipDescription = Lang.T("Signalart wählen, dann auf ein Gleisende klicken."),
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
         };
+        var typeItems = new List<(RibbonMenuItem Item, SignalType Type)>();
         foreach (var t in Enum.GetValues<SignalType>())
-            signalMenu.Items.Add(new RibbonMenuItem { Header = Signal.TypeName(t), ImageSource = PlanScene.SignalImage(t), ToolTip = SignalFace.For(t).Description, Command = _commands["signal" + t] });
+        {
+            var item = new RibbonMenuItem { Header = Signal.TypeName(t), Command = _commands["signal" + t] };
+            typeItems.Add((item, t));
+            signalMenu.Items.Add(item);
+        }
+        var systemMenu = new RibbonMenuItem { Header = Lang.T("Signalsystem") };
+        var systemItems = new List<(RibbonMenuItem Item, SignalSystem System)>();
+        void ShowSystem()
+        {
+            foreach (var (item, t) in typeItems)
+            {
+                item.ImageSource = PlanScene.SignalImage(t, Session.SignalSystem);
+                item.ToolTip = SignalFace.For(t, Session.SignalSystem).Description;
+            }
+            foreach (var (item, sy) in systemItems) item.IsChecked = sy == Session.SignalSystem;
+            systemMenu.Header = Lang.F($"Signalsystem: {Signal.SystemName(Session.SignalSystem)}");
+        }
+        foreach (var sy in Enum.GetValues<SignalSystem>())
+        {
+            var system = sy;
+            var item = new RibbonMenuItem { Header = Signal.SystemName(sy), IsCheckable = true, ImageSource = PlanScene.SignalImage(SignalType.Hauptsignal, sy) };
+            item.Click += (_, _) => { Session.SignalSystem = system; ShowSystem(); };
+            systemItems.Add((item, sy));
+            systemMenu.Items.Add(item);
+        }
+        signalMenu.Items.Add(new RibbonSeparator());
+        signalMenu.Items.Add(systemMenu);
+        ShowSystem();
         var currentMenu = new RibbonMenuButton
         {
             Label = Lang.T("Betrieb / Stromart"), LargeImageSource = Icons.Get("Current"), SmallImageSource = Icons.Get("Current"), ToolTipTitle = Lang.T("Betrieb / Stromart"),

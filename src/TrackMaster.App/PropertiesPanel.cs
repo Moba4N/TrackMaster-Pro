@@ -671,9 +671,14 @@ public sealed class PropertiesPanel : DockPanel
                 type.SelectionChanged += (_, _) => { if (type.SelectedItem is ComboBoxItem { Tag: SignalType t } && t != g.Type) _session.Edit(() => g.Type = t); };
                 _body.Children.Add(Theme.Label(Lang.T("Art"), 11, false, Theme.TextSecondaryBrush));
                 _body.Children.Add(type);
-                var face = SignalFace.For(g.Type);
+                var system = new ComboBox { Height = 28 };
+                foreach (var sy in Enum.GetValues<SignalSystem>()) system.Items.Add(new ComboBoxItem { Content = Signal.SystemName(sy), Tag = sy, IsSelected = sy == g.System });
+                system.SelectionChanged += (_, _) => { if (system.SelectedItem is ComboBoxItem { Tag: SignalSystem sy } && sy != g.System) _session.Edit(() => g.System = sy); };
+                _body.Children.Add(Theme.Label(Lang.T("Signalsystem"), 11, false, Theme.TextSecondaryBrush));
+                _body.Children.Add(system);
+                var face = SignalFace.For(g);
                 var picture = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-                picture.Children.Add(new System.Windows.Controls.Image { Source = PlanScene.SignalImage(g.Type), Width = 34, Height = 88, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top });
+                picture.Children.Add(new System.Windows.Controls.Image { Source = PlanScene.SignalImage(g.Type, g.System), Width = 34, Height = 88, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top });
                 var faceText = new StackPanel();
                 faceText.Children.Add(Theme.Label(face.Aspect, 12, true));
                 faceText.Children.Add(new TextBlock { Text = face.Description, TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Foreground = Theme.TextSecondaryBrush });

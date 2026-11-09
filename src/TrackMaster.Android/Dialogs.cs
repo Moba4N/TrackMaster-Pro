@@ -659,9 +659,12 @@ public static partial class Dialogs
                 var types = Enum.GetValues<SignalType>();
                 var type = Choice(c, types.Select(Signal.TypeName).ToList(), Array.IndexOf(types, g.Type));
                 body.AddView(Ui.Field(c, Lang.T("Art"), type));
-                var face = SignalFace.For(g.Type);
+                var systems = Enum.GetValues<SignalSystem>();
+                var system = Choice(c, systems.Select(Signal.SystemName).ToList(), Array.IndexOf(systems, g.System));
+                body.AddView(Ui.Field(c, Lang.T("Signalsystem"), system));
+                var face = SignalFace.For(g);
                 var picture = Ui.Row(c, 12);
-                picture.AddView(new SignalIconView(c, g.Type), new LinearLayout.LayoutParams(Ui.Dp(36), Ui.Dp(64)));
+                picture.AddView(new SignalIconView(c, g.Type, g.System), new LinearLayout.LayoutParams(Ui.Dp(36), Ui.Dp(64)));
                 picture.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
                 body.AddView(picture);
                 var address = Ui.Number(c, g.Address ?? 0);
@@ -676,7 +679,8 @@ public static partial class Dialogs
                     var t = types[Math.Max(0, type.SelectedItemPosition)];
                     var n = (name.Text ?? "").Trim();
                     int? addr = a >= 1 ? (int)Math.Round(a) : null;
-                    if (n != g.Name || t != g.Type || addr != g.Address) session.Edit(() => { g.Name = n; g.Type = t; g.Address = addr; });
+                    var sy = systems[Math.Max(0, system.SelectedItemPosition)];
+                    if (n != g.Name || t != g.Type || sy != g.System || addr != g.Address) session.Edit(() => { g.Name = n; g.Type = t; g.System = sy; g.Address = addr; });
                     return true;
                 });
                 break;
@@ -1103,26 +1107,39 @@ public static partial class Dialogs
         dialog = Show(c, title, body, okText: null);
     }
 
-    public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)
+    public static void AskSignalType(Context c, SignalType current, SignalSystem currentSystem, Action<SignalType, SignalSystem> pick)
     {
         var body = Ui.Column(c, 6);
         AlertDialog? dialog = null;
-        foreach (var t in Enum.GetValues<SignalType>())
+        var systems = Enum.GetValues<SignalSystem>();
+        var system = Choice(c, systems.Select(Signal.SystemName).ToList(), Array.IndexOf(systems, currentSystem));
+        body.AddView(Ui.Field(c, Lang.T("Signalsystem"), system));
+        var list = Ui.Column(c, 6);
+        body.AddView(list);
+        void Fill()
         {
-            var type = t;
-            var face = SignalFace.For(t);
-            var row = Ui.Row(c, 12);
-            row.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
-            row.Background = Ui.Rounded(t == current ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), t == current ? Ui.Accent : Ui.Border);
-            row.Clickable = true;
-            row.AddView(new SignalIconView(c, t), new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(64)));
-            var texts = Ui.Column(c, 2);
-            texts.AddView(Ui.Label(c, Signal.TypeName(t), 15, true));
-            texts.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary));
-            row.AddView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
-            row.Click += (_, _) => { pick(type); dialog?.Dismiss(); };
-            body.AddView(row);
+            list.RemoveAllViews();
+            var sy = systems[Math.Max(0, system.SelectedItemPosition)];
+            foreach (var t in Enum.GetValues<SignalType>())
+            {
+                var type = t;
+                var face = SignalFace.For(t, sy);
+                var on = t == current && sy == currentSystem;
+                var row = Ui.Row(c, 12);
+                row.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
+                row.Background = Ui.Rounded(on ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), on ? Ui.Accent : Ui.Border);
+                row.Clickable = true;
+                row.AddView(new SignalIconView(c, t, sy), new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(64)));
+                var texts = Ui.Column(c, 2);
+                texts.AddView(Ui.Label(c, Signal.TypeName(t), 15, true));
+                texts.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary));
+                row.AddView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+                row.Click += (_, _) => { pick(type, sy); dialog?.Dismiss(); };
+                list.AddView(row);
+            }
         }
+        system.ItemSelected += (_, _) => Fill();
+        Fill();
         dialog = Show(c, Lang.T("Signal setzen"), body, okText: null);
     }
 
@@ -1182,13 +1199,13 @@ public static partial class Dialogs
         }
     }
 
-    /// <summary>Kleines Signalbild (H/V-Lichtsignal) für Listen.</summary>
-    private sealed class SignalIconView(Context c, SignalType type) : View(c)
+    /// <summary>Kleines Signalbild für Listen.</summary>
+    private sealed class SignalIconView(Context c, SignalType type, SignalSystem system = SignalSystem.HV) : View(c)
     {
         protected override void OnDraw(Canvas canvas)
         {
             base.OnDraw(canvas);
-            PlanPainter.SignalIcon(canvas, type, Width, Height);
+            PlanPainter.SignalIcon(canvas, type, Width, Height, system);
         }
     }
 

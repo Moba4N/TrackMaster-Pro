@@ -268,7 +268,7 @@ public sealed class MainActivity : Activity
                 Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan tippen – auch neben die Platte, wo das Gerät später steht."));
         });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
-        Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); }));
+        Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, _session.SignalSystem, (t, sy) => { _session.SignalType = t; _session.SignalSystem = sy; SetTool(CanvasTool.Signal); }));
         Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
         Add("current", Lang.T("Betrieb und Stromart"), () =>
         {

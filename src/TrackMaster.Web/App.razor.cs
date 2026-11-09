@@ -543,7 +543,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: klicken oder Rechteck aufziehen."),
         CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis klicken (Klick auf einen Rückmelder entfernt ihn)."),
         CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) klicken."),
-        CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung klicken."),
+        CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)} ({Signal.SystemShort(_session.SignalSystem)}): auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
         CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),

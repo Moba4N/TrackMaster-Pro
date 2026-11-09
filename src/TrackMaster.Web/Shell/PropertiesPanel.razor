@@ -116,6 +116,7 @@
             case Signal g:
                 _f["name"] = g.Name;
                 _f["type"] = g.Type.ToString();
+                _f["system"] = g.System.ToString();
                 _f["address"] = g.Address?.ToString() ?? "";
                 break;
             case IReadOnlyList<PlacedPiece>:
@@ -905,14 +906,15 @@
         if (F("address").Trim().Length > 0) Read("address", Lang.T("Adresse"), 0, 2048, errors, out a);
         if (Fail(errors)) return;
         var t = Enum.TryParse<SignalType>(F("type"), out var tt) ? tt : g.Type;
+        var sy = Enum.TryParse<SignalSystem>(F("system"), out var ss) ? ss : g.System;
         var n = F("name").Trim();
         int? addr = a >= 1 ? (int)Math.Round(a) : null;
-        if (n != g.Name || t != g.Type || addr != g.Address) Session.Edit(() => { g.Name = n; g.Type = t; g.Address = addr; });
+        if (n != g.Name || t != g.Type || sy != g.System || addr != g.Address) Session.Edit(() => { g.Name = n; g.Type = t; g.System = sy; g.Address = addr; });
     }
 
     private RenderFragment SignalForm(Signal g) => __builder =>
     {
-        var face = SignalFace.For(g.Type);
+        var face = SignalFace.For(g);
         <label class="field-label">@Lang.T("Name")</label>
         <input class="input" value="@F("name")" @onchange="@(e => Set("name", e, ApplySignal))" />
         <label class="field-label">@Lang.T("Art")</label>
@@ -922,8 +924,15 @@
                 <option value="@t">@Signal.TypeName(t)</option>
             }
         </select>
+        <label class="field-label">@Lang.T("Signalsystem")</label>
+        <select class="input" value="@F("system")" @onchange="@(e => Set("system", e, ApplySignal))">
+            @foreach (var sy in Enum.GetValues<SignalSystem>())
+            {
+                <option value="@sy">@Signal.SystemName(sy)</option>
+            }
+        </select>
         <div class="signal-row">
-            <span class="signal-pic">@((MarkupString)Pictures.Signal(g.Type))</span>
+            <span class="signal-pic">@((MarkupString)Pictures.Signal(g.Type, system: g.System))</span>
             <span class="secondary">@face.Aspect. @face.Description</span>
         </div>
         <label class="field-label">@Lang.T("Adresse (leer = keine)")</label>

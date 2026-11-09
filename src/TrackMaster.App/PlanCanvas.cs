@@ -699,7 +699,7 @@ public sealed class PlanCanvas : FrameworkElement
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            foreach (var (hx, hy) in SignalFace.PlanHitPoints(x, y, heading, SignalFace.PlanScale(_gauge, _zoom), SignalFace.For(s.Type))) Try(s.Id, hx, hy);
+            foreach (var (hx, hy) in SignalFace.PlanHitPoints(x, y, heading, SignalFace.PlanScale(_gauge, _zoom), SignalFace.For(s))) Try(s.Id, hx, hy);
         }
         foreach (var f in plan.Feeders)
             if (_session.ViewPiece(f.PieceId) is { } p)

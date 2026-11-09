@@ -83,15 +83,48 @@ public class SignalTests
         var vr = SignalFace.For(SignalType.Vorsignal).Lamps.Where(l => l.Lit).OrderBy(l => l.X).ToList();
         Assert.All(vr, l => Assert.Equal(SignalFace.Yellow, l.Color));
         Assert.True(vr[1].Y < vr[0].Y);
-        foreach (var t in Enum.GetValues<SignalType>())
-        {
-            var f = SignalFace.For(t);
-            // Lampen liegen im Schirm und überlappen nicht
-            Assert.All(f.Lamps, l => Assert.True(Math.Abs(l.X) + l.R <= f.Width / 2 && l.Y - l.R >= 0 && l.Y + l.R <= f.Height, $"{t} {l.Meaning}"));
-            foreach (var a in f.Lamps)
-                foreach (var b in f.Lamps.Where(b => b != a))
-                    Assert.True(Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2)) >= a.R + b.R - 1e-9, $"{t} {a.Meaning}/{b.Meaning}");
-        }
+        foreach (var sy in Enum.GetValues<SignalSystem>())
+            foreach (var t in Enum.GetValues<SignalType>())
+            {
+                var f = SignalFace.For(t, sy);
+                // Lampen liegen im Schirm und überlappen nicht
+                Assert.All(f.Lamps, l => Assert.True(Math.Abs(l.X) + l.R <= f.Width / 2 && l.Y - l.R >= 0 && l.Y + l.R <= f.Height, $"{sy} {t} {l.Meaning}"));
+                foreach (var a in f.Lamps)
+                    foreach (var b in f.Lamps.Where(b => b != a))
+                        Assert.True(Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2)) >= a.R + b.R - 1e-9, $"{sy} {t} {a.Meaning}/{b.Meaning}");
+                // Flächen bleiben im Bildrahmen (Symbolgröße), Bild passt in die Symbolhöhe
+                Assert.All(f.Parts ?? [], part => Assert.All(part.Points, q => Assert.True(Math.Abs(q.X) <= Math.Max(f.Width / 2, 0.8) + 0.15 && q.Y >= -0.15 && q.Y <= f.Height + 0.15, $"{sy} {t}")));
+                Assert.True(f.TotalHeight <= 4.2, $"{sy} {t} zu hoch");
+                Assert.True(f.Shield || (f.Parts?.Count ?? 0) > 0, $"{sy} {t} ohne Bild");
+                Assert.False(string.IsNullOrWhiteSpace(f.Description));
+            }
+    }
+
+    [Fact]
+    public void Signalsystem_wird_gespeichert_und_bestimmt_das_Bild()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 3000, 2000, 600, 0));
+        var p = s.PlaceFlex(s.CurrentFlex, new Pose(500, 500, 0), [Segment.Line(300)], null, null)!;
+        s.SignalSystem = SignalSystem.Form;
+        s.SignalType = SignalType.Hauptsignal;
+        s.AddSignal(p.Id, 1);
+        var sig = s.Plan.Signals.Single();
+        Assert.Equal(SignalSystem.Form, sig.System);
+        Assert.False(SignalFace.For(sig).Shield);
+        var copy = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.Equal(SignalSystem.Form, copy.Signals.Single().System);
+        // Formsignal: Flügel (rot) und rotes Nachtlicht, kein Schirm
+        Assert.Contains(SignalFace.For(sig).Parts!, part => part.Fill == SignalFace.PlateRed);
+        // Großbritannien: rot unten, Frankreich: Rangiersignal violett, Schweiz: Zwergsignal weiß
+        Assert.Equal(SignalFace.Red, SignalFace.For(SignalType.Hauptsignal, SignalSystem.UK).Lamps.OrderBy(l => l.Y).Last().Color);
+        Assert.Equal(SignalFace.Violet, SignalFace.For(SignalType.Sperrsignal, SignalSystem.SNCF).Lamps.Single(l => l.Lit).Color);
+        Assert.All(SignalFace.For(SignalType.Sperrsignal, SignalSystem.SBB).Lamps.Where(l => l.Lit), l => Assert.Equal(SignalFace.White, l.Color));
+        Assert.Contains("(Formsignal)", TrainRoutes.ControlText(s.Plan));
+        // 3D zeichnet alle Systeme
+        foreach (var sy in Enum.GetValues<SignalSystem>())
+            foreach (var t in Enum.GetValues<SignalType>()) { s.SignalSystem = sy; s.SignalType = t; s.AddSignal(p.Id, 0); }
+        Assert.True(new Scene3DModel(s.Plan).TriangleCount > 0);
     }
 
     [Fact]

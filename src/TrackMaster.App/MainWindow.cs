@@ -810,7 +810,7 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Bearbeiten"),
                 Small(Lang.T("15° links drehen"), "RotateLeft", "rotL", Lang.T("Umschalt+R")), Small(Lang.T("15° rechts drehen"), "RotateRight", "rotR", "R"), Small(Lang.T("Frei drehen…"), "RotateFree", "rotFree", Lang.T("Auswahl um einen beliebigen Winkel drehen.")), Small(Lang.T("Spiegeln"), "Mirror", "flip", Lang.T("Bögen, Weichen und Kreuzungen spiegeln (F).")),
                 Small(Lang.T("Anschluss wechseln"), "Swap", "swap", Lang.T("Gleis mit dem nächsten Anschluss an dieselbe Stelle legen (A).")), Small(Lang.T("Duplizieren"), "Copy", "duplicate", Lang.T("Strg+D")), Small(Lang.T("Gleis wiederholen"), "Redo", "repeat", Lang.T("Das zuletzt angesetzte Gleis noch einmal am aktiven Gleisende ansetzen (Eingabetaste oder Leertaste) – z. B. mehrere Flexgleise hintereinander.")), Small(Lang.T("Löschen"), "Delete", "delete", Lang.T("Entf")),
-                Small(Lang.T("Kopieren"), "Copy", "copy", Lang.T("Gewählte Gleise samt Gleisanschlüssen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan.")),
+                Small(Lang.T("Kopieren"), "Copy", "copy", Lang.T("Gewählte Gleise samt Einspeisungen, Trennstellen und Signalen kopieren (Strg+C) – auch in einen anderen Plan.")),
                 Small(Lang.T("Einfügen"), "Paste", "paste", Lang.T("Kopiertes an der Mausposition einfügen (Strg+V)."))),
             Group(Lang.T("Anordnen"),
                 Small(Lang.T("Sperren"), "Lock", "lock", Lang.T("Gewählte Gleise gegen Verschieben, Drehen und Löschen sperren – ein zweiter Klick entsperrt sie.")),
@@ -953,7 +953,7 @@ public sealed partial class MainWindow : Window
         var powerMenu = new RibbonMenuButton
         {
             Label = Lang.T("Trafo / Zentrale"), LargeImageSource = Icons.Get("Power"), SmallImageSource = Icons.Get("Power"), ToolTipTitle = Lang.T("Trafo / Zentrale"),
-            ToolTipDescription = Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Die Gleisanschlüsse hängen daran."),
+            ToolTipDescription = Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Danach mit „Kabel von hier verlegen“ Bahnstrom und Masse aufs Gleis legen; jedes Kabelende auf einem Gleis ist eine Einspeisung."),
             ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
         };
         powerMenu.DropDownOpened += (_, _) =>
@@ -994,7 +994,7 @@ public sealed partial class MainWindow : Window
                 Toggle(Lang.T("Stromkreise zeigen"), "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
                 Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
                     Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
-                Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Gleisanschluss, Stromquellen, Kehrschleifen, doppelte Adressen, Polung und Kabel. Ein Klick auf einen Befund zeigt die Gleise."))),
+                Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Einspeisung, fehlende Masse, Kurzschlüsse, Stromquellen, Kehrschleifen, doppelte Adressen und Kabel. Ein Klick auf einen Befund zeigt die Stelle."))),
             Group(Lang.T("Verkabelung"), wireMenu,
                 Toggle(Lang.T("Kabel zeigen"), "Wire", false, () => Session.ShowWires, on => { Session.ShowWires = on; Canvas.InvalidateVisual(); },
                     Lang.T("Selbst verlegte Kabel und die roten Verbindungslinien ein- oder ausblenden."))),
@@ -1003,8 +1003,8 @@ public sealed partial class MainWindow : Window
                 signalMenu,
                 distributorMenu,
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
-                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Gleisanschlüsse (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
-                Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Gleisanschlüsse, Trennstellen und Decoderbelegung als Liste.")),
+                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
+                Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));
 

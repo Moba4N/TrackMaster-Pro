@@ -113,16 +113,25 @@ public static class Electrics
         return best;
     }
 
-    private static bool Isolated(LayoutPlan plan, ConnectorRef c)
-        => plan.Isolations.Any(i => (i.PieceId == c.PieceId && i.Index == c.Index) || (c.Link is { } l && i.PieceId == l.PieceId && i.Index == l.Index));
+    /// <summary>Gleisenden mit Trennstelle, einmal je Auswertung gesammelt.</summary>
+    private static HashSet<(int PieceId, int Index)> IsolationSet(LayoutPlan plan)
+    {
+        var set = new HashSet<(int, int)>();
+        foreach (var i in plan.Isolations) set.Add((i.PieceId, i.Index));
+        return set;
+    }
+
+    private static bool Isolated(HashSet<(int PieceId, int Index)> isolations, ConnectorRef c)
+        => isolations.Count > 0 && (isolations.Contains((c.PieceId, c.Index)) || (c.Link is { } l && isolations.Contains((l.PieceId, l.Index))));
 
     public static IReadOnlyList<PowerSection> Sections(LayoutPlan plan, Connectivity? connectivity = null)
     {
         var conn = connectivity ?? Connectivity.Analyze(plan);
         var parent = plan.Pieces.ToDictionary(p => p.Id, p => p.Id);
         int Root(int x) { while (parent[x] != x) x = parent[x] = parent[parent[x]]; return x; }
+        var isolations = IsolationSet(plan);
         foreach (var c in conn.All)
-            if (c.Link is { } l && !Isolated(plan, c) && parent.ContainsKey(l.PieceId))
+            if (c.Link is { } l && !Isolated(isolations, c) && parent.ContainsKey(l.PieceId))
                 parent[Root(c.PieceId)] = Root(l.PieceId);
         var groups = plan.Pieces.GroupBy(p => Root(p.Id))
             .Select(g => g.ToList())
@@ -205,10 +214,12 @@ public static class Electrics
             if (p.Def.Kind == PieceKind.Switch)
                 for (var l = 1; l < paths; l++) Edge((p.Id, 0), (p.Id, l), false);
         }
+        var isolations = IsolationSet(plan);
+        var index = plan.PieceIndex();
         foreach (var c in conn.All)
         {
-            if (c.Link is not { } l || c.PieceId > l.PieceId || (c.PieceId == l.PieceId && c.Index > l.Index) || Isolated(plan, c)) continue;
-            if (plan.Find(c.PieceId) is not { } pa || plan.Find(l.PieceId) is not { } pb) continue;
+            if (c.Link is not { } l || c.PieceId > l.PieceId || (c.PieceId == l.PieceId && c.Index > l.Index) || Isolated(isolations, c)) continue;
+            if (!index.TryGetValue(c.PieceId, out var pa) || !index.TryGetValue(l.PieceId, out var pb)) continue;
             var a = LegOf(pa, c.Index);
             var b = LegOf(pb, l.Index);
             // Zeigen beide Anschlüsse auf dasselbe Abschnittsende (Anfang/Anfang oder Ende/Ende), kehrt sich links/rechts um
@@ -297,6 +308,7 @@ public static class Electrics
         var current = Current(plan);
         var threeRail = plan.Pieces.Where(IsThreeRail).Select(p => p.Id).ToList();
         var twoRail = plan.Pieces.Where(p => !IsThreeRail(p)).Select(p => p.Id).ToList();
+        var threeRailSet = threeRail.ToHashSet();
         if (current == CurrentKind.Wechselstrom && twoRail.Count > 0)
         {
             var m = plan.Find(twoRail[0])!.Middle();
@@ -309,9 +321,9 @@ public static class Electrics
         }
         foreach (var s in sections)
         {
-            if (s.PieceIds.Any(threeRail.Contains) && s.PieceIds.Any(twoRail.Contains))
+            if (s.PieceIds.Any(threeRailSet.Contains) && s.PieceIds.Any(id => !threeRailSet.Contains(id)))
             {
-                var mixed = s.PieceIds.Where(threeRail.Contains).ToList();
+                var mixed = s.PieceIds.Where(threeRailSet.Contains).ToList();
                 var m = plan.Find(mixed[0])!.Middle();
                 issues.Add(new(IssueLevel.Fehler, Lang.T("Stromart"), Lang.F($"Abschnitt {s.Number} verbindet Mittelleiter- und Zweileiter-Gleise ohne Trennstelle. Am Übergang beide Schienen und den Mittelleiter trennen."), mixed, m.X, m.Y));
             }

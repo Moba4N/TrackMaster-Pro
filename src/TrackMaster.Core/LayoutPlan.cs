@@ -26,7 +26,18 @@ public sealed class PlacedPiece
     /// <summary>Gruppe (0 = keine): ein Klick wählt alle Gleise der Gruppe.</summary>
     public int Group { get; set; }
 
-    public TrackPieceDef Def => Catalog.Get(Key);
+    private string? _defKey;
+    private TrackPieceDef? _def;
+    /// <summary>Katalogteil zu <see cref="Key"/> (gemerkt, bis sich der Schlüssel ändert).</summary>
+    public TrackPieceDef Def
+    {
+        get
+        {
+            var key = Key;
+            if (_def is null || !ReferenceEquals(_defKey, key)) { _def = Catalog.Get(key); _defKey = key; }
+            return _def;
+        }
+    }
 
     /// <summary>Steigung, die tatsächlich gilt (Kreuzungen und Prellböcke eben).</summary>
     public double EffectiveGrade => Def.Kind is PieceKind.Crossing or PieceKind.Buffer || Def.IsTable ? 0 : Grade;
@@ -478,7 +489,22 @@ public sealed class LayoutPlan
         return new LayoutPlan { GaugeId = g.Id, BoardWidth = g.DefaultBoardWidth, BoardHeight = g.DefaultBoardHeight };
     }
 
-    public PlacedPiece? Find(int id) => Pieces.FirstOrDefault(p => p.Id == id);
+    public PlacedPiece? Find(int id)
+    {
+        foreach (var p in Pieces) if (p.Id == id) return p;
+        return null;
+    }
+
+    /// <summary>
+    /// Gleise nach Kennung für viele Abfragen hintereinander (statt <see cref="Find"/> je Gleis).
+    /// Bei doppelter Kennung gilt wie bei <see cref="Find"/> das erste Gleis. Gilt nur bis zur nächsten Änderung der Gleisliste.
+    /// </summary>
+    public Dictionary<int, PlacedPiece> PieceIndex()
+    {
+        var index = new Dictionary<int, PlacedPiece>(Pieces.Count);
+        foreach (var p in Pieces) index.TryAdd(p.Id, p);
+        return index;
+    }
 
     /// <summary>Vorschlag für den Abstand zur nächsten Ebene: lichte Höhe der Spur plus Trasse und Unterbau.</summary>
     public double LevelStep => Math.Round((Gauge.ClearanceHeight + 40) / 10) * 10;

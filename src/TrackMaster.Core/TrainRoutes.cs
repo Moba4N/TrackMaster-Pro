@@ -72,6 +72,7 @@ public static class TrainRoutes
     public static IReadOnlyList<TrainRoute> Find(LayoutPlan plan)
     {
         var conn = Connectivity.Analyze(plan);
+        var index = plan.PieceIndex();
         var passages = plan.Pieces.ToDictionary(p => p.Id, Passages);
         var signalsAt = plan.Signals.GroupBy(s => (s.PieceId, s.Index)).ToDictionary(g => g.Key, g => g.First());
         var routes = new List<TrainRoute>();
@@ -85,7 +86,7 @@ public static class TrainRoutes
             void Walk(int pieceId, int entry, double length)
             {
                 // Ohne weitere Signale kann die Zahl der Wege stark wachsen: Suche begrenzen
-                if (++steps > MaxSteps || pieces.Count > MaxPieces || plan.Find(pieceId) is not { } piece || !visited.Add(pieceId)) return;
+                if (++steps > MaxSteps || pieces.Count > MaxPieces || !index.TryGetValue(pieceId, out var piece) || !visited.Add(pieceId)) return;
                 pieces.Add(pieceId);
                 var options = passages[pieceId].Where(x => x.From == entry).ToList();
                 var drives = piece.Def.Drives > 0 && passages[pieceId].Select(x => x.Path).Distinct().Count() > 1;
@@ -109,7 +110,7 @@ public static class TrainRoutes
             void Add(int? endSignal, int? endPiece, double length)
             {
                 var target = endSignal is { } id ? SignalName(plan.Signals.First(s => s.Id == id))
-                    : plan.Find(endPiece!.Value)?.Def.Kind == PieceKind.Buffer ? Lang.F($"Prellbock Nr. {endPiece}") : Lang.F($"Gleisende Nr. {endPiece}");
+                    : index.GetValueOrDefault(endPiece!.Value)?.Def.Kind == PieceKind.Buffer ? Lang.F($"Prellbock Nr. {endPiece}") : Lang.F($"Gleisende Nr. {endPiece}");
                 routes.Add(new TrainRoute($"{SignalName(start)} → {target}", start.Id, endSignal, endSignal is null ? endPiece : null, [.. pieces], [.. settings], length));
             }
             Walk(first.PieceId, first.Index, 0);

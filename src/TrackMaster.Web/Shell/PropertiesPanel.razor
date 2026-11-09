@@ -755,7 +755,7 @@
                         {
                             <dt>@Lang.T("Masse am Gleis")</dt><dd>@PowerSupply.GroundsOf(Plan, s).Count()</dd>
                         }
-                        var sections = Electrics.Sections(Plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                        var sections = Electrics.Sections(Plan, Session.Connections).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
                         <dt>@Lang.T("Stromabschnitte")</dt><dd>@(sections.Count == 0 ? "–" : string.Join(", ", sections.Select(x => x.Number)))</dd>
                         <dt>@Lang.T("Gleislänge")</dt><dd>@Fmt.Num(sections.Sum(x => x.LengthMm) / 1000, 2) m</dd>
                     }
@@ -886,7 +886,7 @@
     private RenderFragment FeederForm(Feeder f) => __builder =>
     {
         var circuits = Session.CircuitNames.Append(f.Circuit).Distinct().ToList();
-        var section = Electrics.Sections(Plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+        var section = Electrics.Sections(Plan, Session.Connections).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
         var source = PowerSupply.SourceOf(Plan, f);
         <label class="field-label">@(Plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"))</label>
         <select class="input" value="@f.Circuit" @onchange="@(e => Set("circuit", e, ApplyFeeder))">

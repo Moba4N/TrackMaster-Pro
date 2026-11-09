@@ -30,7 +30,6 @@ public partial class App : ComponentBase, IAppHost
     private string? _toast;
     private int _toastId;
     private string? _clipboard;
-    private string? _fatal;
 
     // Schmale Fenster: Bibliothek und Eigenschaften als Schublade
     private bool _libraryOpen, _propsOpen;

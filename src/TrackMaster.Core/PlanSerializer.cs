@@ -6,7 +6,7 @@ namespace TrackMaster.Core;
 /// <summary>
 /// Dateiformat *.trackmaster.json – dasselbe wie in der Browser-Version, Dateien lassen sich hin und her öffnen.
 /// </summary>
-public static class PlanSerializer
+public static partial class PlanSerializer
 {
     public const string FileExtension = ".trackmaster.json";
     /// <summary>
@@ -192,7 +192,17 @@ public static class PlanSerializer
         lock (ImageCache) return ImageCache.GetValueOrDefault(data[ImageRef.Length..]);
     }
 
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+    /// <summary>
+    /// Vorab erzeugter Serialisierer für das Dateiformat: kommt ohne Reflexion aus und ist vor allem in der Webversion
+    /// (WebAssembly) deutlich schneller – jeder Rückgängig-Schritt speichert den ganzen Plan.
+    /// </summary>
+    [JsonSerializable(typeof(FileDto))]
+    private sealed partial class FileJson : JsonSerializerContext;
+
+    /// <summary>Dateien: eingerückt und gut lesbar.</summary>
+    private static readonly FileJson Indented = new(new JsonSerializerOptions { WriteIndented = true });
+    /// <summary>Rückgängig-Schritte, Zwischenablage, Wiederherstellung: kompakt (weniger Speicher, schneller).</summary>
+    private static readonly FileJson Compact = new(new JsonSerializerOptions());
 
     /// <summary>
     /// Speichert den Plan. Gleise behalten in der Datei ihre Kennung, weil Einspeisungen, Trennstellen und Signale darauf verweisen;
@@ -275,7 +285,7 @@ public static class PlanSerializer
                 X = Math.Round(bg.X, 2), Y = Math.Round(bg.Y, 2), W = Math.Round(bg.Width, 3), Opacity = Math.Round(bg.Opacity, 3), Visible = bg.Visible,
             },
         };
-        return JsonSerializer.Serialize(dto, Options);
+        return JsonSerializer.Serialize(dto, (withIds ? Compact : Indented).FileDto);
     }
 
     /// <summary>Liest einen Plan. Unbekannte Gleise werden übersprungen und in <paramref name="skipped"/> gezählt.</summary>
@@ -285,7 +295,7 @@ public static class PlanSerializer
     public static LayoutPlan FromJson(string json, out int skipped, out bool newer)
     {
         FileDto? dto;
-        try { dto = JsonSerializer.Deserialize<FileDto>(json); }
+        try { dto = JsonSerializer.Deserialize(json, Compact.FileDto); }
         catch (JsonException e) { throw new InvalidDataException(Lang.T("Die Datei ist kein TrackMaster-Plan."), e); }
         if (dto is null || dto.App != "TrackMaster Pro" || dto.Pieces is null)
             throw new InvalidDataException(Lang.T("Die Datei ist kein TrackMaster-Plan."));

@@ -597,7 +597,7 @@ public sealed class PropertiesPanel : DockPanel
                         }
                         if (PowerSupply.FeedsTrack(ptype))
                         {
-                            var psections = Electrics.Sections(plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                            var psections = Electrics.Sections(plan, _session.Connections).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
                             prows.Add((Lang.T("Einspeisungen"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
                             prows.Add((Lang.T("Masse am Gleis"), PowerSupply.GroundsOf(plan, s).Count().ToString(), null));
                             prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
@@ -642,7 +642,7 @@ public sealed class PropertiesPanel : DockPanel
                 if (PowerSupply.SourceOf(plan, f) is null)
                     _body.Children.Add(Theme.Label(Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan."), 11, false, Theme.OpenEndBrush));
                 _body.Children.Add(new Border { Height = 8 });
-                var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+                var section = Electrics.Sections(plan, _session.Connections).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
                 var frows = new List<(string, string, System.Windows.Media.Brush?)>
                 {
                     (Lang.T("Anschluss"), f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"), null),

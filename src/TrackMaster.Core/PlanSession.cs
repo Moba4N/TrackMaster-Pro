@@ -85,7 +85,23 @@ public sealed partial class PlanSession
         var all = openOnly ? Connections.Open : Connections.All;
         if (Plan.AllLevelsVisible) return all;
         var plan = Plan;
-        return all.Where(c => plan.Find(c.PieceId) is { } p && plan.LevelVisible(p.Level));
+        var index = plan.PieceIndex();
+        return all.Where(c => index.TryGetValue(c.PieceId, out var p) && plan.LevelVisible(p.Level));
+    }
+
+    private Dictionary<int, PlacedPiece>? _viewIndex;
+    private (LayoutPlan Plan, int Pieces)? _viewIndexKey;
+
+    /// <summary>
+    /// Gleis der sichtbaren Ebenen nach Kennung, wie <c>View.Find(id)</c>, aber über ein Verzeichnis, das bis zur nächsten Änderung gilt.
+    /// Für die Zeichenflächen, die bei jedem Bild viele Gleise nachschlagen.
+    /// </summary>
+    public PlacedPiece? ViewPiece(int id)
+    {
+        var view = View;
+        var key = (view, view.Pieces.Count);
+        if (_viewIndex is null || _viewIndexKey != key) { _viewIndex = view.PieceIndex(); _viewIndexKey = key; }
+        return _viewIndex.GetValueOrDefault(id);
     }
 
     public ConnectorRef? ActiveConnector => Active is { } a && Connections.Find(a.PieceId, a.Index) is { IsOpen: true } c ? c : null;
@@ -123,9 +139,14 @@ public sealed partial class PlanSession
     public void Commit()
     {
         _view = null;
+        _viewIndex = null;
         Plan.SystemId = CurrentSystem.Id;
         Connections = Connectivity.Analyze(Plan);
-        Selection.RemoveWhere(id => Plan.Find(id) is null);
+        if (Selection.Count > 0)
+        {
+            var index = Plan.PieceIndex();
+            Selection.RemoveWhere(id => !index.ContainsKey(id));
+        }
         // Ausstattung am Gleis wechselt mit dem Gleis die Ebene (die Höhe bestimmt die 3D-Ansicht jedes Mal neu)
         ModelPlacement.SyncLevels(Plan);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
@@ -808,7 +829,8 @@ public sealed partial class PlanSession
 
     private void DropHidden()
     {
-        Selection.RemoveWhere(id => Plan.Find(id) is { } p && !Plan.LevelVisible(p.Level));
+        var index = Plan.PieceIndex();
+        Selection.RemoveWhere(id => index.TryGetValue(id, out var p) && !Plan.LevelVisible(p.Level));
         if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item && !Plan.LevelVisible(item.Level)) SelectedObject = null;
         if (Active is { } a && Plan.Find(a.PieceId) is { } ap && !Plan.LevelVisible(ap.Level)) Active = null;
     }

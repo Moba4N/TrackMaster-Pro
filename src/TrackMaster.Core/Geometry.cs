@@ -91,6 +91,9 @@ public static class TrackGeometry
     /// <summary>Abschnitte eines Gleisstücks in eigenen Koordinaten: Anschluss 0 liegt im Ursprung, Fahrtrichtung nach rechts.
     /// Enthält auch die nur gezeichneten Abschnitte (Bogenstränge einer Kreuzungsweiche) hinter den Fahrwegen.</summary>
     public static IReadOnlyList<Leg> LocalLegs(TrackPieceDef d, bool flipped)
+        => d.Geometry(flipped).Legs ??= ComputeLegs(d, flipped);
+
+    private static IReadOnlyList<Leg> ComputeLegs(TrackPieceDef d, bool flipped)
     {
         var f = flipped ? -1 : 1;
         return [.. LocalPaths(d, flipped).SelectMany(p => p), .. (d.Decor ?? []).SelectMany(r => Chain(r, f))];
@@ -100,7 +103,11 @@ public static class TrackGeometry
     /// Fahrwege eines Gleisstücks, jeweils als Folge von Abschnitten. Gerade, Bogen und Prellbock haben einen Fahrweg,
     /// Weichen einen je Strang (alle beginnen an Anschluss 0), Kreuzungen zwei sich kreuzende Fahrwege.
     /// </summary>
+    /// <remarks>Das Ergebnis wird je Gleistyp und Lage zwischengespeichert (die Katalogteile ändern sich nicht).</remarks>
     public static IReadOnlyList<IReadOnlyList<Leg>> LocalPaths(TrackPieceDef d, bool flipped)
+        => d.Geometry(flipped).Paths ??= ComputePaths(d, flipped);
+
+    private static IReadOnlyList<IReadOnlyList<Leg>> ComputePaths(TrackPieceDef d, bool flipped)
     {
         var f = flipped ? -1 : 1;
         var turn = (d.RightHand ? 1 : -1) * f;
@@ -153,10 +160,17 @@ public static class TrackGeometry
     }
 
     /// <summary>Weglänge von Anschluss 0 bis zum Ende des Fahrwegs <paramref name="path"/>.</summary>
-    public static double PathLength(TrackPieceDef d, int path) => LocalPaths(d, false)[path].Sum(l => l.TrackLength);
+    public static double PathLength(TrackPieceDef d, int path)
+    {
+        var lengths = d.Geometry(false).PathLengths ??= LocalPaths(d, false).Select(p => p.Sum(l => l.TrackLength)).ToArray();
+        return lengths[path];
+    }
 
     /// <summary>Anschlüsse in eigenen Koordinaten; die Richtung zeigt jeweils aus dem Gleis heraus.</summary>
     public static IReadOnlyList<Pose> LocalConnectors(TrackPieceDef d, bool flipped)
+        => d.Geometry(flipped).Connectors ??= ComputeConnectors(d, flipped);
+
+    private static IReadOnlyList<Pose> ComputeConnectors(TrackPieceDef d, bool flipped)
     {
         var paths = LocalPaths(d, flipped);
         var origin = new Pose(0, 0, 180);
@@ -180,4 +194,13 @@ public static class TrackGeometry
         PieceKind.Turntable or PieceKind.TransferTable => (index, false),
         _ => (0, index == 1),
     };
+}
+
+/// <summary>Zwischenspeicher der Gleisgeometrie eines Katalogteils in einer Lage (gespiegelt oder nicht).</summary>
+internal sealed class PieceGeometry
+{
+    public IReadOnlyList<IReadOnlyList<Leg>>? Paths;
+    public IReadOnlyList<Leg>? Legs;
+    public IReadOnlyList<Pose>? Connectors;
+    public double[]? PathLengths;
 }

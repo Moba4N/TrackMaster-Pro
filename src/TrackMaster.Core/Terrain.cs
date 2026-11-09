@@ -54,14 +54,26 @@ public sealed class TerrainField
     public static TerrainField For(SceneryItem s, double baseHeight)
     {
         var height = s.Height + Math.Max(0, baseHeight);
-        var key = $"{height:R}|{string.Join(";", s.Points.Select(p => $"{p.X:R},{p.Y:R}"))}";
         lock (Cache)
         {
-            if (Cache.TryGetValue(key, out var f)) return f;
-            if (Cache.Count > 64) Cache.Clear();
-            return Cache[key] = new TerrainField(s.Points, height);
+            // Schneller Weg: dieselbe Fläche mit unveränderter Form und Höhe (GroundAt fragt je Gleisabschnitt nach;
+            // der Textschlüssel wäre dafür jedes Mal neu zu bauen)
+            if (Recent.TryGetValue(s, out var r) && r.Height.Equals(height) && r.Points.AsSpan().SequenceEqual(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(s.Points)))
+                return r.Field;
+            var key = $"{height:R}|{string.Join(";", s.Points.Select(p => $"{p.X:R},{p.Y:R}"))}";
+            if (!Cache.TryGetValue(key, out var f))
+            {
+                if (Cache.Count > 64) Cache.Clear();
+                Cache[key] = f = new TerrainField(s.Points, height);
+            }
+            Recent.AddOrUpdate(s, new RecentField(height, [.. s.Points], f));
+            return f;
         }
     }
+
+    private sealed record RecentField(double Height, (double X, double Y)[] Points, TerrainField Field);
+    /// <summary>Letztes Höhenfeld je Fläche, solange es die Fläche gibt.</summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SceneryItem, RecentField> Recent = new();
 
     /// <summary>Höhe der Landschaft an einer Stelle: höchste der Höhenflächen, sonst 0 (Platte).</summary>
     public static double GroundAt(LayoutPlan plan, double x, double y)

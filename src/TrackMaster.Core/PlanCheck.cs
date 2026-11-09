@@ -17,6 +17,7 @@ public static class PlanCheck
     {
         var issues = new List<PlanIssue>();
         var conn = Connectivity.Analyze(plan);
+        var byId = plan.PieceIndex();
         var gauge = plan.Gauge;
         var minSpacing = gauge.TrackWidth * MinSpacingFactor;
         var step = Math.Max(gauge.TrackWidth * 0.75, 2);
@@ -42,7 +43,19 @@ public static class PlanCheck
         var neighbours = plan.Pieces.ToDictionary(p => p.Id, _ => new HashSet<int>());
         foreach (var c in conn.All)
             if (c.Link is { } l) { neighbours[c.PieceId].Add(l.PieceId); neighbours[l.PieceId].Add(c.PieceId); }
-        bool Near(int a, int b) => a == b || neighbours[a].Contains(b) || neighbours[a].Any(x => neighbours[x].Contains(b));
+        // Zwei-Schritt-Nachbarschaft je Gleis einmal bestimmen statt bei jedem Abtastpaar neu
+        var near = new Dictionary<int, HashSet<int>>();
+        bool Near(int a, int b)
+        {
+            if (a == b) return true;
+            if (!near.TryGetValue(a, out var set))
+            {
+                set = [.. neighbours[a]];
+                foreach (var x in neighbours[a]) set.UnionWith(neighbours[x]);
+                near[a] = set;
+            }
+            return set.Contains(b);
+        }
 
         var cells = new Dictionary<(int, int), List<Sample>>();
         (int, int) Cell(double x, double y) => ((int)Math.Floor(x / minSpacing), (int)Math.Floor(y / minSpacing));
@@ -62,11 +75,12 @@ public static class PlanCheck
                     if (!cells.TryGetValue((cx + i, cy + j), out var list)) continue;
                     foreach (var o in list)
                     {
-                        if (o.PieceId <= s.PieceId || Near(s.PieceId, o.PieceId)) continue;
-                        var d = Math.Sqrt((s.X - o.X) * (s.X - o.X) + (s.Y - o.Y) * (s.Y - o.Y));
-                        if (d >= minSpacing) continue;
+                        if (o.PieceId <= s.PieceId) continue;
+                        var d2 = (s.X - o.X) * (s.X - o.X) + (s.Y - o.Y) * (s.Y - o.Y);
+                        if (d2 >= minSpacing * minSpacing) continue;
                         var dz = Math.Abs(s.Z - o.Z);
-                        if (dz >= gauge.ClearanceHeight) continue;
+                        if (dz >= gauge.ClearanceHeight || Near(s.PieceId, o.PieceId)) continue;
+                        var d = Math.Sqrt(d2);
                         var key = (s.PieceId, o.PieceId);
                         if (!worst.TryGetValue(key, out var w) || d < w.D)
                             worst[key] = (d, dz, (s.X + o.X) / 2, (s.Y + o.Y) / 2);
@@ -79,8 +93,8 @@ public static class PlanCheck
         {
             if (reported.Any(r => Math.Abs(r.X - w.X) < minSpacing * 2 && Math.Abs(r.Y - w.Y) < minSpacing * 2)) continue;
             reported.Add((w.X, w.Y));
-            var pa = plan.Find(a)!.Def.Number;
-            var pb = plan.Find(b)!.Def.Number;
+            var pa = byId[a].Def.Number;
+            var pb = byId[b].Def.Number;
             issues.Add(w.Dz > gauge.TrackWidth
                 ? new PlanIssue(IssueLevel.Fehler, Lang.T("Durchfahrtshöhe"),
                     Lang.F($"Gleise {pa} (Nr. {a}) und {pb} (Nr. {b}) kreuzen mit nur {Fmt.Num(w.Dz, 0)} mm Höhenunterschied – nötig sind mindestens {Fmt.Num(gauge.ClearanceHeight, 0)} mm."), [a, b], w.X, w.Y)
@@ -89,7 +103,13 @@ public static class PlanCheck
         }
 
         // Außerhalb der Platte
-        var outside = samples.Where(s => !BoardGeometry.Contains(plan, s.X, s.Y)).GroupBy(s => s.PieceId).ToList();
+        var rects = BoardGeometry.Rects(plan);
+        bool OnBoard(Sample s)
+        {
+            foreach (var r in rects) if (r.Contains(s.X, s.Y, 0.5)) return true;
+            return false;
+        }
+        var outside = samples.Where(s => !OnBoard(s)).GroupBy(s => s.PieceId).ToList();
         if (outside.Count > 0)
         {
             var first = outside[0].First();
@@ -126,7 +146,10 @@ public static class PlanCheck
         foreach (var s in plan.Scenery)
         {
             var outline = s.Outline();
-            var hits = samples.Where(q => Geometry2D.PointInPolygon(outline, q.X, q.Y)).ToList();
+            if (outline.Count == 0) continue;
+            // erst über das umgebende Rechteck vorsortieren, dann genau prüfen
+            double x0 = outline.Min(o => o.X), x1 = outline.Max(o => o.X), y0 = outline.Min(o => o.Y), y1 = outline.Max(o => o.Y);
+            var hits = samples.Where(q => q.X >= x0 && q.X <= x1 && q.Y >= y0 && q.Y <= y1 && Geometry2D.PointInPolygon(outline, q.X, q.Y)).ToList();
             if (hits.Count == 0) continue;
             var ids = hits.Select(q => q.PieceId).Distinct().ToList();
             var (cx, cy) = s.Center();
@@ -143,7 +166,7 @@ public static class PlanCheck
                     break;
                 case SceneryKind.Terrain:
                     var field = TerrainField.For(plan, s);
-                    var buried = hits.Where(q => q.Z < field.At(q.X, q.Y) - gauge.TrackWidth && plan.Find(q.PieceId) is { Tunnel: false }).Select(q => q.PieceId).Distinct().ToList();
+                    var buried = hits.Where(q => q.Z < field.At(q.X, q.Y) - gauge.TrackWidth && byId[q.PieceId] is { Tunnel: false }).Select(q => q.PieceId).Distinct().ToList();
                     if (buried.Count > 0)
                         issues.Add(new PlanIssue(IssueLevel.Hinweis, "Tunnel", Lang.F($"{buried.Count} Gleis(e) liegen unter der Höhenfläche „{s.Name}“ – als Tunnel markieren?"), buried, cx, cy));
                     break;

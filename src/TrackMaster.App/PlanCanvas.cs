@@ -522,14 +522,14 @@ public sealed class PlanCanvas : FrameworkElement
         var red = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
         var violet = new SolidColorBrush(Color.FromRgb(0x6A, 0x1B, 0x9A));
         foreach (var f in plan.Feeders)
-            if (f.Name.Length > 0 && plan.Find(f.PieceId) is { } p)
+            if (f.Name.Length > 0 && _session.ViewPiece(f.PieceId) is { } p)
             {
                 var (x, y) = Electrics.FeederPoint(plan, p, f);
                 var s = ToScreen(x, y);
                 DrawTag(dc, f.Name, new Point(s.X + 16, s.Y - 10), red, 9.5);
             }
         foreach (var d in plan.Detectors)
-            if (d.Name.Length > 0 && plan.Find(d.PieceId) is { } p)
+            if (d.Name.Length > 0 && _session.ViewPiece(d.PieceId) is { } p)
             {
                 var (x, y) = Electrics.DetectorPoint(p, _gauge);
                 var s = ToScreen(x, y);
@@ -555,9 +555,9 @@ public sealed class PlanCanvas : FrameworkElement
     /// <summary>Elektrik markiert: Nummer und Stromkreis jedes Abschnitts an seinem längsten Gleis.</summary>
     private void DrawSectionLabels(DrawingContext dc, LayoutPlan plan)
     {
-        foreach (var s in Electrics.Sections(plan))
+        foreach (var s in Electrics.Sections(plan, _session.Plan == plan ? _session.Connections : null))
         {
-            var first = s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().OrderByDescending(p => p.Def.TrackLength).FirstOrDefault();
+            var first = s.PieceIds.Select(_session.ViewPiece).OfType<PlacedPiece>().OrderByDescending(p => p.Def.TrackLength).FirstOrDefault();
             if (first is null) continue;
             var m = first.Middle();
             var p = ToScreen(m.X, m.Y);
@@ -663,7 +663,7 @@ public sealed class PlanCanvas : FrameworkElement
         var bestD = 9.0;
         foreach (var c in _session.VisibleConnectors())
         {
-            if (_session.View.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
+            if (_session.ViewPiece(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
             var d = (ToScreen(c.Pose.X, c.Pose.Y) - screen).Length;
             if (d < bestD) { bestD = d; best = c; }
         }
@@ -702,19 +702,19 @@ public sealed class PlanCanvas : FrameworkElement
             foreach (var (hx, hy) in SignalFace.PlanHitPoints(x, y, heading, SignalFace.PlanScale(_gauge, _zoom), SignalFace.For(s.Type))) Try(s.Id, hx, hy);
         }
         foreach (var f in plan.Feeders)
-            if (plan.Find(f.PieceId) is { } p)
+            if (_session.ViewPiece(f.PieceId) is { } p)
             {
                 var (fx, fy) = Electrics.FeederPoint(plan, p, f);
                 Try(f.Id, fx, fy);
             }
         foreach (var i in plan.Isolations)
-            if (plan.Find(i.PieceId) is { } p && i.Index < p.WorldConnectors().Count)
+            if (_session.ViewPiece(i.PieceId) is { } p && i.Index < p.WorldConnectors().Count)
             {
                 var c = p.WorldConnectors()[i.Index];
                 Try(i.Id, c.X, c.Y);
             }
         foreach (var det in plan.Detectors)
-            if (plan.Find(det.PieceId) is { } p)
+            if (_session.ViewPiece(det.PieceId) is { } p)
             {
                 var (dx, dy) = Electrics.DetectorPoint(p, _gauge);
                 Try(det.Id, dx, dy);

@@ -57,6 +57,10 @@ public sealed class TrackPieceDef
     public required string Category { get; init; }
 
     public string GaugeId { get; internal set; } = "";
+
+    private PieceGeometry? _geometry, _geometryFlipped;
+    /// <summary>Zwischengespeicherte Geometrie (siehe <see cref="TrackGeometry"/>); die Form eines Katalogteils ändert sich nicht.</summary>
+    internal PieceGeometry Geometry(bool flipped) => flipped ? _geometryFlipped ??= new() : _geometry ??= new();
     public string SystemId { get; internal set; } = "";
     public string SystemName { get; internal set; } = "";
     public bool Verified { get; internal set; }

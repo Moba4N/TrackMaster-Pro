@@ -262,11 +262,13 @@ public static class ModelPlacement
     /// <summary>Ebene der Modelle nach ihren Gleisen ausrichten und Verweise auf gelöschte Gleise entfernen.</summary>
     public static void SyncLevels(LayoutPlan plan)
     {
+        Dictionary<int, PlacedPiece>? index = null;
         foreach (var s in plan.Scenery)
         {
             if (s.Tracks.Count == 0) continue;
-            s.Tracks.RemoveAll(id => plan.Find(id) is null);
-            if (s.Tracks.Count > 0) s.Level = Math.Clamp(plan.Find(s.Tracks[0])!.Level, 0, plan.Levels.Count - 1);
+            index ??= plan.PieceIndex();
+            s.Tracks.RemoveAll(id => !index.ContainsKey(id));
+            if (s.Tracks.Count > 0) s.Level = Math.Clamp(index[s.Tracks[0]].Level, 0, plan.Levels.Count - 1);
         }
     }
 

@@ -26,32 +26,46 @@ public sealed class Connectivity
     public IReadOnlyList<ConnectorRef> Open { get; }
 
     /// <summary>Freie Anschlüsse von Drehscheiben und Schiebebühnen sind keine offenen Gleisenden.</summary>
-    private Connectivity(List<ConnectorRef> all, HashSet<int> tables)
+    private Connectivity(List<ConnectorRef> all, HashSet<int> tables, Dictionary<int, ConnectorRef[]> byPiece)
     {
         All = all;
         Open = all.Where(c => c.IsOpen && !tables.Contains(c.PieceId)).ToList();
+        _byPiece = byPiece;
     }
 
-    public IEnumerable<ConnectorRef> Of(int pieceId) => All.Where(c => c.PieceId == pieceId);
+    /// <summary>Anschlüsse je Gleis, damit <see cref="Of"/> und <see cref="Find"/> nicht alle Anschlüsse durchsuchen.</summary>
+    private readonly Dictionary<int, ConnectorRef[]> _byPiece;
 
-    public ConnectorRef? Find(int pieceId, int index) => All.FirstOrDefault(c => c.PieceId == pieceId && c.Index == index);
+    public IEnumerable<ConnectorRef> Of(int pieceId) => _byPiece.TryGetValue(pieceId, out var list) ? list : [];
+
+    public ConnectorRef? Find(int pieceId, int index)
+    {
+        if (!_byPiece.TryGetValue(pieceId, out var list)) return null;
+        foreach (var c in list) if (c.Index == index) return c;
+        return null;
+    }
 
     public static Connectivity Analyze(LayoutPlan plan)
     {
         var all = new List<ConnectorRef>();
+        var byPiece = new Dictionary<int, ConnectorRef[]>();
         var cells = new Dictionary<(int, int), List<ConnectorRef>>();
         foreach (var p in plan.Pieces)
         {
             var conns = p.WorldConnectors();
             var heights = p.ConnectorHeights();
+            var own = new ConnectorRef[conns.Count];
             for (var k = 0; k < conns.Count; k++)
             {
                 var c = new ConnectorRef(p.Id, k, conns[k], heights[k]);
+                own[k] = c;
                 all.Add(c);
                 var key = Cell(c.Pose);
                 if (!cells.TryGetValue(key, out var list)) cells[key] = list = [];
                 list.Add(c);
             }
+            // doppelte Kennungen (sollte nicht vorkommen) wie bisher: der erste Treffer zählt, Of liefert alle
+            byPiece[p.Id] = byPiece.TryGetValue(p.Id, out var before) ? [.. before, .. own] : own;
         }
         foreach (var c in all)
         {
@@ -73,12 +87,12 @@ public sealed class Connectivity
                     }
                 }
         }
-        return new Connectivity(all, plan.Pieces.Where(p => p.Def.IsTable).Select(p => p.Id).ToHashSet());
+        return new Connectivity(all, plan.Pieces.Where(p => p.Def.IsTable).Select(p => p.Id).ToHashSet(), byPiece);
     }
 
     public static bool Matches(Pose a, Pose b)
         => Math.Abs(a.X - b.X) < PositionTolerance && Math.Abs(a.Y - b.Y) < PositionTolerance
-           && Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2)) < PositionTolerance
+           && (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) < PositionTolerance * PositionTolerance
            && Math.Abs(Angles.Normalize(a.Heading - b.Heading - 180)) < AngleTolerance;
 
     private static (int, int) Cell(Pose p) => ((int)Math.Floor(p.X / 4), (int)Math.Floor(p.Y / 4));

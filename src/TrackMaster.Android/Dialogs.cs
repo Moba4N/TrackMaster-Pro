@@ -556,7 +556,7 @@ public static partial class Dialogs
                         }
                         if (PowerSupply.FeedsTrack(ptype))
                         {
-                            var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
+                            var psections = Electrics.Sections(plan, session.Connections).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
                             prows.Add((Lang.T("Gleisanschlüsse"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
                             prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
                             prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
@@ -606,7 +606,7 @@ public static partial class Dialogs
                 circuit.Click += (_, _) => circuit.ShowDropDown();
                 body.AddView(Ui.Field(c, plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"), circuit));
                 if (PowerSupply.SourceOf(plan, f) is null) body.AddView(Hint(c, Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")));
-                var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+                var section = Electrics.Sections(plan, session.Connections).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
                 body.AddView(Rows(c, (Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null)));
                 DeleteButton();

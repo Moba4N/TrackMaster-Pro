@@ -593,7 +593,7 @@ public sealed class PlanView
             if (!selected)
             {
                 if (Math.Abs(cn.Z) < 0.5) continue;
-                if (plan.Find(cn.PieceId) is not { } p || p.Def.TrackLength * _zoom < Ui.Dp(110)) continue;
+                if (_session.ViewPiece(cn.PieceId) is not { } p || p.Def.TrackLength * _zoom < Ui.Dp(110)) continue;
             }
             else if (_zoom * 60 < Ui.Dp(14)) continue;
             var s = ToScreen(cn.Pose.X, cn.Pose.Y);
@@ -632,13 +632,13 @@ public sealed class PlanView
     {
         if (_gauge * _zoom < Ui.Dp(4)) return;
         foreach (var f in plan.Feeders)
-            if (f.Name.Length > 0 && plan.Find(f.PieceId) is { } p)
+            if (f.Name.Length > 0 && _session.ViewPiece(f.PieceId) is { } p)
             {
                 var s = ToScreen(Electrics.FeederPoint(plan, p, f).X, Electrics.FeederPoint(plan, p, f).Y);
                 DrawTag(c, f.Name, s.X + Ui.Dp(16), s.Y - Ui.Dp(10), Color.Rgb(0xC6, 0x28, 0x28), 9);
             }
         foreach (var d in plan.Detectors)
-            if (d.Name.Length > 0 && plan.Find(d.PieceId) is { } p)
+            if (d.Name.Length > 0 && _session.ViewPiece(d.PieceId) is { } p)
             {
                 var (x, y) = Electrics.DetectorPoint(p, _gauge);
                 var s = ToScreen(x, y);
@@ -666,7 +666,7 @@ public sealed class PlanView
     {
         foreach (var s in Electrics.Sections(plan, _session.Plan == plan ? _session.Connections : null))
         {
-            var first = s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().OrderByDescending(p => p.Def.TrackLength).FirstOrDefault();
+            var first = s.PieceIds.Select(_session.ViewPiece).OfType<PlacedPiece>().OrderByDescending(p => p.Def.TrackLength).FirstOrDefault();
             if (first is null) continue;
             var m = first.Middle();
             var p = ToScreen(m.X, m.Y);
@@ -776,7 +776,7 @@ public sealed class PlanView
         var bestD = Reach(12, 22);
         foreach (var c in _session.VisibleConnectors())
         {
-            if (_session.View.Find(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
+            if (_session.ViewPiece(c.PieceId) is not { Def.IsFlex: true } || !(c.IsOpen || _session.Selection.Contains(c.PieceId))) continue;
             var s = ToScreen(c.Pose.X, c.Pose.Y);
             var d = MathF.Sqrt((s.X - sx) * (s.X - sx) + (s.Y - sy) * (s.Y - sy));
             if (d < bestD) { bestD = d; best = c; }
@@ -824,19 +824,19 @@ public sealed class PlanView
             foreach (var (hx, hy) in SignalFace.PlanHitPoints(x, y, heading, SignalFace.PlanScale(_gauge, _zoom, 6 * Ui.Density), SignalFace.For(s.Type))) Try(s.Id, hx, hy);
         }
         foreach (var f in plan.Feeders)
-            if (plan.Find(f.PieceId) is { } p)
+            if (_session.ViewPiece(f.PieceId) is { } p)
             {
                 var (fx, fy) = Electrics.FeederPoint(plan, p, f);
                 Try(f.Id, fx, fy);
             }
         foreach (var i in plan.Isolations)
-            if (plan.Find(i.PieceId) is { } p && i.Index < p.WorldConnectors().Count)
+            if (_session.ViewPiece(i.PieceId) is { } p && i.Index < p.WorldConnectors().Count)
             {
                 var c = p.WorldConnectors()[i.Index];
                 Try(i.Id, c.X, c.Y);
             }
         foreach (var det in plan.Detectors)
-            if (plan.Find(det.PieceId) is { } p)
+            if (_session.ViewPiece(det.PieceId) is { } p)
             {
                 var (dx, dy) = PlanPainter.DetectorPoint(p, _gauge);
                 Try(det.Id, dx, dy);

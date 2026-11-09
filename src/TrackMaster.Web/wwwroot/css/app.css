@@ -364,6 +364,21 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); cur
 }
 .tool-text { flex: 1; min-width: 0; font-size: .92em; }
 
+.empty-hint {
+    position: absolute;
+    left: 50%; top: 16px;
+    transform: translateX(-50%);
+    width: min(440px, calc(100% - 32px));
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 16px 18px;
+    background: rgba(255, 255, 255, .96);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+    text-align: center;
+}
+.empty-hint .button-row.inline { justify-content: center; }
+@media (max-width: 520px) { .empty-hint { font-size: .86em; padding: 10px 12px; gap: 6px; } }
 .toast {
     position: absolute;
     left: 12px;
@@ -402,9 +417,14 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); cur
     color: var(--text-secondary);
     font-size: .82em;
     white-space: nowrap;
-    overflow: hidden;
+    /* schmale Fenster: wischen statt abschneiden, damit Einrasten und Raster erreichbar bleiben */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
     flex: none;
 }
+.statusbar::-webkit-scrollbar { display: none; }
+.st-toggle { flex: none; }
 .st-item { padding: 0 8px; border-right: 1px solid var(--border-strong); }
 .st-item.warn { color: var(--open-end); font-weight: 600; }
 .st-item.ok { color: var(--success); }
@@ -681,7 +701,9 @@ kbd {
     .rb.large { height: 58px; padding-top: 6px; }
     .rb.large .rb-icon svg.i { width: 20px; height: 20px; }
     .rb.small .rb-icon svg.i { width: 20px; height: 20px; }
-    .rb.large .rb-label { font-size: 1em; font-size: .78em; }
+    .rb.large .rb-label { font-size: .78em; }
+    /* weitere Register rechts: Kante ausblenden, damit man sieht, dass man wischen kann */
+    .ribbon-tabs { padding-right: 32px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
     .app-name { display: none; }
 }
 
@@ -700,6 +722,15 @@ kbd {
     .input { height: 38px; }
     .btn { min-height: 38px; }
     .item { padding: 8px 6px; }
+    /* Fingerbedienung: Filter, Spuren, Ebenen und Schalter groß genug zum Treffen (mind. 32 px) */
+    .chip, .chip.small, .ribbon-gauges .chip { min-height: 32px; padding: 4px 12px; }
+    .lb-chip { min-height: 32px; }
+    .lb-chip input[type=checkbox] { width: 20px; height: 20px; }
+    .lb-chip button { min-height: 30px; padding: 2px 4px; }
+    .lb-add { min-height: 32px; min-width: 36px; }
+    .levelbar { padding: 4px 8px; }
+    .statusbar { height: 36px; }
+    .st-toggle { min-height: 30px; padding: 2px 10px; }
 }
 
 @media print {

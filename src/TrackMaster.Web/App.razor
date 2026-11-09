@@ -17,7 +17,7 @@
         <img class="app-logo" src="img/logo-small.png" alt="TrackMaster Pro" title="@Lang.T("Über das Programm")" @onclick="@(() => Run("about"))" />
         <div class="titles">
             <span class="app-name">TrackMaster Pro</span>
-            <span class="doc-title" title="@plan.Name">@plan.Name@(_session.Dirty ? " •" : "")</span>
+            <span class="doc-title" title="@(_session.Dirty ? Lang.F($"{plan.Name} – ungespeicherte Änderungen") : plan.Name)">@plan.Name@(_session.Dirty ? " •" : "")</span>
         </div>
         <button class="icon-btn" title="@Lang.T("Rückgängig (Strg+Z)")" disabled="@(!_session.History.CanUndo)" @onclick="@(() => Run("undo"))">@((MarkupString)Icons.Svg("Undo", 20))</button>
         <button class="icon-btn" title="@Lang.T("Wiederholen (Strg+Y)")" disabled="@(!_session.History.CanRedo)" @onclick="@(() => Run("redo"))">@((MarkupString)Icons.Svg("Redo", 20))</button>
@@ -171,6 +171,19 @@
                     <button class="icon-btn" title="@Lang.T("Hervorhebung beenden")" @onclick="CloseIssueNav">✕</button>
                 </div>
             }
+            @if (plan.Pieces.Count == 0 && plan.Scenery.Count == 0 && _session.Tool == CanvasTool.Select && _dialog is null && !_open3D)
+            {
+                <div class="empty-hint" role="note">
+                    <div class="strong">@Lang.T("Der Plan ist noch leer.")</div>
+                    <div class="secondary">@Lang.T("Ein Gleis in der Gleisbibliothek anklicken oder auf die Platte ziehen – jedes weitere setzt am freien Ende an.")</div>
+                    <div class="button-row inline">
+                        <button class="btn only-narrow" @onclick="@(() => { _libraryOpen = true; _propsOpen = false; })">@Lang.T("Gleisbibliothek")</button>
+                        <button class="btn" @onclick="@(() => Run("suggest"))">@Lang.T("Planvorschlag…")</button>
+                        <button class="btn" @onclick="@(() => Run("sample"))">@Lang.T("Beispielanlage")</button>
+                        <button class="btn" @onclick="@(() => Run("help"))">@Lang.T("Bedienung")</button>
+                    </div>
+                </div>
+            }
             @if (_toast is not null)
             {
                 <div class="toast" role="status" @onclick="() => _toast = null">@_toast</div>
@@ -194,12 +207,12 @@
             var k = i;
             var level = plan.Levels[k];
             <span class="lb-chip @(plan.ActiveLevel == k ? "active" : "") @(level.Visible ? "" : "hidden")">
-                <input type="checkbox" title="@Lang.T("Ein- oder ausblenden")" checked="@level.Visible" disabled="@(plan.ActiveLevel == k && level.Visible && plan.Levels.Count(l => l.Visible) == 1)" @onchange="@(e => _session.SetLevelVisible(k, e.Value is true))" />
-                <button title="@Lang.T("Aktive Ebene: neue Gleise kommen hierher")" @onclick="@(() => _session.SetActiveLevel(k))">@level.Name <span class="secondary">@Fmt.Num(level.Height, 0)</span></button>
+                <input type="checkbox" title="@Lang.T("Ein- oder ausblenden")" aria-label="@Lang.F($"{level.Name} ein- oder ausblenden")" checked="@level.Visible" disabled="@(plan.ActiveLevel == k && level.Visible && plan.Levels.Count(l => l.Visible) == 1)" @onchange="@(e => _session.SetLevelVisible(k, e.Value is true))" />
+                <button title="@Lang.F($"{level.Name}, Grundhöhe {Fmt.Num(level.Height, 0)} mm – antippen: neue Gleise kommen auf diese Ebene")" aria-pressed="@(plan.ActiveLevel == k)" @onclick="@(() => _session.SetActiveLevel(k))">@level.Name <span class="secondary">@Fmt.Num(level.Height, 0) mm</span></button>
             </span>
         }
-        <button class="lb-add" title="@Lang.T("Ebene hinzufügen")" disabled="@(plan.Levels.Count >= LayoutPlan.MaxLevels)" @onclick="@(() => _session.AddLevel())">+</button>
-        <button class="lb-add" title="@Lang.T("Ebenen bearbeiten")" @onclick="@(() => Run("levels"))">…</button>
+        <button class="lb-add" title="@Lang.T("Ebene hinzufügen")" aria-label="@Lang.T("Ebene hinzufügen")" disabled="@(plan.Levels.Count >= LayoutPlan.MaxLevels)" @onclick="@(() => _session.AddLevel())">+</button>
+        <button class="lb-add" title="@Lang.T("Ebenen bearbeiten")" aria-label="@Lang.T("Ebenen bearbeiten")" @onclick="@(() => Run("levels"))">…</button>
     </div>
 
     <footer class="statusbar">
@@ -215,8 +228,8 @@
         <span class="st-spacer"></span>
         <span class="st-item hide-narrow" id="status-xy"></span>
         <span class="st-item hide-narrow">@_zoomText</span>
-        <button class="st-toggle @(_session.SnapEnabled ? "on" : "")" title="@Lang.T("Gleise rasten an freien Enden ein")" @onclick="@(() => Run("snap"))">@Lang.T("Einrasten")</button>
-        <button class="st-toggle @(_session.ShowGrid ? "on" : "")" title="@Lang.T("Raster anzeigen")" @onclick="@(() => Run("grid"))">@Lang.T("Raster")</button>
+        <button class="st-toggle @(_session.SnapEnabled ? "on" : "")" aria-pressed="@_session.SnapEnabled" title="@Lang.T("Gleise rasten an freien Enden ein")" @onclick="@(() => Run("snap"))">@Lang.T("Einrasten")</button>
+        <button class="st-toggle @(_session.ShowGrid ? "on" : "")" aria-pressed="@_session.ShowGrid" title="@Lang.T("Raster anzeigen")" @onclick="@(() => Run("grid"))">@Lang.T("Raster")</button>
     </footer>
 
     @if (_editModel is { } editModel)

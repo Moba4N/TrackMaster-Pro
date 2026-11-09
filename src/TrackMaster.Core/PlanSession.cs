@@ -252,8 +252,11 @@ public sealed partial class PlanSession
     public void OpenJson(string json, string? name)
     {
         var plan = PlanSerializer.FromJson(json, out var skipped, out var newer);
-        Replace(plan, name);
-        Say(OpenedMessage(plan, skipped, newer));
+        // Web und Android fragen vor dem Öffnen nicht nach: geänderte Pläne holt Rückgängig zurück
+        var keep = Dirty && Plan.Pieces.Count + Plan.Scenery.Count > 0;
+        if (keep) History.Record(Plan);
+        Replace(plan, name, keepHistory: keep);
+        Say(OpenedMessage(plan, skipped, newer) + (keep ? " " + Lang.T("Rückgängig holt den vorherigen Plan zurück.") : ""));
     }
 
     /// <summary>Gleissystem der Bibliothek wählen; der Plan merkt es sich beim Speichern.</summary>

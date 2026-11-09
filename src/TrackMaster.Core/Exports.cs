@@ -45,9 +45,9 @@ public static class BillOfMaterials
         var rows = new List<AccessoryRow>();
         var drives = plan.Pieces.Sum(p => p.Def.Drives);
         if (drives > 0) rows.Add(new(Lang.T("Weichenantrieb"), Lang.T("je Weiche einer, DKW zwei"), drives));
-        foreach (var g in plan.Signals.GroupBy(s => s.Type).OrderBy(g => g.Key))
-            rows.Add(new(Signal.TypeName(g.Key), Lang.T("Lichtsignal"), g.Count()));
-        if (plan.Feeders.Count > 0) rows.Add(new(Lang.T("Anschlussgleis / Einspeiser"), Lang.T("Einspeisungen"), plan.Feeders.Count));
+        foreach (var g in plan.Signals.GroupBy(s => (s.System, s.Type)).OrderBy(g => g.Key.System).ThenBy(g => g.Key.Type))
+            rows.Add(new(Signal.TypeName(g.Key.Type), Signal.SystemName(g.Key.System), g.Count()));
+        if (plan.Feeders.Count > 0) rows.Add(new(Lang.T("Anschlussgleis / Einspeiser"), Lang.T("Gleisanschlüsse"), plan.Feeders.Count));
         if (plan.Isolations.Count > 0)
         {
             var threeRail = Electrics.IsThreeRail(plan);
@@ -61,6 +61,8 @@ public static class BillOfMaterials
             rows.Add(new(Detector.TypeName(g.Key), Lang.T("Rückmelder"), g.Count()));
         if (plan.Detectors.Count > 0)
             rows.Add(new(Lang.F($"Rückmeldemodul ({Detector.InputsPerModule} Eingänge)"), Lang.F($"{plan.Detectors.Count} Rückmelder"), (int)Math.Ceiling(plan.Detectors.Count / (double)Detector.InputsPerModule)));
+        foreach (var (color, section, meters) in WireLayout.Totals(plan))
+            rows.Add(new(Lang.F($"Kabel {WireLayout.ColorName(color)} {WireLayout.SectionText(section)}"), Lang.F($"Meter, mit {Fmt.Num(WireLayout.Reserve * 100, 0)} % Zugabe"), (int)Math.Ceiling(meters)));
         return rows;
     }
 

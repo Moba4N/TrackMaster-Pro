@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using TrackMaster.Core;
 using TrackMaster.Licensing;
 using TrackMaster.Web.Interop;
@@ -63,6 +64,7 @@ public partial class App : ComponentBase, IAppHost
         _view.ContextRequested += (x, y) => { _ctx = (x, y); Refresh(); };
         _view.JointHeightRequested += c => { AskJointHeight(c); Refresh(); };
         _view.PolygonChanged += Refresh;
+        _view.PowerPlaced += () => SetTool(CanvasTool.Select);
         _view.LabelRequested += (x, y) => AskText(Lang.T("Beschriftung"), "Text", "", text => _session.AddLabel(text, x, y));
         _view.ViewChanged += UpdateZoomText;
         _session.Changed += OnSessionChanged;
@@ -206,10 +208,31 @@ public partial class App : ComponentBase, IAppHost
         => (item.Tip is null ? item.Label : $"{item.Label}\n{item.Tip}") + (locked ? Lang.T(" (Pro)") : "");
 
     private bool HasSelection() => _session.Selection.Count > 0;
+    private bool HasConnectionPiece() => _session.ConnectionPiece is not null;
     private bool IsModulePlan() => _session.Plan.BoardShape == BoardShape.Module && _session.Plan.Modules.Count > 1;
 
     /// <summary>Offenes Kontextmenü (Rechtsklick im Plan) an dieser Stelle der Zeichenfläche.</summary>
     private (float X, float Y)? _ctx;
+
+    /// <summary>
+    /// „Kabel von hier verlegen“ an der gewählten Zentrale, dem Booster bzw. Trafo: Werkzeug „Kabel verlegen“ beginnt an der
+    /// Bahnstromklemme (bzw. der Masseklemme). Wo das Kabel auf einem Gleis endet, entsteht die Einspeisung.
+    /// </summary>
+    private void StartWireFromSource(bool ground)
+    {
+        if (_session.SelectedObject is not { } id || _session.WireStart(id, ground) is not { } start)
+        {
+            _session.Say(Lang.T("Erst eine Zentrale, einen Booster oder Trafo wählen."));
+            return;
+        }
+        _session.WireUse = ground ? WireUse.Rueckleiter : WireUse.Fahrstrom;
+        SetTool(CanvasTool.Wire);
+        _view.StartWireAt(start.X, start.Y);
+        _session.Say(ground
+            ? Lang.T("Masse-Kabel: Punkte anklicken und auf einer Schiene enden – dort entsteht der Masseanschluss. Doppelklick beendet.")
+            : Lang.T("Bahnstrom-Kabel: Punkte anklicken und auf dem Gleis enden – dort entsteht die Einspeisung. Doppelklick beendet."));
+        Refresh();
+    }
 
     private void CtxRun(string id)
     {
@@ -298,7 +321,18 @@ public partial class App : ComponentBase, IAppHost
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
-        Add("toolFeeder", Lang.T("Einspeisung"), () => SetTool(CanvasTool.Feeder));
+        Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
+            else AskPowerType(t => { _session.PowerType = t; SetTool(CanvasTool.Power); });
+        });
+        Add("toolDistributor", Lang.T("Verteiler"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
+            else AskDistributorColor(hex => { _session.DistributorColor = hex; _session.PowerType = PowerSourceType.Verteiler; SetTool(CanvasTool.Power); });
+        });
+        Add("wireFromSource", Lang.T("Kabel von hier verlegen"), () => StartWireFromSource(false));
+        Add("groundFromSource", Lang.T("Masse-Kabel von hier verlegen"), () => StartWireFromSource(true));
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () =>
         {
@@ -306,10 +340,21 @@ public partial class App : ComponentBase, IAppHost
             else AskSignalType(_session.SignalType, t => { _session.SignalType = t; SetTool(CanvasTool.Signal); });
         });
         Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
+        Add("current", Lang.T("Betrieb und Stromart"), AskCurrent);
+        Add("elecLabels", Lang.T("Nur Elektrik beschriften"), () => Toggle(() => _session.ElectricLabelsOnly = !_session.ElectricLabelsOnly));
+        Add("toolWire", Lang.T("Kabel verlegen"), () =>
+        {
+            if (_session.Tool == CanvasTool.Wire) SetTool(CanvasTool.Select);
+            else AskWireUse(u => { _session.WireUse = u; SetTool(CanvasTool.Wire); });
+        });
+        Add("connIsolate", Lang.T("Gleis trennen"), () => { if (_session.ConnectionPiece is { } p) _session.ToggleAllIsolations(p.Id); }, HasConnectionPiece);
+        Add("connDetector", Lang.T("Rückmelder am Gleis"), () => { if (_session.ConnectionPiece is { } p) _session.ToggleDetectorOn(p.Id); }, HasConnectionPiece);
         Add("addresses", Lang.T("Decoder und Adressen"), ShowAddresses);
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
+        Add("wires", Lang.T("Kabel zeigen"), () => { _session.ShowWires = !_session.ShowWires; _session.Say(_session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); _view.Invalidate(); });
+        Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
-        Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
+        Pro("controlExport", Lang.T("Export für Steuerprogramme"), ShowControlExport);
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
         Add("ride", Lang.T("Mitfahren"), () => Open3D(View3DMode.Ride));
         Add("daytime", Lang.T("Tageszeit"), () => Open3D(View3DMode.Evening));
@@ -436,6 +481,10 @@ public partial class App : ComponentBase, IAppHost
         "heights" => _session.ShowHeights,
         "scenery" => _session.ShowScenery,
         "sections" => _session.ShowSections,
+        "elecLabels" => _session.ElectricLabelsOnly,
+        "toolWire" => _session.Tool == CanvasTool.Wire,
+        "connDetector" => _session.ConnectionPiece is { } dp && _session.DetectorOn(dp.Id) is not null,
+        "connIsolate" => _session.ConnectionPiece is { } ip && _session.PieceEnds(ip.Id).Where(e => e.Connected).ToList() is { Count: > 0 } ends && ends.All(e => e.Isolated),
         "toolSelect" => _session.Tool == CanvasTool.Select,
         "toolPan" => _session.Tool == CanvasTool.Pan,
         "toolBoard" => _session.Tool == CanvasTool.Board,
@@ -447,7 +496,9 @@ public partial class App : ComponentBase, IAppHost
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
-        "toolFeeder" => _session.Tool == CanvasTool.Feeder,
+        "wires" => _session.ShowWires,
+        "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
+        "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
         "toolRoom" => _session.Tool == CanvasTool.Room,
@@ -469,9 +520,9 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolIsolation", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
-        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn",
+        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate",
     ];
 
     private void SetTool(CanvasTool tool)
@@ -493,12 +544,15 @@ public partial class App : ComponentBase, IAppHost
             ? Lang.F($"{model.Name}: in den Plan klicken.") + (model.Snap == ModelSnap.Frei ? "" : " " + Lang.T("Rastet am nächsten Gleis ein.")) + (ModelPlacement.FitsSelection(model) ? " " + Lang.T("Tipp: Erst Gleise wählen, dann das Modell – es wird entlang der Auswahl gesetzt.") : "")
             : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
-        CanvasTool.Feeder => Lang.T("Einspeisung: auf ein Gleis klicken."),
+        CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
+        CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte).")
+            : Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan klicken, wo sie stehen soll (auch neben der Platte)."),
+        CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_view.PolygonPoints}) – rastet an Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben ein; auf einem Gleis entsteht eine Einspeisung. Doppelklick oder „Fertig“ beendet."),
         CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),
         CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: klicken oder Rechteck aufziehen."),
         CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis klicken (Klick auf einen Rückmelder entfernt ihn)."),
         CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) klicken."),
-        CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung klicken."),
+        CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)} ({Signal.SystemShort(_session.SignalSystem)}): auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
         CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
@@ -557,6 +611,8 @@ public partial class App : ComponentBase, IAppHost
             else SetTool(CanvasTool.Select);
             return true;
         }
+        // Esc entfernt zuerst die Markierungen der letzten Prüfung
+        if (key == "Escape" && !ctrl && _session.Issues.Count > 0) { CloseIssueNav(); return true; }
         string? cmd = (ctrl, k) switch
         {
             (true, "z") => shift ? "redo" : "undo",
@@ -709,6 +765,7 @@ public partial class App : ComponentBase, IAppHost
         var issues = PlanCheck.Run(_session.Plan);
         _session.Issues = issues;
         _view.Invalidate();
+        _issueNav = (Lang.T("Planprüfung"), issues, null);
         ShowIssues(Lang.T("Planprüfung"), issues, null);
     }
 
@@ -718,15 +775,44 @@ public partial class App : ComponentBase, IAppHost
         _session.Issues = report.Issues;
         if (!_session.ShowSections) { _session.ShowSections = true; _view.Rebuild(); _session.Commit(); }
         _view.Invalidate();
-        ShowIssues(Lang.T("Elektrik prüfen"), report.Issues,
-            Lang.F($"{report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}"));
+        var footer = Lang.F($"{Electrics.CurrentName(report.Current)}: {report.Sections.Count} Stromabschnitte, {report.ReverseLoops.Count} Kehrschleifen. {(report.ThreeRail ? Lang.T("Mittelleiter: Kehrschleifen ohne Sonderschaltung möglich.") : Lang.T("Zweileiter-System."))}");
+        _issueNav = (Lang.T("Elektrik prüfen"), report.Issues, footer);
+        ShowIssues(Lang.T("Elektrik prüfen"), report.Issues, footer);
     }
+
+    /// <summary>Befunde der letzten Prüfung zum Durchblättern im Plan (Leiste unten), null = keine.</summary>
+    private (string Title, IReadOnlyList<PlanIssue> Issues, string? Footer)? _issueNav;
 
     private void PickIssue(PlanIssue issue)
     {
         CloseDialog();
-        if (issue.PieceIds.Count > 0) _session.Select(issue.PieceIds, add: false);
-        _view.Reveal(issue.X, issue.Y);
+        var (x0, y0, x1, y1) = _session.FocusIssue(issue);
+        _view.Rebuild();
+        _view.FitArea(x0, y0, x1, y1);
+        Refresh();
+    }
+
+    private void StepIssue(int delta)
+    {
+        if (_issueNav is not { } nav || nav.Issues.Count == 0) return;
+        var i = _session.FocusedIssue is { } f ? IndexOf(nav.Issues, f) : -1;
+        var next = ((i < 0 ? (delta > 0 ? -1 : 0) : i) + delta + nav.Issues.Count) % nav.Issues.Count;
+        PickIssue(nav.Issues[next]);
+    }
+
+    private static int IndexOf(IReadOnlyList<PlanIssue> list, PlanIssue item)
+    {
+        for (var i = 0; i < list.Count; i++) if (ReferenceEquals(list[i], item)) return i;
+        return -1;
+    }
+
+    private void CloseIssueNav()
+    {
+        _issueNav = null;
+        _session.Issues = [];
+        _session.ClearFocus();
+        _view.Invalidate();
+        Refresh();
     }
 
     private void AskGradient()
@@ -743,6 +829,9 @@ public partial class App : ComponentBase, IAppHost
         ShowText(Lang.T("Kabelplan"), text, Lang.T("Als Text speichern"), () =>
         {
             if (_session.RequirePro(Lang.T("Kabelplan"))) Export(text, "text/plain", Lang.F($"{SafeName} – Kabelplan.txt"));
+        }, Lang.T("Anschlussliste als CSV"), () =>
+        {
+            if (_session.RequirePro(Lang.T("Kabelplan"))) Export(ConnectionList.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Anschlussliste.csv"));
         });
     }
 

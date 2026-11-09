@@ -169,10 +169,11 @@ public sealed class PlanPainter
     private static readonly Color BridgeShadow = Color.Argb(0x60, 0x30, 0x30, 0x30);
     private static readonly Color TunnelWall = Color.Rgb(0x6B, 0x5A, 0x48);
     private static readonly Color FeederColor = Color.Rgb(0xC4, 0x2B, 0x1C);
+    private static readonly Color GroundColor = Color.Rgb(0x79, 0x55, 0x48);
     private static readonly Color IsolationColor = Color.Rgb(0xE0, 0x6C, 0x00);
 
     /// <summary>Zeichnet alles in Weltkoordinaten; die Canvas ist bereits skaliert. <paramref name="zoom"/> = Pixel je mm.</summary>
-    public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null)
+    public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null, bool wires = true)
     {
         var plan = _plan;
         float z = zoom, g = _g;
@@ -305,6 +306,8 @@ public sealed class PlanPainter
 
         DrawLocks(c, z);
         DrawElectrics(c, z, selectedObject);
+        if (wires) DrawWires(c, z, selectedObject);
+        DrawPowerSources(c, _plan, _g, z, selectedObject, Ui.Density, wires);
         DrawAnnotations(c, plan, z, selectedObject);
     }
 
@@ -512,12 +515,12 @@ public sealed class PlanPainter
         foreach (var f in plan.Feeders)
         {
             if (plan.Find(f.PieceId) is not { } p) continue;
-            var m = p.Middle();
-            var r = Math.Max(g * 0.9f, 5 * d / z);
-            var cx = (float)(m.X - Math.Sin(m.HeadingRad) * g * 2.2);
-            var cy = (float)(m.Y + Math.Cos(m.HeadingRad) * g * 2.2);
-            c.DrawLine((float)m.X, (float)m.Y, cx, cy, Stroke(FeederColor, Math.Max(g * 0.15f, 1 / z)));
-            c.DrawCircle(cx, cy, r, Fill(FeederColor));
+            // sitzt direkt auf der Schiene (Gleichstrom) bzw. dem Mittelleiter (Wechselstrom)
+            var r = Math.Max(g * 0.35f, 5 * d / z);
+            var (fpx, fpy) = Electrics.FeederPoint(plan, p, f);
+            var cx = (float)fpx;
+            var cy = (float)fpy;
+            c.DrawCircle(cx, cy, r, Fill(f.Ground ? GroundColor : FeederColor));
             c.DrawCircle(cx, cy, r, f.Id == selectedObject ? Stroke(Ui.Accent, 2.5f * d / z) : Stroke(Color.White, 1 / z));
             var bolt = new Path();
             bolt.MoveTo(cx + r * 0.15f, cy - r * 0.65f);
@@ -540,7 +543,7 @@ public sealed class PlanPainter
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            var face = SignalFace.For(s.Type);
+            var face = SignalFace.For(s);
             var scale = SignalFace.PlanScale(g, z, 6 * d);
             var (m11, m12, m21, m22, ox, oy) = SignalFace.PlanTransform(x, y, heading, scale, face);
             var m = new Matrix();
@@ -553,6 +556,253 @@ public sealed class PlanPainter
     }
 
     private static Color C(Rgb c, int alpha = 0xFF) => Color.Argb(alpha, c.R, c.G, c.B);
+
+    /// <summary>
+    /// Stromquellen als Symbol (Zentrale, Booster, Trafo, Zubehörtrafo) mit gestrichelter Verbindung zu ihren Gleisanschlüssen.
+    /// </summary>
+    public static void DrawPowerSources(Canvas c, LayoutPlan plan, float g, float z, int? selectedObject, float density, bool links = true)
+    {
+        var items = PowerSupply.Items(plan).ToList();
+        if (items.Count == 0) return;
+        using var p = new Paint(PaintFlags.AntiAlias);
+        // Verbindung Zentrale/Booster/Trafo → Gleisanschluss: immer rot wie die Bahnstromleitung
+        foreach (var src in links ? PowerSupply.TrackSources(plan) : Enumerable.Empty<SceneryItem>())
+        {
+            var (tx, ty) = PowerSupply.Terminal(src);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = Color.Argb(0xC8, 0xD3, 0x2F, 0x2F);
+            p.StrokeWidth = Math.Max(g * 0.18f, 1.3f * density / z);
+            p.SetPathEffect(new DashPathEffect([Math.Max(g * 1.2f, 6 / z), Math.Max(g * 0.8f, 4 / z)], 0));
+            foreach (var f in PowerSupply.FeedersOf(plan, src).Where(f => f.WireId is null))
+                if (plan.Find(f.PieceId) is { } piece)
+                {
+                    var (fx, fy) = Electrics.FeederPoint(plan, piece, f);
+                    // als Pfad, damit die Strichelung greift
+                    using var link = Polygon(PowerSupply.LinkPath((tx, ty), (fx, fy), src), close: false);
+                    c.DrawPath(link, p);
+                }
+            p.SetPathEffect(null);
+        }
+        foreach (var src in items)
+            if (PowerSupply.Type(src) == PowerSourceType.Verteiler) DrawDistributor(c, src, z, src.Id == selectedObject, density, p);
+            else if (PowerSupply.Type(src) == PowerSourceType.Baustein) DrawModule(c, src, g, z, src.Id == selectedObject, density, p);
+            else DrawPowerSymbol(c, src, g, z, src.Id == selectedObject, density, p);
+    }
+
+    /// <summary>Decoder-Baustein: Platine mit Typ und Name, Klemmen für Ausgänge bzw. Melder an der Unterkante.</summary>
+    private static void DrawModule(Canvas c, SceneryItem src, float g, float z, bool selected, float density, Paint p)
+    {
+        var m = Decoders.ModelOf(src);
+        var feedback = m?.Role == ModuleRole.Melden;
+        var body = feedback ? new Rgb(0x0D, 0x47, 0xA1) : new Rgb(0x1B, 0x5E, 0x20);
+        float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
+        c.Save();
+        c.Translate((float)src.X, (float)src.Y);
+        c.Rotate((float)src.Rotation);
+        var rect = new RectF(-hw, -hd, hw, hd);
+        var corner = d * 0.08f;
+        p.SetPathEffect(null);
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = C(body);
+        c.DrawRoundRect(rect, corner, corner, p);
+        p.SetStyle(Paint.Style.Stroke);
+        p.Color = selected ? Ui.Accent : Color.Rgb(0xE0, 0xE0, 0xE0);
+        p.StrokeWidth = selected ? 3 * density / z : 1.2f * density / z;
+        c.DrawRoundRect(rect, corner, corner, p);
+        // Typ groß, Name und Adressen klein
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = Color.White;
+        p.TextAlign = Paint.Align.Center;
+        p.SetTypeface(Ui.Font(true));
+        var title = m?.Short ?? src.Model ?? "";
+        p.TextSize = Fit(p, title, d * 0.26f, w * 0.9f);
+        c.DrawText(title, 0, -d * 0.12f, p);
+        p.SetTypeface(Ui.Font(false));
+        var info = Decoders.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name;
+        p.TextSize = Fit(p, info, d * 0.18f, w * 0.9f);
+        c.DrawText(info, 0, d * 0.14f, p);
+        // Klemmen
+        var n = Math.Clamp(m?.Outputs ?? 0, 0, 16);
+        var step = n > 0 ? w / n : w;
+        var tr = Math.Min(step * 0.32f, Math.Max(g * 0.45f, 3 * density / z));
+        for (var i = 0; i < n; i++)
+        {
+            var x = -hw + step * (i + 0.5f);
+            p.SetStyle(Paint.Style.Fill);
+            p.Color = Color.Rgb(0xF2, 0xC0, 0x00);
+            c.DrawCircle(x, hd, tr, p);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = Color.Rgb(0x42, 0x42, 0x42);
+            p.StrokeWidth = Math.Max(tr * 0.25f, 0.6f / z);
+            c.DrawCircle(x, hd, tr, p);
+        }
+        c.Restore();
+    }
+
+    /// <summary>Verteilerleiste: Leiste in Aderfarbe mit Klemmen auf der Mittellinie.</summary>
+    private static void DrawDistributor(Canvas c, SceneryItem src, float z, bool selected, float density, Paint p)
+    {
+        var rgb = ModelBody.ParseColor(PowerSupply.DistributorColor(src)) ?? new Rgb(0x79, 0x55, 0x48);
+        var color = C(rgb);
+        float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
+        c.Save();
+        c.Translate((float)src.X, (float)src.Y);
+        c.Rotate((float)src.Rotation);
+        var body = new RectF(-hw, -hd, hw, hd);
+        var corner = d * 0.2f;
+        p.SetPathEffect(null);
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = color;
+        c.DrawRoundRect(body, corner, corner, p);
+        p.SetStyle(Paint.Style.Stroke);
+        p.Color = selected ? Ui.Accent : C(rgb.Scale(0.55));
+        p.StrokeWidth = selected ? 3 * density / z : 1.2f * density / z;
+        c.DrawRoundRect(body, corner, corner, p);
+        var step = w / PowerSupply.Clamps;
+        var r = Math.Min(step * 0.3f, d * 0.3f);
+        for (var i = 0; i < PowerSupply.Clamps; i++)
+        {
+            var x = -hw + step * (i + 0.5f);
+            p.SetStyle(Paint.Style.Fill);
+            p.Color = Color.Rgb(0xE0, 0xE0, 0xE0);
+            c.DrawCircle(x, 0, r, p);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = Color.Rgb(0x42, 0x42, 0x42);
+            p.StrokeWidth = Math.Max(r * 0.25f, 0.6f / z);
+            c.DrawCircle(x, 0, r, p);
+            c.DrawLine(x - r * 0.6f, 0, x + r * 0.6f, 0, p);
+        }
+        c.Restore();
+    }
+
+    private static void DrawPowerSymbol(Canvas c, SceneryItem src, float g, float z, bool selected, float density, Paint p)
+    {
+        var type = PowerSupply.Type(src);
+        var color = C(ModelBody.ParseColor(PowerSupply.Color(type)) ?? new Rgb(0x37, 0x47, 0x4F));
+        float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
+        var ground = PowerSupply.HasGround(type);
+        c.Save();
+        c.Translate((float)src.X, (float)src.Y);
+        c.Rotate((float)src.Rotation);
+        var body = new RectF(-hw, -hd, hw, hd);
+        var corner = d * 0.12f;
+        p.SetPathEffect(null);
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = color;
+        c.DrawRoundRect(body, corner, corner, p);
+        p.SetStyle(Paint.Style.Stroke);
+        p.Color = selected ? Ui.Accent : Color.White;
+        p.StrokeWidth = selected ? 3 * density / z : 1.2f * density / z;
+        c.DrawRoundRect(body, corner, corner, p);
+
+        // Kennzeichen links: Bildschirm (Zentrale), Blitz (Booster), Drehknopf (Fahrtrafo), Trafo-Spulen (Zubehör)
+        float ix = -hw + d * 0.42f, r = d * 0.26f;
+        p.StrokeWidth = Math.Max(d * 0.06f, 1 / z);
+        p.Color = Color.White;
+        switch (type)
+        {
+            case PowerSourceType.Zentrale:
+                p.SetStyle(Paint.Style.Fill);
+                p.Color = Color.Rgb(0xB9, 0xF6, 0xCA);
+                c.DrawRect(ix - r, -r * 0.75f, ix + r, r * 0.75f, p);
+                break;
+            case PowerSourceType.Booster:
+                using (var bolt = new Path())
+                {
+                    bolt.MoveTo(ix + r * 0.2f, -r);
+                    bolt.LineTo(ix - r * 0.45f, r * 0.1f);
+                    bolt.LineTo(ix + r * 0.35f, r * 0.1f);
+                    bolt.LineTo(ix - r * 0.2f, r);
+                    c.DrawPath(bolt, p);
+                }
+                break;
+            case PowerSourceType.Fahrtrafo:
+                c.DrawCircle(ix, 0, r, p);
+                c.DrawLine(ix, 0, ix + r * 0.6f, -r * 0.6f, p);
+                break;
+            default:
+                c.DrawCircle(ix - r * 0.35f, 0, r * 0.6f, p);
+                c.DrawCircle(ix + r * 0.35f, 0, r * 0.6f, p);
+                break;
+        }
+
+        // Art und Name
+        var short_ = PowerSupply.Label(src);
+        var tx = ix + r + (hw - (ix + r)) / 2;
+        var room = hw - (ix + r) - d * 0.08f;
+        p.SetStyle(Paint.Style.Fill);
+        p.Color = Color.White;
+        p.TextAlign = Paint.Align.Center;
+        p.SetTypeface(Ui.Font(true));
+        if (src.Name == short_)
+        {
+            p.TextSize = Fit(p, short_, d * 0.3f, room);
+            c.DrawText(short_, tx, p.TextSize * 0.35f, p);
+        }
+        else
+        {
+            p.TextSize = Fit(p, short_, d * 0.24f, room);
+            c.DrawText(short_, tx, -d * 0.06f, p);
+            p.SetTypeface(Ui.Font(false));
+            p.TextSize = Fit(p, src.Name, d * 0.22f, room);
+            c.DrawText(src.Name, tx, d * 0.3f, p);
+        }
+
+        // Anschlussklemmen unten: Zentrale/Booster Bahnstrom (B, rot) und Masse (0, braun), sonst eine Klemme
+        var tr = Math.Max(g * 0.55f, 3.5f * density / z);
+        void Clamp(float x, Color ring, string? mark)
+        {
+            p.SetStyle(Paint.Style.Fill);
+            p.Color = Color.White;
+            c.DrawCircle(x, hd, tr, p);
+            p.SetStyle(Paint.Style.Stroke);
+            p.Color = ring;
+            p.StrokeWidth = Math.Max(tr * 0.35f, 1 / z);
+            c.DrawCircle(x, hd, tr, p);
+            if (mark is null) return;
+            p.SetStyle(Paint.Style.Fill);
+            p.SetTypeface(Ui.Font(true));
+            p.TextAlign = Paint.Align.Center;
+            p.TextSize = tr * 1.25f;
+            c.DrawText(mark, x, hd + tr * 0.45f, p);
+        }
+        if (ground)
+        {
+            Clamp(-w / 5, Color.Rgb(0xD3, 0x2F, 0x2F), "B");
+            Clamp(w / 5, Color.Rgb(0x79, 0x55, 0x48), "0");
+        }
+        else Clamp(0, color, null);
+        c.Restore();
+    }
+
+    /// <summary>Schriftgröße, bei der der Text in die Breite passt.</summary>
+    private static float Fit(Paint p, string text, float size, float width)
+    {
+        p.TextSize = size;
+        var m = p.MeasureText(text);
+        return m > width && m > 0 ? size * width / m : size;
+    }
+
+    /// <summary>Selbst verlegte Kabel: Linienzug in der Aderfarbe mit dunkler Kante, Enden als Punkte.</summary>
+    private void DrawWires(Canvas c, float z, int? selectedObject)
+    {
+        var d = Ui.Density;
+        var current = Electrics.Current(_plan);
+        var width = Math.Max(_g * 0.35f, 2.2f * d / z);
+        foreach (var w in _plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
+        {
+            var rgb = ModelBody.ParseColor(WireLayout.ColorOf(w, current)) ?? new Rgb(0x21, 0x21, 0x21);
+            var path = Polygon(w.Points, close: false);
+            if (w.Id == selectedObject) c.DrawPath(path, Stroke(Ui.Accent, width + 5 * d / z, Paint.Cap.Round));
+            c.DrawPath(path, Stroke(C(rgb.Scale(0.55)), width + 1.4f * d / z, Paint.Cap.Round));
+            c.DrawPath(path, Stroke(C(rgb), width, Paint.Cap.Round));
+            foreach (var (x, y) in new[] { w.Points[0], w.Points[^1] })
+            {
+                c.DrawCircle((float)x, (float)y, width * 1.2f, Fill(C(rgb)));
+                c.DrawCircle((float)x, (float)y, width * 1.2f, Stroke(Color.White, 1 * d / z));
+            }
+        }
+    }
 
     /// <summary>
     /// Zeichnet ein Signalbild in Schirmkoordinaten (Ursprung Mitte der Schirmoberkante, y nach unten, 1 = Schirmbreite).
@@ -580,10 +830,21 @@ public sealed class PlanPainter
         }
         var shield = new RectF(-W / 2, 0, W / 2, H);
         var corner = (float)f.Corner;
-        Fill(SignalFace.ShieldColor);
-        c.DrawRoundRect(shield, corner, corner, p);
-        Stroke(new Rgb(0x55, 0x55, 0x55), line);
-        c.DrawRoundRect(shield, corner, corner, p);
+        void Part(SignalPart part)
+        {
+            using var path = Polygon(part.Points);
+            Fill(part.Fill);
+            c.DrawPath(path, p);
+        }
+        foreach (var part in f.BackParts) Part(part);
+        if (f.Shield)
+        {
+            Fill(SignalFace.ShieldColor);
+            c.DrawRoundRect(shield, corner, corner, p);
+            Stroke(new Rgb(0x55, 0x55, 0x55), line);
+            c.DrawRoundRect(shield, corner, corner, p);
+        }
+        foreach (var part in f.FrontParts) Part(part);
         foreach (var l in f.Lamps)
         {
             float x = (float)l.X, y = (float)l.Y, r = (float)l.R;
@@ -604,9 +865,9 @@ public sealed class PlanPainter
     }
 
     /// <summary>Signalbild als kleines Symbol, eingepasst in <paramref name="width"/> × <paramref name="height"/> (gleicher Maßstab für alle Arten).</summary>
-    public static void SignalIcon(Canvas c, SignalType type, float width, float height)
+    public static void SignalIcon(Canvas c, SignalType type, float width, float height, SignalSystem system = SignalSystem.HV)
     {
-        var face = SignalFace.For(type);
+        var face = SignalFace.For(type, system);
         var scale = height / 4.3f;
         c.Save();
         c.Translate(width / 2, height - scale * (float)(face.TotalHeight + 0.1));

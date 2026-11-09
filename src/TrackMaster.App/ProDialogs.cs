@@ -677,7 +677,7 @@ public static partial class Dialogs
         autoRow.Children.Add(first);
         autoRow.Children.Add(onlyMissing);
         var body = new StackPanel();
-        body.Children.Add(Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). Ein Weichendecoder hat vier Ausgänge: Adressen 1–4 = Decoder 1, 5–8 = Decoder 2 usw.")));
+        body.Children.Add(Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2).")));
         body.Children.Add(autoRow);
         body.Children.Add(grid);
         void Fill()
@@ -685,12 +685,12 @@ public static partial class Dialogs
             grid.Children.Clear();
             grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Clear();
-            foreach (var w in new[] { 80.0, double.NaN, 90, 70, 70 })
+            foreach (var w in new[] { 80.0, double.NaN, 90, 200 })
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = double.IsNaN(w) ? new GridLength(1, GridUnitType.Star) : new GridLength(w) });
             var items = Electrics.SwitchingItems(session.Plan);
             var conflicts = Electrics.AddressConflicts(items).SelectMany(c => c.Items).ToHashSet();
             grid.RowDefinitions.Add(new RowDefinition());
-            string[] heads = [Lang.T("Art"), Lang.T("Bezeichnung"), Lang.T("Adresse"), Lang.T("Decoder"), Lang.T("Ausgang")];
+            string[] heads = [Lang.T("Art"), Lang.T("Bezeichnung"), Lang.T("Adresse"), Lang.T("Decoder-Baustein")];
             for (var c = 0; c < heads.Length; c++)
             {
                 var h = Theme.Label(heads[c], 11, true, Theme.TextSecondaryBrush);
@@ -735,8 +735,7 @@ public static partial class Dialogs
                 box.LostKeyboardFocus += (_, _) => Commit();
                 box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter) Commit(); };
                 Cell(box, 2);
-                Cell(Theme.Label(it.Decoder?.ToString() ?? "–"), 3);
-                Cell(Theme.Label(it.Port?.ToString() ?? "–"), 4);
+                Cell(Theme.Label(Decoders.Location(session.Plan, it.Address) ?? "–"), 3);
             }
         }
         auto.Click += (_, _) =>
@@ -757,7 +756,7 @@ public static partial class Dialogs
         window.ShowDialog();
     }
 
-    public static void ShowText(Window owner, string title, string text, string saveLabel, Action save)
+    public static void ShowText(Window owner, string title, string text, string saveLabel, Action save, string? save2Label = null, Action? save2 = null)
     {
         var box = new TextBox
         {
@@ -767,10 +766,12 @@ public static partial class Dialogs
         var saveButton = Theme.Button(saveLabel, "Save");
         var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var window = Frame(owner, title, box, saveButton, close);
+        Button? second = save2Label is null ? null : Theme.Button(save2Label, "Csv");
+        var window = second is null ? Frame(owner, title, box, saveButton, close) : Frame(owner, title, box, second, saveButton, close);
         window.Width = 780;
         window.Height = 640;
         saveButton.Click += (_, _) => save();
+        if (second is not null) second.Click += (_, _) => save2?.Invoke();
         close.Click += (_, _) => window.Close();
         window.ShowDialog();
     }

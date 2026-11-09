@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire, Power }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -30,6 +30,8 @@ public sealed partial class PlanSession
     public CanvasTool Tool { get; set; } = CanvasTool.Select;
     /// <summary>Signaltyp für das Werkzeug „Signal setzen“.</summary>
     public SignalType SignalType { get; set; } = SignalType.Hauptsignal;
+    /// <summary>Signalsystem für neue Signale (Werkzeug „Signal“).</summary>
+    public SignalSystem SignalSystem { get; set; } = SignalSystem.HV;
     /// <summary>Art des Raumelements für das Werkzeug „Raumelement“.</summary>
     public ObstacleType ObstacleType { get; set; } = ObstacleType.Tuer;
     /// <summary>Ausstattungsmodell für das Werkzeug „Modell einfügen“ (<see cref="ModelLibrary"/>).</summary>
@@ -142,6 +144,7 @@ public sealed partial class PlanSession
         Selection.Clear();
         SelectedObject = null;
         Issues = [];
+        FocusedIssue = null;
         Active = null;
         Commit();
     }
@@ -500,7 +503,7 @@ public sealed partial class PlanSession
             Plan.Pieces.Add(q);
             Selection.Add(q.Id);
         }
-        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit });
+        foreach (var f in src.Feeders) { var q = f.Clone(); q.Id = Plan.NextId++; q.PieceId = map[f.PieceId]; q.WireId = null; Plan.Feeders.Add(q); }
         foreach (var i in src.Isolations) Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = map[i.PieceId], Index = i.Index });
         foreach (var g in src.Signals)
         {
@@ -770,6 +773,17 @@ public sealed partial class PlanSession
         DropHidden();
         Commit();
         Say(visible ? Lang.F($"{Plan.Levels[index].Name} eingeblendet.") : Lang.F($"{Plan.Levels[index].Name} ausgeblendet."));
+    }
+
+    /// <summary>Alle Ebenen auf einmal ein- oder ausblenden (keine Planänderung).</summary>
+    public void SetAllLevelsVisible(bool visible)
+    {
+        if (Plan.Levels.All(l => l.Visible == visible)) return;
+        foreach (var l in Plan.Levels) l.Visible = visible;
+        Dirty = true;
+        DropHidden();
+        Commit();
+        Say(visible ? Lang.T("Alle Ebenen eingeblendet.") : Lang.T("Alle Ebenen ausgeblendet. Ein Häkchen oder ein Klick auf eine Ebene zeigt sie wieder."));
     }
 
     /// <summary>Nur eine Ebene zeigen (oder mit <paramref name="index"/> = −1 alle).</summary>
@@ -1536,7 +1550,7 @@ public sealed partial class PlanSession
     /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
     public void RemoveObject(int id)
     {
-        var what = FindObject(id) switch { Feeder => Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
+        var what = FindObject(id) switch { Feeder fd => fd.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
         Record();
         if (!Plan.RemoveObject(id)) { History.DiscardLast(); return; }
         if (SelectedObject == id) SelectedObject = null;
@@ -1547,13 +1561,13 @@ public sealed partial class PlanSession
     public void AddFeeder(int pieceId)
     {
         Record();
-        var circuit = Plan.Feeders.LastOrDefault()?.Circuit ?? "Stromkreis 1";
-        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = circuit };
+        var circuit = CircuitForNewFeeder();
+        var f = new Feeder { Id = Plan.NextId++, PieceId = pieceId, Circuit = circuit, Reversed = MatchingPolarity(pieceId) };
         Plan.Feeders.Add(f);
         SelectedObject = f.Id;
         Selection.Clear();
         Commit();
-        Say(Lang.F($"Einspeisung an Gleis Nr. {pieceId} ({circuit})."));
+        Say(Lang.F($"Gleisanschluss an Gleis Nr. {pieceId} → {circuit}.") + AutoSourceNote());
     }
 
     /// <summary>Setzt oder entfernt eine Trennstelle an einem Gleisende (an verbundenen Enden auch auf der Gegenseite).</summary>
@@ -1580,7 +1594,7 @@ public sealed partial class PlanSession
         Record();
         var n = Plan.Signals.Count(s => s.Type == SignalType) + 1;
         var prefix = SignalType switch { SignalType.Vorsignal => "V", SignalType.Sperrsignal => "Sh", SignalType.Ausfahrsignal => "N", SignalType.Blocksignal => "B", _ => "A" };
-        var sig = new Signal { Id = Plan.NextId++, PieceId = pieceId, Index = index, Type = SignalType, Name = $"{prefix}{n}" };
+        var sig = new Signal { Id = Plan.NextId++, PieceId = pieceId, Index = index, Type = SignalType, System = SignalSystem, Name = $"{prefix}{n}" };
         Plan.Signals.Add(sig);
         SelectedObject = sig.Id;
         Selection.Clear();

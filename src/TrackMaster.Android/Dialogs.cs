@@ -176,7 +176,7 @@ public static partial class Dialogs
             (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
             (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Ui.Danger : null),
             (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
+            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count(f => !f.Ground)} Einsp. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
             (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Ui.OpenEnd : Ui.Success)));
         body.AddView(Hint(c, Lang.T("So geht’s: Tippe ein orangefarbenes Gleisende an und dann ein Gleis in der Bibliothek – es wird dort angesetzt. ") +
                              Lang.T("Gewählte Gleise lassen sich mit dem Finger verschieben und rasten an freien Enden ein. Zwei Finger zoomen und verschieben die Ansicht, ") +
@@ -280,10 +280,12 @@ public static partial class Dialogs
             body.AddView(Rows(c, (Lang.T("Nutzlänge"), UsableLength.Describe(session.Plan, run2), session.Plan.TrainLength > 0 && !run2.Closed && run2.Length < session.Plan.TrainLength ? Ui.Danger : null)));
         if (p.Group > 0)
             body.AddView(Rows(c, (Lang.T("Gruppe"), Lang.F($"{session.Plan.Pieces.Count(x => x.Group == p.Group)} Gleise"), null)));
-        EditText? address = null;
+        EditText? address = null, swName = null;
         if (d.Drives > 0)
         {
             body.AddView(Section(c, Lang.T("Digital")));
+            swName = Ui.TextField(c, p.Name, "W1");
+            body.AddView(Ui.Field(c, Lang.T("Bezeichnung (z. B. W1)"), swName));
             address = Ui.Number(c, p.Address ?? 0);
             body.AddView(Ui.Field(c, Lang.T("Adresse (0 = keine)"), address));
         }
@@ -293,6 +295,11 @@ public static partial class Dialogs
         AlertDialog? dialog = null;
         var buttons = Ui.Row(c, 6);
         void Cmd(string text, string command) => buttons.AddView(Ui.Button(c, text, () => { dialog?.Dismiss(); run(command); }));
+        if (!d.IsTable)
+        {
+            body.AddView(Section(c, Lang.T("Elektrik")));
+            body.AddView(Ui.Label(c, session.ConnectionSummary(p.Id), 13, color: Ui.TextSecondary));
+        }
         Cmd(Lang.T("Drehen"), "rotR");
         if (d.CanFlip) Cmd(Lang.T("Spiegeln"), "flip");
         if (conns.Count > 1) Cmd(Lang.T("Anschluss"), "swap");
@@ -328,7 +335,8 @@ public static partial class Dialogs
             if (address is not null) Read(address, Lang.T("Adresse"), 0, 2048, errors, out va);
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
             int? addr = address is null ? p.Address : va >= 1 ? (int)Math.Round(va) : null;
-            var changed = Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
+            var name = swName?.Text?.Trim() ?? p.Name;
+            var changed = name != p.Name || Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
                           || Math.Abs(vh - p.Height) > 1e-6 || Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9 || tunnel.Checked != p.Tunnel || addr != p.Address || locked.Checked != p.Locked;
             if (changed)
                 session.Edit(() =>
@@ -338,6 +346,7 @@ public static partial class Dialogs
                     if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
                     p.Tunnel = tunnel.Checked;
                     p.Address = addr;
+                    p.Name = name;
                     p.Locked = locked.Checked;
                 });
             return true;
@@ -406,6 +415,8 @@ public static partial class Dialogs
                 body.AddView(Ui.Field(c, s.Kind == SceneryKind.Label ? "Text" : Lang.T("Name"), name));
                 var fields = new List<(EditText Box, string Name, double Min, double Max, Action<double> Apply)>();
                 Spinner? obstacleKind = null;
+                Spinner? powerKind = null;
+                Spinner? distColor = null;
                 Spinner? modelColor = null;
                 EditText Num(double v, string label, double min, double max, Action<double> apply, int decimals = 0)
                 {
@@ -519,6 +530,83 @@ public static partial class Dialogs
                             body.AddView(Hint(c, Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")));
                         break;
                     }
+                    case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
+                    {
+                        var dm = Decoders.ModelOf(s);
+                        var melden = dm?.Role == ModuleRole.Melden;
+                        if (dm is not null) body.AddView(Hint(c, $"{dm.Maker} {dm.Title}"));
+                        body.AddView(Columns(c,
+                            dm is { Addresses: > 0 }
+                                ? Ui.Field(c, melden ? Lang.T("Erster Rückmeldekontakt") : Lang.T("Startadresse"), Num(s.Address ?? 1, Lang.T("Startadresse"), 1, 4096, v => s.Address = (int)Math.Round(v)))
+                                : new TextView(c),
+                            Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                        var mrows = new List<(string, string, Color?)>();
+                        if (dm is not null)
+                        {
+                            mrows.Add((melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"), dm.Outputs.ToString(), null));
+                            if (Decoders.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
+                            mrows.Add((Lang.T("Bus"), dm.Bus, null));
+                        }
+                        mrows.Add((Lang.T("Kabel"), Decoders.Ports(s).SelectMany(x => WireLayout.WiresAt(plan, x)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        if (dm is { Addresses: > 0 })
+                        {
+                            var assigned = Decoders.Assigned(plan, s);
+                            if (assigned.Count == 0)
+                                mrows.Add((melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"), "–", null));
+                            foreach (var a in assigned)
+                                mrows.Add((melden ? Lang.F($"Melder {a.Port}") : Lang.F($"Ausgang {a.Port}"), $"{a.Label} ({a.Address})", null));
+                        }
+                        body.AddView(Rows(c, mrows.ToArray()));
+                        body.AddView(Hint(c, (dm?.Description ?? "") + " " + Lang.T("Kabel rasten an den gelben Klemmen unten ein.")));
+                        break;
+                    }
+                    case SceneryKind.Power:
+                    {
+                        var ptype = PowerSupply.Type(s);
+                        var ptypes = Enum.GetValues<PowerSourceType>().Where(t => t != PowerSourceType.Baustein).ToArray();
+                        powerKind = Choice(c, ptypes.Select(PowerSupply.TypeName).ToList(), Array.IndexOf(ptypes, ptype));
+                        body.AddView(Columns(c,
+                            Ui.Field(c, Lang.T("Art"), powerKind),
+                            Ui.Field(c, Lang.T("Drehung (°)"), Num(s.Rotation, Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v)))));
+                        var prows = new List<(string, string, Color?)>();
+                        if (ptype == PowerSourceType.Verteiler)
+                        {
+                            var dcols = PowerSupply.DistributorColors;
+                            distColor = Choice(c, dcols.Select(x => Lang.T(x.Name)).ToList(), Math.Max(0, dcols.ToList().FindIndex(x => string.Equals(x.Hex, PowerSupply.DistributorColor(s), StringComparison.OrdinalIgnoreCase))));
+                            body.AddView(Ui.Field(c, Lang.T("Farbe"), distColor));
+                            prows.Add((Lang.T("Klemmen"), PowerSupply.Clamps.ToString(), null));
+                            prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(x => WireLayout.WiresAt(plan, x)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        }
+                        else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
+                        if (Decoders.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
+                        if (PowerSupply.GroundTerminal(s) is { } gt)
+                        {
+                            var grounded = WireLayout.WiresAt(plan, gt).Any();
+                            prows.Add((Lang.T("Masse (0)"), grounded ? Lang.T("angeschlossen") : Lang.T("fehlt"), grounded ? null : Ui.OpenEnd));
+                        }
+                        if (PowerSupply.FeedsTrack(ptype))
+                        {
+                            var psections = Electrics.Sections(plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                            prows.Add((Lang.T("Einspeisungen"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Masse am Gleis"), PowerSupply.GroundsOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
+                            prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
+                            if (!PowerSupply.Fits(ptype, plan.Operation))
+                                prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Ui.OpenEnd));
+                        }
+                        body.AddView(Rows(c, prows.ToArray()));
+                        if (PowerSupply.FeedsTrack(ptype))
+                        {
+                            var pbuttons = Ui.Row(c, 6);
+                            pbuttons.AddView(Ui.Button(c, Lang.T("Kabel von hier verlegen"), () => { dialog?.Dismiss(); run("wireFromSource"); }));
+                            if (PowerSupply.HasGround(ptype)) pbuttons.AddView(Ui.Button(c, Lang.T("Masse-Kabel von hier"), () => { dialog?.Dismiss(); run("groundFromSource"); }));
+                            body.AddView(pbuttons);
+                        }
+                        body.AddView(Hint(c, PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.FeedsTrack(ptype)
+                            ? Lang.T("Einspeisung: „Kabel von hier verlegen“ und das Kabel auf dem Gleis enden lassen – dort entsteht die Einspeisung. Ein Gleis kann mehrere haben. Die Masse (0) genauso auf die andere Schiene bzw. (Mittelleiter) auf eine Schiene legen, auch über einen Masse-Verteiler.")
+                            : Lang.T("Kabel rasten an der Klemme unten ein.")))));
+                        break;
+                    }
                     case SceneryKind.Tree:
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Durchmesser (mm)"), Num(s.Width, Lang.T("Durchmesser"), 3, 1000, v => { s.Width = v; s.Depth = v; })),
@@ -527,7 +615,7 @@ public static partial class Dialogs
                 }
                 DeleteButton();
                 body.AddView(Hint(c, Lang.T("Ein gewähltes Objekt lässt sich mit dem Finger verschieben.")));
-                dialog = Show(c, SceneryItem.KindName(s.Kind), body, Lang.T("Übernehmen"), () =>
+                dialog = Show(c, s.IsPower ? PowerSupply.TypeName(PowerSupply.Type(s)) : SceneryItem.KindName(s.Kind), body, Lang.T("Übernehmen"), () =>
                 {
                     var errors = new List<string>();
                     var values = fields.Select(f => (f, ok: Read(f.Box, f.Name, f.Min, f.Max, errors, out var v), v)).ToList();
@@ -535,30 +623,45 @@ public static partial class Dialogs
                     var n = (name.Text ?? "").Trim();
                     session.Edit(() =>
                     {
-                        if (n.Length > 0) s.Name = n;
+                        if (n.Length > 0 && !s.IsPower) s.Name = n;
                         foreach (var (f, _, v) in values) f.Apply(v);
+                        if (distColor is not null) s.Color = PowerSupply.DistributorColors[Math.Clamp(distColor.SelectedItemPosition, 0, PowerSupply.DistributorColors.Count - 1)].Hex;
+                        if (powerKind is not null) PowerSupply.ApplyType(s, Enum.GetValues<PowerSourceType>().Where(t => t != PowerSourceType.Baustein).ToArray()[Math.Max(0, powerKind.SelectedItemPosition)], plan.Gauge, session.DistributorColor);
                         if (obstacleKind is not null) s.Variant = (int)Enum.GetValues<ObstacleType>()[Math.Max(0, obstacleKind.SelectedItemPosition)];
                         if (modelColor is not null) s.Color = ModelLibrary.MainColors[Math.Clamp(modelColor.SelectedItemPosition, 0, ModelLibrary.MainColors.Count - 1)].Hex;
                     });
+                    // Stromquelle: Gleisanschlüsse wandern mit dem Namen mit
+                    if (s.IsPower && n.Length > 0) session.RenamePowerSource(s.Id, n);
                     return true;
                 });
                 break;
             }
             case Feeder f:
             {
-                var circuits = plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct().ToList();
+                var circuits = session.CircuitNames.Append(f.Circuit).Append(session.NewCircuitName()).Distinct().ToList();
                 var circuit = new AutoCompleteTextView(c) { Text = f.Circuit, Threshold = 0 };
                 circuit.Adapter = new ArrayAdapter<string>(c, global::Android.Resource.Layout.SimpleDropDownItem1Line, circuits);
                 circuit.Click += (_, _) => circuit.ShowDropDown();
-                body.AddView(Ui.Field(c, Lang.T("Stromkreis / Booster"), circuit));
+                body.AddView(Ui.Field(c, plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"), circuit));
+                if (PowerSupply.SourceOf(plan, f) is null) body.AddView(Hint(c, Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")));
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+                var frows = new List<(string, string, Color?)> { (Lang.T("Anschluss"), f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"), null) };
+                if (f.WireId is { } fwid && plan.Scenery.FirstOrDefault(w => w.Id == fwid) is { } fwire) frows.Add((Lang.T("Kabel"), fwire.Name, null));
+                body.AddView(Rows(c, frows.ToArray()));
+                CheckBox? right = null;
+                if (Electrics.Current(plan) == CurrentKind.Gleichstrom || f.Ground)
+                {
+                    right = new CheckBox(c) { Text = Lang.T("An der rechten Schiene (in Gleisrichtung)"), Checked = f.Reversed };
+                    body.AddView(right);
+                }
                 body.AddView(Rows(c, (Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null)));
                 DeleteButton();
-                dialog = Show(c, Lang.T("Einspeisung"), body, Lang.T("Übernehmen"), () =>
+                dialog = Show(c, f.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"), body, Lang.T("Übernehmen"), () =>
                 {
+                    if (right is not null && right.Checked != f.Reversed) session.ToggleFeederPolarity(f.Id);
                     var t = (circuit.Text ?? "").Trim();
-                    if (t.Length > 0 && t != f.Circuit) session.Edit(() => f.Circuit = t);
+                    if (t.Length > 0 && t != f.Circuit) session.SetFeederCircuit(f.Id, t);
                     return true;
                 });
                 break;
@@ -604,9 +707,12 @@ public static partial class Dialogs
                 var types = Enum.GetValues<SignalType>();
                 var type = Choice(c, types.Select(Signal.TypeName).ToList(), Array.IndexOf(types, g.Type));
                 body.AddView(Ui.Field(c, Lang.T("Art"), type));
-                var face = SignalFace.For(g.Type);
+                var systems = Enum.GetValues<SignalSystem>();
+                var system = Choice(c, systems.Select(Signal.SystemName).ToList(), Array.IndexOf(systems, g.System));
+                body.AddView(Ui.Field(c, Lang.T("Signalsystem"), system));
+                var face = SignalFace.For(g);
                 var picture = Ui.Row(c, 12);
-                picture.AddView(new SignalIconView(c, g.Type), new LinearLayout.LayoutParams(Ui.Dp(36), Ui.Dp(64)));
+                picture.AddView(new SignalIconView(c, g.Type, g.System), new LinearLayout.LayoutParams(Ui.Dp(36), Ui.Dp(64)));
                 picture.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
                 body.AddView(picture);
                 var address = Ui.Number(c, g.Address ?? 0);
@@ -621,7 +727,8 @@ public static partial class Dialogs
                     var t = types[Math.Max(0, type.SelectedItemPosition)];
                     var n = (name.Text ?? "").Trim();
                     int? addr = a >= 1 ? (int)Math.Round(a) : null;
-                    if (n != g.Name || t != g.Type || addr != g.Address) session.Edit(() => { g.Name = n; g.Type = t; g.Address = addr; });
+                    var sy = systems[Math.Max(0, system.SelectedItemPosition)];
+                    if (n != g.Name || t != g.Type || sy != g.System || addr != g.Address) session.Edit(() => { g.Name = n; g.Type = t; g.System = sy; g.Address = addr; });
                     return true;
                 });
                 break;
@@ -1026,26 +1133,61 @@ public static partial class Dialogs
         Show(c, Lang.T("Trasse aus Auswahl"), body, Lang.T("Schließen"), cancelText: null, neutral: (Lang.T("SVG-Dateien speichern"), saveSvg));
     }
 
-    public static void AskSignalType(Context c, SignalType current, Action<SignalType> pick)
+    /// <summary>Einfache Auswahl: eine Zeile je Eintrag (Text, Hinweis); der aktuelle ist hervorgehoben.</summary>
+    public static void Choose(Context c, string title, IReadOnlyList<(string Label, string? Hint, bool Current)> items, Action<int> pick, string? footer = null)
     {
         var body = Ui.Column(c, 6);
         AlertDialog? dialog = null;
-        foreach (var t in Enum.GetValues<SignalType>())
+        for (var i = 0; i < items.Count; i++)
         {
-            var type = t;
-            var face = SignalFace.For(t);
-            var row = Ui.Row(c, 12);
-            row.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
-            row.Background = Ui.Rounded(t == current ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), t == current ? Ui.Accent : Ui.Border);
+            var index = i;
+            var (label, hint, current) = items[i];
+            var row = Ui.Column(c, 2);
+            row.SetPadding(Ui.Dp(10), Ui.Dp(8), Ui.Dp(10), Ui.Dp(8));
+            row.Background = Ui.Rounded(current ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), current ? Ui.Accent : Ui.Border);
             row.Clickable = true;
-            row.AddView(new SignalIconView(c, t), new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(64)));
-            var texts = Ui.Column(c, 2);
-            texts.AddView(Ui.Label(c, Signal.TypeName(t), 15, true));
-            texts.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary));
-            row.AddView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
-            row.Click += (_, _) => { pick(type); dialog?.Dismiss(); };
+            row.AddView(Ui.Label(c, label, 15, true));
+            if (!string.IsNullOrEmpty(hint)) row.AddView(Ui.Label(c, hint, 12, color: Ui.TextSecondary));
+            row.Click += (_, _) => { dialog?.Dismiss(); pick(index); };
             body.AddView(row);
         }
+        if (footer is not null) body.AddView(Ui.Label(c, footer, 12, color: Ui.TextSecondary));
+        dialog = Show(c, title, body, okText: null);
+    }
+
+    public static void AskSignalType(Context c, SignalType current, SignalSystem currentSystem, Action<SignalType, SignalSystem> pick)
+    {
+        var body = Ui.Column(c, 6);
+        AlertDialog? dialog = null;
+        var systems = Enum.GetValues<SignalSystem>();
+        var system = Choice(c, systems.Select(Signal.SystemName).ToList(), Array.IndexOf(systems, currentSystem));
+        body.AddView(Ui.Field(c, Lang.T("Signalsystem"), system));
+        var list = Ui.Column(c, 6);
+        body.AddView(list);
+        void Fill()
+        {
+            list.RemoveAllViews();
+            var sy = systems[Math.Max(0, system.SelectedItemPosition)];
+            foreach (var t in Enum.GetValues<SignalType>())
+            {
+                var type = t;
+                var face = SignalFace.For(t, sy);
+                var on = t == current && sy == currentSystem;
+                var row = Ui.Row(c, 12);
+                row.SetPadding(Ui.Dp(8), Ui.Dp(6), Ui.Dp(8), Ui.Dp(6));
+                row.Background = Ui.Rounded(on ? Color.Rgb(0xE8, 0xF1, 0xFB) : Color.Rgb(0xFA, 0xFA, 0xFA), on ? Ui.Accent : Ui.Border);
+                row.Clickable = true;
+                row.AddView(new SignalIconView(c, t, sy), new LinearLayout.LayoutParams(Ui.Dp(40), Ui.Dp(64)));
+                var texts = Ui.Column(c, 2);
+                texts.AddView(Ui.Label(c, Signal.TypeName(t), 15, true));
+                texts.AddView(Ui.Label(c, $"{face.Aspect}. {face.Description}", 12, color: Ui.TextSecondary));
+                row.AddView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+                row.Click += (_, _) => { pick(type, sy); dialog?.Dismiss(); };
+                list.AddView(row);
+            }
+        }
+        system.ItemSelected += (_, _) => Fill();
+        Fill();
         dialog = Show(c, Lang.T("Signal setzen"), body, okText: null);
     }
 
@@ -1105,19 +1247,19 @@ public static partial class Dialogs
         }
     }
 
-    /// <summary>Kleines Signalbild (H/V-Lichtsignal) für Listen.</summary>
-    private sealed class SignalIconView(Context c, SignalType type) : View(c)
+    /// <summary>Kleines Signalbild für Listen.</summary>
+    private sealed class SignalIconView(Context c, SignalType type, SignalSystem system = SignalSystem.HV) : View(c)
     {
         protected override void OnDraw(Canvas canvas)
         {
             base.OnDraw(canvas);
-            PlanPainter.SignalIcon(canvas, type, Width, Height);
+            PlanPainter.SignalIcon(canvas, type, Width, Height, system);
         }
     }
 
     // ---------- Prüfen und Listen ----------
 
-    public static void ShowIssues(Context c, string title, IReadOnlyList<PlanIssue> issues, Action<PlanIssue> pick, string? footer = null)
+    public static void ShowIssues(Context c, string title, IReadOnlyList<PlanIssue> issues, Action<PlanIssue> pick, string? footer = null, Action? clear = null)
     {
         var body = Ui.Column(c, 6);
         AlertDialog? dialog = null;
@@ -1144,7 +1286,8 @@ public static partial class Dialogs
             }
         }
         if (footer is not null) body.AddView(Hint(c, footer));
-        dialog = Show(c, title, body, Lang.T("Schließen"), cancelText: null);
+        dialog = Show(c, title, body, Lang.T("Schließen"), cancelText: null,
+            neutral: clear is not null && issues.Count > 0 ? ((string Text, Action Click)?)(Lang.T("Markierungen entfernen"), () => { dialog?.Dismiss(); clear(); }) : null);
     }
 
     public static void ShowAddresses(Context c, PlanSession session, Action wiring)
@@ -1166,7 +1309,7 @@ public static partial class Dialogs
                 var row = Ui.Row(c, 8);
                 var text = Ui.Column(c, 0);
                 text.AddView(Ui.Label(c, it.Label, 14, color: conflicts.Contains(it) ? Ui.Danger : null));
-                text.AddView(Ui.Label(c, Lang.F($"{it.Kind} · Decoder {it.Decoder?.ToString() ?? "–"}, Ausgang {it.Port?.ToString() ?? "–"}"), 12, color: Ui.TextSecondary));
+                text.AddView(Ui.Label(c, $"{it.Kind} · {Decoders.Location(session.Plan, it.Address) ?? Lang.T("an keinem Decoder-Baustein")}", 12, color: Ui.TextSecondary));
                 row.AddView(text, Ui.Weight(1, vertical: false));
                 var box = new EditText(c) { Text = it.Address?.ToString() ?? "", InputType = Android.Text.InputTypes.ClassNumber };
                 box.SetMinWidth(Ui.Dp(70));
@@ -1204,6 +1347,12 @@ public static partial class Dialogs
 
     public static void ShowText(Context c, string title, string text, string saveLabel, Action save)
     {
+        ShowTextWith(c, title, text, (saveLabel, save));
+    }
+
+    public static void ShowTextWith(Context c, string title, string text, (string, Action) neutral)
+    {
+        var (saveLabel, save) = neutral;
         var t = Ui.Label(c, text, 12.5);
         t.Typeface = Typeface.Monospace;
         t.SetTextIsSelectable(true);

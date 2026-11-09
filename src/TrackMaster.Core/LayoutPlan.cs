@@ -19,6 +19,8 @@ public sealed class PlacedPiece
     public int Level { get; set; }
     /// <summary>Digitaladresse (Weichen und Kreuzungsweichen).</summary>
     public int? Address { get; set; }
+    /// <summary>Eigene Bezeichnung (z. B. „W1“ für eine Weiche), leer = keine.</summary>
+    public string Name { get; set; } = "";
     /// <summary>Gesperrt: lässt sich nicht verschieben, drehen, spiegeln oder löschen.</summary>
     public bool Locked { get; set; }
     /// <summary>Gruppe (0 = keine): ein Klick wählt alle Gleise der Gruppe.</summary>
@@ -72,12 +74,13 @@ public sealed class PlacedPiece
 
     public PlacedPiece Clone() => new()
     {
-        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Level = Level, Locked = Locked, Group = Group,
+        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Name = Name, Level = Level, Locked = Locked, Group = Group,
     };
 }
 
-/// <summary>Art eines Objekts; <see cref="Beam"/> = Holzleiste des Unterbaus (z. B. Diagonale oder Strebe), frei gezogen.</summary>
-public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate }
+/// <summary>Art eines Objekts; <see cref="Beam"/> = Holzleiste des Unterbaus (z. B. Diagonale oder Strebe), frei gezogen;
+/// <see cref="Wire"/> = selbst verlegtes Kabel (Linienzug, siehe <see cref="WireLayout"/>).</summary>
+public enum SceneryKind { Terrain, Water, Building, Tree, Label, Dimension, Room, Obstacle, Beam, Plate, Wire, Power }
 
 /// <summary>Art eines Raumelements (<see cref="SceneryKind.Obstacle"/>).</summary>
 public enum ObstacleType { Tuer, Fenster, Saeule, Heizkoerper, Moebel, Sonstiges }
@@ -112,6 +115,8 @@ public sealed class SceneryItem
     public string? Model { get; set; }
     /// <summary>Gebäude: Hauptfarbe als #RRGGBB; leer = Farbe des Modells.</summary>
     public string? Color { get; set; }
+    /// <summary>Decoder-Baustein (<see cref="PowerSourceType.Baustein"/>): erste Digitaladresse bzw. erster Rückmeldekontakt.</summary>
+    public int? Address { get; set; }
 
     /// <summary>Ist das ein Ausstattungsmodell (kein einfaches Gebäude)?</summary>
     public bool IsModel => Kind == SceneryKind.Building && !string.IsNullOrEmpty(Model);
@@ -130,6 +135,12 @@ public sealed class SceneryItem
     /// <summary>Deckplatte auf dem Unterbau: <see cref="X"/>, <see cref="Y"/> = linke obere Ecke, <see cref="Width"/> × <see cref="Depth"/>,
     /// <see cref="Height"/> = Oberkante, <see cref="Variant"/> = Stärke in mm.</summary>
     public bool IsPlate => Kind == SceneryKind.Plate;
+    /// <summary>Kabel: <see cref="Points"/> = Linienzug, <see cref="Variant"/> = <see cref="WireUse"/>, <see cref="Color"/> = Aderfarbe (#RRGGBB),
+    /// <see cref="Depth"/> = Querschnitt in mm² (0 = Vorgabe).</summary>
+    public bool IsWire => Kind == SceneryKind.Wire;
+    /// <summary>Stromquelle (Zentrale, Booster, Trafo) als Symbol: Rechteck um (X, Y), <see cref="Variant"/> = <see cref="PowerSourceType"/>,
+    /// <see cref="Name"/> = Stromkreis der angeschlossenen Gleisanschlüsse.</summary>
+    public bool IsPower => Kind == SceneryKind.Power;
 
     /// <summary>Eckpunkte in Weltkoordinaten (Vieleck bzw. gedrehtes Rechteck; Bäume als Achteck).</summary>
     public IReadOnlyList<(double X, double Y)> Outline()
@@ -139,6 +150,7 @@ public sealed class SceneryItem
             case SceneryKind.Terrain:
             case SceneryKind.Water:
             case SceneryKind.Room:
+            case SceneryKind.Wire:
                 return Points;
             case SceneryKind.Label:
                 return Annotation.LabelOutline(this);
@@ -152,6 +164,7 @@ public sealed class SceneryItem
                 return PlacedModel.PathOutline(Points, Depth);
             case SceneryKind.Building:
             case SceneryKind.Obstacle:
+            case SceneryKind.Power:
                 var r = Rotation * Math.PI / 180;
                 double c = Math.Cos(r), s = Math.Sin(r), hw = Width / 2, hd = Depth / 2;
                 return new[] { (-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd) }
@@ -165,11 +178,12 @@ public sealed class SceneryItem
     {
         if (Kind is SceneryKind.Dimension or SceneryKind.Beam && Points.Count == 2) return ((Points[0].X + Points[1].X) / 2, (Points[0].Y + Points[1].Y) / 2);
         if (Kind == SceneryKind.Plate) return (X + Width / 2, Y + Depth / 2);
+        if (Kind == SceneryKind.Wire && Points.Count > 0) return WireLayout.Middle(this);
         if ((!IsArea && Kind != SceneryKind.Room) || Points.Count == 0) return (X, Y);
         return (Points.Average(p => p.X), Points.Average(p => p.Y));
     }
 
-    public bool Contains(double px, double py) => Geometry2D.PointInPolygon(Outline(), px, py);
+    public bool Contains(double px, double py) => IsWire ? WireLayout.Distance(this, px, py) <= 3 : Geometry2D.PointInPolygon(Outline(), px, py);
 
     /// <summary>Dreht das Objekt um einen Punkt (Grad im Uhrzeigersinn bei y nach unten).</summary>
     public void RotateAround(double cx, double cy, double degrees)
@@ -187,7 +201,7 @@ public sealed class SceneryItem
         }
         (X, Y) = Turn(X, Y);
         Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
-        if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle) Rotation = Angles.Normalize(Rotation + degrees);
+        if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle or SceneryKind.Power) Rotation = Angles.Normalize(Rotation + degrees);
     }
 
     public void MoveBy(double dx, double dy)
@@ -198,7 +212,7 @@ public sealed class SceneryItem
 
     public SceneryItem Clone() => new()
     {
-        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], Tracks = [.. Tracks], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color,
+        Id = Id, Kind = Kind, Name = Name, Points = [.. Points], Tracks = [.. Tracks], X = X, Y = Y, Width = Width, Depth = Depth, Rotation = Rotation, Height = Height, Level = Level, Variant = Variant, Model = Model, Color = Color, Address = Address,
     };
 
     public static string KindName(SceneryKind k) => k switch
@@ -212,6 +226,8 @@ public sealed class SceneryItem
         SceneryKind.Obstacle => Lang.T("Raumelement"),
         SceneryKind.Beam => Lang.T("Leiste"),
         SceneryKind.Plate => Lang.T("Deckplatte"),
+        SceneryKind.Wire => Lang.T("Kabel"),
+        SceneryKind.Power => Lang.T("Stromquelle"),
         _ => Lang.T("Baum"),
     };
 
@@ -240,14 +256,37 @@ public sealed class SceneryItem
     public static bool BoardMayCover(ObstacleType t) => t is ObstacleType.Fenster;
 }
 
-/// <summary>Einspeisung: hier wird ein Gleis an einen Stromkreis (Booster/Trafo) angeschlossen.</summary>
+/// <summary>
+/// Einspeisung: hier wird ein Gleis an einen Stromkreis (Zentrale, Booster, Trafo) angeschlossen – mit dem Bahnstrom (B)
+/// oder, bei <see cref="Ground"/>, mit der Masse (0). Entsteht, wenn ein Kabel von der Quelle auf einem Gleis endet (<see cref="WireId"/>).
+/// Ein Gleis kann mehrere Einspeisungen haben.
+/// </summary>
 public sealed class Feeder
 {
     public int Id { get; set; }
     public int PieceId { get; set; }
     public string Circuit { get; set; } = "Stromkreis 1";
-    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit };
+    /// <summary>
+    /// Auf welcher Schiene der Anschluss sitzt: false = links in Richtung Anschluss 0 → 1, true = rechts.
+    /// Gleichstrom-Bahnstrom: Polung vertauscht. Wechselstrom: nur für die Masse (Bahnstrom liegt am Mittelleiter).
+    /// </summary>
+    public bool Reversed { get; set; }
+    /// <summary>Masse-/Rückleiteranschluss (0) statt Bahnstrom (B).</summary>
+    public bool Ground { get; set; }
+    /// <summary>Lage entlang des Gleises (0 = Anschluss 0, 1 = Ende des ersten Fahrwegs).</summary>
+    public double At { get; set; } = 0.5;
+    /// <summary>Kabel, aus dem die Einspeisung entstanden ist (wird mit ihm entfernt), sonst null.</summary>
+    public int? WireId { get; set; }
+    /// <summary>Bezeichnung im Plan (z. B. „G3“ nach dem automatischen Nummerieren); leer = keine.</summary>
+    public string Name { get; set; } = "";
+    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit, Reversed = Reversed, Ground = Ground, At = At, WireId = WireId, Name = Name };
+
+    /// <summary>Text für Listen und Meldungen: Bezeichnung, sonst die Nummer.</summary>
+    public string Label => Name.Length > 0 ? Name : Lang.F($"Nr. {Id}");
 }
+
+/// <summary>Stromart der Anlage. <see cref="Auto"/> richtet sich nach dem Gleis: Mittelleiter → Wechselstrom, sonst Gleichstrom.</summary>
+public enum CurrentKind { Auto, Gleichstrom, Wechselstrom }
 
 /// <summary>Trennstelle (isolierte Schienenverbinder) am Anschluss <see cref="Index"/> eines Gleises.</summary>
 public sealed class Isolation
@@ -260,6 +299,9 @@ public sealed class Isolation
 
 public enum SignalType { Hauptsignal, Vorsignal, Ausfahrsignal, Sperrsignal, Blocksignal }
 
+/// <summary>Signalsystem (Land und Bauform), bestimmt das Signalbild. Die Art (<see cref="SignalType"/>) bleibt die Aufgabe des Signals.</summary>
+public enum SignalSystem { HV, Form, Ks, Hl, OeBB, SBB, SNCF, NS, UK, USA }
+
 /// <summary>Signal am Anschluss <see cref="Index"/> eines Gleises, rechts neben dem Gleis, gilt für Fahrten auf dieses Gleisende zu.</summary>
 public sealed class Signal
 {
@@ -267,9 +309,31 @@ public sealed class Signal
     public int PieceId { get; set; }
     public int Index { get; set; }
     public SignalType Type { get; set; } = SignalType.Hauptsignal;
+    public SignalSystem System { get; set; } = SignalSystem.HV;
     public string Name { get; set; } = "";
     public int? Address { get; set; }
-    public Signal Clone() => new() { Id = Id, PieceId = PieceId, Index = Index, Type = Type, Name = Name, Address = Address };
+    public Signal Clone() => new() { Id = Id, PieceId = PieceId, Index = Index, Type = Type, System = System, Name = Name, Address = Address };
+
+    public static string SystemName(SignalSystem s) => s switch
+    {
+        SignalSystem.HV => Lang.T("Deutschland – H/V-Lichtsignal"),
+        SignalSystem.Form => Lang.T("Deutschland – Formsignal"),
+        SignalSystem.Ks => Lang.T("Deutschland – Ks-Signal"),
+        SignalSystem.Hl => Lang.T("DDR – Hl-Signal"),
+        SignalSystem.OeBB => Lang.T("Österreich – Lichtsignal (ÖBB)"),
+        SignalSystem.SBB => Lang.T("Schweiz – Signalsystem L (SBB)"),
+        SignalSystem.SNCF => Lang.T("Frankreich – Lichtsignal (SNCF)"),
+        SignalSystem.NS => Lang.T("Niederlande – Lichtsignal (NS)"),
+        SignalSystem.UK => Lang.T("Großbritannien – Lichtsignal"),
+        _ => Lang.T("USA – Lichtsignal"),
+    };
+
+    /// <summary>Kurzname des Systems für Listen und Exporte.</summary>
+    public static string SystemShort(SignalSystem s) => s switch
+    {
+        SignalSystem.HV => "H/V", SignalSystem.Form => Lang.T("Formsignal"), SignalSystem.Ks => "Ks", SignalSystem.Hl => "Hl", SignalSystem.OeBB => "ÖBB",
+        SignalSystem.SBB => "SBB", SignalSystem.SNCF => "SNCF", SignalSystem.NS => "NS", SignalSystem.UK => "UK", _ => "USA",
+    };
 
     public static string TypeName(SignalType t) => t switch
     {
@@ -354,7 +418,7 @@ public sealed record LevelEdit(int Index, string Name, double Height, bool Visib
 public sealed class LayoutPlan
 {
     /// <summary>Höchstens so viele Ebenen.</summary>
-    public const int MaxLevels = 10;
+    public const int MaxLevels = 25;
     public string Name { get; set; } = Lang.T("Neuer Plan");
     public string GaugeId { get; set; } = "H0";
     /// <summary>Gleissystem, mit dem im Plan gearbeitet wurde (wird beim Öffnen in der Bibliothek gewählt).</summary>
@@ -401,6 +465,10 @@ public sealed class LayoutPlan
     public double EffectiveVehicleLength => VehicleLength > 0 ? VehicleLength : VehicleDefaults.Length(Gauge);
     /// <summary>Nächste freie Kennung; gilt für Gleise und alle anderen Objekte gemeinsam.</summary>
     public int NextId { get; set; } = 1;
+    /// <summary>Stromart (Gleich- oder Wechselstrom); Auto = nach dem Gleissystem, siehe <see cref="Electrics.Current"/>.</summary>
+    public CurrentKind Current { get; set; }
+    /// <summary>Betriebsart: digital (Zentrale, Booster) oder analog (Fahrtrafo).</summary>
+    public PowerMode Operation { get; set; }
 
     public Gauge Gauge => Catalog.GetGauge(GaugeId);
 
@@ -433,7 +501,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength,
+            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);
@@ -473,7 +541,7 @@ public sealed class LayoutPlan
 
     /// <summary>Entfernt ein Objekt (Gelände, Einspeisung, Trennstelle, Signal) über seine Kennung.</summary>
     public bool RemoveObject(int id)
-        => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) + Detectors.RemoveAll(d => d.Id == id) > 0;
+        => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id || f.WireId == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) + Detectors.RemoveAll(d => d.Id == id) > 0;
 
     public PlanStatistics Statistics(Connectivity? connectivity = null)
     {

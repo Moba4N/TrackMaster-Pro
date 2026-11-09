@@ -67,6 +67,9 @@ public sealed class Paint : IDisposable
     public void SetPathEffect(DashPathEffect? effect) => PathEffect = effect;
     public void SetTypeface(bool bold) => FakeBoldText = bold;
 
+    /// <summary>Geschätzte Textbreite (mittlere Zeichenbreite der Oberflächenschrift); reicht zum Einpassen kurzer Beschriftungen.</summary>
+    public float MeasureText(string text) => text.Length * TextSize * (FakeBoldText ? 0.6f : 0.55f);
+
     public void Reset()
     {
         AntiAlias = true;

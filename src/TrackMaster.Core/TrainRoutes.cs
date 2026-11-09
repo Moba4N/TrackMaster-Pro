@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace TrackMaster.Core;
 
 /// <summary>Stellung einer Weiche oder DKW in einer Fahrstraße.</summary>
-public sealed record RouteSetting(int PieceId, int Path, string Position, int? Address);
+public sealed record RouteSetting(int PieceId, int Path, string Position, int? Address, string Name = "");
 
 /// <summary>Fahrstraße von einem Signal bis zum nächsten Signal in Fahrtrichtung oder bis zum Prellbock.</summary>
 public sealed record TrainRoute(string Name, int StartSignalId, int? EndSignalId, int? EndPieceId, IReadOnlyList<int> PieceIds, IReadOnlyList<RouteSetting> Settings, double LengthMm);
@@ -62,6 +62,11 @@ public static class TrainRoutes
         return straightOthers > 0 ? Lang.T("abzweigend") : Lang.F($"Strang {path + 1}");
     }
 
+    /// <summary>Bezeichnung einer Weiche: eigener Name, sonst „Weiche Nr. 12“.</summary>
+    public static string SwitchName(PlacedPiece p) => string.IsNullOrWhiteSpace(p.Name) ? Lang.F($"Weiche Nr. {p.Id}") : p.Name;
+
+    private static string SwitchName(RouteSetting s) => string.IsNullOrWhiteSpace(s.Name) ? Lang.F($"Weiche Nr. {s.PieceId}") : s.Name;
+
     public static string SignalName(Signal s) => string.IsNullOrWhiteSpace(s.Name) ? Lang.F($"Signal Nr. {s.Id}") : s.Name;
 
     public static IReadOnlyList<TrainRoute> Find(LayoutPlan plan)
@@ -86,7 +91,7 @@ public static class TrainRoutes
                 var drives = piece.Def.Drives > 0 && passages[pieceId].Select(x => x.Path).Distinct().Count() > 1;
                 foreach (var (_, exit, path) in options)
                 {
-                    if (drives) settings.Add(new RouteSetting(pieceId, path, PositionName(piece, path), piece.Address));
+                    if (drives) settings.Add(new RouteSetting(pieceId, path, PositionName(piece, path), piece.Address, piece.Name));
                     var len = length + TrackGeometry.PathLength(piece.Def, path);
                     if (signalsAt.TryGetValue((pieceId, exit), out var end))
                         Add(end.Id, null, len);
@@ -138,7 +143,7 @@ public static class TrainRoutes
             sb.AppendLine($"{i + 1}. {r.Name} ({Fmt.Num(r.LengthMm / 1000, 2)} m, {r.PieceIds.Count} Gleise)");
             if (r.Settings.Count == 0) sb.AppendLine(Lang.T("   ohne Weichen"));
             foreach (var s in r.Settings)
-                sb.AppendLine(Lang.F($"   Weiche Nr. {s.PieceId}{(s.Address is { } a ? $" (Adresse {a})" : "")}: {s.Position}"));
+                sb.AppendLine($"   {SwitchName(s)}{(s.Address is { } a ? Lang.F($" (Adresse {a})") : "")}: {s.Position}");
             var excl = conflicts.Where(c => c.A == i || c.B == i).Select(c => (c.A == i ? c.B : c.A) + 1).ToList();
             if (excl.Count > 0) sb.AppendLine(Lang.F($"   schließt aus: {string.Join(", ", excl)}"));
         }
@@ -148,15 +153,15 @@ public static class TrainRoutes
     /// <summary>Tabelle für Tabellenkalkulation und Steuerprogramme: eine Zeile je Weichenstellung.</summary>
     public static string ToCsv(IReadOnlyList<TrainRoute> routes)
     {
-        var sb = new StringBuilder(Lang.T("Fahrstraße;Name;Länge (mm);Weiche Nr.;Adresse;Stellung\r\n"));
+        var sb = new StringBuilder(Lang.T("Fahrstraße;Name;Länge (mm);Weiche Nr.;Weiche;Adresse;Stellung\r\n"));
         static string Q(string s) => s.Contains(';') || s.Contains('"') ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
         for (var i = 0; i < routes.Count; i++)
         {
             var r = routes[i];
             var len = Math.Round(r.LengthMm).ToString(CultureInfo.InvariantCulture);
-            if (r.Settings.Count == 0) sb.Append($"{i + 1};{Q(r.Name)};{len};;;\r\n");
+            if (r.Settings.Count == 0) sb.Append($"{i + 1};{Q(r.Name)};{len};;;;\r\n");
             foreach (var s in r.Settings)
-                sb.Append($"{i + 1};{Q(r.Name)};{len};{s.PieceId};{s.Address?.ToString(CultureInfo.InvariantCulture)};{s.Position}\r\n");
+                sb.Append($"{i + 1};{Q(r.Name)};{len};{s.PieceId};{Q(SwitchName(s))};{s.Address?.ToString(CultureInfo.InvariantCulture)};{s.Position}\r\n");
         }
         return sb.ToString();
     }
@@ -177,18 +182,80 @@ public static class TrainRoutes
             gauge = plan.GaugeId,
             switches = plan.Pieces.Where(p => p.Def.Drives > 0).Select(p => new
             {
-                id = p.Id, article = p.Def.Number, kind = p.Def.IsDoubleSlip ? "dkw" : "weiche", address = p.Address, drives = p.Def.Drives,
+                id = p.Id, name = SwitchName(p), article = p.Def.Number, kind = p.Def.IsDoubleSlip ? "dkw" : "weiche", address = p.Address, drives = p.Def.Drives,
                 positions = Passages(p).Select(x => x.Path).Distinct().OrderBy(x => x).Select(x => PositionName(p, x)).ToList(),
             }).ToList(),
-            signals = plan.Signals.Select(s => new { id = s.Id, name = SignalName(s), type = Signal.TypeName(s.Type), address = s.Address, addresses = s.AddressCount, piece = s.PieceId }).ToList(),
+            signals = plan.Signals.Select(s => new { id = s.Id, name = SignalName(s), type = Signal.TypeName(s.Type), system = s.System.ToString(), address = s.Address, addresses = s.AddressCount, piece = s.PieceId }).ToList(),
             detectors = plan.Detectors.Select(d => new { id = d.Id, name = d.Name, type = d.Type.ToString().ToLowerInvariant(), address = d.Address, piece = d.PieceId }).ToList(),
             sections = sections.Select(s => new { number = s.Number, pieces = s.PieceIds, lengthMm = Math.Round(s.LengthMm), circuits = s.Circuits }).ToList(),
             routes = routes.Select((r, i) => new
             {
                 number = i + 1, name = r.Name, from = r.StartSignalId, to = r.EndSignalId, endPiece = r.EndPieceId, lengthMm = Math.Round(r.LengthMm), pieces = r.PieceIds,
-                settings = r.Settings.Select(s => new { piece = s.PieceId, address = s.Address, position = s.Position }).ToList(),
+                settings = r.Settings.Select(s => new { piece = s.PieceId, name = SwitchName(s), address = s.Address, position = s.Position }).ToList(),
             }).ToList(),
         };
         return JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+    }
+
+    private static string Addr(int? a, int count) => a is { } x ? (count > 1 ? $"{x}–{x + count - 1}" : x.ToString(CultureInfo.InvariantCulture)) : "";
+
+    private static IReadOnlyList<string> Positions(PlacedPiece p) => Passages(p).Select(x => x.Path).Distinct().OrderBy(x => x).Select(x => PositionName(p, x)).ToList();
+
+    /// <summary>Alle Angaben für Steuerprogramme als Tabelle: eine Zeile je Weiche, Signal, Rückmelder, Stromabschnitt und Fahrstraße.</summary>
+    public static IReadOnlyList<string[]> ControlRows(LayoutPlan plan)
+    {
+        var rows = new List<string[]>();
+        var inv = CultureInfo.InvariantCulture;
+        foreach (var p in plan.Pieces.Where(p => p.Def.Drives > 0).OrderBy(p => p.Address ?? int.MaxValue).ThenBy(p => p.Id))
+            rows.Add([p.Def.IsDoubleSlip ? "DKW" : Lang.T("Weiche"), SwitchName(p), p.Def.Number, Lang.F($"Gleis Nr. {p.Id}"), Addr(p.Address, p.Def.Drives), string.Join(" / ", Positions(p))]);
+        foreach (var g in plan.Signals.OrderBy(g => g.Address ?? int.MaxValue).ThenBy(g => g.Id))
+            rows.Add(["Signal", SignalName(g), $"{Signal.TypeName(g.Type)} ({Signal.SystemShort(g.System)})", Lang.F($"Gleis Nr. {g.PieceId}"), Addr(g.Address, g.AddressCount), ""]);
+        foreach (var d in plan.Detectors.OrderBy(d => d.Address ?? int.MaxValue).ThenBy(d => d.Id))
+            rows.Add([Lang.T("Rückmelder"), d.Name.Length > 0 ? d.Name : Lang.F($"Nr. {d.Id}"), Detector.TypeName(d.Type), Lang.F($"Gleis Nr. {d.PieceId}"), d.Address?.ToString(inv) ?? "", ""]);
+        foreach (var s in Electrics.Sections(plan))
+            rows.Add([Lang.T("Stromabschnitt"), Lang.F($"Abschnitt {s.Number}"), string.Join(", ", s.Circuits), Lang.F($"{s.PieceIds.Count} Gleise"), "",
+                Lang.F($"{Fmt.Num(s.LengthMm / 1000, 2)} m")]);
+        var routes = Find(plan);
+        for (var i = 0; i < routes.Count; i++)
+        {
+            var r = routes[i];
+            var settings = r.Settings.Count == 0 ? Lang.T("ohne Weichen")
+                : string.Join(", ", r.Settings.Select(x => $"{SwitchName(x)}{(x.Address is { } a ? $" [{a}]" : "")}: {x.Position}"));
+            rows.Add([Lang.T("Fahrstraße"), $"{i + 1}. {r.Name}", "", Lang.F($"{r.PieceIds.Count} Gleise, {Fmt.Num(r.LengthMm / 1000, 2)} m"), "", settings]);
+        }
+        return rows;
+    }
+
+    private static string[] ControlHead => [Lang.T("Art"), Lang.T("Bezeichnung"), Lang.T("Typ / Artikel"), Lang.T("Ort"), Lang.T("Adresse"), Lang.T("Stellungen / Hinweis")];
+
+    /// <summary>Export für Steuerprogramme als CSV (Semikolon, UTF-8 mit BOM).</summary>
+    public static string ControlCsv(LayoutPlan plan)
+    {
+        static string Quote(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
+        var sb = new StringBuilder("\uFEFF");
+        sb.Append(string.Join(';', ControlHead.Select(Quote))).Append("\r\n");
+        foreach (var r in ControlRows(plan)) sb.Append(string.Join(';', r.Select(Quote))).Append("\r\n");
+        return sb.ToString();
+    }
+
+    /// <summary>Export für Steuerprogramme als Text zum Lesen oder Ausdrucken, nach Art gruppiert.</summary>
+    public static string ControlText(LayoutPlan plan)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(Lang.F($"Steuerung – {plan.Name}"));
+        sb.AppendLine(new string('=', 60));
+        var rows = ControlRows(plan);
+        if (rows.Count == 0) { sb.AppendLine(Lang.T("Noch keine Weichen, Signale oder Rückmelder im Plan.")); return sb.ToString(); }
+        foreach (var grp in rows.GroupBy(r => r[0]))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"{grp.Key} ({grp.Count()})");
+            foreach (var r in grp)
+            {
+                var parts = new[] { r[2], r[3], r[4].Length > 0 ? Lang.F($"Adresse {r[4]}") : "", r[5] }.Where(x => x.Length > 0);
+                sb.AppendLine($"  {r[1]} · {string.Join(" · ", parts)}");
+            }
+        }
+        return sb.ToString();
     }
 }

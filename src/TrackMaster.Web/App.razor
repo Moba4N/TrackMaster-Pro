@@ -86,7 +86,7 @@
             {
                 var hasSel = _session.Selection.Count > 0;
                 <div class="ctx-backdrop" @onclick="@(() => _ctx = null)" @oncontextmenu="@(() => _ctx = null)" @oncontextmenu:preventDefault></div>
-                <div class="ctx-menu" role="menu" style="@FormattableString.Invariant($"left:{Math.Max(4, Math.Min(cm.X, _view.Width - 230)):F0}px;top:{Math.Max(4, Math.Min(cm.Y, _view.Height - 250)):F0}px")" @oncontextmenu:preventDefault>
+                <div class="ctx-menu" role="menu" style="@FormattableString.Invariant($"left:{Math.Max(4, Math.Min(cm.X, _view.Width - 230)):F0}px;top:{Math.Max(4, Math.Min(cm.Y, _view.Height - (_session.ConnectionPiece is null ? 330 : 550))):F0}px")" @oncontextmenu:preventDefault>
                     @if (IsModulePlan())
                     {
                         <button role="menuitem" @onclick="@(() => CtxRun("cutJoints"))">@((MarkupString)Icons.Svg("Isolate", 16))<span>@(hasSel ? Lang.T("An Modulkante trennen") : Lang.T("Alle Gleise an Modulkanten trennen"))</span></button>
@@ -98,6 +98,18 @@
                     @if (hasSel)
                     {
                         <button role="menuitem" @onclick="@(() => CtxRun("props"))">@((MarkupString)Icons.Svg("Properties", 16))<span>@Lang.T("Eigenschaften")</span></button>
+                        @if (_session.ConnectionPiece is { } cp)
+                        {
+                            var connectedEnds = _session.PieceEnds(cp.Id).Where(e => e.Connected).ToList();
+                            var allIsolated = connectedEnds.Count > 0 && connectedEnds.All(e => e.Isolated);
+                            <div class="ctx-sep" role="separator"></div>
+                            @if (connectedEnds.Count > 0)
+                            {
+                                <button role="menuitem" @onclick="@(() => CtxRun("connIsolate"))">@((MarkupString)Icons.Svg("Isolate", 16))<span>@(allIsolated ? Lang.T("Trennstellen entfernen") : Lang.T("Trennstellen an allen Enden"))</span></button>
+                            }
+                            <button role="menuitem" @onclick="@(() => CtxRun("connDetector"))">@((MarkupString)Icons.Svg("Detector", 16))<span>@(_session.DetectorOn(cp.Id) is null ? Lang.T("Rückmelder setzen") : Lang.T("Rückmelder entfernen"))</span></button>
+                            <div class="ctx-sep" role="separator"></div>
+                        }
                         <button role="menuitem" @onclick="@(() => CtxRun("rotR"))">@((MarkupString)Icons.Svg("RotateRight", 16))<span>@Lang.T("Drehen")</span></button>
                         <button role="menuitem" @onclick="@(() => CtxRun("flip"))">@((MarkupString)Icons.Svg("Mirror", 16))<span>@Lang.T("Spiegeln")</span></button>
                         <button role="menuitem" @onclick="@(() => CtxRun("duplicate"))">@((MarkupString)Icons.Svg("Copy", 16))<span>@Lang.T("Duplizieren")</span></button>
@@ -105,22 +117,56 @@
                     }
                     else
                     {
+                        @if (_session.SelectedObject is { } so && _session.Plan.Scenery.FirstOrDefault(x => x.Id == so) is { IsPower: true } psrc && PowerSupply.FeedsTrack(PowerSupply.Type(psrc)))
+                        {
+                            <button role="menuitem" @onclick="@(() => CtxRun("wireFromSource"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@Lang.T("Kabel von hier verlegen (Bahnstrom)")</span></button>
+                            @if (PowerSupply.HasGround(PowerSupply.Type(psrc)))
+                            {
+                                <button role="menuitem" @onclick="@(() => CtxRun("groundFromSource"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@Lang.T("Masse-Kabel von hier verlegen (0)")</span></button>
+                            }
+                            <div class="ctx-sep" role="separator"></div>
+                        }
                         <button role="menuitem" @onclick="@(() => CtxRun("paste"))">@((MarkupString)Icons.Svg("Paste", 16))<span>@Lang.T("Einfügen")</span></button>
                         <button role="menuitem" @onclick="@(() => CtxRun("fit"))">@((MarkupString)Icons.Svg("Fit", 16))<span>@Lang.T("Einpassen")</span></button>
                     }
+                    <div class="ctx-sep" role="separator"></div>
+                    <button role="menuitem" @onclick="@(() => CtxRun("wires"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@(_session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"))</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("numberElectrics"))">@((MarkupString)Icons.Svg("Hash", 16))<span>@Lang.T("Elektrik nummerieren")</span></button>
                 </div>
             }
             @if (_session.Tool is not (CanvasTool.Select))
             {
-                var polygon = _session.Tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room;
+                var polygon = _session.Tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire;
+                var minPoints = _session.Tool == CanvasTool.Wire ? 2 : 3;
                 <div class="toolbar">
                     <span class="tool-text">@ToolText</span>
                     @if (polygon)
                     {
                         <button class="btn" disabled="@(_view.PolygonPoints == 0)" @onclick="() => _view.UndoPolygonPoint()">@Lang.T("Punkt zurück")</button>
-                        <button class="btn accent" disabled="@(_view.PolygonPoints < 3)" @onclick="() => _view.FinishPolygon()">@Lang.T("Fertig")</button>
+                        <button class="btn accent" disabled="@(_view.PolygonPoints < minPoints)" @onclick="() => _view.FinishPolygon()">@Lang.T("Fertig")</button>
                     }
                     <button class="btn" @onclick="() => SetTool(CanvasTool.Select)">@Lang.T("Beenden")</button>
+                </div>
+            }
+            @if (_issueNav is { } nav && _dialog is null && _session.Issues.Count > 0)
+            {
+                <div class="issue-bar" role="status">
+                    <button class="icon-btn" title="@Lang.T("Vorheriger Befund")" @onclick="() => StepIssue(-1)">‹</button>
+                    @if (_session.FocusedIssue is { } fi)
+                    {
+                        var idx = IndexOf(nav.Issues, fi);
+                        var cls = fi.Level switch { IssueLevel.Fehler => "danger", IssueLevel.Warnung => "warn", _ => "accent" };
+                        <span class="issue-text"><span class="strong small @cls">@($"{fi.Level.Text()} · {fi.Category}") (@(idx + 1)/@nav.Issues.Count)</span> @fi.Text</span>
+                    }
+                    else
+                    {
+                        var ne = nav.Issues.Count(i => i.Level == IssueLevel.Fehler);
+                        var nw = nav.Issues.Count(i => i.Level == IssueLevel.Warnung);
+                        <span class="issue-text"><span class="strong small">@nav.Title</span> @Lang.F($"{ne} Fehler · {nw} Warnungen · {nav.Issues.Count - ne - nw} Hinweise sind im Plan markiert. ✕ oder Esc entfernt die Markierungen.")</span>
+                    }
+                    <button class="icon-btn" title="@Lang.T("Nächster Befund")" @onclick="() => StepIssue(1)">›</button>
+                    <button class="btn small" @onclick="() => ShowIssues(nav.Title, nav.Issues, nav.Footer)">@Lang.T("Liste")</button>
+                    <button class="icon-btn" title="@Lang.T("Hervorhebung beenden")" @onclick="CloseIssueNav">✕</button>
                 </div>
             }
             @if (_toast is not null)
@@ -152,6 +198,8 @@
         }
         <button class="lb-add" title="@Lang.T("Ebene hinzufügen")" disabled="@(plan.Levels.Count >= LayoutPlan.MaxLevels)" @onclick="@(() => _session.AddLevel())">+</button>
         <button class="lb-add" title="@Lang.T("Ebenen bearbeiten")" @onclick="@(() => Run("levels"))">…</button>
+        @{ var anyVisible = plan.Levels.Any(l => l.Visible); }
+        <button class="lb-add lb-all" title="@(anyVisible ? Lang.T("Alle Ebenen ausblenden") : Lang.T("Alle Ebenen einblenden"))" @onclick="@(() => _session.SetAllLevelsVisible(!anyVisible))">@(anyVisible ? Lang.T("Alle ausblenden") : Lang.T("Alle einblenden"))</button>
     </div>
 
     <footer class="statusbar">
@@ -296,7 +344,7 @@
             new(Lang.T("Vorschlag"), [new(Lang.T("Plan­vorschlag…"), "Template", "suggest", true, Lang.T("Stückzahlen der vorhandenen Gleise eingeben – das Programm baut daraus kleine Anlagen (Oval, Abstellgleise, Ausweiche, Doppeloval, Acht), die auf die Platte passen."))]),
             new(Lang.T("Flexgleis"), [new(Lang.T("Flexgleis ziehen"), "Flex", "toolFlex", true, Lang.T("Am Gleisende ansetzen und ziehen, das Flexgleis biegt sich mit.")),
                 new(Lang.T("Lücke schließen"), "Connector", "flexConnect", true, Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis."))]),
-            new(Lang.T("Ebenen"), [new(Lang.T("Ebenen…"), "Layers", "levels", true, Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))]),
+            new(Lang.T("Ebenen"), [new(Lang.T("Ebenen…"), "Layers", "levels", true, Lang.T("Bis zu 25 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))]),
             new(Lang.T("Höhe"), [new(Lang.T("Steigung…"), "Slope", "gradient", true, Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
                 new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
@@ -340,11 +388,18 @@
         ]),
         new(Lang.T("Elektrik"),
         [
-            new(Lang.T("Stromversorgung"), [new(Lang.T("Einspeisung"), "Bolt", "toolFeeder", true, Lang.T("Gleis an einen Stromkreis/Booster anschließen.")),
-                new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false), new(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", false)]),
-            new(Lang.T("Digital"), [new(Lang.T("Decoder"), "Chip", "addresses", true, Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
+            new(Lang.T("Stromversorgung"), [new(Lang.T("Betrieb / Stromart…"), "Current", "current", true, Lang.T("Digital (Zentrale, Booster) oder analog (Fahrtrafo) sowie Gleichstrom (Zweileiter) oder Wechselstrom (Mittelleiter). Danach richten sich Prüfung, Polung und Kabelfarben.")),
+                new(Lang.T("Trafo / Zentrale"), "Power", "toolPower", true, Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Danach mit „Kabel von hier verlegen“ Bahnstrom und Masse aufs Gleis legen; jedes Kabelende auf einem Gleis ist eine Einspeisung.")),
+                new(Lang.T("Kabel zeigen"), "Wire", "wires", false, Lang.T("Selbst verlegte Kabel und die roten Verbindungslinien ein- oder ausblenden.")),
+                new(Lang.T("Kabel verlegen"), "Wire", "toolWire", true, Lang.T("Kabel selbst verlegen: Punkte anklicken, Doppelklick beendet. Die Enden rasten an Zentrale, Booster, Verteilern, Rückmeldern, Signalen und Weichenantrieben ein. Ein Ende auf einem Gleis wird zur Einspeisung (Bahnstrom oder Masse, je nachdem, woher das Kabel kommt).")),
+                new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
+                new(Lang.T("Nur Elektrik beschriften"), "Hash", "elecLabels", false, Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern an den Gleisen ausblenden und stattdessen die Abschnitte beschriften.")),
+                new(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", false)]),
+            new(Lang.T("Digital"), [new(Lang.T("Adressen"), "Hash", "addresses", false, Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
+                new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),
+                new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),
         ]),
         new(Lang.T("Ansicht"),
@@ -1755,21 +1810,34 @@
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
 
+    private SignalSystem PickedSignalSystem => Enum.TryParse<SignalSystem>(D("sigsys"), out var sy) ? sy : SignalSystem.HV;
+
     private void AskSignalType(SignalType current, Action<SignalType> pick)
     {
-        var d = Show(Lang.T("Signal setzen"), @<div class="list">
-            @foreach (var t in Enum.GetValues<SignalType>())
-            {
-                var type = t;
-                var face = SignalFace.For(t);
-                <button class="list-item signal-choice @(t == current ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(type); })">
-                    <span class="signal-pic">@((MarkupString)Pictures.Signal(t, 32, 56))</span>
-                    <span class="texts">
-                        <span class="strong">@Signal.TypeName(t)</span>
-                        <span class="secondary">@($"{face.Aspect}. {face.Description}")</span>
-                    </span>
-                </button>
-            }
+        _d["sigsys"] = _session.SignalSystem.ToString();
+        var d = Show(Lang.T("Signal setzen"), @<div>
+            <label class="field-label">@Lang.T("Signalsystem")</label>
+            <select class="input" value="@D("sigsys")" @onchange="@(e => _d["sigsys"] = e.Value?.ToString() ?? "")">
+                @foreach (var sy in Enum.GetValues<SignalSystem>())
+                {
+                    <option value="@sy">@Signal.SystemName(sy)</option>
+                }
+            </select>
+            <div class="list">
+                @foreach (var t in Enum.GetValues<SignalType>())
+                {
+                    var type = t;
+                    var system = PickedSignalSystem;
+                    var face = SignalFace.For(t, system);
+                    <button class="list-item signal-choice @(t == current && system == _session.SignalSystem ? "on" : "")" @onclick="@(() => { CloseDialog(); _session.SignalSystem = system; pick(type); })">
+                        <span class="signal-pic">@((MarkupString)Pictures.Signal(t, 32, 56, system))</span>
+                        <span class="texts">
+                            <span class="strong">@Signal.TypeName(t)</span>
+                            <span class="secondary">@($"{face.Aspect}. {face.Description}")</span>
+                        </span>
+                    </button>
+                }
+            </div>
         </div>);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
@@ -1804,6 +1872,7 @@
 
     private void ShowIssues(string title, IReadOnlyList<PlanIssue> issues, string? footer)
     {
+        if (issues.Count == 0) { _issueNav = null; _session.Issues = []; _session.ClearFocus(); }
         var d = Show(title, @<div class="list">
             @if (issues.Count == 0)
             {
@@ -1829,6 +1898,7 @@
                 @Hint(footer)
             }
         </div>, wide: true);
+        if (issues.Count > 0) d.Buttons.Add(new(Lang.T("Markierungen entfernen"), () => { CloseIssueNav(); return true; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 
@@ -1951,7 +2021,19 @@
             var items = Electrics.SwitchingItems(_session.Plan);
             var conflicts = Electrics.AddressConflicts(items).SelectMany(x => x.Items).ToHashSet();
         }
-        @Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). Ein Weichendecoder hat vier Ausgänge: Adressen 1–4 = Decoder 1, 5–8 = Decoder 2 usw."))
+        @Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2)."))
+        @{
+            var mods = PowerSupply.Modules(_session.Plan).Where(m => Decoders.ModelOf(m)?.Role == ModuleRole.Schalten).ToList();
+        }
+        @if (mods.Count > 0)
+        {
+            <dl class="rows">
+                @foreach (var m in mods)
+                {
+                    <dt>@m.Name</dt><dd>@($"{Decoders.Summary(m)} · {Decoders.Assigned(_session.Plan, m).Count}/{Decoders.ModelOf(m)!.Addresses}")</dd>
+                }
+            </dl>
+        }
         <div class="button-row">
             <button class="btn" @onclick="AssignAddresses">@Lang.T("Vergeben ab")</button>
             <input class="input narrow" inputmode="numeric" @bind='_d["first"]' />
@@ -1968,9 +2050,10 @@
                 <div class="list-item static address-row">
                     <span class="texts">
                         <span class="@(conflicts.Contains(it) ? "danger" : "")">@it.Label</span>
-                        <span class="secondary small">@Lang.F($"{it.Kind} · Decoder {it.Decoder?.ToString() ?? "–"}, Ausgang {it.Port?.ToString() ?? "–"}")</span>
+                        <span class="secondary small">@($"{it.Kind} · {Decoders.Location(_session.Plan, it.Address) ?? Lang.T("an keinem Decoder-Baustein")}")</span>
                     </span>
-                    <input class="input narrow" inputmode="numeric" value="@(it.Address?.ToString() ?? "")" @onchange="e => SetAddress(item, e.Value?.ToString())" />
+                    <input class="input narrow" maxlength="40" placeholder="@Lang.T("Name")" title="@Lang.T("Bezeichnung")" value="@ItemName(it)" @onchange="e => SetItemName(item, e.Value?.ToString())" />
+                    <input class="input narrow" inputmode="numeric" title="@Lang.T("Adresse")" value="@(it.Address?.ToString() ?? "")" @onchange="e => SetAddress(item, e.Value?.ToString())" />
                 </div>
             }
         </div>
@@ -1980,6 +2063,20 @@
     {
         var first = Math.Clamp((int)(Fmt.Parse(D("first")) ?? 1), 1, 2048);
         _session.AssignAddresses(first, D("missing") == "1");
+    }
+
+    private string ItemName(SwitchingItem item)
+        => item.PieceId is { } pid ? _session.Plan.Find(pid)?.Name ?? "" : _session.Plan.Signals.FirstOrDefault(s => s.Id == item.SignalId)?.Name ?? "";
+
+    private void SetItemName(SwitchingItem item, string? text)
+    {
+        var t = (text ?? "").Trim();
+        if (t == ItemName(item)) return;
+        _session.Edit(() =>
+        {
+            if (item.PieceId is { } pid && _session.Plan.Find(pid) is { } p) p.Name = t;
+            else if (_session.Plan.Signals.FirstOrDefault(s => s.Id == item.SignalId) is { } s) s.Name = t;
+        });
     }
 
     private void SetAddress(SwitchingItem item, string? text)
@@ -1995,10 +2092,22 @@
         });
     }
 
-    private void ShowText(string title, string text, string saveLabel, Action save)
+    /// <summary>Export Steuerung: Übersicht anzeigen und als Text, CSV oder JSON speichern.</summary>
+    private void ShowControlExport()
+    {
+        var text = TrainRoutes.ControlText(_session.Plan);
+        var d = Show(Lang.T("Export für Steuerprogramme"), @<pre class="mono">@text</pre>, wide: true);
+        d.Buttons.Add(new(Lang.T("Als TXT speichern"), () => { Export(text, "text/plain", Lang.F($"{SafeName} – Steuerung.txt")); return false; }));
+        d.Buttons.Add(new(Lang.T("Als CSV speichern"), () => { Export(TrainRoutes.ControlCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Steuerung.csv")); return false; }));
+        d.Buttons.Add(new(Lang.T("Als JSON speichern"), () => { Export(TrainRoutes.ToJson(_session.Plan), "application/json", Lang.F($"{SafeName} – Steuerung.json")); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
+    }
+
+    private void ShowText(string title, string text, string saveLabel, Action save, string? save2Label = null, Action? save2 = null)
     {
         var d = Show(title, @<pre class="mono">@text</pre>, wide: true);
         d.Buttons.Add(new(Lang.T("Kopieren"), () => { _ = Interop.Js.CopyText(text); ShowToast(Lang.T("In die Zwischenablage kopiert.")); return false; }));
+        if (save2Label is not null && save2 is not null) d.Buttons.Add(new(save2Label, () => { save2(); return false; }));
         d.Buttons.Add(new(saveLabel, () => { save(); return false; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
@@ -2588,6 +2697,99 @@
                             DetectorType.Kontakt => Lang.T("Meldet, wenn ein Zug über das Schaltgleis fährt (Märklin: Kontaktgleis bzw. Schaltgleis)."),
                             _ => Lang.T("Reedkontakt im Gleis, ausgelöst durch einen Magneten unter dem Fahrzeug."),
                         })</span>
+                    </span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    // ---------- Elektrik: Stromart, Kabel, Anschlüsse ----------
+
+    private void AskCurrent()
+    {
+        var d = Show(Lang.T("Betrieb und Stromart"), @<div class="list">
+            <div class="section">@Lang.T("Betrieb")</div>
+            @foreach (var m in Enum.GetValues<PowerMode>())
+            {
+                var mode = m;
+                <button class="list-item @(_session.Plan.Operation == m ? "on" : "")" @onclick="@(() => { _session.SetOperation(mode); Refresh(); })">
+                    <span class="texts">
+                        <span class="strong">@PowerSupply.ModeName(m)</span>
+                        <span class="secondary">@(m == PowerMode.Digital
+                            ? Lang.T("Digitalzentrale (z. B. Märklin CS3, ESU ECoS, Roco Z21) und bei Bedarf Booster speisen das Gleis; Loks mit Decoder.")
+                            : Lang.T("Ein oder mehrere Fahrtrafos bzw. Fahrregler speisen je einen Stromkreis."))</span>
+                    </span>
+                </button>
+            }
+            <div class="section">@Lang.T("Stromart")</div>
+            @Hint(Lang.F($"Erkannt aus dem Gleis: {(Electrics.IsThreeRail(_session.Plan) ? Lang.T("Mittelleiter → Wechselstrom") : Lang.T("Zweileiter → Gleichstrom"))}."))
+            @foreach (var k in Enum.GetValues<CurrentKind>())
+            {
+                var kind = k;
+                <button class="list-item @(_session.Plan.Current == k ? "on" : "")" @onclick="@(() => { CloseDialog(); _session.SetCurrent(kind); _view.Rebuild(); })">
+                    <span class="texts">
+                        <span class="strong">@Electrics.CurrentName(k)</span>
+                        <span class="secondary">@(k switch
+                        {
+                            CurrentKind.Gleichstrom => Lang.T("Zweileiter-Gleis (z. B. Märklin Z, Fleischmann, Roco, Trix, Piko). Je Einspeisung Plus und Minus an die beiden Schienen; die Polung muss im ganzen Abschnitt gleich sein, Kehrschleifen brauchen eine Umpolung."),
+                            CurrentKind.Wechselstrom => Lang.T("Mittelleiter-Gleis (Märklin H0, auch Märklin-Digital). Fahrstrom über den Mittelleiter (rot), Masse über die Schienen (braun); Kehrschleifen ohne Sonderschaltung."),
+                            _ => Lang.T("Richtet sich nach dem verlegten Gleis: Mittelleiter → Wechselstrom, sonst Gleichstrom."),
+                        })</span>
+                    </span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void AskPowerType(Action<PowerSourceType> pick)
+    {
+        var d = Show(Lang.T("Trafo / Zentrale setzen"), @<div class="list">
+            @Hint(Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan klicken – auch neben die Platte, wo das Gerät später steht."))
+            @foreach (var t in PowerSupply.TypesFor(_session.Plan.Operation))
+            {
+                var type = t;
+                <button class="list-item @(_session.PowerType == t ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(type); })">
+                    <span class="texts">
+                        <span class="strong"><span class="wire-swatch" style="background:@PowerSupply.Color(t)"></span> @PowerSupply.TypeName(t)</span>
+                        <span class="secondary">@PowerSupply.Description(t)</span>
+                    </span>
+                </button>
+            }
+            <button class="link small" @onclick="@(() => { CloseDialog(); AskCurrent(); })">@Lang.T("Betrieb ändern (analog / digital)…")</button>
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void AskDistributorColor(Action<string> pick)
+    {
+        var d = Show(Lang.T("Verteiler setzen"), @<div class="list">
+            @Hint(Lang.T("Farbe wählen, dann an die Stelle im Plan klicken. Üblich: braun für Masse, rot für Bahnstrom, gelb für Weichen und Signale, blau und schwarz für Licht und Zubehör."))
+            @foreach (var c in PowerSupply.DistributorColors)
+            {
+                var hex = c.Hex;
+                <button class="list-item @(string.Equals(_session.DistributorColor, hex, StringComparison.OrdinalIgnoreCase) ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(hex); })">
+                    <span class="texts"><span class="strong"><span class="wire-swatch" style="background:@hex"></span> @Lang.F($"Verteiler {Lang.T(c.Name)}")</span></span>
+                </button>
+            }
+        </div>);
+        d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
+    }
+
+    private void AskWireUse(Action<WireUse> pick)
+    {
+        var current = Electrics.Current(_session.Plan);
+        var d = Show(Lang.T("Kabel verlegen"), @<div class="list">
+            @Hint(Lang.T("Wofür ist das Kabel? Danach richtet sich die vorgeschlagene Aderfarbe. Dann Punkte im Plan anklicken; Doppelklick oder „Fertig“ beendet das Kabel."))
+            @foreach (var u in Enum.GetValues<WireUse>())
+            {
+                var use = u;
+                var color = WireLayout.DefaultColor(u, current);
+                <button class="list-item @(_session.WireUse == u ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(use); })">
+                    <span class="texts">
+                        <span class="strong"><span class="wire-swatch" style="background:@color"></span> @WireLayout.UseName(u)</span>
+                        <span class="secondary">@Lang.F($"{WireLayout.ColorName(color)}, {WireLayout.SectionText(WireLayout.DefaultSection(u, _session.Plan.Gauge))}")</span>
                     </span>
                 </button>
             }

@@ -59,8 +59,9 @@
 
     private string Kind => _target switch
     {
+        SceneryItem { IsPower: true } p => PowerSupply.TypeName(PowerSupply.Type(p)),
         SceneryItem s => SceneryItem.KindName(s.Kind),
-        Feeder => Lang.T("Einspeisung"),
+        Feeder fd => fd.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"),
         Isolation => Lang.T("Trennstelle"),
         Signal => "Signal",
         Detector => Lang.T("Rückmelder"),
@@ -100,6 +101,8 @@
                 _f["rotation"] = N(s.Rotation, 1);
                 _f["variant"] = s.Variant.ToString();
                 if (s.IsBeam) _f["length"] = N(BeamLayout.Length(s), 0);
+                if (s.IsWire) { _f["depth"] = N(WireLayout.Section(s, Plan.Gauge), 2); _f["color"] = WireLayout.ColorOf(s, Electrics.Current(Plan)); }
+                if (s.IsPower) { _f["color"] = PowerSupply.DistributorColor(s); _f["maddr"] = s.Address?.ToString() ?? ""; }
                 if (s.IsPlate) { _f["x"] = N(s.X, 1); _f["y"] = N(s.Y, 1); _f["thick"] = N(PlateLayout.Thickness(s), 0); }
                 break;
             case Detector det:
@@ -113,6 +116,7 @@
             case Signal g:
                 _f["name"] = g.Name;
                 _f["type"] = g.Type.ToString();
+                _f["system"] = g.System.ToString();
                 _f["address"] = g.Address?.ToString() ?? "";
                 break;
             case IReadOnlyList<PlacedPiece>:
@@ -125,6 +129,7 @@
                 _f["height"] = N(p.Height, 1);
                 _f["grade"] = N(p.EffectiveGrade * 100, 2);
                 _f["address"] = p.Address?.ToString() ?? "";
+                _f["name"] = p.Name;
                 break;
             case null:
                 _f["name"] = Plan.Name;
@@ -292,7 +297,7 @@
             <dt>@Lang.T("Kleinster Radius")</dt><dd>@(stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–")</dd>
             <dt>@Lang.T("Größte Steigung")</dt><dd class="@(stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? "danger" : "")">@(stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"))</dd>
             <dt>@Lang.T("Höchster Punkt")</dt><dd>@Fmt.Num(stats.MaxHeight, 0) mm</dd>
-            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
+            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count(f => !f.Ground)} Einsp. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
             <dt>@Lang.T("Offene Gleisenden")</dt><dd class="@(stats.OpenEnds > 0 ? "open" : "ok")">@stats.OpenEnds</dd>
         </dl>
         <div class="button-row">
@@ -317,7 +322,8 @@
         if (p.Def.Drives > 0 && F("address").Trim().Length > 0) Read("address", Lang.T("Adresse"), 0, 2048, errors, out va);
         if (Fail(errors)) return;
         int? addr = p.Def.Drives == 0 ? p.Address : va >= 1 ? (int)Math.Round(va) : null;
-        var changed = Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
+        var name = p.Def.Drives == 0 ? p.Name : F("name").Trim();
+        var changed = name != p.Name || Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
                       || Math.Abs(vh - p.Height) > 1e-6 || Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9 || addr != p.Address;
         if (changed)
             Session.Edit(() =>
@@ -326,6 +332,7 @@
                 p.Height = vh;
                 if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
                 p.Address = addr;
+                p.Name = name;
             });
     }
 
@@ -404,12 +411,16 @@
         @if (d.Drives > 0)
         {
             <div class="section">@Lang.T("Digital")</div>
+            <label class="field-label">@Lang.T("Bezeichnung (z. B. W1)")</label>
+            <input class="input" maxlength="40" value="@F("name")" @onchange="@(e => Set("name", e, ApplyPiece))" />
             <label class="field-label">@Lang.T("Adresse (leer = keine)")</label>
             <input class="input" inputmode="numeric" value="@F("address")" @onchange="@(e => Set("address", e, ApplyPiece))" />
         }
         <dl class="rows">
             <dt>@Lang.T("Verbindungen")</dt><dd class="@(linked == conns.Count ? "ok" : "open")">@Lang.F($"{linked} von {conns.Count} verbunden")</dd>
         </dl>
+        <div class="section">@Lang.T("Elektrik")</div>
+        <div class="secondary small">@Session.ConnectionSummary(p.Id)</div>
         <div class="button-row wrap">
             <button class="btn" @onclick="@(() => Run("rotR"))">@((MarkupString)Icons.Svg("RotateRight", 16)) @Lang.T("Drehen")</button>
             @if (d.CanFlip)
@@ -518,6 +529,11 @@
                 Num("height", Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v);
                 Num("length", Lang.T("Länge"), BeamLayout.MinLength, 20000, v => PlanSession.SetBeamLength(s, v));
                 break;
+            case SceneryKind.Wire:
+                Num("depth", Lang.T("Querschnitt"), 0.04, 10, v => s.Depth = v);
+                var wireColor = F("color");
+                apply.Add(() => s.Color = ModelBody.ParseColor(wireColor) is { } wc ? ModelBody.ToHex(wc) : s.Color);
+                break;
             case SceneryKind.Plate:
                 Num("x", Lang.T("Links"), -20000, 20000, v => s.X = v);
                 Num("y", Lang.T("Oben"), -20000, 20000, v => s.Y = v);
@@ -563,11 +579,32 @@
                 Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
                 if (int.TryParse(F("variant"), out var variant) && Enum.IsDefined((ObstacleType)variant)) apply.Add(() => s.Variant = variant);
                 break;
+            case SceneryKind.Power:
+                Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
+                if (PowerSupply.Type(s) != PowerSourceType.Baustein && int.TryParse(F("variant"), out var ptype) && Enum.IsDefined((PowerSourceType)ptype) && (PowerSourceType)ptype != PowerSourceType.Baustein)
+                    apply.Add(() => PowerSupply.ApplyType(s, (PowerSourceType)ptype, Plan.Gauge, Session.DistributorColor));
+                if (PowerSupply.Type(s) == PowerSourceType.Baustein && Decoders.ModelOf(s) is { Addresses: > 0 })
+                {
+                    double ma = 0;
+                    if (F("maddr").Trim().Length > 0) Read("maddr", Lang.T("Startadresse"), 1, 4096, errors, out ma);
+                    int? maddr = ma >= 1 ? (int)Math.Round(ma) : null;
+                    apply.Add(() => s.Address = maddr);
+                }
+                if (PowerSupply.DistributorColors.Any(c => c.Hex == F("color"))) { var dcol = F("color"); apply.Add(() => { if (PowerSupply.Type(s) == PowerSourceType.Verteiler) s.Color = dcol; }); }
+                break;
         }
         if (Fail(errors)) return;
         var n = F("name").Trim();
+        if (s.IsPower && n != s.Name && PowerSupply.Items(Plan).Any(x => x.Id != s.Id && x.Name == n))
+        {
+            Fail([Lang.F($"Es gibt schon eine Stromquelle „{n}“.")]);
+            return;
+        }
         Session.Edit(() =>
         {
+            // Gleisanschlüsse hängen über den Namen an der Quelle und wandern beim Umbenennen mit
+            if (s.IsPower && n.Length > 0 && n != s.Name)
+                foreach (var fd in Plan.Feeders.Where(x => x.Circuit == s.Name)) fd.Circuit = n;
             if (n.Length > 0) s.Name = n;
             foreach (var a in apply) a();
         });
@@ -596,6 +633,150 @@
                 <div class="cols">@NumField(Lang.T("Länge (mm)"), "length", ApplyScenery)@NumField(Lang.T("Oberkante (mm)"), "height", ApplyScenery)</div>
                 <dl class="rows"><dt>@Lang.T("Winkel")</dt><dd>@Fmt.Num(BeamLayout.Angle(s), 1)°</dd></dl>
                 <div class="tip-box">@Lang.T("Oberkante über der Plattenoberkante: negativ = unter der Platte. Mit Unterbau steht die Leiste in Zuschnitt und Materialliste.")</div>
+                break;
+            case SceneryKind.Wire:
+                var current = Electrics.Current(Plan);
+                var wireHex = WireLayout.ColorOf(s, current);
+                <label class="field-label">@Lang.T("Verwendung")</label>
+                <select class="input" value="@((int)WireLayout.Use(s))" @onchange="@(e => { if (int.TryParse(e.Value as string, out var u) && Enum.IsDefined((WireUse)u)) Session.SetWireUse(s.Id, (WireUse)u); })">
+                    @foreach (var u in Enum.GetValues<WireUse>())
+                    {
+                        <option value="@((int)u)">@WireLayout.UseName(u)</option>
+                    }
+                </select>
+                <div class="cols">
+                    <div>
+                        <label class="field-label">@Lang.T("Aderfarbe")</label>
+                        <select class="input" value="@wireHex" @onchange="@(e => Set("color", e, ApplyScenery))">
+                            @foreach (var c in WireLayout.Colors)
+                            {
+                                <option value="@c.Hex">@Lang.T(c.Name)</option>
+                            }
+                            @if (!WireLayout.Colors.Any(c => string.Equals(c.Hex, wireHex, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <option value="@wireHex">@wireHex</option>
+                            }
+                        </select>
+                    </div>
+                    @NumField(Lang.T("Querschnitt (mm²)"), "depth", ApplyScenery)
+                </div>
+                <dl class="rows">
+                    <dt>@Lang.T("Länge")</dt><dd>@Fmt.Num(WireLayout.Length(s) / 1000, 2) m</dd>
+                    <dt>@Lang.T("Mit Zugabe")</dt><dd>@Fmt.Num(WireLayout.Length(s) * (1 + WireLayout.Reserve) / 1000, 2) m</dd>
+                    <dt>@Lang.T("Anfang")</dt><dd>@(WireLayout.EndAnchor(Plan, s, false)?.Text ?? Lang.T("frei"))</dd>
+                    <dt>@Lang.T("Ende")</dt><dd>@(WireLayout.EndAnchor(Plan, s, true)?.Text ?? Lang.T("frei"))</dd>
+                    <dt>@Lang.T("Punkte")</dt><dd>@s.Points.Count</dd>
+                </dl>
+                <div class="tip-box">@Electrics.CurrentHint(Plan)</div>
+                break;
+            case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
+                var dm = Decoders.ModelOf(s);
+                <div class="title">@(dm is null ? s.Model : $"{dm.Maker} {dm.Id}")</div>
+                <div class="secondary">@dm?.Name</div>
+                @if (dm is { Addresses: > 0 })
+                {
+                    <label class="field-label">@(dm.Role == ModuleRole.Melden ? Lang.T("Erster Rückmeldekontakt") : Lang.T("Startadresse"))</label>
+                    <input class="input" inputmode="numeric" value="@F("maddr")" @onchange="@(e => Set("maddr", e, ApplyScenery))" />
+                }
+                <div class="cols">@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
+                <dl class="rows">
+                    @if (dm is not null)
+                    {
+                        <dt>@(dm.Role == ModuleRole.Melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"))</dt><dd>@dm.Outputs</dd>
+                        @if (Decoders.Range(s) is { } mr)
+                        {
+                            <dt>@(dm.Role == ModuleRole.Melden ? Lang.T("Kontakte") : Lang.T("Adressen"))</dt><dd>@($"{mr.First}–{mr.Last}")</dd>
+                        }
+                        <dt>@Lang.T("Bus")</dt><dd>@dm.Bus</dd>
+                    }
+                    <dt>@Lang.T("Kabel")</dt><dd>@Decoders.Ports(s).SelectMany(c => WireLayout.WiresAt(Plan, c)).DistinctBy(w => w.Id).Count()</dd>
+                </dl>
+                @if (dm is { Addresses: > 0 })
+                {
+                    var assigned = Decoders.Assigned(Plan, s);
+                    <div class="section">@(dm.Role == ModuleRole.Melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"))</div>
+                    @if (assigned.Count == 0)
+                    {
+                        <div class="secondary small">@(dm.Role == ModuleRole.Melden ? Lang.T("Noch kein Rückmelder mit einem Kontakt in diesem Bereich.") : Lang.T("Noch keine Weiche und kein Signal mit einer Adresse in diesem Bereich (Elektrik › Adressen)."))</div>
+                    }
+                    <dl class="rows">
+                        @foreach (var a in assigned)
+                        {
+                            <dt>@(dm.Role == ModuleRole.Melden ? Lang.F($"Melder {a.Port}") : Lang.F($"Ausgang {a.Port}"))</dt><dd>@($"{a.Label} ({a.Address})")</dd>
+                        }
+                    </dl>
+                }
+                <div class="tip-box">@dm?.Description @Lang.T("Kabel rasten an den gelben Klemmen unten ein.")</div>
+                break;
+            case SceneryKind.Power:
+                var ptype = PowerSupply.Type(s);
+                var attached = PowerSupply.FeedersOf(Plan, s).ToList();
+                <label class="field-label">@Lang.T("Art")</label>
+                <select class="input" value="@F("variant")" @onchange="@(e => Set("variant", e, ApplyScenery))">
+                    @foreach (var t in Enum.GetValues<PowerSourceType>().Where(t => t != PowerSourceType.Baustein))
+                    {
+                        <option value="@((int)t)">@PowerSupply.TypeName(t)</option>
+                    }
+                </select>
+                @if (ptype == PowerSourceType.Verteiler)
+                {
+                    <label class="field-label">@Lang.T("Farbe")</label>
+                    <select class="input" value="@F("color")" @onchange="@(e => Set("color", e, ApplyScenery))">
+                        @foreach (var c in PowerSupply.DistributorColors)
+                        {
+                            <option value="@c.Hex">@Lang.T(c.Name)</option>
+                        }
+                    </select>
+                }
+                <div class="cols">@NumField(Lang.T("Drehung (°)"), "rotation", ApplyScenery)</div>
+                <dl class="rows">
+                    @if (ptype == PowerSourceType.Verteiler)
+                    {
+                        <dt>@Lang.T("Klemmen")</dt><dd>@PowerSupply.Clamps</dd>
+                        <dt>@Lang.T("Kabel")</dt><dd>@PowerSupply.ClampPoints(s).SelectMany(c => WireLayout.WiresAt(Plan, c)).DistinctBy(w => w.Id).Count()</dd>
+                    }
+                    else
+                    {
+                        <dt>@Lang.T("Betrieb")</dt><dd>@PowerSupply.ModeName(Plan.Operation)</dd>
+                    }
+                    @if (Decoders.ModelOf(s) is { } pm)
+                    {
+                        <dt>@Lang.T("Gerät")</dt><dd>@($"{pm.Maker} {pm.Title}")</dd>
+                    }
+                    @if (PowerSupply.GroundTerminal(s) is { } gt)
+                    {
+                        var grounded = WireLayout.WiresAt(Plan, gt).Any();
+                        <dt>@Lang.T("Masse (0)")</dt><dd class="@(grounded ? "" : "error-text")">@(grounded ? Lang.T("angeschlossen") : Lang.T("fehlt"))</dd>
+                    }
+                    @if (PowerSupply.FeedsTrack(ptype))
+                    {
+                        <dt>@Lang.T("Einspeisungen")</dt><dd>@attached.Count</dd>
+                        @if (PowerSupply.HasGround(ptype) || Electrics.Current(Plan) == CurrentKind.Gleichstrom)
+                        {
+                            <dt>@Lang.T("Masse am Gleis")</dt><dd>@PowerSupply.GroundsOf(Plan, s).Count()</dd>
+                        }
+                        var sections = Electrics.Sections(Plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                        <dt>@Lang.T("Stromabschnitte")</dt><dd>@(sections.Count == 0 ? "–" : string.Join(", ", sections.Select(x => x.Number)))</dd>
+                        <dt>@Lang.T("Gleislänge")</dt><dd>@Fmt.Num(sections.Sum(x => x.LengthMm) / 1000, 2) m</dd>
+                    }
+                </dl>
+                @if (PowerSupply.FeedsTrack(ptype) && !PowerSupply.Fits(ptype, Plan.Operation))
+                {
+                    <div class="error-box">@(Plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."))</div>
+                }
+                @if (PowerSupply.FeedsTrack(ptype))
+                {
+                    <div class="button-row wrap">
+                        <button class="btn" @onclick="@(() => Run("wireFromSource"))">@((MarkupString)Icons.Svg("Wire", 16)) @Lang.T("Kabel von hier verlegen")</button>
+                        @if (PowerSupply.HasGround(ptype))
+                        {
+                            <button class="btn" @onclick="@(() => Run("groundFromSource"))">@((MarkupString)Icons.Svg("Wire", 16)) @Lang.T("Masse-Kabel von hier")</button>
+                        }
+                    </div>
+                }
+                <div class="tip-box">@PowerSupply.Description(ptype) @(ptype == PowerSourceType.Verteiler ? "" : PowerSupply.FeedsTrack(ptype)
+                    ? Lang.T("Einspeisung: „Kabel von hier verlegen“ und das Kabel auf dem Gleis enden lassen – dort entsteht die Einspeisung. Ein Gleis kann mehrere haben. Die Masse (0) genauso auf die andere Schiene bzw. (Mittelleiter) auf eine Schiene legen, auch über einen Masse-Verteiler.")
+                    : Lang.T("Kabel rasten an der Klemme unten ein."))</div>
                 break;
             case SceneryKind.Plate:
                 <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>
@@ -698,25 +879,41 @@
     {
         if (_target is not Feeder f) return;
         var t = F("circuit").Trim();
-        if (t.Length > 0 && t != f.Circuit) Session.Edit(() => f.Circuit = t);
+        if (t == "+") t = Session.NewCircuitName();
+        if (t.Length > 0 && t != f.Circuit) Session.SetFeederCircuit(f.Id, t);
     }
 
     private RenderFragment FeederForm(Feeder f) => __builder =>
     {
-        var circuits = Plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct().ToList();
+        var circuits = Session.CircuitNames.Append(f.Circuit).Distinct().ToList();
         var section = Electrics.Sections(Plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
-        <label class="field-label">@Lang.T("Stromkreis / Booster")</label>
-        <input class="input" list="tm-circuits" value="@F("circuit")" @onchange="@(e => Set("circuit", e, ApplyFeeder))" />
-        <datalist id="tm-circuits">
+        var source = PowerSupply.SourceOf(Plan, f);
+        <label class="field-label">@(Plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"))</label>
+        <select class="input" value="@f.Circuit" @onchange="@(e => Set("circuit", e, ApplyFeeder))">
             @foreach (var c in circuits)
             {
-                <option value="@c"></option>
+                <option value="@c">@c</option>
             }
-        </datalist>
+            <option value="+">@(Plan.Operation == PowerMode.Analog ? Lang.F($"+ weiterer Trafo ({Session.NewCircuitName()})") : Lang.F($"+ neuer Booster ({Session.NewCircuitName()})"))</option>
+        </select>
+        @if (source is null)
+        {
+            <div class="error-box">@Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")</div>
+        }
         <dl class="rows">
+            <dt>@Lang.T("Anschluss")</dt><dd>@(f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"))</dd>
+            @if (f.WireId is { } wid && Plan.Scenery.FirstOrDefault(w => w.Id == wid) is { } wire)
+            {
+                <dt>@Lang.T("Kabel")</dt><dd>@wire.Name</dd>
+            }
             <dt>@Lang.T("Gleis")</dt><dd>@Plan.Find(f.PieceId)?.Def.Number (Nr. @f.PieceId)</dd>
             <dt>@Lang.T("Stromabschnitt")</dt><dd>@(section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m")</dd>
+            <dt>@Lang.T("Stromart")</dt><dd>@Electrics.CurrentName(Electrics.Current(Plan))</dd>
         </dl>
+        @if (Electrics.Current(Plan) == CurrentKind.Gleichstrom || f.Ground)
+        {
+            <label class="check"><input type="checkbox" checked="@f.Reversed" @onchange="@(_ => Session.ToggleFeederPolarity(f.Id))" /> @Lang.T("An der rechten Schiene (in Gleisrichtung)")</label>
+        }
         <div class="button-row"><button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button></div>
     };
 
@@ -778,14 +975,15 @@
         if (F("address").Trim().Length > 0) Read("address", Lang.T("Adresse"), 0, 2048, errors, out a);
         if (Fail(errors)) return;
         var t = Enum.TryParse<SignalType>(F("type"), out var tt) ? tt : g.Type;
+        var sy = Enum.TryParse<SignalSystem>(F("system"), out var ss) ? ss : g.System;
         var n = F("name").Trim();
         int? addr = a >= 1 ? (int)Math.Round(a) : null;
-        if (n != g.Name || t != g.Type || addr != g.Address) Session.Edit(() => { g.Name = n; g.Type = t; g.Address = addr; });
+        if (n != g.Name || t != g.Type || sy != g.System || addr != g.Address) Session.Edit(() => { g.Name = n; g.Type = t; g.System = sy; g.Address = addr; });
     }
 
     private RenderFragment SignalForm(Signal g) => __builder =>
     {
-        var face = SignalFace.For(g.Type);
+        var face = SignalFace.For(g);
         <label class="field-label">@Lang.T("Name")</label>
         <input class="input" value="@F("name")" @onchange="@(e => Set("name", e, ApplySignal))" />
         <label class="field-label">@Lang.T("Art")</label>
@@ -795,8 +993,15 @@
                 <option value="@t">@Signal.TypeName(t)</option>
             }
         </select>
+        <label class="field-label">@Lang.T("Signalsystem")</label>
+        <select class="input" value="@F("system")" @onchange="@(e => Set("system", e, ApplySignal))">
+            @foreach (var sy in Enum.GetValues<SignalSystem>())
+            {
+                <option value="@sy">@Signal.SystemName(sy)</option>
+            }
+        </select>
         <div class="signal-row">
-            <span class="signal-pic">@((MarkupString)Pictures.Signal(g.Type))</span>
+            <span class="signal-pic">@((MarkupString)Pictures.Signal(g.Type, system: g.System))</span>
             <span class="secondary">@face.Aspect. @face.Description</span>
         </div>
         <label class="field-label">@Lang.T("Adresse (leer = keine)")</label>

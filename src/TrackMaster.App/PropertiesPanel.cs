@@ -203,7 +203,7 @@ public sealed class PropertiesPanel : DockPanel
              (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
              (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Theme.DangerBrush : null),
              (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count} Einsp. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
+             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count(f => !f.Ground)} Einsp. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
              (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Theme.OpenEndBrush : Theme.SuccessBrush));
         _body.Children.Add(Buttons(Cmd(Lang.T("Stückliste"), "List", "bom"), Cmd(Lang.T("Planprüfung"), "Shield", "check")));
         _body.Children.Add(new Border
@@ -286,6 +286,11 @@ public sealed class PropertiesPanel : DockPanel
         if (d.Drives > 0)
         {
             Section(Lang.T("Digital"));
+            var swName = new TextBox { Text = p.Name, MaxLength = 40 };
+            void CommitSwitchName() { var n = swName.Text.Trim(); if (n != p.Name) _session.Edit(() => p.Name = n); }
+            swName.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitSwitchName(); Keyboard.ClearFocus(); } };
+            swName.LostKeyboardFocus += (_, _) => CommitSwitchName();
+            _body.Children.Add(Theme.Field(Lang.T("Bezeichnung (z. B. W1)"), swName));
             var addr = NumberBox(p.Address ?? 0, v => p.Address = v >= 1 ? (int)Math.Round(v) : null, 0);
             _body.Children.Add(Columns(2, Theme.Field(Lang.T("Adresse (0 = keine)"), addr)));
         }
@@ -293,6 +298,16 @@ public sealed class PropertiesPanel : DockPanel
         var conns = _session.Connections.Of(p.Id).ToList();
         var linked = conns.Count(c => !c.IsOpen);
         Rows((Lang.T("Verbindungen"), Lang.F($"{linked} von {conns.Count} verbunden"), linked == conns.Count ? Theme.SuccessBrush : Theme.OpenEndBrush));
+
+        if (!d.IsTable)
+        {
+            Section(Lang.T("Elektrik"));
+            _body.Children.Add(new TextBlock { Text = _session.ConnectionSummary(p.Id), TextWrapping = TextWrapping.Wrap, Foreground = Theme.TextSecondaryBrush, FontSize = 12, Margin = new Thickness(0, 0, 6, 4) });
+            _body.Children.Add(Buttons(
+                Cmd(Lang.T("Trennen"), "Isolate", "connIsolate"),
+                Cmd(Lang.T("Rückmelder"), "Detector", "connDetector")));
+            _body.Children.Add(Tip(Lang.T("Strom kommt über ein Kabel: Zentrale, Booster oder Trafo wählen, „Kabel von hier verlegen“ und das Kabel auf diesem Gleis enden lassen. Trennstellen je Ende über das Kontextmenü (rechte Maustaste).")));
+        }
 
         var buttons = new List<Button> { Cmd(Lang.T("Drehen"), "RotateRight", "rotR") };
         if (d.CanFlip) buttons.Add(Cmd(Lang.T("Spiegeln"), "Mirror", "flip"));
@@ -369,13 +384,15 @@ public sealed class PropertiesPanel : DockPanel
         switch (o)
         {
             case SceneryItem s:
-                _headerRight.Text = SceneryItem.KindName(s.Kind);
+                _headerRight.Text = s.IsPower ? PowerSupply.TypeName(PowerSupply.Type(s)) : SceneryItem.KindName(s.Kind);
                 var name = new TextBox { Text = s.Name };
                 void CommitName()
                 {
                     var n = name.Text.Trim();
                     if (n.Length == 0 || n == s.Name) { name.Text = s.Name; return; }
-                    _session.Edit(() => s.Name = n);
+                    // Stromquelle: Gleisanschlüsse wandern mit, doppelte Namen werden abgelehnt
+                    if (s.IsPower) { _session.RenamePowerSource(s.Id, n); if (s.Name != n) name.Text = s.Name; }
+                    else _session.Edit(() => s.Name = n);
                 }
                 name.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitName(); Keyboard.ClearFocus(); } };
                 name.LostKeyboardFocus += (_, _) => { CommitName(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
@@ -500,6 +517,103 @@ public sealed class PropertiesPanel : DockPanel
                         if (s.Obstacle == ObstacleType.Tuer)
                             _body.Children.Add(Tip(Lang.T("Die Tür ist oben links angeschlagen und schlägt nach unten auf; die Tiefe ist der Schwenkbereich. Mit der Drehung (90°, 180°, 270°) an die Wand anpassen.")));
                         break;
+                    case SceneryKind.Wire:
+                        var current = Electrics.Current(plan);
+                        var use = new ComboBox { Height = 28 };
+                        foreach (var u in Enum.GetValues<WireUse>()) use.Items.Add(new ComboBoxItem { Content = WireLayout.UseName(u), Tag = u, IsSelected = u == WireLayout.Use(s) });
+                        use.SelectionChanged += (_, _) => { if (use.SelectedItem is ComboBoxItem { Tag: WireUse u } && u != WireLayout.Use(s)) _session.SetWireUse(s.Id, u); };
+                        _body.Children.Add(Theme.Field(Lang.T("Verwendung"), use));
+                        var wireHex = WireLayout.ColorOf(s, current);
+                        var color = new ComboBox { Height = 28 };
+                        foreach (var c in WireLayout.Colors)
+                            color.Items.Add(new ComboBoxItem { Content = Lang.T(c.Name), Tag = c.Hex, IsSelected = string.Equals(c.Hex, wireHex, StringComparison.OrdinalIgnoreCase) });
+                        color.SelectionChanged += (_, _) => { if (color.SelectedItem is ComboBoxItem { Tag: string h } && !string.Equals(h, s.Color, StringComparison.OrdinalIgnoreCase)) _session.Edit(() => s.Color = h); };
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Aderfarbe"), color),
+                            Theme.Field(Lang.T("Querschnitt (mm²)"), NumberBox(WireLayout.Section(s, plan.Gauge), v => s.Depth = Math.Clamp(v, 0.04, 10), 2))));
+                        var len = WireLayout.Length(s);
+                        Rows((Lang.T("Länge"), $"{Fmt.Num(len / 1000, 2)} m", null),
+                             (Lang.T("Mit Zugabe"), $"{Fmt.Num(len * (1 + WireLayout.Reserve) / 1000, 2)} m", null),
+                             (Lang.T("Anfang"), WireLayout.EndAnchor(plan, s, false)?.Text ?? Lang.T("frei"), null),
+                             (Lang.T("Ende"), WireLayout.EndAnchor(plan, s, true)?.Text ?? Lang.T("frei"), null),
+                             (Lang.T("Punkte"), s.Points.Count.ToString(), null));
+                        _body.Children.Add(Tip(Electrics.CurrentHint(plan)));
+                        break;
+                    case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
+                        var dm = Decoders.ModelOf(s);
+                        _headerRight.Text = dm is null ? s.Model ?? "" : $"{dm.Maker} {dm.Id}";
+                        var melden = dm?.Role == ModuleRole.Melden;
+                        if (dm is not null) _body.Children.Add(Theme.Label(dm.Name, 12, true, Theme.TextSecondaryBrush));
+                        _body.Children.Add(Columns(2,
+                            dm is { Addresses: > 0 }
+                                ? Theme.Field(melden ? Lang.T("Erster Rückmeldekontakt") : Lang.T("Startadresse"), NumberBox(s.Address ?? 1, v => s.Address = (int)Math.Round(Math.Clamp(v, 1, 4096)), 0))
+                                : new TextBlock(),
+                            Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        var mrows = new List<(string, string, System.Windows.Media.Brush?)>();
+                        if (dm is not null)
+                        {
+                            mrows.Add((melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"), dm.Outputs.ToString(), null));
+                            if (Decoders.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
+                            mrows.Add((Lang.T("Bus"), dm.Bus, null));
+                        }
+                        mrows.Add((Lang.T("Kabel"), Decoders.Ports(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        Rows(mrows.ToArray());
+                        if (dm is { Addresses: > 0 })
+                        {
+                            var assigned = Decoders.Assigned(plan, s);
+                            Section(melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"));
+                            if (assigned.Count == 0)
+                                _body.Children.Add(Theme.Label(melden ? Lang.T("Noch kein Rückmelder mit einem Kontakt in diesem Bereich.") : Lang.T("Noch keine Weiche und kein Signal mit einer Adresse in diesem Bereich (Elektrik › Adressen)."), 11, false, Theme.TextSecondaryBrush));
+                            else
+                                Rows(assigned.Select(a => (melden ? Lang.F($"Melder {a.Port}") : Lang.F($"Ausgang {a.Port}"), $"{a.Label} ({a.Address})", (System.Windows.Media.Brush?)null)).ToArray());
+                        }
+                        _body.Children.Add(Tip((dm?.Description ?? "") + " " + Lang.T("Kabel rasten an den gelben Klemmen unten ein.")));
+                        break;
+                    case SceneryKind.Power:
+                        var ptype = PowerSupply.Type(s);
+                        var pkind = new ComboBox { Height = 28 };
+                        foreach (var t in Enum.GetValues<PowerSourceType>().Where(t => t != PowerSourceType.Baustein)) pkind.Items.Add(new ComboBoxItem { Content = PowerSupply.TypeName(t), Tag = t, IsSelected = t == ptype });
+                        pkind.SelectionChanged += (_, _) => { if (pkind.SelectedItem is ComboBoxItem { Tag: PowerSourceType t }) _session.SetPowerType(s.Id, t); };
+                        _body.Children.Add(Columns(2,
+                            Theme.Field(Lang.T("Art"), pkind),
+                            Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        var prows = new List<(string, string, System.Windows.Media.Brush?)>();
+                        if (ptype == PowerSourceType.Verteiler)
+                        {
+                            var dcolor = new ComboBox { Height = 28 };
+                            foreach (var c in PowerSupply.DistributorColors)
+                                dcolor.Items.Add(new ComboBoxItem { Content = Lang.T(c.Name), Tag = c.Hex, IsSelected = string.Equals(c.Hex, PowerSupply.DistributorColor(s), StringComparison.OrdinalIgnoreCase) });
+                            dcolor.SelectionChanged += (_, _) => { if (dcolor.SelectedItem is ComboBoxItem { Tag: string h }) _session.SetDistributorColor(s.Id, h); };
+                            _body.Children.Add(Theme.Field(Lang.T("Farbe"), dcolor));
+                            prows.Add((Lang.T("Klemmen"), PowerSupply.Clamps.ToString(), null));
+                            prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        }
+                        else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
+                        if (Decoders.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
+                        if (PowerSupply.GroundTerminal(s) is { } gt)
+                        {
+                            var grounded = WireLayout.WiresAt(plan, gt).Any();
+                            prows.Add((Lang.T("Masse (0)"), grounded ? Lang.T("angeschlossen") : Lang.T("fehlt"), grounded ? null : Theme.OpenEndBrush));
+                        }
+                        if (PowerSupply.FeedsTrack(ptype))
+                        {
+                            var psections = Electrics.Sections(plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                            prows.Add((Lang.T("Einspeisungen"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Masse am Gleis"), PowerSupply.GroundsOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
+                            prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
+                            if (!PowerSupply.Fits(ptype, plan.Operation))
+                                prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Theme.OpenEndBrush));
+                        }
+                        Rows(prows.ToArray());
+                        if (PowerSupply.FeedsTrack(ptype))
+                            _body.Children.Add(PowerSupply.HasGround(ptype)
+                                ? Buttons(Cmd(Lang.T("Kabel von hier verlegen"), "Wire", "wireFromSource"), Cmd(Lang.T("Masse-Kabel von hier"), "Wire", "groundFromSource"))
+                                : Buttons(Cmd(Lang.T("Kabel von hier verlegen"), "Wire", "wireFromSource")));
+                        _body.Children.Add(Tip(PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.FeedsTrack(ptype)
+                            ? Lang.T("Einspeisung: „Kabel von hier verlegen“ und das Kabel auf dem Gleis enden lassen – dort entsteht die Einspeisung. Ein Gleis kann mehrere haben. Die Masse (0) genauso auf die andere Schiene bzw. (Mittelleiter) auf eine Schiene legen, auch über einen Masse-Verteiler.")
+                            : Lang.T("Kabel rasten an der Klemme unten ein.")))));
+                        break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Durchmesser (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, 3, 1000), 0)),
@@ -511,24 +625,40 @@ public sealed class PropertiesPanel : DockPanel
                 break;
 
             case Feeder f:
-                _headerRight.Text = Lang.T("Einspeisung");
+                _headerRight.Text = f.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung");
                 var circuit = new ComboBox { IsEditable = true, Text = f.Circuit, Height = 28 };
-                foreach (var c in plan.Feeders.Select(x => x.Circuit).Append("Stromkreis 1").Append("Stromkreis 2").Append("Booster 1").Append("Booster 2").Distinct())
+                foreach (var c in _session.CircuitNames.Append(f.Circuit).Append(_session.NewCircuitName()).Distinct())
                     circuit.Items.Add(c);
                 void CommitCircuit()
                 {
                     var t = circuit.Text.Trim();
                     if (t.Length == 0 || t == f.Circuit) return;
-                    _session.Edit(() => f.Circuit = t);
+                    _session.SetFeederCircuit(f.Id, t);
                 }
                 circuit.LostKeyboardFocus += (_, _) => { CommitCircuit(); if (_pending) Dispatcher.BeginInvoke(Refresh); };
                 circuit.SelectionChanged += (_, _) => { if (circuit.SelectedItem is string sel) { circuit.Text = sel; CommitCircuit(); } };
-                _body.Children.Add(Theme.Label(Lang.T("Stromkreis / Booster"), 11, false, Theme.TextSecondaryBrush));
+                _body.Children.Add(Theme.Label(plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"), 11, false, Theme.TextSecondaryBrush));
                 _body.Children.Add(circuit);
+                if (PowerSupply.SourceOf(plan, f) is null)
+                    _body.Children.Add(Theme.Label(Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan."), 11, false, Theme.OpenEndBrush));
                 _body.Children.Add(new Border { Height = 8 });
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+                var frows = new List<(string, string, System.Windows.Media.Brush?)>
+                {
+                    (Lang.T("Anschluss"), f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"), null),
+                };
+                if (f.WireId is { } fwid && plan.Scenery.FirstOrDefault(w => w.Id == fwid) is { } fwire)
+                    frows.Add((Lang.T("Kabel"), fwire.Name, null));
+                Rows(frows.ToArray());
                 Rows((Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
-                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null));
+                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null),
+                     (Lang.T("Stromart"), Electrics.CurrentName(Electrics.Current(plan)), null));
+                if (Electrics.Current(plan) == CurrentKind.Gleichstrom || f.Ground)
+                {
+                    var reversed = new CheckBox { Content = Lang.T("An der rechten Schiene (in Gleisrichtung)"), IsChecked = f.Reversed, Margin = new Thickness(0, 0, 0, 8) };
+                    reversed.Click += (_, _) => _session.ToggleFeederPolarity(f.Id);
+                    _body.Children.Add(reversed);
+                }
                 _body.Children.Add(Buttons(Cmd(Lang.T("Löschen"), "Delete", "delete", danger: true)));
                 break;
 
@@ -581,9 +711,14 @@ public sealed class PropertiesPanel : DockPanel
                 type.SelectionChanged += (_, _) => { if (type.SelectedItem is ComboBoxItem { Tag: SignalType t } && t != g.Type) _session.Edit(() => g.Type = t); };
                 _body.Children.Add(Theme.Label(Lang.T("Art"), 11, false, Theme.TextSecondaryBrush));
                 _body.Children.Add(type);
-                var face = SignalFace.For(g.Type);
+                var system = new ComboBox { Height = 28 };
+                foreach (var sy in Enum.GetValues<SignalSystem>()) system.Items.Add(new ComboBoxItem { Content = Signal.SystemName(sy), Tag = sy, IsSelected = sy == g.System });
+                system.SelectionChanged += (_, _) => { if (system.SelectedItem is ComboBoxItem { Tag: SignalSystem sy } && sy != g.System) _session.Edit(() => g.System = sy); };
+                _body.Children.Add(Theme.Label(Lang.T("Signalsystem"), 11, false, Theme.TextSecondaryBrush));
+                _body.Children.Add(system);
+                var face = SignalFace.For(g);
                 var picture = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-                picture.Children.Add(new System.Windows.Controls.Image { Source = PlanScene.SignalImage(g.Type), Width = 34, Height = 88, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top });
+                picture.Children.Add(new System.Windows.Controls.Image { Source = PlanScene.SignalImage(g.Type, g.System), Width = 34, Height = 88, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top });
                 var faceText = new StackPanel();
                 faceText.Children.Add(Theme.Label(face.Aspect, 12, true));
                 faceText.Children.Add(new TextBlock { Text = face.Description, TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Foreground = Theme.TextSecondaryBrush });

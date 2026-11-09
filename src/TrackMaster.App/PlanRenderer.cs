@@ -5,7 +5,7 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>Was die Zeichnung zeigt (Zeichenfläche und Druck).</summary>
-public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject);
+public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject, bool Wires = true);
 
 /// <summary>
 /// Zeichnet den Plan in Weltkoordinaten (mm): Platte, Gelände, Gebäude, Gleise nach Höhe geschichtet (Brücken liegen oben),
@@ -145,6 +145,7 @@ public sealed class PlanScene
     private static readonly Brush BridgeBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x60, 0x30, 0x30, 0x30)));
     private static readonly Brush TunnelWallBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x6B, 0x5A, 0x48)));
     private static readonly Brush FeederBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xC4, 0x2B, 0x1C)));
+    private static readonly Brush GroundBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x79, 0x55, 0x48)));
     private static readonly Brush IsolationBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xE0, 0x6C, 0x00)));
 
     private static Brush Frozen(Brush b)
@@ -263,6 +264,8 @@ public sealed class PlanScene
 
         DrawLocks(dc, z);
         DrawElectrics(dc, z, o);
+        if (o.Wires) DrawWires(dc, z, o);
+        DrawPowerSources(dc, plan, _gauge, z, o.SelectedObject, o.Wires);
         DrawAnnotations(dc, plan, z, o.SelectedObject);
     }
 
@@ -514,11 +517,11 @@ public sealed class PlanScene
         foreach (var f in plan.Feeders)
         {
             if (plan.Find(f.PieceId) is not { } p) continue;
-            var m = p.Middle();
-            var r = Math.Max(g * 0.9, 5 / z);
-            var center = new Point(m.X - Math.Sin(m.HeadingRad) * g * 2.2, m.Y + Math.Cos(m.HeadingRad) * g * 2.2);
-            dc.DrawLine(new Pen(FeederBrush, Math.Max(g * 0.15, 1 / z)), new Point(m.X, m.Y), center);
-            dc.DrawEllipse(FeederBrush, f.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), center, r, r);
+            // sitzt direkt auf der Schiene (Gleichstrom) bzw. dem Mittelleiter (Wechselstrom)
+            var r = Math.Max(g * 0.35, 5 / z);
+            var (fx, fy) = Electrics.FeederPoint(plan, p, f);
+            var center = new Point(fx, fy);
+            dc.DrawEllipse(f.Ground ? GroundBrush : FeederBrush, f.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), center, r, r);
             var bolt = new StreamGeometry();
             using (var ctx = bolt.Open())
             {
@@ -543,12 +546,203 @@ public sealed class PlanScene
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            var face = SignalFace.For(s.Type);
+            var face = SignalFace.For(s);
             var scale = SignalFace.PlanScale(g, z);
             var (m11, m12, m21, m22, ox, oy) = SignalFace.PlanTransform(x, y, heading, scale, face);
             dc.PushTransform(new MatrixTransform(m11, m12, m21, m22, ox, oy));
             DrawSignalFace(dc, face, s.Id == o.SelectedObject ? new Pen(Theme.AccentBrush, Math.Max(2.5 / z, g * 0.25) / scale) : null, 1 / (z * scale));
             dc.Pop();
+        }
+    }
+
+    /// <summary>Linienzug ohne Füllung (Kabel).</summary>
+    public static Geometry Polyline(IReadOnlyList<(double X, double Y)> pts)
+    {
+        var g = new StreamGeometry();
+        using (var ctx = g.Open())
+        {
+            if (pts.Count > 0)
+            {
+                ctx.BeginFigure(new Point(pts[0].X, pts[0].Y), false, false);
+                for (var i = 1; i < pts.Count; i++) ctx.LineTo(new Point(pts[i].X, pts[i].Y), true, true);
+            }
+        }
+        g.Freeze();
+        return g;
+    }
+
+    /// <summary>Stromquellen als Symbol (Zentrale, Booster, Trafo, Zubehörtrafo) mit gestrichelter Verbindung zu ihren Gleisanschlüssen.</summary>
+    public static void DrawPowerSources(DrawingContext dc, LayoutPlan plan, double g, double z, int? selected, bool links = true)
+    {
+        var items = PowerSupply.Items(plan).ToList();
+        if (items.Count == 0) return;
+        // Verbindung Zentrale/Booster/Trafo → Gleisanschluss: immer rot wie die Bahnstromleitung
+        foreach (var src in links ? PowerSupply.TrackSources(plan) : Enumerable.Empty<SceneryItem>())
+        {
+            var (tx, ty) = PowerSupply.Terminal(src);
+            var t = Math.Max(g * 0.18, 1.3 / z);
+            var pen = new Pen(B(new Rgb(0xD3, 0x2F, 0x2F), 0xC8), t) { DashStyle = new DashStyle([Math.Max(g * 1.2, 6 / z) / t, Math.Max(g * 0.8, 4 / z) / t], 0) };
+            foreach (var f in PowerSupply.FeedersOf(plan, src).Where(f => f.WireId is null))
+                if (plan.Find(f.PieceId) is { } piece)
+                {
+                    var (fx, fy) = Electrics.FeederPoint(plan, piece, f);
+                    dc.DrawGeometry(null, pen, Polyline(PowerSupply.LinkPath((tx, ty), (fx, fy), src)));
+                }
+        }
+        foreach (var src in items)
+            if (PowerSupply.Type(src) == PowerSourceType.Verteiler) DrawDistributor(dc, src, z, src.Id == selected);
+            else if (PowerSupply.Type(src) == PowerSourceType.Baustein) DrawModule(dc, src, g, z, src.Id == selected);
+            else DrawPowerSymbol(dc, src, g, z, src.Id == selected);
+    }
+
+    /// <summary>Decoder-Baustein: Platine mit Typ und Name, Klemmen für Ausgänge bzw. Melder an der Unterkante.</summary>
+    private static void DrawModule(DrawingContext dc, SceneryItem src, double g, double z, bool selected)
+    {
+        var m = Decoders.ModelOf(src);
+        var body = m?.Role == ModuleRole.Melden ? new Rgb(0x0D, 0x47, 0xA1) : new Rgb(0x1B, 0x5E, 0x20);
+        double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
+        dc.PushTransform(new TranslateTransform(src.X, src.Y));
+        dc.PushTransform(new RotateTransform(src.Rotation));
+        var corner = d * 0.08;
+        dc.DrawRoundedRectangle(B(body), selected ? new Pen(Theme.AccentBrush, 3 / z) : new Pen(B(new Rgb(0xE0, 0xE0, 0xE0)), 1.2 / z), new Rect(-hw, -hd, w, d), corner, corner);
+        var culture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        var bold = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var normal = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        void Text(string s, Typeface face, double size, double cy)
+        {
+            var t = new FormattedText(s, culture, FlowDirection.LeftToRight, face, Math.Max(size, 0.5), Brushes.White, 1.0);
+            if (t.Width > w * 0.9 && t.Width > 0) t.SetFontSize(Math.Max(size * w * 0.9 / t.Width, 0.5));
+            dc.DrawText(t, new Point(-t.Width / 2, cy - t.Height / 2));
+        }
+        Text(m?.Short ?? src.Model ?? "", bold, d * 0.26, -d * 0.2);
+        Text(Decoders.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name, normal, d * 0.18, d * 0.1);
+        var n = Math.Clamp(m?.Outputs ?? 0, 0, 16);
+        var step = n > 0 ? w / n : w;
+        var tr = Math.Min(step * 0.32, Math.Max(g * 0.45, 3 / z));
+        var ring = new Pen(B(new Rgb(0x42, 0x42, 0x42)), Math.Max(tr * 0.25, 0.6 / z));
+        for (var i = 0; i < n; i++) dc.DrawEllipse(B(new Rgb(0xF2, 0xC0, 0x00)), ring, new Point(-hw + step * (i + 0.5), hd), tr, tr);
+        dc.Pop();
+        dc.Pop();
+    }
+
+    /// <summary>Verteilerleiste: Leiste in Aderfarbe mit Klemmen auf der Mittellinie.</summary>
+    private static void DrawDistributor(DrawingContext dc, SceneryItem src, double z, bool selected)
+    {
+        var rgb = ModelBody.ParseColor(PowerSupply.DistributorColor(src)) ?? new Rgb(0x79, 0x55, 0x48);
+        double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
+        dc.PushTransform(new TranslateTransform(src.X, src.Y));
+        dc.PushTransform(new RotateTransform(src.Rotation));
+        var corner = d * 0.2;
+        dc.DrawRoundedRectangle(B(rgb), selected ? new Pen(Theme.AccentBrush, 3 / z) : new Pen(B(rgb.Scale(0.55)), 1.2 / z), new Rect(-hw, -hd, w, d), corner, corner);
+        var step = w / PowerSupply.Clamps;
+        var r = Math.Min(step * 0.3, d * 0.3);
+        var ring = new Pen(B(new Rgb(0x42, 0x42, 0x42)), Math.Max(r * 0.25, 0.6 / z));
+        var fill = B(new Rgb(0xE0, 0xE0, 0xE0));
+        for (var i = 0; i < PowerSupply.Clamps; i++)
+        {
+            var x = -hw + step * (i + 0.5);
+            dc.DrawEllipse(fill, ring, new Point(x, 0), r, r);
+            dc.DrawLine(ring, new Point(x - r * 0.6, 0), new Point(x + r * 0.6, 0));
+        }
+        dc.Pop();
+        dc.Pop();
+    }
+
+    private static void DrawPowerSymbol(DrawingContext dc, SceneryItem src, double g, double z, bool selected)
+    {
+        var type = PowerSupply.Type(src);
+        var rgb = ModelBody.ParseColor(PowerSupply.Color(type)) ?? new Rgb(0x37, 0x47, 0x4F);
+        var color = B(rgb);
+        double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
+        dc.PushTransform(new TranslateTransform(src.X, src.Y));
+        dc.PushTransform(new RotateTransform(src.Rotation));
+        var corner = d * 0.12;
+        dc.DrawRoundedRectangle(color, selected ? new Pen(Theme.AccentBrush, 3 / z) : new Pen(Brushes.White, 1.2 / z), new Rect(-hw, -hd, w, d), corner, corner);
+
+        // Kennzeichen links: Bildschirm (Zentrale), Blitz (Booster), Drehknopf (Fahrtrafo), Trafo-Spulen (Zubehör)
+        double ix = -hw + d * 0.42, r = d * 0.26;
+        var white = new Pen(Brushes.White, Math.Max(d * 0.06, 1 / z)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        switch (type)
+        {
+            case PowerSourceType.Zentrale:
+                dc.DrawRectangle(B(new Rgb(0xB9, 0xF6, 0xCA)), null, new Rect(ix - r, -r * 0.75, 2 * r, 1.5 * r));
+                break;
+            case PowerSourceType.Booster:
+                var bolt = new StreamGeometry();
+                using (var ctx = bolt.Open())
+                {
+                    ctx.BeginFigure(new Point(ix + r * 0.2, -r), false, false);
+                    ctx.LineTo(new Point(ix - r * 0.45, r * 0.1), true, false);
+                    ctx.LineTo(new Point(ix + r * 0.35, r * 0.1), true, false);
+                    ctx.LineTo(new Point(ix - r * 0.2, r), true, false);
+                }
+                dc.DrawGeometry(null, white, bolt);
+                break;
+            case PowerSourceType.Fahrtrafo:
+                dc.DrawEllipse(null, white, new Point(ix, 0), r, r);
+                dc.DrawLine(white, new Point(ix, 0), new Point(ix + r * 0.6, -r * 0.6));
+                break;
+            default:
+                dc.DrawEllipse(null, white, new Point(ix - r * 0.35, 0), r * 0.6, r * 0.6);
+                dc.DrawEllipse(null, white, new Point(ix + r * 0.35, 0), r * 0.6, r * 0.6);
+                break;
+        }
+
+        // Art und Name
+        var culture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        var bold = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var normal = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        var shortName = PowerSupply.Label(src);
+        var tx = ix + r + (hw - (ix + r)) / 2;
+        var room = hw - (ix + r) - d * 0.08;
+        void Text(string s, Typeface face, double size, double cy)
+        {
+            var t = new FormattedText(s, culture, FlowDirection.LeftToRight, face, Math.Max(size, 0.5), Brushes.White, 1.0);
+            if (t.Width > room && t.Width > 0) t.SetFontSize(Math.Max(size * room / t.Width, 0.5));
+            dc.DrawText(t, new Point(tx - t.Width / 2, cy - t.Height / 2));
+        }
+        if (src.Name == shortName) Text(shortName, bold, d * 0.3, 0);
+        else
+        {
+            Text(shortName, bold, d * 0.24, -d * 0.15);
+            Text(src.Name, normal, d * 0.22, d * 0.2);
+        }
+
+        // Anschlussklemmen unten: Zentrale/Booster Bahnstrom (B, rot) und Masse (0, braun), sonst eine Klemme
+        var tr = Math.Max(g * 0.55, 3.5 / z);
+        void Clamp(double x, Brush ring, string? mark)
+        {
+            dc.DrawEllipse(Brushes.White, new Pen(ring, Math.Max(tr * 0.35, 1 / z)), new Point(x, hd), tr, tr);
+            if (mark is null) return;
+            var t = new FormattedText(mark, culture, FlowDirection.LeftToRight, bold, Math.Max(tr * 1.25, 0.5), ring, 1.0);
+            dc.DrawText(t, new Point(x - t.Width / 2, hd - t.Height / 2));
+        }
+        if (PowerSupply.HasGround(type))
+        {
+            Clamp(-w / 5, B(new Rgb(0xD3, 0x2F, 0x2F)), "B");
+            Clamp(w / 5, B(new Rgb(0x79, 0x55, 0x48)), "0");
+        }
+        else Clamp(0, color, null);
+        dc.Pop();
+        dc.Pop();
+    }
+
+    /// <summary>Selbst verlegte Kabel: Linienzug in der Aderfarbe mit dunkler Kante, Enden als Punkte.</summary>
+    private void DrawWires(DrawingContext dc, double z, RenderOptions o)
+    {
+        var current = Electrics.Current(_plan);
+        var width = Math.Max(_gauge * 0.35, 2.2 / z);
+        foreach (var w in _plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
+        {
+            var rgb = ModelBody.ParseColor(WireLayout.ColorOf(w, current)) ?? new Rgb(0x21, 0x21, 0x21);
+            var path = Polyline(w.Points);
+            Pen Round(Brush b, double t) => new(b, t) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            if (w.Id == o.SelectedObject) dc.DrawGeometry(null, Round(Theme.AccentBrush, width + 5 / z), path);
+            dc.DrawGeometry(null, Round(B(rgb.Scale(0.55)), width + 1.4 / z), path);
+            var fill = B(rgb);
+            dc.DrawGeometry(null, Round(fill, width), path);
+            foreach (var (x, y) in new[] { w.Points[0], w.Points[^1] })
+                dc.DrawEllipse(fill, new Pen(Brushes.White, 1 / z), new Point(x, y), width * 1.2, width * 1.2);
         }
     }
 
@@ -579,7 +773,19 @@ public sealed class PlanScene
         }
         // Schirm
         var shield = new Rect(-f.Width / 2, 0, f.Width, f.Height);
-        dc.DrawRoundedRectangle(B(SignalFace.ShieldColor), new Pen(B(new Rgb(0x55, 0x55, 0x55)), line), shield, f.Corner, f.Corner);
+        void Part(SignalPart part)
+        {
+            var geo = new StreamGeometry();
+            using (var ctx = geo.Open())
+            {
+                ctx.BeginFigure(new Point(part.Points[0].X, part.Points[0].Y), true, true);
+                ctx.PolyLineTo(part.Points.Skip(1).Select(q => new Point(q.X, q.Y)).ToList(), true, true);
+            }
+            dc.DrawGeometry(B(part.Fill), null, geo);
+        }
+        foreach (var part in f.BackParts) Part(part);
+        if (f.Shield) dc.DrawRoundedRectangle(B(SignalFace.ShieldColor), new Pen(B(new Rgb(0x55, 0x55, 0x55)), line), shield, f.Corner, f.Corner);
+        foreach (var part in f.FrontParts) Part(part);
         foreach (var l in f.Lamps)
         {
             var c = new Point(l.X, l.Y);
@@ -621,9 +827,9 @@ public sealed class PlanScene
     }
 
     /// <summary>Signalbild als Symbol, z. B. für Menüs und Eigenschaften.</summary>
-    public static ImageSource SignalImage(SignalType type)
+    public static ImageSource SignalImage(SignalType type, SignalSystem system = SignalSystem.HV)
     {
-        var face = SignalFace.For(type);
+        var face = SignalFace.For(type, system);
         var group = new DrawingGroup();
         using (var dc = group.Open())
         {

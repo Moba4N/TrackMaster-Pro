@@ -11,7 +11,7 @@ public static class DxfExport
 {
     private static readonly (string Name, int Color)[] Layers =
     [
-        ("PLATTE", 3), ("GLEISACHSE", 1), ("SCHIENEN", 8), ("PRELLBOCK", 1), ("GELAENDE", 94), ("RAUM", 250), ("TEXT", 5),
+        ("PLATTE", 3), ("GLEISACHSE", 1), ("SCHIENEN", 8), ("PRELLBOCK", 1), ("GELAENDE", 94), ("RAUM", 250), ("TEXT", 5), ("KABEL", 10),
     ];
 
     public static string Build(LayoutPlan plan)
@@ -113,6 +113,9 @@ public static class DxfExport
                     Poly("RAUM", s.Outline(), true);
                     var c = s.Center();
                     Text("RAUM", c.X, c.Y, Math.Max(20, Math.Min(s.Width, s.Depth) / 4), s.Rotation, s.Name);
+                    break;
+                case SceneryKind.Wire:
+                    Poly("KABEL", s.Points, false);
                     break;
                 case SceneryKind.Tree:
                     G(0, "CIRCLE"); G(8, "GELAENDE"); N(10, s.X); N(20, -s.Y); N(40, s.Width / 2);

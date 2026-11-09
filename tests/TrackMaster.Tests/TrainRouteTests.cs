@@ -58,4 +58,40 @@ public class TrainRouteTests
         Assert.True(root.GetProperty("routes").GetArrayLength() >= 2);
         Assert.StartsWith("Fahrstraße;", TrainRoutes.ToCsv(TrainRoutes.Find(plan)));
     }
+
+    [Fact]
+    public void Weichenname_steht_in_Fahrstrassen_und_im_Export_als_Text_und_CSV()
+    {
+        var (plan, sw, sig) = PlanWithSignal();
+        sw.Address = 7;
+        sw.Name = "W Einfahrt";
+        var copy = PlanSerializer.FromJson(PlanSerializer.ToJson(plan), out _);
+        Assert.Equal("W Einfahrt", copy.Find(sw.Id)!.Name);
+        var routes = TrainRoutes.Find(plan).Where(r => r.StartSignalId == sig.Id).ToList();
+        Assert.Contains("W Einfahrt (Adresse 7)", TrainRoutes.ToText(plan, routes));
+        Assert.Contains(";W Einfahrt;7;", TrainRoutes.ToCsv(routes));
+        var csv = TrainRoutes.ControlCsv(plan);
+        Assert.StartsWith("\uFEFF\"Art\";", csv);
+        Assert.Contains("\"W Einfahrt\";", csv);
+        Assert.Contains("\"7\"", csv);
+        var text = TrainRoutes.ControlText(plan);
+        Assert.Contains("W Einfahrt", text);
+        Assert.Contains("Adresse 7", text);
+        using var doc = JsonDocument.Parse(TrainRoutes.ToJson(plan));
+        Assert.Contains(doc.RootElement.GetProperty("switches").EnumerateArray(), s => s.GetProperty("name").GetString() == "W Einfahrt");
+    }
+
+    [Fact]
+    public void Nummerierung_benennt_Weichen_ohne_eigenen_Namen()
+    {
+        var session = new PlanSession();
+        session.Replace(SamplePlan.Build(), null);
+        var switches = session.Plan.Pieces.Where(p => p.Def.Drives > 0).ToList();
+        Assert.True(switches.Count >= 2);
+        switches[0].Name = "Einfahrt";
+        session.NumberElectrics();
+        Assert.Equal("Einfahrt", switches[0].Name);
+        Assert.All(switches.Skip(1), p => Assert.Matches("^W\\d+$", p.Name));
+        Assert.Equal(switches.Count - 1, switches.Skip(1).Select(p => p.Name).Distinct().Count());
+    }
 }

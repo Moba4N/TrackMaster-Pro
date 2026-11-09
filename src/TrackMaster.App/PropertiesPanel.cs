@@ -542,10 +542,40 @@ public sealed class PropertiesPanel : DockPanel
                              (Lang.T("Punkte"), s.Points.Count.ToString(), null));
                         _body.Children.Add(Tip(Electrics.CurrentHint(plan)));
                         break;
+                    case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
+                        var dm = Yamorc.ModelOf(s);
+                        _headerRight.Text = dm is null ? s.Model ?? "" : $"{dm.Maker} {dm.Id}";
+                        var melden = dm?.Role == ModuleRole.Melden;
+                        if (dm is not null) _body.Children.Add(Theme.Label(dm.Name, 12, true, Theme.TextSecondaryBrush));
+                        _body.Children.Add(Columns(2,
+                            dm is { Addresses: > 0 }
+                                ? Theme.Field(melden ? Lang.T("Erster Rückmeldekontakt") : Lang.T("Startadresse"), NumberBox(s.Address ?? 1, v => s.Address = (int)Math.Round(Math.Clamp(v, 1, 4096)), 0))
+                                : new TextBlock(),
+                            Theme.Field(Lang.T("Drehung (°)"), NumberBox(s.Rotation, v => s.Rotation = Angles.Normalize(v), 0))));
+                        var mrows = new List<(string, string, System.Windows.Media.Brush?)>();
+                        if (dm is not null)
+                        {
+                            mrows.Add((melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"), dm.Outputs.ToString(), null));
+                            if (Yamorc.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
+                            mrows.Add((Lang.T("Bus"), dm.Bus, null));
+                        }
+                        mrows.Add((Lang.T("Kabel"), Yamorc.Ports(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        Rows(mrows.ToArray());
+                        if (dm is { Addresses: > 0 })
+                        {
+                            var assigned = Yamorc.Assigned(plan, s);
+                            Section(melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"));
+                            if (assigned.Count == 0)
+                                _body.Children.Add(Theme.Label(melden ? Lang.T("Noch kein Rückmelder mit einem Kontakt in diesem Bereich.") : Lang.T("Noch keine Weiche und kein Signal mit einer Adresse in diesem Bereich (Elektrik › Adressen)."), 11, false, Theme.TextSecondaryBrush));
+                            else
+                                Rows(assigned.Select(a => (melden ? Lang.F($"Melder {a.Port}") : Lang.F($"Ausgang {a.Port}"), $"{a.Label} ({a.Address})", (System.Windows.Media.Brush?)null)).ToArray());
+                        }
+                        _body.Children.Add(Tip((dm?.Description ?? "") + " " + Lang.T("Kabel rasten an den gelben Klemmen unten ein.")));
+                        break;
                     case SceneryKind.Power:
                         var ptype = PowerSupply.Type(s);
                         var pkind = new ComboBox { Height = 28 };
-                        foreach (var t in Enum.GetValues<PowerSourceType>()) pkind.Items.Add(new ComboBoxItem { Content = PowerSupply.TypeName(t), Tag = t, IsSelected = t == ptype });
+                        foreach (var t in Enum.GetValues<PowerSourceType>().Where(t => t != PowerSourceType.Baustein)) pkind.Items.Add(new ComboBoxItem { Content = PowerSupply.TypeName(t), Tag = t, IsSelected = t == ptype });
                         pkind.SelectionChanged += (_, _) => { if (pkind.SelectedItem is ComboBoxItem { Tag: PowerSourceType t }) _session.SetPowerType(s.Id, t); };
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Art"), pkind),
@@ -562,6 +592,7 @@ public sealed class PropertiesPanel : DockPanel
                             prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
                         }
                         else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
+                        if (Yamorc.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
                         if (PowerSupply.GroundTerminal(s) is { } gt)
                         {
                             var grounded = WireLayout.WiresAt(plan, gt).Any();

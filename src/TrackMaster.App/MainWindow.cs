@@ -203,6 +203,11 @@ public sealed partial class MainWindow : Window
             Add("signal" + type, () => { Session.SignalType = type; SetTool(CanvasTool.Signal); });
         }
         Add("addresses", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
+        foreach (var m in Yamorc.Models)
+        {
+            var id = m.Id;
+            Add("module" + id, () => { Session.SelectModule(id); SetTool(CanvasTool.Power); });
+        }
         Add("wiring", ShowWiring);
         Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
         Add("numberElectrics", () => Session.NumberElectrics());
@@ -569,7 +574,7 @@ public sealed partial class MainWindow : Window
         Canvas.Focus();
     }
 
-    private static string ToolHint(CanvasTool tool) => tool switch
+    private string ToolHint(CanvasTool tool) => tool switch
     {
         CanvasTool.Board => Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen."),
         CanvasTool.Terrain => Lang.T("Höhenfläche: Eckpunkte anklicken, Doppelklick oder Eingabetaste schließt die Fläche ab. Esc bricht ab."),
@@ -577,7 +582,8 @@ public sealed partial class MainWindow : Window
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
         CanvasTool.Tree => Lang.T("Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => Lang.T("Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
+        CanvasTool.Power => Session.ModuleModel is { } mm ? Lang.F($"{mm}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
+            : Lang.T("Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
         CanvasTool.Signal => Lang.T("Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder."),
@@ -889,6 +895,19 @@ public sealed partial class MainWindow : Window
                 Small(Lang.T("Nach Maß skalieren…"), "Ruler", "bgScale", Lang.T("Mit einer Maßlinie über eine bekannte Strecke den Maßstab des Bilds einstellen.")),
                 Toggle(Lang.T("Bild zeigen"), "Image", false, () => Session.Plan.Background is { Visible: true }, _ => Run("bgToggle")))));
 
+        var moduleMenu = new RibbonMenuButton
+        {
+            Label = Lang.T("YaMoRC-Decoder"), LargeImageSource = Icons.Get("Chip"), SmallImageSource = Icons.Get("Chip"), ToolTipTitle = Lang.T("YaMoRC-Decoder"),
+            ToolTipDescription = Lang.T("Decoder-Bausteine von YaMoRC (Weichen-, Servo-, Schalt- und Rückmeldedecoder, Zentrale, Booster …) aus dem Untermenü wählen und in den Plan setzen."),
+            ControlSizeDefinition = new RibbonControlSizeDefinition { ImageSize = RibbonImageSize.Large, IsLabelVisible = true },
+        };
+        foreach (var (group, models) in Yamorc.Groups)
+        {
+            var sub = new RibbonMenuItem { Header = Yamorc.GroupName(group) };
+            foreach (var m in models)
+                sub.Items.Add(new RibbonMenuItem { Header = $"{m.Id} – {m.Name}", ToolTip = $"{m.Description} ({m.Bus})", Command = _commands["module" + m.Id] });
+            moduleMenu.Items.Add(sub);
+        }
         var signalMenu = new RibbonMenuButton
         {
             Label = Lang.T("Signal setzen"), LargeImageSource = Icons.Get("Signal"), SmallImageSource = Icons.Get("Signal"), ToolTipTitle = Lang.T("Signal setzen"),
@@ -1008,7 +1027,8 @@ public sealed partial class MainWindow : Window
                 Small(Lang.T("Rückmelder"), "Detector", "connDetector", Lang.T("Rückmelder auf das gewählte Gleis setzen oder entfernen.")),
                 Small(Lang.T("Kabel von hier"), "Wire", "connWire", Lang.T("Kabel am Gleisanschluss des gewählten Gleises beginnen (legt ihn bei Bedarf an)."))),
             Group(Lang.T("Digital"),
-                Large(Lang.T("Decoder"), "Chip", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben.")),
+                moduleMenu,
+                Small(Lang.T("Adressen"), "Hash", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 signalMenu,
                 distributorMenu,
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),

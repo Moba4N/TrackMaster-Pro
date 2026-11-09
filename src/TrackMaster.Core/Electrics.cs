@@ -463,6 +463,34 @@ public static class Electrics
                     Lang.F($"{w.Name} ({WireLayout.ColorName(WireLayout.ColorOf(w, current))}) hängt am Verteiler „{d.Name}“ ({WireLayout.ColorName(color)}) – Farben besser gleich halten, sonst verwechselt man die Leitungen."), [], mx, my, w.Id));
             }
         }
+        // Decoder-Bausteine: überlappende Adressbereiche, Adressen ohne Baustein
+        var modules = PowerSupply.Modules(plan).Where(m => Yamorc.Range(m) is not null).ToList();
+        for (var i = 0; i < modules.Count; i++)
+            for (var j = i + 1; j < modules.Count; j++)
+            {
+                var (a, b) = (modules[i], modules[j]);
+                if (Yamorc.ModelOf(a)!.Role != Yamorc.ModelOf(b)!.Role) continue;
+                var (ra, rb) = (Yamorc.Range(a)!.Value, Yamorc.Range(b)!.Value);
+                if (ra.First <= rb.Last && rb.First <= ra.Last)
+                    issues.Add(new(IssueLevel.Warnung, Lang.T("Decoder"),
+                        Lang.F($"„{a.Name}“ ({ra.First}–{ra.Last}) und „{b.Name}“ ({rb.First}–{rb.Last}) benutzen dieselben Adressen. In den Eigenschaften eine andere Startadresse wählen."), [], b.X, b.Y, b.Id));
+            }
+        if (modules.Any(m => Yamorc.ModelOf(m)!.Role == ModuleRole.Schalten))
+        {
+            var loose = SwitchingItems(plan).Where(i => i.Address is { } a && Yamorc.ModuleFor(plan, a, ModuleRole.Schalten) is null).ToList();
+            if (loose.Count > 0)
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Decoder"),
+                    Lang.F($"{loose.Count} Weichen/Signale haben eine Adresse, die kein Decoder-Baustein im Plan abdeckt (z. B. {loose[0].Label}, Adresse {loose[0].Address})."),
+                    loose.Where(i => i.PieceId is not null).Select(i => i.PieceId!.Value).ToList(), loose[0].X, loose[0].Y));
+        }
+        if (modules.Any(m => Yamorc.ModelOf(m)!.Role == ModuleRole.Melden))
+        {
+            var loose = plan.Detectors.Where(d => d.Address is { } a && Yamorc.ModuleFor(plan, a, ModuleRole.Melden) is null).ToList();
+            if (loose.Count > 0 && plan.Find(loose[0].PieceId) is { } lp)
+                issues.Add(new(IssueLevel.Hinweis, Lang.T("Decoder"),
+                    Lang.F($"{loose.Count} Rückmelder haben einen Kontakt, den kein Rückmelde-Baustein im Plan abdeckt (z. B. {loose[0].Name}, Kontakt {loose[0].Address})."),
+                    loose.Select(d => d.PieceId).ToList(), lp.Middle().X, lp.Middle().Y));
+        }
         if (mode == PowerMode.Digital && sources.Count(s => PowerSupply.Type(s) == PowerSourceType.Zentrale) > 1)
         {
             var second = sources.Where(s => PowerSupply.Type(s) == PowerSourceType.Zentrale).Skip(1).First();
@@ -492,6 +520,17 @@ public static class Electrics
         {
             var n = PowerSupply.ClampPoints(d).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count();
             sb.AppendLine(Lang.F($"  {d.Name}: Verteiler {WireLayout.ColorName(PowerSupply.DistributorColor(d))}, {n} Kabel"));
+        }
+        var mods = PowerSupply.Modules(plan).ToList();
+        if (mods.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine(Lang.T("Decoder-Bausteine"));
+            foreach (var mod in mods)
+            {
+                sb.AppendLine($"  {mod.Name}: {Yamorc.ModelOf(mod)?.Title ?? mod.Model}{(Yamorc.Range(mod) is { } mr ? $" ({mr.First}–{mr.Last})" : "")}");
+                foreach (var a in Yamorc.Assigned(plan, mod)) sb.AppendLine($"    {a.Port,2}: {a.Label} [{a.Address}]");
+            }
         }
         sb.AppendLine();
         sb.AppendLine(Lang.T("Stromabschnitte"));
@@ -536,13 +575,9 @@ public static class Electrics
         foreach (var l in r.ReverseLoops)
             sb.AppendLine(Lang.F($"  Gleise Nr. {string.Join(", ", l.PieceIds)} – beidseitig trennen, über Kehrschleifenmodul speisen"));
         sb.AppendLine();
-        sb.AppendLine(Lang.T("Decoder"));
-        foreach (var g in SwitchingItems(plan).Where(i => i.Decoder is not null).GroupBy(i => i.Decoder!.Value).OrderBy(g => g.Key))
-        {
-            sb.AppendLine(Lang.F($"  Decoder {g.Key} (Adressen {(g.Key - 1) * 4 + 1}–{g.Key * 4})"));
-            foreach (var i in g.OrderBy(i => i.Address))
-                sb.AppendLine(Lang.F($"    Ausgang {i.Port}: Adresse {i.AddressText} – {i.Label}"));
-        }
+        sb.AppendLine(Lang.T("Weichen und Signale"));
+        foreach (var i in SwitchingItems(plan).Where(i => i.Address is not null).OrderBy(i => i.Address))
+            sb.AppendLine(Lang.F($"  Adresse {i.AddressText} – {i.Label}") + (Yamorc.Location(plan, i.Address) is { } loc ? $" → {loc}" : ""));
         var without = SwitchingItems(plan).Where(i => i.Address is null).ToList();
         if (without.Count > 0)
         {

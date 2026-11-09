@@ -204,6 +204,8 @@ public sealed partial class MainWindow : Window
         }
         Add("addresses", () => Dialogs.ShowAddresses(this, Session, ShowWiring));
         Add("wiring", ShowWiring);
+        Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
+        Add("numberElectrics", () => Session.NumberElectrics());
         Add("routes", ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => ExportTo(Lang.T("Export für Steuerprogramme"), "JSON-Datei (*.json)|*.json", $"{SafeName} – Steuerung.json", TrainRoutes.ToJson(Session.Plan)));
         Add("view3d", () => Open3D(View3DMode.Orbit));
@@ -967,7 +969,9 @@ public sealed partial class MainWindow : Window
                 Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
                     Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
                 Small(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", Lang.T("Abschnitte ohne Gleisanschluss, Stromquellen, Kehrschleifen, doppelte Adressen, Polung und Kabel. Ein Klick auf einen Befund zeigt die Gleise."))),
-            Group(Lang.T("Verkabelung"), wireMenu),
+            Group(Lang.T("Verkabelung"), wireMenu,
+                Toggle(Lang.T("Kabel zeigen"), "Wire", false, () => Session.ShowWires, on => { Session.ShowWires = on; Canvas.InvalidateVisual(); },
+                    Lang.T("Selbst verlegte Kabel und die roten Verbindungslinien ein- oder ausblenden."))),
             Group(Lang.T("Anschlüsse am Gleis"),
                 Small(Lang.T("Gleisanschluss setzen"), "Bolt", "connFeeder", Lang.T("Das gewählte Gleis an die Zentrale bzw. den Trafo anschließen; bei Gleichstrom mit passender Polung.")),
                 Small(Lang.T("Gleisanschluss entfernen"), "Delete", "connFeederRemove", Lang.T("Alle Gleisanschlüsse am gewählten Gleis entfernen.")),
@@ -980,6 +984,7 @@ public sealed partial class MainWindow : Window
                 signalMenu,
                 distributorMenu,
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
+                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Gleisanschlüsse (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Gleisanschlüsse, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));
@@ -1557,6 +1562,9 @@ public sealed partial class MainWindow : Window
             menu.Items.Add(Cmd(Lang.T("Löschen"), "Delete", "delete"));
         }
         if (menu.Items.Count == 0) menu.Items.Add(Cmd(Lang.T("Ganze Anlage"), "Fit", "fit"));
+        if (menu.Items[menu.Items.Count - 1] is not Separator) menu.Items.Add(new Separator());
+        menu.Items.Add(Cmd(Session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"), "Wire", "wires"));
+        menu.Items.Add(Cmd(Lang.T("Elektrik nummerieren"), "Hash", "numberElectrics"));
         if (menu.Items[menu.Items.Count - 1] is Separator) menu.Items.RemoveAt(menu.Items.Count - 1);
         menu.PlacementTarget = Canvas;
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
@@ -1677,7 +1685,9 @@ public sealed partial class MainWindow : Window
     {
         var text = Electrics.WiringPlan(Session.Plan);
         Dialogs.ShowText(this, Lang.T("Kabelplan"), text, Lang.T("Als Textdatei speichern…"),
-            () => { if (Session.RequirePro(Lang.T("Kabelplan speichern"))) ExportTo(Lang.T("Kabelplan speichern"), Lang.T("Textdatei (*.txt)|*.txt"), Lang.F($"{SafeName} – Kabelplan.txt"), text); });
+            () => { if (Session.RequirePro(Lang.T("Kabelplan speichern"))) ExportTo(Lang.T("Kabelplan speichern"), Lang.T("Textdatei (*.txt)|*.txt"), Lang.F($"{SafeName} – Kabelplan.txt"), text); },
+            Lang.T("Anschlussliste als CSV…"),
+            () => { if (Session.RequirePro(Lang.T("Kabelplan speichern"))) ExportTo(Lang.T("Anschlussliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Anschlussliste.csv"), ConnectionList.ToCsv(Session.Plan)); });
     }
 
     private void ShowRoutes()

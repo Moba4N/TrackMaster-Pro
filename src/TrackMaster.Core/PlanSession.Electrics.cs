@@ -136,6 +136,40 @@ public sealed partial class PlanSession
     /// <summary>Art der Quelle für das Werkzeug „Trafo / Zentrale“.</summary>
     public PowerSourceType PowerType { get; set; } = PowerSourceType.Zentrale;
 
+    /// <summary>Kabel und die roten Verbindungslinien im Plan zeigen (Ansicht, wird nicht gespeichert).</summary>
+    public bool ShowWires { get; set; } = true;
+
+    /// <summary>
+    /// Elektrik durchnummerieren, von links oben nach rechts unten: Gleisanschlüsse G1, G2 …, Rückmelder M1, M2 … und Kabel K1, K2 ….
+    /// Rückmelder ohne Kontakt bekommen ihre Nummer auch als Kontakt, sofern die noch frei ist.
+    /// </summary>
+    public void NumberElectrics()
+    {
+        var plan = Plan;
+        if (plan.Feeders.Count + plan.Detectors.Count + plan.Scenery.Count(s => s.IsWire) == 0)
+        {
+            Say(Lang.T("Noch nichts zu nummerieren: keine Gleisanschlüsse, Rückmelder oder Kabel im Plan."));
+            return;
+        }
+        // Reihenfolge: in Streifen von 10 cm von oben nach unten, darin von links nach rechts
+        static (double, double) Key((double X, double Y) p) => (Math.Floor(p.Y / 100), p.X);
+        (double X, double Y) At(int pieceId) => plan.Find(pieceId) is { } piece ? (piece.Middle().X, piece.Middle().Y) : (0, 0);
+        Record();
+        var n = 0;
+        foreach (var f in plan.Feeders.OrderBy(f => Key(At(f.PieceId)))) f.Name = $"G{++n}";
+        n = 0;
+        var used = plan.Detectors.Where(d => d.Address is not null).Select(d => d.Address!.Value).ToHashSet();
+        foreach (var d in plan.Detectors.OrderBy(d => Key(At(d.PieceId))))
+        {
+            d.Name = $"M{++n}";
+            if (d.Address is null && used.Add(n)) d.Address = n;
+        }
+        n = 0;
+        foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count > 0).OrderBy(w => Key(w.Points[0]))) w.Name = $"K{++n}";
+        Commit();
+        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Rückmelder (M), {n} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
+    }
+
     /// <summary>Farbe für neue Verteilerleisten (Werkzeug „Verteiler“).</summary>
     public string DistributorColor { get; set; } = "#795548";
 
@@ -360,6 +394,8 @@ public sealed partial class PlanSession
         var pts = new List<(double X, double Y)>();
         foreach (var q in points)
             if (pts.Count == 0 || Math.Abs(pts[^1].X - q.X) + Math.Abs(pts[^1].Y - q.Y) > 0.5) pts.Add(q);
+        // Kabel liegen immer rechtwinklig
+        pts = WireLayout.Orthogonalize(pts);
         if (pts.Count < 2)
         {
             Say(Lang.T("Ein Kabel braucht mindestens zwei Punkte."));

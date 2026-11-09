@@ -216,7 +216,8 @@ public sealed class PlanView : View
     private void AddWirePoint((double X, double Y) world)
     {
         var (sx, sy, anchor) = WireLayout.Snap(_session.View, world.X, world.Y, Ui.Dp(22) / _zoom);
-        _polygon.Add((sx, sy));
+        // Kabel liegen rechtwinklig: freie Punkte rasten waagerecht/senkrecht ein, an Anschlüssen entsteht ein Knick
+        _polygon.AddRange(WireLayout.OrthoStep(_polygon, (sx, sy), anchor is not null));
         _session.Say(anchor is not null
             ? Lang.F($"Kabel: angeschlossen an {anchor.Text}. Weitere Punkte setzen, Doppelklick oder „Fertig“ beendet.")
             : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Gleisanschlüssen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder „Fertig“ beendet.")
@@ -261,7 +262,7 @@ public sealed class PlanView : View
         canvas.Translate(_ox, _oy);
         canvas.Rotate((float)_rot);
         canvas.Scale(_zoom, _zoom);
-        painter.Draw(canvas, _zoom, _session.ShowScenery, _session.Selection, _session.SelectedObject, c => { if (_session.ShowGrid) DrawGrid(c, plan); DrawFocus(c, plan); });
+        painter.Draw(canvas, _zoom, _session.ShowScenery, _session.Selection, _session.SelectedObject, wires: _session.ShowWires, afterBoard: c => { if (_session.ShowGrid) DrawGrid(c, plan); DrawFocus(c, plan); });
         DrawToolPreview(canvas);
         canvas.Restore();
 
@@ -533,9 +534,30 @@ public sealed class PlanView : View
         }
     }
 
+    /// <summary>Bezeichnungen von Gleisanschlüssen (G1 …) und Rückmeldern (M1 …), sobald das Gleis groß genug auf dem Bildschirm ist.</summary>
+    private void DrawElectricNames(Canvas c, LayoutPlan plan)
+    {
+        if (_gauge * _zoom < Ui.Dp(4)) return;
+        foreach (var f in plan.Feeders)
+            if (f.Name.Length > 0 && plan.Find(f.PieceId) is { } p)
+            {
+                var s = ToScreen(Electrics.FeederPoint(plan, p, f).X, Electrics.FeederPoint(plan, p, f).Y);
+                DrawTag(c, f.Name, s.X + Ui.Dp(16), s.Y - Ui.Dp(10), Color.Rgb(0xC6, 0x28, 0x28), 9);
+            }
+        foreach (var d in plan.Detectors)
+            if (d.Name.Length > 0 && plan.Find(d.PieceId) is { } p)
+            {
+                var (x, y) = Electrics.DetectorPoint(p, _gauge);
+                var s = ToScreen(x, y);
+                DrawTag(c, d.Name, s.X + Ui.Dp(16), s.Y - Ui.Dp(10), Color.Rgb(0x6A, 0x1B, 0x9A), 9);
+            }
+    }
+
     /// <summary>Kabel: Name und Länge in der Mitte, sobald das Kabel lang genug auf dem Bildschirm ist.</summary>
     private void DrawWireNames(Canvas c, LayoutPlan plan)
     {
+        DrawElectricNames(c, plan);
+        if (!_session.ShowWires) return;
         foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
         {
             var len = WireLayout.Length(w);
@@ -727,7 +749,7 @@ public sealed class PlanView : View
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
         if (plan.Scenery.Where(s => s.IsPower).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } power) return power.Id;
-        if (plan.Scenery.Where(s => s.IsWire).Reverse().FirstOrDefault(s => WireLayout.Distance(s, world.X, world.Y) <= Math.Max(_gauge * 0.4, Ui.Dp(14) / _zoom)) is { } wire) return wire.Id;
+        if (_session.ShowWires && plan.Scenery.Where(s => s.IsWire).Reverse().FirstOrDefault(s => WireLayout.Distance(s, world.X, world.Y) <= Math.Max(_gauge * 0.4, Ui.Dp(14) / _zoom)) is { } wire) return wire.Id;
         if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, Ui.Dp(14) / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;

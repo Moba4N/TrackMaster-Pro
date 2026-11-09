@@ -500,7 +500,7 @@ public static class Electrics
             sb.AppendLine(Lang.F($"  Abschnitt {s.Number}: {s.PieceIds.Count} Gleise, {Fmt.Num(s.LengthMm / 1000, 2)} m"));
             if (s.Feeders.Count == 0) sb.AppendLine(Lang.T("    kein Gleisanschluss!"));
             foreach (var f in s.Feeders)
-                sb.AppendLine(Lang.F($"    Gleisanschluss Nr. {f.Id} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}") + (r.Current == CurrentKind.Gleichstrom && f.Reversed ? Lang.T(" (Polung getauscht)") : ""));
+                sb.AppendLine(Lang.F($"    Gleisanschluss {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}") + (r.Current == CurrentKind.Gleichstrom && f.Reversed ? Lang.T(" (Polung getauscht)") : ""));
         }
         sb.AppendLine();
         sb.AppendLine(Lang.F($"Trennstellen ({plan.Isolations.Count})"));
@@ -555,6 +555,8 @@ public static class Electrics
             sb.AppendLine(Lang.T("Befunde"));
             foreach (var i in r.Issues) sb.AppendLine($"  [{i.Level.Text()}] {i.Text}");
         }
+        sb.AppendLine();
+        sb.Append(ConnectionList.ToText(plan));
         return sb.ToString();
     }
 }

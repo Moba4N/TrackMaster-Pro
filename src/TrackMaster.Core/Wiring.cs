@@ -111,7 +111,7 @@ public static class WireLayout
             if (plan.Find(f.PieceId) is { } p)
             {
                 var (x, y) = Electrics.FeederPoint(plan, p, f);
-                list.Add(new(x, y, Lang.F($"Gleisanschluss an Gleis Nr. {p.Id}")));
+                list.Add(new(x, y, f.Name.Length > 0 ? Lang.F($"Gleisanschluss {f.Name} an Gleis Nr. {p.Id}") : Lang.F($"Gleisanschluss an Gleis Nr. {p.Id}")));
             }
         foreach (var src in PowerSupply.Sources(plan))
         {
@@ -147,6 +147,32 @@ public static class WireLayout
             list.Add(new(w.Points[0].X, w.Points[0].Y, Lang.F($"{w.Name} (Anfang)")));
             list.Add(new(w.Points[^1].X, w.Points[^1].Y, Lang.F($"{w.Name} (Ende)")));
         }
+        return list;
+    }
+
+    /// <summary>
+    /// Rechtwinklig weiterlegen: ein freier Punkt rastet waagerecht oder senkrecht zum letzten Punkt ein; ein fester Punkt
+    /// (Einrastpunkt) bekommt bei Bedarf einen Knick davor. Liefert die anzuhängenden Punkte.
+    /// </summary>
+    public static IReadOnlyList<(double X, double Y)> OrthoStep(IReadOnlyList<(double X, double Y)> sofar, (double X, double Y) target, bool fixedTarget)
+    {
+        if (sofar.Count == 0) return [target];
+        var last = sofar[^1];
+        double dx = target.X - last.X, dy = target.Y - last.Y;
+        if (Math.Abs(dx) < 0.5 || Math.Abs(dy) < 0.5) return [target];
+        // Knick so legen, dass das vorige Stück nicht in sich zurückläuft: nach einem waagerechten Stück erst senkrecht
+        var prevHorizontal = sofar.Count >= 2 && Math.Abs(sofar[^2].Y - last.Y) < 0.5;
+        var prevVertical = sofar.Count >= 2 && Math.Abs(sofar[^2].X - last.X) < 0.5;
+        var horizontalFirst = prevHorizontal ? false : prevVertical ? true : Math.Abs(dx) >= Math.Abs(dy);
+        if (!fixedTarget) return [Math.Abs(dx) >= Math.Abs(dy) ? (target.X, last.Y) : (last.X, target.Y)];
+        return [horizontalFirst ? (target.X, last.Y) : (last.X, target.Y), target];
+    }
+
+    /// <summary>Linienzug rechtwinklig machen: zwischen schräg zueinander liegenden Punkten einen Knick einfügen.</summary>
+    public static List<(double X, double Y)> Orthogonalize(IReadOnlyList<(double X, double Y)> points)
+    {
+        var list = new List<(double X, double Y)>();
+        foreach (var p in points) list.AddRange(OrthoStep(list, p, true));
         return list;
     }
 

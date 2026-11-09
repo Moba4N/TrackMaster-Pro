@@ -86,7 +86,7 @@
             {
                 var hasSel = _session.Selection.Count > 0;
                 <div class="ctx-backdrop" @onclick="@(() => _ctx = null)" @oncontextmenu="@(() => _ctx = null)" @oncontextmenu:preventDefault></div>
-                <div class="ctx-menu" role="menu" style="@FormattableString.Invariant($"left:{Math.Max(4, Math.Min(cm.X, _view.Width - 230)):F0}px;top:{Math.Max(4, Math.Min(cm.Y, _view.Height - (_session.ConnectionPiece is null ? 250 : 470))):F0}px")" @oncontextmenu:preventDefault>
+                <div class="ctx-menu" role="menu" style="@FormattableString.Invariant($"left:{Math.Max(4, Math.Min(cm.X, _view.Width - 230)):F0}px;top:{Math.Max(4, Math.Min(cm.Y, _view.Height - (_session.ConnectionPiece is null ? 330 : 550))):F0}px")" @oncontextmenu:preventDefault>
                     @if (IsModulePlan())
                     {
                         <button role="menuitem" @onclick="@(() => CtxRun("cutJoints"))">@((MarkupString)Icons.Svg("Isolate", 16))<span>@(hasSel ? Lang.T("An Modulkante trennen") : Lang.T("Alle Gleise an Modulkanten trennen"))</span></button>
@@ -131,6 +131,9 @@
                         <button role="menuitem" @onclick="@(() => CtxRun("paste"))">@((MarkupString)Icons.Svg("Paste", 16))<span>@Lang.T("Einfügen")</span></button>
                         <button role="menuitem" @onclick="@(() => CtxRun("fit"))">@((MarkupString)Icons.Svg("Fit", 16))<span>@Lang.T("Einpassen")</span></button>
                     }
+                    <div class="ctx-sep" role="separator"></div>
+                    <button role="menuitem" @onclick="@(() => CtxRun("wires"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@(_session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"))</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("numberElectrics"))">@((MarkupString)Icons.Svg("Hash", 16))<span>@Lang.T("Elektrik nummerieren")</span></button>
                 </div>
             }
             @if (_session.Tool is not (CanvasTool.Select))
@@ -388,6 +391,7 @@
             new(Lang.T("Stromversorgung"), [new(Lang.T("Betrieb / Stromart…"), "Current", "current", true, Lang.T("Digital (Zentrale, Booster) oder analog (Fahrtrafo) sowie Gleichstrom (Zweileiter) oder Wechselstrom (Mittelleiter). Danach richten sich Prüfung, Polung und Kabelfarben.")),
                 new(Lang.T("Trafo / Zentrale"), "Power", "toolPower", true, Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Die Gleisanschlüsse hängen daran.")),
                 new(Lang.T("Gleisanschluss"), "Bolt", "toolFeeder", true, Lang.T("Stelle, an der der Fahrstrom ans Gleis geht. Sie hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt diese, wird sie angelegt.")),
+                new(Lang.T("Kabel zeigen"), "Wire", "wires", false, Lang.T("Selbst verlegte Kabel und die roten Verbindungslinien ein- oder ausblenden.")),
                 new(Lang.T("Kabel verlegen"), "Wire", "toolWire", true, Lang.T("Kabel selbst verlegen: Punkte anklicken, Doppelklick beendet. Die Enden rasten an Gleisanschlüssen, Rückmeldern, Signalen und Weichenantrieben ein; Länge und Farbe stehen im Kabelplan.")),
                 new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
                 new(Lang.T("Nur Elektrik beschriften"), "Hash", "elecLabels", false, Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern an den Gleisen ausblenden und stattdessen die Abschnitte beschriften.")),
@@ -401,6 +405,7 @@
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
                 new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),
+                new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Gleisanschlüsse (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),
         ]),
         new(Lang.T("Ansicht"),
@@ -2053,10 +2058,11 @@
         });
     }
 
-    private void ShowText(string title, string text, string saveLabel, Action save)
+    private void ShowText(string title, string text, string saveLabel, Action save, string? save2Label = null, Action? save2 = null)
     {
         var d = Show(title, @<pre class="mono">@text</pre>, wide: true);
         d.Buttons.Add(new(Lang.T("Kopieren"), () => { _ = Interop.Js.CopyText(text); ShowToast(Lang.T("In die Zwischenablage kopiert.")); return false; }));
+        if (save2Label is not null && save2 is not null) d.Buttons.Add(new(save2Label, () => { save2(); return false; }));
         d.Buttons.Add(new(saveLabel, () => { save(); return false; }));
         d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }

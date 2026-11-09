@@ -260,7 +260,12 @@ public sealed class Feeder
     public string Circuit { get; set; } = "Stromkreis 1";
     /// <summary>Gleichstrom: Polung vertauscht (Plus an der linken statt an der rechten Schiene, in Richtung Anschluss 0 → 1 gesehen).</summary>
     public bool Reversed { get; set; }
-    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit, Reversed = Reversed };
+    /// <summary>Bezeichnung im Plan (z. B. „G3“ nach dem automatischen Nummerieren); leer = keine.</summary>
+    public string Name { get; set; } = "";
+    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit, Reversed = Reversed, Name = Name };
+
+    /// <summary>Text für Listen und Meldungen: Bezeichnung, sonst die Nummer.</summary>
+    public string Label => Name.Length > 0 ? Name : Lang.F($"Nr. {Id}");
 }
 
 /// <summary>Stromart der Anlage. <see cref="Auto"/> richtet sich nach dem Gleis: Mittelleiter → Wechselstrom, sonst Gleichstrom.</summary>

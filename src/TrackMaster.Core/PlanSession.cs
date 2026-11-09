@@ -501,7 +501,7 @@ public sealed partial class PlanSession
             Plan.Pieces.Add(q);
             Selection.Add(q.Id);
         }
-        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit, Reversed = f.Reversed });
+        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit, Reversed = f.Reversed, Name = f.Name });
         foreach (var i in src.Isolations) Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = map[i.PieceId], Index = i.Index });
         foreach (var g in src.Signals)
         {

@@ -172,7 +172,7 @@ public sealed class PlanPainter
     private static readonly Color IsolationColor = Color.Rgb(0xE0, 0x6C, 0x00);
 
     /// <summary>Zeichnet alles in Weltkoordinaten; die Canvas ist bereits skaliert. <paramref name="zoom"/> = Pixel je mm.</summary>
-    public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null)
+    public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null, bool wires = true)
     {
         var plan = _plan;
         float z = zoom, g = _g;
@@ -305,8 +305,8 @@ public sealed class PlanPainter
 
         DrawLocks(c, z);
         DrawElectrics(c, z, selectedObject);
-        DrawWires(c, z, selectedObject);
-        DrawPowerSources(c, _plan, _g, z, selectedObject, Ui.Density);
+        if (wires) DrawWires(c, z, selectedObject);
+        DrawPowerSources(c, _plan, _g, z, selectedObject, Ui.Density, wires);
         DrawAnnotations(c, plan, z, selectedObject);
     }
 
@@ -559,13 +559,13 @@ public sealed class PlanPainter
     /// <summary>
     /// Stromquellen als Symbol (Zentrale, Booster, Trafo, Zubehörtrafo) mit gestrichelter Verbindung zu ihren Gleisanschlüssen.
     /// </summary>
-    public static void DrawPowerSources(Canvas c, LayoutPlan plan, float g, float z, int? selectedObject, float density)
+    public static void DrawPowerSources(Canvas c, LayoutPlan plan, float g, float z, int? selectedObject, float density, bool links = true)
     {
         var items = PowerSupply.Items(plan).ToList();
         if (items.Count == 0) return;
         using var p = new Paint(PaintFlags.AntiAlias);
         // Verbindung Zentrale/Booster/Trafo → Gleisanschluss: immer rot wie die Bahnstromleitung
-        foreach (var src in PowerSupply.TrackSources(plan))
+        foreach (var src in links ? PowerSupply.TrackSources(plan) : Enumerable.Empty<SceneryItem>())
         {
             var (tx, ty) = PowerSupply.Terminal(src);
             p.SetStyle(Paint.Style.Stroke);
@@ -577,9 +577,7 @@ public sealed class PlanPainter
                 {
                     var (fx, fy) = Electrics.FeederPoint(plan, piece, f);
                     // als Pfad, damit die Strichelung greift
-                    using var link = new Path();
-                    link.MoveTo((float)tx, (float)ty);
-                    link.LineTo((float)fx, (float)fy);
+                    using var link = Polygon(PowerSupply.LinkPath((tx, ty), (fx, fy), src), close: false);
                     c.DrawPath(link, p);
                 }
             p.SetPathEffect(null);

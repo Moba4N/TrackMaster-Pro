@@ -757,7 +757,7 @@ public static partial class Dialogs
         window.ShowDialog();
     }
 
-    public static void ShowText(Window owner, string title, string text, string saveLabel, Action save)
+    public static void ShowText(Window owner, string title, string text, string saveLabel, Action save, string? save2Label = null, Action? save2 = null)
     {
         var box = new TextBox
         {
@@ -767,10 +767,12 @@ public static partial class Dialogs
         var saveButton = Theme.Button(saveLabel, "Save");
         var close = Theme.Button(Lang.T("Schließen"), accent: true);
         close.IsCancel = true;
-        var window = Frame(owner, title, box, saveButton, close);
+        Button? second = save2Label is null ? null : Theme.Button(save2Label, "Csv");
+        var window = second is null ? Frame(owner, title, box, saveButton, close) : Frame(owner, title, box, second, saveButton, close);
         window.Width = 780;
         window.Height = 640;
         saveButton.Click += (_, _) => save();
+        if (second is not null) second.Click += (_, _) => save2?.Invoke();
         close.Click += (_, _) => window.Close();
         window.ShowDialog();
     }

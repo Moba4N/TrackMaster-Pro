@@ -170,6 +170,44 @@ public class ElectricWiringTests
     }
 
     [Fact]
+    public void Kabel_liegen_rechtwinklig_und_Nummerierung_fuehrt_zur_Anschlussliste()
+    {
+        // freier Punkt rastet waagerecht/senkrecht ein, fester Punkt bekommt einen Knick
+        Assert.Equal([(100.0, 0.0)], WireLayout.OrthoStep([(0, 0)], (100, 20), false));
+        var step = WireLayout.OrthoStep([(0, 0)], (100, 60), true);
+        Assert.Equal(2, step.Count);
+        Assert.Equal((100.0, 60.0), step[^1]);
+
+        var (plan, a, b) = TwoStraights(false);
+        var s = new PlanSession();
+        s.Replace(plan, null);
+        var f1 = s.AddFeederTo(a.Id);
+        s.AddFeederTo(b.Id);
+        s.AddDetector(b.Id);
+        var start = Electrics.FeederPoint(s.Plan, a, f1);
+        var wire = s.AddWire([start, (start.X + 300, start.Y + 200)], WireUse.Fahrstrom)!;
+        Assert.Equal(3, wire.Points.Count);
+        for (var i = 1; i < wire.Points.Count; i++)
+            Assert.True(Math.Abs(wire.Points[i].X - wire.Points[i - 1].X) < 0.01 || Math.Abs(wire.Points[i].Y - wire.Points[i - 1].Y) < 0.01);
+
+        s.NumberElectrics();
+        Assert.Equal(["G1", "G2"], s.Plan.Feeders.Select(f => f.Name).OrderBy(x => x));
+        var det = Assert.Single(s.Plan.Detectors);
+        Assert.Equal("M1", det.Name);
+        Assert.Equal(1, det.Address);
+        Assert.Equal("K1", wire.Name);
+
+        // Namen bleiben beim Speichern erhalten, Anschlussliste als CSV und Text
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.Contains(back.Feeders, f => f.Name == "G1");
+        var csv = ConnectionList.ToCsv(s.Plan);
+        Assert.Contains("\"K1\"", csv);
+        Assert.Contains("\"M1\"", csv);
+        Assert.Contains($"Gleisanschluss {f1.Name}", csv);
+        Assert.Contains("Anschlussliste", Electrics.WiringPlan(s.Plan));
+    }
+
+    [Fact]
     public void Booster_braucht_gemeinsame_Masse_ueber_Verteiler()
     {
         var (plan, a, b) = TwoStraights(false);

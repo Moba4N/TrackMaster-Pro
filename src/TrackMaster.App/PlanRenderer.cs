@@ -5,7 +5,7 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>Was die Zeichnung zeigt (Zeichenfläche und Druck).</summary>
-public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject);
+public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject, bool Wires = true);
 
 /// <summary>
 /// Zeichnet den Plan in Weltkoordinaten (mm): Platte, Gelände, Gebäude, Gleise nach Höhe geschichtet (Brücken liegen oben),
@@ -263,8 +263,8 @@ public sealed class PlanScene
 
         DrawLocks(dc, z);
         DrawElectrics(dc, z, o);
-        DrawWires(dc, z, o);
-        DrawPowerSources(dc, plan, _gauge, z, o.SelectedObject);
+        if (o.Wires) DrawWires(dc, z, o);
+        DrawPowerSources(dc, plan, _gauge, z, o.SelectedObject, o.Wires);
         DrawAnnotations(dc, plan, z, o.SelectedObject);
     }
 
@@ -571,12 +571,12 @@ public sealed class PlanScene
     }
 
     /// <summary>Stromquellen als Symbol (Zentrale, Booster, Trafo, Zubehörtrafo) mit gestrichelter Verbindung zu ihren Gleisanschlüssen.</summary>
-    public static void DrawPowerSources(DrawingContext dc, LayoutPlan plan, double g, double z, int? selected)
+    public static void DrawPowerSources(DrawingContext dc, LayoutPlan plan, double g, double z, int? selected, bool links = true)
     {
         var items = PowerSupply.Items(plan).ToList();
         if (items.Count == 0) return;
         // Verbindung Zentrale/Booster/Trafo → Gleisanschluss: immer rot wie die Bahnstromleitung
-        foreach (var src in PowerSupply.TrackSources(plan))
+        foreach (var src in links ? PowerSupply.TrackSources(plan) : Enumerable.Empty<SceneryItem>())
         {
             var (tx, ty) = PowerSupply.Terminal(src);
             var t = Math.Max(g * 0.18, 1.3 / z);
@@ -585,7 +585,7 @@ public sealed class PlanScene
                 if (plan.Find(f.PieceId) is { } piece)
                 {
                     var (fx, fy) = Electrics.FeederPoint(plan, piece, f);
-                    dc.DrawLine(pen, new Point(tx, ty), new Point(fx, fy));
+                    dc.DrawGeometry(null, pen, Polyline(PowerSupply.LinkPath((tx, ty), (fx, fy), src)));
                 }
         }
         foreach (var src in items)

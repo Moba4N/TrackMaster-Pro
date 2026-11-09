@@ -339,6 +339,8 @@ public partial class App : ComponentBase, IAppHost
         }, () => _session.ConnectionPiece is { } p && _session.FeedersOn(p.Id).Count > 0 && Electrics.Current(_session.Plan) == CurrentKind.Gleichstrom);
         Add("addresses", Lang.T("Decoder und Adressen"), ShowAddresses);
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
+        Add("wires", Lang.T("Kabel zeigen"), () => { _session.ShowWires = !_session.ShowWires; _session.Say(_session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); _view.Invalidate(); });
+        Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
@@ -484,6 +486,7 @@ public partial class App : ComponentBase, IAppHost
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
+        "wires" => _session.ShowWires,
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
@@ -507,7 +510,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolPower", "toolDistributor", "toolIsolation", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connFeeder", "connDetector", "connIsolate",
     ];
@@ -815,6 +818,9 @@ public partial class App : ComponentBase, IAppHost
         ShowText(Lang.T("Kabelplan"), text, Lang.T("Als Text speichern"), () =>
         {
             if (_session.RequirePro(Lang.T("Kabelplan"))) Export(text, "text/plain", Lang.F($"{SafeName} – Kabelplan.txt"));
+        }, Lang.T("Anschlussliste als CSV"), () =>
+        {
+            if (_session.RequirePro(Lang.T("Kabelplan"))) Export(ConnectionList.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Anschlussliste.csv"));
         });
     }
 

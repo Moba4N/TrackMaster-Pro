@@ -120,6 +120,24 @@ public static class PowerSupply
     public static (double X, double Y) Terminal(SceneryItem s)
         => Local(s, HasGround(Type(s)) ? -s.Width / 5 : 0, s.Depth / 2);
 
+    /// <summary>
+    /// Verbindungslinie Klemme → Gleisanschluss, rechtwinklig: erst ein Stück senkrecht aus der Klemme, dann waagerecht, dann senkrecht zum Gleis.
+    /// </summary>
+    public static IReadOnlyList<(double X, double Y)> LinkPath((double X, double Y) terminal, (double X, double Y) feeder, SceneryItem src)
+    {
+        var r = src.Rotation * Math.PI / 180;
+        // Richtung „aus der Klemme heraus“ (untere Kante des Symbols), auf die Hauptachse gerundet
+        double ox = -Math.Sin(r), oy = Math.Cos(r);
+        var off = Math.Max(src.Depth * 0.35, 10);
+        if (Math.Abs(ox) >= Math.Abs(oy))
+        {
+            var x1 = terminal.X + Math.Sign(ox) * off;
+            return [terminal, (x1, terminal.Y), (x1, feeder.Y), feeder];
+        }
+        var y1 = terminal.Y + Math.Sign(oy) * off;
+        return [terminal, (terminal.X, y1), (feeder.X, y1), feeder];
+    }
+
     /// <summary>Masse-Klemme (0) von Zentrale und Booster, sonst null.</summary>
     public static (double X, double Y)? GroundTerminal(SceneryItem s)
         => HasGround(Type(s)) ? Local(s, s.Width / 5, s.Depth / 2) : null;

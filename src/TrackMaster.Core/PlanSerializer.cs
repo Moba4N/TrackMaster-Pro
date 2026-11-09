@@ -99,6 +99,7 @@ public static class PlanSerializer
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("circuit")] public string? Circuit { get; set; }
         [JsonPropertyName("rev"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Rev { get; set; }
+        [JsonPropertyName("name"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Name { get; set; }
     }
 
     private sealed class IsolationDto
@@ -244,7 +245,7 @@ public static class PlanSerializer
                 Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
-            Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed }).ToList(),
+            Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),
             Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
             Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
@@ -401,7 +402,7 @@ public static class PlanSerializer
         }
         foreach (var f in dto.Feeders ?? [])
             if (plan.Find(f.Piece) is not null)
-                plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev });
+                plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev, Name = f.Name?.Trim() ?? "" });
         foreach (var i in dto.Isolations ?? [])
             if (plan.Find(i.Piece) is { } ip && i.End >= 0 && i.End < ip.WorldConnectors().Count)
                 plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End });

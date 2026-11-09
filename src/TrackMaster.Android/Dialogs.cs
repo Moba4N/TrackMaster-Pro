@@ -1278,6 +1278,12 @@ public static partial class Dialogs
 
     public static void ShowText(Context c, string title, string text, string saveLabel, Action save)
     {
+        ShowTextWith(c, title, text, (saveLabel, save));
+    }
+
+    public static void ShowTextWith(Context c, string title, string text, (string, Action) neutral)
+    {
+        var (saveLabel, save) = neutral;
         var t = Ui.Label(c, text, 12.5);
         t.Typeface = Typeface.Monospace;
         t.SetTextIsSelectable(true);

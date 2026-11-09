@@ -218,7 +218,8 @@ public sealed class PlanCanvas : FrameworkElement
     private void AddWirePoint(Point world)
     {
         var (sx, sy, anchor) = WireLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom);
-        _polygon.Add((sx, sy));
+        // Kabel liegen rechtwinklig: freie Punkte rasten waagerecht/senkrecht ein, an Anschlüssen entsteht ein Knick
+        _polygon.AddRange(WireLayout.OrthoStep(_polygon, (sx, sy), anchor is not null));
         _session.Say(anchor is not null
             ? Lang.F($"Kabel: angeschlossen an {anchor.Text}. Weitere Punkte setzen, Doppelklick oder Eingabetaste beendet.")
             : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Gleisanschlüssen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder Eingabetaste beendet.")
@@ -263,7 +264,7 @@ public sealed class PlanCanvas : FrameworkElement
 
         dc.PushTransform(new MatrixTransform(ViewMatrix));
         var board = new Rect(0, 0, plan.BoardWidth, plan.BoardHeight);
-        scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject),
+        scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject, _session.ShowWires),
             d =>
             {
                 if (_session.ShowGrid)
@@ -339,8 +340,10 @@ public sealed class PlanCanvas : FrameworkElement
             var width = Math.Max(_gauge * 0.35, 2.2 / z);
             dc.DrawGeometry(null, new Pen(wire, width) { LineJoin = PenLineJoin.Round }, PlanScene.Polyline(_polygon));
             var (sx, sy, anchor) = WireLayout.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z);
-            var last = _polygon[^1];
-            dc.DrawLine(new Pen(wire, width * 0.7) { DashStyle = DashStyles.Dash }, new Point(last.X, last.Y), new Point(sx, sy));
+            var preview = new List<(double X, double Y)> { _polygon[^1] };
+            preview.AddRange(WireLayout.OrthoStep(_polygon, (sx, sy), anchor is not null));
+            dc.DrawGeometry(null, new Pen(wire, width * 0.7) { DashStyle = DashStyles.Dash, LineJoin = PenLineJoin.Round }, PlanScene.Polyline(preview));
+            (sx, sy) = preview[^1];
             if (anchor is not null) dc.DrawEllipse(null, new Pen(Theme.AccentBrush, 2.5 / z), new Point(sx, sy), 7 / z, 7 / z);
             foreach (var p in _polygon) dc.DrawEllipse(Brushes.White, new Pen(wire, 2 / z), new Point(p.X, p.Y), 4 / z, 4 / z);
         }
@@ -512,9 +515,33 @@ public sealed class PlanCanvas : FrameworkElement
         }
     }
 
+    /// <summary>Bezeichnungen von Gleisanschlüssen (G1 …) und Rückmeldern (M1 …), sobald das Gleis groß genug auf dem Bildschirm ist.</summary>
+    private void DrawElectricNames(DrawingContext dc, LayoutPlan plan)
+    {
+        if (_gauge * _zoom < 4) return;
+        var red = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+        var violet = new SolidColorBrush(Color.FromRgb(0x6A, 0x1B, 0x9A));
+        foreach (var f in plan.Feeders)
+            if (f.Name.Length > 0 && plan.Find(f.PieceId) is { } p)
+            {
+                var (x, y) = Electrics.FeederPoint(plan, p, f);
+                var s = ToScreen(x, y);
+                DrawTag(dc, f.Name, new Point(s.X + 16, s.Y - 10), red, 9.5);
+            }
+        foreach (var d in plan.Detectors)
+            if (d.Name.Length > 0 && plan.Find(d.PieceId) is { } p)
+            {
+                var (x, y) = Electrics.DetectorPoint(p, _gauge);
+                var s = ToScreen(x, y);
+                DrawTag(dc, d.Name, new Point(s.X + 16, s.Y - 10), violet, 9.5);
+            }
+    }
+
     /// <summary>Kabel: Name und Länge in der Mitte, sobald das Kabel lang genug auf dem Bildschirm ist.</summary>
     private void DrawWireNames(DrawingContext dc, LayoutPlan plan)
     {
+        DrawElectricNames(dc, plan);
+        if (!_session.ShowWires) return;
         foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
         {
             var len = WireLayout.Length(w);
@@ -695,7 +722,7 @@ public sealed class PlanCanvas : FrameworkElement
         if (best is not null) return best;
         if (plan.Scenery.Where(s => s.IsAnnotation).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } note) return note.Id;
         if (plan.Scenery.Where(s => s.IsPower).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y)) is { } power) return power.Id;
-        if (plan.Scenery.Where(s => s.IsWire).Reverse().FirstOrDefault(s => WireLayout.Distance(s, world.X, world.Y) <= Math.Max(_gauge * 0.4, 7 / _zoom)) is { } wire) return wire.Id;
+        if (_session.ShowWires && plan.Scenery.Where(s => s.IsWire).Reverse().FirstOrDefault(s => WireLayout.Distance(s, world.X, world.Y) <= Math.Max(_gauge * 0.4, 7 / _zoom)) is { } wire) return wire.Id;
         if (plan.Scenery.Where(s => s.IsBeam).Reverse().FirstOrDefault(s => BeamLayout.Distance(s, world.X, world.Y) <= Math.Max(s.Width / 2, 8 / _zoom)) is { } beam) return beam.Id;
         if (!_session.ShowScenery) return null;
         return plan.Scenery.Where(s => s.Kind is SceneryKind.Tree or SceneryKind.Building).Reverse().FirstOrDefault(s => s.Contains(world.X, world.Y))?.Id;

@@ -292,6 +292,8 @@ public sealed class MainActivity : Activity
         Add("connections", Lang.T("Anschlüsse am Gleis"), ShowConnections, () => _session.ConnectionPiece is not null);
         Add("addresses", Lang.T("Decoder und Adressen"), () => Dialogs.ShowAddresses(this, _session, ShowWiring));
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
+        Add("wires", Lang.T("Kabel zeigen"), () => Toggle(() => _session.ShowWires = !_session.ShowWires));
+        Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
@@ -585,7 +587,7 @@ public sealed class MainActivity : Activity
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
         (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Gleisanschluss"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
                       (Lang.T("Kabel verlegen…"), "toolWire", true), (Lang.T("Anschlüsse am Gleis…"), "connections", false),
-                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
+                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabel zeigen"), "wires", true), (Lang.T("Elektrik nummerieren"), "numberElectrics", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
                      (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), (Lang.T("Ebenen…"), "levels", false), (Lang.T("Ansicht ↺ 15°"), "viewRotL", false), (Lang.T("Ansicht ↻ 15°"), "viewRotR", false),
                      (Lang.T("Gerade ausrichten"), "viewReset", false), (Lang.T("Ansicht drehen…"), "viewAngle", false), (Lang.T("Design und Schrift…"), "appearance", false)]),
@@ -783,6 +785,7 @@ public sealed class MainActivity : Activity
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
+        "wires" => _session.ShowWires,
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
@@ -999,6 +1002,8 @@ public sealed class MainActivity : Activity
             if (_session.Tool != CanvasTool.Wire) SetTool(CanvasTool.Wire);
             _canvas.StartWireAt(x, y);
         }));
+        actions.Add((_session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"), null, false, () => Run("wires")));
+        actions.Add((Lang.T("Elektrik nummerieren"), Lang.T("Gleisanschlüsse G1 …, Rückmelder M1 …, Kabel K1 …"), false, () => Run("numberElectrics")));
         Dialogs.Choose(this, Lang.F($"Anschlüsse – Gleis {p.Def.Number}"), actions.Select(a => (a.Label, a.Hint, a.Current)).ToList(), i => actions[i].Run(), _session.ConnectionSummary(p.Id));
     }
 
@@ -1064,9 +1069,16 @@ public sealed class MainActivity : Activity
     private void ShowWiring()
     {
         var text = Electrics.WiringPlan(_session.Plan);
-        Dialogs.ShowText(this, Lang.T("Kabelplan"), text, Lang.T("Als Text speichern"), () =>
+        Dialogs.ShowText(this, Lang.T("Kabelplan"), text, Lang.T("Speichern…"), () =>
         {
-            if (_session.RequirePro(Lang.T("Kabelplan"))) Export(text, "text/plain", Lang.F($"{SafeName} – Kabelplan.txt"));
+            if (!_session.RequirePro(Lang.T("Kabelplan"))) return;
+            Dialogs.Choose(this, Lang.T("Kabelplan speichern"),
+                [(Lang.T("Als Text (Kabelplan und Anschlussliste)"), null, false), (Lang.T("Anschlussliste als CSV"), null, false)],
+                i =>
+                {
+                    if (i == 0) Export(text, "text/plain", Lang.F($"{SafeName} – Kabelplan.txt"));
+                    else Export(ConnectionList.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Anschlussliste.csv"));
+                });
         });
     }
 

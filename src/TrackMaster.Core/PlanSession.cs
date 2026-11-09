@@ -30,6 +30,8 @@ public sealed partial class PlanSession
     public CanvasTool Tool { get; set; } = CanvasTool.Select;
     /// <summary>Signaltyp für das Werkzeug „Signal setzen“.</summary>
     public SignalType SignalType { get; set; } = SignalType.Hauptsignal;
+    /// <summary>Signalsystem für neue Signale (Werkzeug „Signal“).</summary>
+    public SignalSystem SignalSystem { get; set; } = SignalSystem.HV;
     /// <summary>Art des Raumelements für das Werkzeug „Raumelement“.</summary>
     public ObstacleType ObstacleType { get; set; } = ObstacleType.Tuer;
     /// <summary>Ausstattungsmodell für das Werkzeug „Modell einfügen“ (<see cref="ModelLibrary"/>).</summary>
@@ -1603,7 +1605,7 @@ public sealed partial class PlanSession
         Record();
         var n = Plan.Signals.Count(s => s.Type == SignalType) + 1;
         var prefix = SignalType switch { SignalType.Vorsignal => "V", SignalType.Sperrsignal => "Sh", SignalType.Ausfahrsignal => "N", SignalType.Blocksignal => "B", _ => "A" };
-        var sig = new Signal { Id = Plan.NextId++, PieceId = pieceId, Index = index, Type = SignalType, Name = $"{prefix}{n}" };
+        var sig = new Signal { Id = Plan.NextId++, PieceId = pieceId, Index = index, Type = SignalType, System = SignalSystem, Name = $"{prefix}{n}" };
         Plan.Signals.Add(sig);
         SelectedObject = sig.Id;
         Selection.Clear();

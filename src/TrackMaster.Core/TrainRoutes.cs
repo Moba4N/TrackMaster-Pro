@@ -186,7 +186,7 @@ public static class TrainRoutes
                 id = p.Id, name = SwitchName(p), article = p.Def.Number, kind = p.Def.IsDoubleSlip ? "dkw" : "weiche", address = p.Address, drives = p.Def.Drives,
                 positions = Passages(p).Select(x => x.Path).Distinct().OrderBy(x => x).Select(x => PositionName(p, x)).ToList(),
             }).ToList(),
-            signals = plan.Signals.Select(s => new { id = s.Id, name = SignalName(s), type = Signal.TypeName(s.Type), address = s.Address, addresses = s.AddressCount, piece = s.PieceId }).ToList(),
+            signals = plan.Signals.Select(s => new { id = s.Id, name = SignalName(s), type = Signal.TypeName(s.Type), system = s.System.ToString(), address = s.Address, addresses = s.AddressCount, piece = s.PieceId }).ToList(),
             detectors = plan.Detectors.Select(d => new { id = d.Id, name = d.Name, type = d.Type.ToString().ToLowerInvariant(), address = d.Address, piece = d.PieceId }).ToList(),
             sections = sections.Select(s => new { number = s.Number, pieces = s.PieceIds, lengthMm = Math.Round(s.LengthMm), circuits = s.Circuits }).ToList(),
             routes = routes.Select((r, i) => new
@@ -210,7 +210,7 @@ public static class TrainRoutes
         foreach (var p in plan.Pieces.Where(p => p.Def.Drives > 0).OrderBy(p => p.Address ?? int.MaxValue).ThenBy(p => p.Id))
             rows.Add([p.Def.IsDoubleSlip ? "DKW" : Lang.T("Weiche"), SwitchName(p), p.Def.Number, Lang.F($"Gleis Nr. {p.Id}"), Addr(p.Address, p.Def.Drives), string.Join(" / ", Positions(p))]);
         foreach (var g in plan.Signals.OrderBy(g => g.Address ?? int.MaxValue).ThenBy(g => g.Id))
-            rows.Add(["Signal", SignalName(g), Signal.TypeName(g.Type), Lang.F($"Gleis Nr. {g.PieceId}"), Addr(g.Address, g.AddressCount), ""]);
+            rows.Add(["Signal", SignalName(g), $"{Signal.TypeName(g.Type)} ({Signal.SystemShort(g.System)})", Lang.F($"Gleis Nr. {g.PieceId}"), Addr(g.Address, g.AddressCount), ""]);
         foreach (var d in plan.Detectors.OrderBy(d => d.Address ?? int.MaxValue).ThenBy(d => d.Id))
             rows.Add([Lang.T("Rückmelder"), d.Name.Length > 0 ? d.Name : Lang.F($"Nr. {d.Id}"), Detector.TypeName(d.Type), Lang.F($"Gleis Nr. {d.PieceId}"), d.Address?.ToString(inv) ?? "", ""]);
         foreach (var s in Electrics.Sections(plan))

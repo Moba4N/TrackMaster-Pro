@@ -7,10 +7,10 @@ namespace TrackMaster.Web.Shell;
 /// <summary>Kleine Bilder als SVG: Signalbilder, Design-Vorschau, Form der Anlagenplatte.</summary>
 public static class Pictures
 {
-    public static string Signal(SignalType type, float width = 36, float height = 64)
+    public static string Signal(SignalType type, float width = 36, float height = 64, SignalSystem system = SignalSystem.HV)
     {
         var c = new Canvas(width, height);
-        PlanPainter.SignalIcon(c, type, width, height);
+        PlanPainter.SignalIcon(c, type, width, height, system);
         return SvgWriter.Image(c);
     }
 

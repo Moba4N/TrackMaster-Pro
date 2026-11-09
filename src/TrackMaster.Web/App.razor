@@ -1816,21 +1816,34 @@
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }
 
+    private SignalSystem PickedSignalSystem => Enum.TryParse<SignalSystem>(D("sigsys"), out var sy) ? sy : SignalSystem.HV;
+
     private void AskSignalType(SignalType current, Action<SignalType> pick)
     {
-        var d = Show(Lang.T("Signal setzen"), @<div class="list">
-            @foreach (var t in Enum.GetValues<SignalType>())
-            {
-                var type = t;
-                var face = SignalFace.For(t);
-                <button class="list-item signal-choice @(t == current ? "on" : "")" @onclick="@(() => { CloseDialog(); pick(type); })">
-                    <span class="signal-pic">@((MarkupString)Pictures.Signal(t, 32, 56))</span>
-                    <span class="texts">
-                        <span class="strong">@Signal.TypeName(t)</span>
-                        <span class="secondary">@($"{face.Aspect}. {face.Description}")</span>
-                    </span>
-                </button>
-            }
+        _d["sigsys"] = _session.SignalSystem.ToString();
+        var d = Show(Lang.T("Signal setzen"), @<div>
+            <label class="field-label">@Lang.T("Signalsystem")</label>
+            <select class="input" value="@D("sigsys")" @onchange="@(e => _d["sigsys"] = e.Value?.ToString() ?? "")">
+                @foreach (var sy in Enum.GetValues<SignalSystem>())
+                {
+                    <option value="@sy">@Signal.SystemName(sy)</option>
+                }
+            </select>
+            <div class="list">
+                @foreach (var t in Enum.GetValues<SignalType>())
+                {
+                    var type = t;
+                    var system = PickedSignalSystem;
+                    var face = SignalFace.For(t, system);
+                    <button class="list-item signal-choice @(t == current && system == _session.SignalSystem ? "on" : "")" @onclick="@(() => { CloseDialog(); _session.SignalSystem = system; pick(type); })">
+                        <span class="signal-pic">@((MarkupString)Pictures.Signal(t, 32, 56, system))</span>
+                        <span class="texts">
+                            <span class="strong">@Signal.TypeName(t)</span>
+                            <span class="secondary">@($"{face.Aspect}. {face.Description}")</span>
+                        </span>
+                    </button>
+                }
+            </div>
         </div>);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
     }

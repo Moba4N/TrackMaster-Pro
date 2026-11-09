@@ -115,6 +115,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("end")] public int End { get; set; }
         [JsonPropertyName("type")] public string? Type { get; set; }
+        [JsonPropertyName("system"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? System { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
     }
@@ -262,7 +263,7 @@ public static partial class PlanSerializer
             Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
-                { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
+                { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), System = g.System == SignalSystem.HV ? null : g.System.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
             Levels = plan.Levels.Count == 1 && plan.Levels[0] is { Height: 0, Visible: true } ? null
                 : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
             ActiveLevel = plan.ActiveLevel,
@@ -424,6 +425,7 @@ public static partial class PlanSerializer
                 {
                     Id = Id(g.Id), PieceId = g.Piece, Index = g.End, Name = g.Name ?? "", Address = g.Addr,
                     Type = Enum.TryParse<SignalType>(g.Type, true, out var t) ? t : SignalType.Hauptsignal,
+                    System = Enum.TryParse<SignalSystem>(g.System, true, out var sys) ? sys : SignalSystem.HV,
                 });
         foreach (var d in dto.Detectors ?? [])
             if (plan.Find(d.Piece) is not null)

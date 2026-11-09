@@ -542,7 +542,7 @@ public sealed class PlanPainter
         foreach (var s in plan.Signals)
         {
             var (x, y, heading) = Electrics.SignalPose(plan, s);
-            var face = SignalFace.For(s.Type);
+            var face = SignalFace.For(s);
             var scale = SignalFace.PlanScale(g, z, 6 * d);
             var (m11, m12, m21, m22, ox, oy) = SignalFace.PlanTransform(x, y, heading, scale, face);
             var m = new Matrix();
@@ -778,10 +778,21 @@ public sealed class PlanPainter
         }
         var shield = new RectF(-W / 2, 0, W / 2, H);
         var corner = (float)f.Corner;
-        Fill(SignalFace.ShieldColor);
-        c.DrawRoundRect(shield, corner, corner, p);
-        Stroke(new Rgb(0x55, 0x55, 0x55), line);
-        c.DrawRoundRect(shield, corner, corner, p);
+        void Part(SignalPart part)
+        {
+            using var path = Polygon(part.Points);
+            Fill(part.Fill);
+            c.DrawPath(path, p);
+        }
+        foreach (var part in f.BackParts) Part(part);
+        if (f.Shield)
+        {
+            Fill(SignalFace.ShieldColor);
+            c.DrawRoundRect(shield, corner, corner, p);
+            Stroke(new Rgb(0x55, 0x55, 0x55), line);
+            c.DrawRoundRect(shield, corner, corner, p);
+        }
+        foreach (var part in f.FrontParts) Part(part);
         foreach (var l in f.Lamps)
         {
             float x = (float)l.X, y = (float)l.Y, r = (float)l.R;
@@ -802,9 +813,9 @@ public sealed class PlanPainter
     }
 
     /// <summary>Signalbild als kleines Symbol, eingepasst in <paramref name="width"/> × <paramref name="height"/> (gleicher Maßstab für alle Arten).</summary>
-    public static void SignalIcon(Canvas c, SignalType type, float width, float height)
+    public static void SignalIcon(Canvas c, SignalType type, float width, float height, SignalSystem system = SignalSystem.HV)
     {
-        var face = SignalFace.For(type);
+        var face = SignalFace.For(type, system);
         var scale = height / 4.3f;
         c.Save();
         c.Translate(width / 2, height - scale * (float)(face.TotalHeight + 0.1));

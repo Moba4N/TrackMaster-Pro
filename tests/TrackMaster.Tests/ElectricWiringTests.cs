@@ -88,7 +88,7 @@ public class ElectricWiringTests
         Assert.Null(s.DetectorOn(a.Id));
 
         s.AddFeederTo(a.Id);
-        Assert.Contains("Gleisanschluss", s.ConnectionSummary(a.Id));
+        Assert.Contains("Einspeisung", s.ConnectionSummary(a.Id));
         s.RemoveFeedersOn(a.Id);
         Assert.Empty(s.Plan.Feeders);
         // Die Auswahl bleibt beim Bearbeiten der Anschlüsse
@@ -122,7 +122,7 @@ public class ElectricWiringTests
         Assert.NotNull(wire);
         Assert.Equal(700, WireLayout.Length(wire), 3);
         Assert.Equal("#D32F2F", WireLayout.ColorOf(wire, CurrentKind.Gleichstrom));
-        Assert.Contains("Gleisanschluss", WireLayout.EndAnchor(s.Plan, wire, false)!.Text);
+        Assert.Contains("Einspeisung", WireLayout.EndAnchor(s.Plan, wire, false)!.Text);
         Assert.Null(WireLayout.EndAnchor(s.Plan, wire, true));
 
         var text = Electrics.WiringPlan(s.Plan);
@@ -203,7 +203,7 @@ public class ElectricWiringTests
         var csv = ConnectionList.ToCsv(s.Plan);
         Assert.Contains("\"K1\"", csv);
         Assert.Contains("\"M1\"", csv);
-        Assert.Contains($"Gleisanschluss {f1.Name}", csv);
+        Assert.Contains($"Einspeisung {f1.Name}", csv);
         Assert.Contains("Anschlussliste", Electrics.WiringPlan(s.Plan));
     }
 

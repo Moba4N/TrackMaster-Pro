@@ -145,6 +145,7 @@ public sealed class PlanScene
     private static readonly Brush BridgeBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x60, 0x30, 0x30, 0x30)));
     private static readonly Brush TunnelWallBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x6B, 0x5A, 0x48)));
     private static readonly Brush FeederBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xC4, 0x2B, 0x1C)));
+    private static readonly Brush GroundBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x79, 0x55, 0x48)));
     private static readonly Brush IsolationBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xE0, 0x6C, 0x00)));
 
     private static Brush Frozen(Brush b)
@@ -520,7 +521,7 @@ public sealed class PlanScene
             var r = Math.Max(g * 0.35, 5 / z);
             var (fx, fy) = Electrics.FeederPoint(plan, p, f);
             var center = new Point(fx, fy);
-            dc.DrawEllipse(FeederBrush, f.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), center, r, r);
+            dc.DrawEllipse(f.Ground ? GroundBrush : FeederBrush, f.Id == o.SelectedObject ? selPen : new Pen(Brushes.White, 1 / z), center, r, r);
             var bolt = new StreamGeometry();
             using (var ctx = bolt.Open())
             {
@@ -581,7 +582,7 @@ public sealed class PlanScene
             var (tx, ty) = PowerSupply.Terminal(src);
             var t = Math.Max(g * 0.18, 1.3 / z);
             var pen = new Pen(B(new Rgb(0xD3, 0x2F, 0x2F), 0xC8), t) { DashStyle = new DashStyle([Math.Max(g * 1.2, 6 / z) / t, Math.Max(g * 0.8, 4 / z) / t], 0) };
-            foreach (var f in PowerSupply.FeedersOf(plan, src))
+            foreach (var f in PowerSupply.FeedersOf(plan, src).Where(f => f.WireId is null))
                 if (plan.Find(f.PieceId) is { } piece)
                 {
                     var (fx, fy) = Electrics.FeederPoint(plan, piece, f);

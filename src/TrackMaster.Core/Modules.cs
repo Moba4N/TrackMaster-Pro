@@ -413,6 +413,7 @@ public static class ModuleLayout
             var q = f.Clone();
             q.Id = plan.NextId++;
             q.PieceId = ids[f.PieceId];
+            q.WireId = null;
             plan.Feeders.Add(q);
         }
         foreach (var iso in other.Isolations.Where(i => ids.ContainsKey(i.PieceId)))

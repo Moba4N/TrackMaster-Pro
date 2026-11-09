@@ -100,6 +100,9 @@ public static partial class PlanSerializer
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("circuit")] public string? Circuit { get; set; }
         [JsonPropertyName("rev"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Rev { get; set; }
+        [JsonPropertyName("gnd"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Gnd { get; set; }
+        [JsonPropertyName("at"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? At { get; set; }
+        [JsonPropertyName("wire"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Wire { get; set; }
         [JsonPropertyName("name"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Name { get; set; }
     }
 
@@ -250,7 +253,8 @@ public static partial class PlanSerializer
             }).ToList(),
             Scenery = plan.Scenery.Count == 0 ? null : plan.Scenery.Select(s => new SceneryDto
             {
-                Id = withIds ? s.Id : null,
+                // Kabel, aus denen Einspeisungen entstanden sind, behalten ihre Kennung
+                Id = withIds || plan.Feeders.Any(f => f.WireId == s.Id) ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
                 Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
@@ -260,7 +264,7 @@ public static partial class PlanSerializer
                 Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
-            Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),
+            Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Gnd = f.Ground, At = Math.Abs(f.At - 0.5) < 1e-9 ? null : Math.Round(f.At, 4), Wire = f.WireId, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),
             Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
             Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
             Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
@@ -418,7 +422,7 @@ public static partial class PlanSerializer
         }
         foreach (var f in dto.Feeders ?? [])
             if (plan.Find(f.Piece) is not null)
-                plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev, Name = f.Name?.Trim() ?? "" });
+                plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev, Ground = f.Gnd, At = Math.Clamp(f.At ?? 0.5, 0, 1), WireId = f.Wire, Name = f.Name?.Trim() ?? "" });
         foreach (var i in dto.Isolations ?? [])
             if (plan.Find(i.Piece) is { } ip && i.End >= 0 && i.End < ip.WorldConnectors().Count)
                 plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End });

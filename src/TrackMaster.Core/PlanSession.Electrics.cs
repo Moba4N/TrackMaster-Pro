@@ -250,9 +250,9 @@ public sealed partial class PlanSession
         Say(Lang.F($"{PowerSupply.TypeName(type)} „{item.Name}“ gesetzt.") + " " + (type == PowerSourceType.Verteiler
             ? Lang.T("Kabel rasten an jeder Klemme der Leiste ein; alles, was dort hängt, ist miteinander verbunden.")
             : PowerSupply.HasGround(type)
-            ? Lang.T("Gleisanschlüsse hängen über die rote Linie an der Bahnstrom-Klemme (B); die Masse (0) daneben mit einem braunen Kabel anschließen.")
+            ? Lang.T("Rechtsklick bzw. Eigenschaften › „Kabel von hier verlegen“ und auf dem Gleis enden lassen – dort entsteht die Einspeisung. Die Masse (0) genauso mit „Masse-Kabel von hier verlegen“ auf die andere Schiene.")
             : PowerSupply.FeedsTrack(type)
-            ? Lang.T("Gleisanschlüsse hängen über ihren Stromkreis daran; Kabel rasten an der Klemme unten ein.")
+            ? Lang.T("„Kabel von hier verlegen“ und auf dem Gleis enden lassen – dort entsteht die Einspeisung.")
             : Lang.T("Für Licht und Zubehör; Kabel rasten an der Klemme unten ein.")));
         return item;
     }
@@ -381,7 +381,7 @@ public sealed partial class PlanSession
         Record();
         f.Reversed = !f.Reversed;
         Commit();
-        Say(f.Reversed ? Lang.F($"Gleisanschluss Nr. {f.Id}: Polung getauscht.") : Lang.F($"Gleisanschluss Nr. {f.Id}: Polung wieder normal."));
+        Say(f.Reversed ? Lang.F($"Anschluss Nr. {f.Id}: jetzt an der rechten Schiene.") : Lang.F($"Anschluss Nr. {f.Id}: jetzt an der linken Schiene."));
     }
 
     /// <summary>Alle Einspeisungen eines Gleises entfernen; die Auswahl bleibt.</summary>
@@ -435,7 +435,10 @@ public sealed partial class PlanSession
     {
         var parts = new List<string>();
         var feeders = FeedersOn(pieceId);
-        if (feeders.Count > 0) parts.Add(Lang.F($"Gleisanschluss → {string.Join(", ", feeders.Select(f => f.Circuit).Distinct())}"));
+        var supply = feeders.Where(f => !f.Ground).ToList();
+        var grounds = feeders.Where(f => f.Ground).ToList();
+        if (supply.Count > 0) parts.Add(supply.Count == 1 ? Lang.F($"Einspeisung ← {supply[0].Circuit}") : Lang.F($"{supply.Count} Einspeisungen ← {string.Join(", ", supply.Select(f => f.Circuit).Distinct())}"));
+        if (grounds.Count > 0) parts.Add(Lang.F($"Masse ← {string.Join(", ", grounds.Select(f => f.Circuit).Distinct())}"));
         var iso = PieceEnds(pieceId).Count(e => e.Isolated);
         if (iso > 0) parts.Add(Lang.F($"{iso} Trennstelle(n)"));
         if (DetectorOn(pieceId) is { } d) parts.Add(Lang.F($"Rückmelder {d.Name}"));
@@ -446,31 +449,124 @@ public sealed partial class PlanSession
 
     // ---------- Kabel ----------
 
-    /// <summary>Kabel als Linienzug anlegen (mindestens zwei Punkte). Farbe und Querschnitt folgen der Verwendung.</summary>
+    /// <summary>
+    /// Kabel als Linienzug anlegen (mindestens zwei Punkte). Farbe und Querschnitt folgen der Verwendung.
+    /// Endet ein Kabel auf einem Gleis, entsteht dort eine Einspeisung: Bahnstrom (B), wenn das Kabel – direkt oder über
+    /// Verteiler und weitere Kabel – an der Bahnstromklemme einer Zentrale, eines Boosters oder Trafos hängt, Masse bei der Masseklemme (0).
+    /// Ohne erkennbare Quelle entscheidet die Verwendung (Fahrstrom bzw. Rückleiter/Masse).
+    /// </summary>
     public SceneryItem? AddWire(IReadOnlyList<(double X, double Y)> points, WireUse? use = null)
     {
         var pts = new List<(double X, double Y)>();
         foreach (var q in points)
             if (pts.Count == 0 || Math.Abs(pts[^1].X - q.X) + Math.Abs(pts[^1].Y - q.Y) > 0.5) pts.Add(q);
-        // Kabel liegen immer rechtwinklig
-        pts = WireLayout.Orthogonalize(pts);
-        if (pts.Count < 2)
+        if (pts.Count < 2 || (pts.Count == 2 && Math.Abs(pts[0].X - pts[1].X) + Math.Abs(pts[0].Y - pts[1].Y) < 1))
         {
             Say(Lang.T("Ein Kabel braucht mindestens zwei Punkte."));
             return null;
         }
         var u = use ?? WireUse;
+        Record();
         var n = Plan.Scenery.Count(s => s.IsWire) + 1;
         var item = new SceneryItem
         {
-            Kind = SceneryKind.Wire, Points = pts, Variant = (int)u, Name = Lang.F($"Kabel {n}"),
+            Kind = SceneryKind.Wire, Variant = (int)u, Name = Lang.F($"Kabel {n}"), Id = Plan.NextId++,
+            Level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1),
             Color = WireLayout.DefaultColor(u, Electrics.Current(Plan)), Depth = WireLayout.DefaultSection(u, Plan.Gauge),
         };
+        // Enden, die auf einem Gleis liegen (und an keinem anderen Einrastpunkt): dort entstehen Einspeisungen
+        var anchors = WireLayout.Anchors(Plan);
+        bool AtAnchor((double X, double Y) p) => anchors.Any(a => Math.Abs(a.X - p.X) <= 1 && Math.Abs(a.Y - p.Y) <= 1);
+        var hidden = HiddenPieceIds();
+        var hits = new (PlacedPiece Piece, double At, bool Right, double Offset)?[2];
+        for (var e = 0; e < 2; e++)
+        {
+            var p = e == 0 ? pts[0] : pts[^1];
+            if (!AtAnchor(p)) hits[e] = Electrics.TrackHit(Plan, p.X, p.Y, hidden);
+        }
+        // Kabel liegen immer rechtwinklig
+        pts = WireLayout.Orthogonalize(pts);
+        item.Points = pts;
         item.X = pts[0].X;
         item.Y = pts[0].Y;
-        AddScenery(item);
-        Say(Lang.F($"{item.Name} verlegt: {Fmt.Num(WireLayout.Length(item) / 1000, 2)} m, {WireLayout.ColorName(item.Color!)}. Farbe und Querschnitt stehen in den Eigenschaften."));
+        Plan.Scenery.Add(item);
+        var made = new List<Feeder>();
+        for (var e = 0; e < 2; e++)
+        {
+            if (hits[e] is not { } hit) continue;
+            var other = e == 0 ? pts[^1] : pts[0];
+            var (src, ground) = SourceAt(other);
+            if (src is null && u is not (WireUse.Fahrstrom or WireUse.Rueckleiter)) continue;
+            ground = src is null ? u == WireUse.Rueckleiter : ground;
+            var current = Electrics.Current(Plan);
+            var f = new Feeder
+            {
+                Id = Plan.NextId++, PieceId = hit.Piece.Id, At = hit.At, WireId = item.Id, Ground = ground,
+                Circuit = src?.Name ?? CircuitForNewFeeder(),
+                // Wechselstrom: Bahnstrom am Mittelleiter, Masse an der getroffenen Schiene; Gleichstrom: getroffene Schiene
+                Reversed = current == CurrentKind.Wechselstrom && !ground ? false : hit.Right,
+            };
+            Plan.Feeders.Add(f);
+            made.Add(f);
+            // Kabelende genau auf den Anschlusspunkt legen
+            var fp = Electrics.FeederPoint(Plan, hit.Piece, f);
+            if (e == 0) pts[0] = fp; else pts[^1] = fp;
+        }
+        if (made.Count > 0)
+        {
+            item.Points = WireLayout.Orthogonalize(pts);
+            item.X = item.Points[0].X;
+            item.Y = item.Points[0].Y;
+        }
+        SelectedObject = item.Id;
+        Selection.Clear();
+        Commit();
+        var msg = Lang.F($"{item.Name} verlegt: {Fmt.Num(WireLayout.Length(item) / 1000, 2)} m, {WireLayout.ColorName(item.Color!)}.");
+        foreach (var f in made)
+            msg += " " + (f.Ground
+                ? Lang.F($"Masse von „{f.Circuit}“ an Gleis Nr. {f.PieceId}.")
+                : Lang.F($"Einspeisung von „{f.Circuit}“ an Gleis Nr. {f.PieceId}."));
+        Say(msg + AutoSourceNote());
         return item;
+    }
+
+    /// <summary>
+    /// Kabelpunkt beim Verlegen einrasten: an Klemmen, Verteilern, Rückmeldern usw.; liegt der Punkt sonst auf einem Gleis,
+    /// rastet er dort ein (das Kabelende wird zur Einspeisung bzw. zum Masseanschluss).
+    /// </summary>
+    public (double X, double Y, WireLayout.Anchor? Anchor) SnapWire(double x, double y, double tolerance)
+    {
+        var view = View;
+        var snap = WireLayout.Snap(view, x, y, tolerance);
+        if (snap.Anchor is not null) return snap;
+        if (Electrics.TrackHit(view, x, y) is { } hit)
+            return (snap.X, snap.Y, new WireLayout.Anchor(snap.X, snap.Y, Lang.F($"Gleis {hit.Piece.Def.Number} (Nr. {hit.Piece.Id}) – dort entsteht die Einspeisung")));
+        return snap;
+    }
+
+    /// <summary>Welche Quellklemme liegt im selben Leitungsnetz wie dieser Punkt (Bahnstrom oder Masse)?</summary>
+    private (SceneryItem? Source, bool Ground) SourceAt((double X, double Y) point)
+    {
+        var nets = WireLayout.Nets(Plan);
+        if (nets(point) is not { } net) return (null, false);
+        foreach (var src in PowerSupply.Sources(Plan))
+        {
+            if (nets(PowerSupply.Terminal(src)) == net) return (src, false);
+            if (PowerSupply.GroundTerminal(src) is { } gt && nets(gt) == net) return (src, true);
+        }
+        return (null, false);
+    }
+
+    /// <summary>Gleise ausgeblendeter Ebenen (Kabel rasten dort nicht ein).</summary>
+    private HashSet<int> HiddenPieceIds()
+        => Plan.Pieces.Where(p => p.Level >= 0 && p.Level < Plan.Levels.Count && !Plan.Levels[p.Level].Visible).Select(p => p.Id).ToHashSet();
+
+    /// <summary>Wo „Kabel von hier verlegen“ an einer Quelle beginnt: Bahnstromklemme bzw. Masseklemme (0).</summary>
+    public (double X, double Y)? WireStart(int sourceId, bool ground)
+    {
+        if (Plan.Scenery.FirstOrDefault(s => s.Id == sourceId) is not { IsPower: true } src) return null;
+        if (ground) return PowerSupply.GroundTerminal(src);
+        return PowerSupply.Terminal(src);
     }
 
     /// <summary>Verwendung eines Kabels ändern; eine Standardfarbe wandert mit.</summary>

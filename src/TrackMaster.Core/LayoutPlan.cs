@@ -267,17 +267,30 @@ public sealed class SceneryItem
     public static bool BoardMayCover(ObstacleType t) => t is ObstacleType.Fenster;
 }
 
-/// <summary>Einspeisung: hier wird ein Gleis an einen Stromkreis (Booster/Trafo) angeschlossen.</summary>
+/// <summary>
+/// Einspeisung: hier wird ein Gleis an einen Stromkreis (Zentrale, Booster, Trafo) angeschlossen – mit dem Bahnstrom (B)
+/// oder, bei <see cref="Ground"/>, mit der Masse (0). Entsteht, wenn ein Kabel von der Quelle auf einem Gleis endet (<see cref="WireId"/>).
+/// Ein Gleis kann mehrere Einspeisungen haben.
+/// </summary>
 public sealed class Feeder
 {
     public int Id { get; set; }
     public int PieceId { get; set; }
     public string Circuit { get; set; } = "Stromkreis 1";
-    /// <summary>Gleichstrom: Polung vertauscht (Plus an der linken statt an der rechten Schiene, in Richtung Anschluss 0 → 1 gesehen).</summary>
+    /// <summary>
+    /// Auf welcher Schiene der Anschluss sitzt: false = links in Richtung Anschluss 0 → 1, true = rechts.
+    /// Gleichstrom-Bahnstrom: Polung vertauscht. Wechselstrom: nur für die Masse (Bahnstrom liegt am Mittelleiter).
+    /// </summary>
     public bool Reversed { get; set; }
+    /// <summary>Masse-/Rückleiteranschluss (0) statt Bahnstrom (B).</summary>
+    public bool Ground { get; set; }
+    /// <summary>Lage entlang des Gleises (0 = Anschluss 0, 1 = Ende des ersten Fahrwegs).</summary>
+    public double At { get; set; } = 0.5;
+    /// <summary>Kabel, aus dem die Einspeisung entstanden ist (wird mit ihm entfernt), sonst null.</summary>
+    public int? WireId { get; set; }
     /// <summary>Bezeichnung im Plan (z. B. „G3“ nach dem automatischen Nummerieren); leer = keine.</summary>
     public string Name { get; set; } = "";
-    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit, Reversed = Reversed, Name = Name };
+    public Feeder Clone() => new() { Id = Id, PieceId = PieceId, Circuit = Circuit, Reversed = Reversed, Ground = Ground, At = At, WireId = WireId, Name = Name };
 
     /// <summary>Text für Listen und Meldungen: Bezeichnung, sonst die Nummer.</summary>
     public string Label => Name.Length > 0 ? Name : Lang.F($"Nr. {Id}");
@@ -554,7 +567,7 @@ public sealed class LayoutPlan
 
     /// <summary>Entfernt ein Objekt (Gelände, Einspeisung, Trennstelle, Signal) über seine Kennung.</summary>
     public bool RemoveObject(int id)
-        => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) + Detectors.RemoveAll(d => d.Id == id) > 0;
+        => Scenery.RemoveAll(s => s.Id == id) + Feeders.RemoveAll(f => f.Id == id || f.WireId == id) + Isolations.RemoveAll(i => i.Id == id) + Signals.RemoveAll(s => s.Id == id) + Detectors.RemoveAll(d => d.Id == id) > 0;
 
     public PlanStatistics Statistics(Connectivity? connectivity = null)
     {

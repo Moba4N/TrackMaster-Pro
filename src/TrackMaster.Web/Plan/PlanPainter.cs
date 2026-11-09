@@ -589,7 +589,7 @@ public sealed class PlanPainter
     /// <summary>Decoder-Baustein: Platine mit Typ und Name, Klemmen für Ausgänge bzw. Melder an der Unterkante.</summary>
     private static void DrawModule(Canvas c, SceneryItem src, float g, float z, bool selected, float density, Paint p)
     {
-        var m = Yamorc.ModelOf(src);
+        var m = Decoders.ModelOf(src);
         var feedback = m?.Role == ModuleRole.Melden;
         var body = feedback ? new Rgb(0x0D, 0x47, 0xA1) : new Rgb(0x1B, 0x5E, 0x20);
         float w = (float)src.Width, d = (float)src.Depth, hw = w / 2, hd = d / 2;
@@ -611,11 +611,11 @@ public sealed class PlanPainter
         p.Color = Color.White;
         p.TextAlign = Paint.Align.Center;
         p.SetTypeface(true);
-        var title = m?.Id ?? src.Model ?? "";
+        var title = m?.Short ?? src.Model ?? "";
         p.TextSize = Fit(p, title, d * 0.26f, w * 0.9f);
         c.DrawText(title, 0, -d * 0.12f, p);
         p.SetTypeface(false);
-        var info = Yamorc.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name;
+        var info = Decoders.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name;
         p.TextSize = Fit(p, info, d * 0.18f, w * 0.9f);
         c.DrawText(info, 0, d * 0.14f, p);
         // Klemmen

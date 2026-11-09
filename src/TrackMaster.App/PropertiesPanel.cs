@@ -543,7 +543,7 @@ public sealed class PropertiesPanel : DockPanel
                         _body.Children.Add(Tip(Electrics.CurrentHint(plan)));
                         break;
                     case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
-                        var dm = Yamorc.ModelOf(s);
+                        var dm = Decoders.ModelOf(s);
                         _headerRight.Text = dm is null ? s.Model ?? "" : $"{dm.Maker} {dm.Id}";
                         var melden = dm?.Role == ModuleRole.Melden;
                         if (dm is not null) _body.Children.Add(Theme.Label(dm.Name, 12, true, Theme.TextSecondaryBrush));
@@ -556,14 +556,14 @@ public sealed class PropertiesPanel : DockPanel
                         if (dm is not null)
                         {
                             mrows.Add((melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"), dm.Outputs.ToString(), null));
-                            if (Yamorc.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
+                            if (Decoders.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
                             mrows.Add((Lang.T("Bus"), dm.Bus, null));
                         }
-                        mrows.Add((Lang.T("Kabel"), Yamorc.Ports(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        mrows.Add((Lang.T("Kabel"), Decoders.Ports(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
                         Rows(mrows.ToArray());
                         if (dm is { Addresses: > 0 })
                         {
-                            var assigned = Yamorc.Assigned(plan, s);
+                            var assigned = Decoders.Assigned(plan, s);
                             Section(melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"));
                             if (assigned.Count == 0)
                                 _body.Children.Add(Theme.Label(melden ? Lang.T("Noch kein Rückmelder mit einem Kontakt in diesem Bereich.") : Lang.T("Noch keine Weiche und kein Signal mit einer Adresse in diesem Bereich (Elektrik › Adressen)."), 11, false, Theme.TextSecondaryBrush));
@@ -592,7 +592,7 @@ public sealed class PropertiesPanel : DockPanel
                             prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(c => WireLayout.WiresAt(plan, c)).DistinctBy(w => w.Id).Count().ToString(), null));
                         }
                         else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
-                        if (Yamorc.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
+                        if (Decoders.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
                         if (PowerSupply.GroundTerminal(s) is { } gt)
                         {
                             var grounded = WireLayout.WiresAt(plan, gt).Any();

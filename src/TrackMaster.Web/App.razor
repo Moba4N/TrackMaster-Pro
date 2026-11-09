@@ -44,7 +44,7 @@
                         var on = Toggles.Contains(id) && IsOn(id);
                         var locked = IsProOnly(id);
                         <button class="rb @(item.Large ? "large" : "small") @(on ? "on" : "")" disabled="@(!CanRun(id))" aria-pressed="@(Toggles.Contains(id) ? on.ToString().ToLowerInvariant() : null)"
-                                aria-haspopup="@(id == "yamorc" ? "menu" : null)"
+                                aria-haspopup="@(id == "decoders" ? "menu" : null)"
                                 title="@ItemTip(item, locked)" @onclick="e => RibbonClick(id, e)">
                             <span class="rb-icon">@((MarkupString)Icons.Svg(item.Icon, item.Large ? 28 : 18))@if (locked)
                                 {
@@ -77,26 +77,30 @@
     @if (_dropdown is { } dd)
     {
         <div class="dd-backdrop" @onclick="@(() => { _dropdown = null; _dropdownGroup = null; })"></div>
-        <div class="dd-menu @(dd.X + 580 > _view.Width + 600 ? "flip" : "")" role="menu" aria-label="@Lang.T("YaMoRC-Decoder")" style="@FormattableString.Invariant($"left:{Math.Max(4, dd.X):F0}px;top:{dd.Y:F0}px")">
-            <div class="dd-title">YaMoRC</div>
-            @foreach (var (grp, models) in Yamorc.Groups)
+        <div class="dd-menu @(dd.X + 580 > _view.Width + 600 ? "flip" : "")" role="menu" aria-label="@Lang.T("Digital-Decoder")" style="@FormattableString.Invariant($"left:{Math.Max(4, dd.X):F0}px;top:{dd.Y:F0}px")">
+            <div class="dd-title">@Lang.T("Hersteller")</div>
+            @foreach (var (mk, groups) in Decoders.Makers)
             {
-                var group = grp;
-                <div class="dd-group" @onmouseenter="@(() => _dropdownGroup = group)">
-                    <button role="menuitem" aria-haspopup="menu" aria-expanded="@((_dropdownGroup == group).ToString().ToLowerInvariant())" class="@(_dropdownGroup == group ? "on" : "")"
-                            @onclick="@(() => _dropdownGroup = _dropdownGroup == group ? null : group)">
-                        <span>@Yamorc.GroupName(group)</span><span class="dd-arrow">›</span>
+                var maker = mk;
+                <div class="dd-group" @onmouseenter="@(() => _dropdownGroup = maker)">
+                    <button role="menuitem" aria-haspopup="menu" aria-expanded="@((_dropdownGroup == maker).ToString().ToLowerInvariant())" class="@(_dropdownGroup == maker ? "on" : "")"
+                            @onclick="@(() => _dropdownGroup = _dropdownGroup == maker ? null : maker)">
+                        <span>@maker</span><span class="dd-arrow">›</span>
                     </button>
-                    @if (_dropdownGroup == group)
+                    @if (_dropdownGroup == maker)
                     {
                         <div class="dd-sub" role="menu">
-                            @foreach (var m in models)
+                            @foreach (var (grp, models) in groups)
                             {
-                                var model = m;
-                                <button role="menuitem" title="@m.Description" @onclick="@(() => PickModule(model))">
-                                    <span class="strong">@m.Id</span>
-                                    <span class="secondary small">@m.Name@(m.Bus != "–" ? $" · {m.Bus}" : "")</span>
-                                </button>
+                                <div class="dd-head">@Decoders.GroupName(grp)</div>
+                                @foreach (var m in models)
+                                {
+                                    var model = m;
+                                    <button role="menuitem" title="@m.Description" @onclick="@(() => PickModule(model))">
+                                        <span class="strong">@m.Id</span>
+                                        <span class="secondary small">@m.Name@(m.Bus != "–" ? $" · {m.Bus}" : "")</span>
+                                    </button>
+                                }
                             }
                         </div>
                     }
@@ -447,7 +451,7 @@
                 new(Lang.T("Trennen"), "Isolate", "connIsolate", false, Lang.T("Trennstellen an allen Enden des gewählten Gleises setzen oder entfernen.")),
                 new(Lang.T("Rückmelder"), "Detector", "connDetector", false, Lang.T("Rückmelder auf das gewählte Gleis setzen oder entfernen.")),
                 new(Lang.T("Polung tauschen"), "Swap", "connPolarity", false, Lang.T("Gleichstrom: Plus und Minus des Gleisanschlusses am gewählten Gleis tauschen."))]),
-            new(Lang.T("Digital"), [new(Lang.T("YaMoRC-Decoder"), "Chip", "yamorc", true, Lang.T("Decoder-Bausteine von YaMoRC (Weichen-, Servo-, Schalt- und Rückmeldedecoder, Zentrale, Booster …) aus dem Untermenü wählen und in den Plan setzen.")),
+            new(Lang.T("Digital"), [new(Lang.T("Digital-Decoder"), "Chip", "decoders", true, Lang.T("Decoder-Bausteine aller gängigen Hersteller (Weichen-, Servo-, Schalt- und Rückmeldedecoder, Zentralen, Booster …) nach Hersteller aus dem Untermenü wählen und in den Plan setzen.")),
                 new(Lang.T("Adressen"), "Hash", "addresses", false, Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
@@ -2074,16 +2078,16 @@
             var items = Electrics.SwitchingItems(_session.Plan);
             var conflicts = Electrics.AddressConflicts(items).SelectMany(x => x.Items).ToHashSet();
         }
-        @Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). An welchem Ausgang sie hängen, ergibt sich aus den Decoder-Bausteinen im Plan (Elektrik › YaMoRC-Decoder) und deren Startadresse."))
+        @Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). An welchem Ausgang sie hängen, ergibt sich aus den Decoder-Bausteinen im Plan (Elektrik › Digital-Decoder) und deren Startadresse."))
         @{
-            var mods = PowerSupply.Modules(_session.Plan).Where(m => Yamorc.ModelOf(m)?.Role == ModuleRole.Schalten).ToList();
+            var mods = PowerSupply.Modules(_session.Plan).Where(m => Decoders.ModelOf(m)?.Role == ModuleRole.Schalten).ToList();
         }
         @if (mods.Count > 0)
         {
             <dl class="rows">
                 @foreach (var m in mods)
                 {
-                    <dt>@m.Name</dt><dd>@($"{Yamorc.Summary(m)} · {Yamorc.Assigned(_session.Plan, m).Count}/{Yamorc.ModelOf(m)!.Addresses}")</dd>
+                    <dt>@m.Name</dt><dd>@($"{Decoders.Summary(m)} · {Decoders.Assigned(_session.Plan, m).Count}/{Decoders.ModelOf(m)!.Addresses}")</dd>
                 }
             </dl>
         }
@@ -2103,7 +2107,7 @@
                 <div class="list-item static address-row">
                     <span class="texts">
                         <span class="@(conflicts.Contains(it) ? "danger" : "")">@it.Label</span>
-                        <span class="secondary small">@($"{it.Kind} · {Yamorc.Location(_session.Plan, it.Address) ?? Lang.T("an keinem Decoder-Baustein")}")</span>
+                        <span class="secondary small">@($"{it.Kind} · {Decoders.Location(_session.Plan, it.Address) ?? Lang.T("an keinem Decoder-Baustein")}")</span>
                     </span>
                     <input class="input narrow" maxlength="40" placeholder="@Lang.T("Name")" title="@Lang.T("Bezeichnung")" value="@ItemName(it)" @onchange="e => SetItemName(item, e.Value?.ToString())" />
                     <input class="input narrow" inputmode="numeric" title="@Lang.T("Adresse")" value="@(it.Address?.ToString() ?? "")" @onchange="e => SetAddress(item, e.Value?.ToString())" />

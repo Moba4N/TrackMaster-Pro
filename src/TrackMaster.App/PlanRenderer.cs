@@ -597,7 +597,7 @@ public sealed class PlanScene
     /// <summary>Decoder-Baustein: Platine mit Typ und Name, Klemmen für Ausgänge bzw. Melder an der Unterkante.</summary>
     private static void DrawModule(DrawingContext dc, SceneryItem src, double g, double z, bool selected)
     {
-        var m = Yamorc.ModelOf(src);
+        var m = Decoders.ModelOf(src);
         var body = m?.Role == ModuleRole.Melden ? new Rgb(0x0D, 0x47, 0xA1) : new Rgb(0x1B, 0x5E, 0x20);
         double w = src.Width, d = src.Depth, hw = w / 2, hd = d / 2;
         dc.PushTransform(new TranslateTransform(src.X, src.Y));
@@ -613,8 +613,8 @@ public sealed class PlanScene
             if (t.Width > w * 0.9 && t.Width > 0) t.SetFontSize(Math.Max(size * w * 0.9 / t.Width, 0.5));
             dc.DrawText(t, new Point(-t.Width / 2, cy - t.Height / 2));
         }
-        Text(m?.Id ?? src.Model ?? "", bold, d * 0.26, -d * 0.2);
-        Text(Yamorc.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name, normal, d * 0.18, d * 0.1);
+        Text(m?.Short ?? src.Model ?? "", bold, d * 0.26, -d * 0.2);
+        Text(Decoders.Range(src) is { } r ? $"{src.Name} · {r.First}–{r.Last}" : src.Name, normal, d * 0.18, d * 0.1);
         var n = Math.Clamp(m?.Outputs ?? 0, 0, 16);
         var step = n > 0 ? w / n : w;
         var tr = Math.Min(step * 0.32, Math.Max(g * 0.45, 3 / z));

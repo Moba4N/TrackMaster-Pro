@@ -267,15 +267,15 @@ public sealed class MainActivity : Activity
                 i => { _session.PowerType = types[i]; SetTool(CanvasTool.Power); },
                 Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan tippen – auch neben die Platte, wo das Gerät später steht."));
         });
-        Add("yamorc", Lang.T("YaMoRC-Decoder"), () =>
+        Add("decoders", Lang.T("Digital-Decoder"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.ModuleModel is not null) { SetTool(CanvasTool.Select); return; }
-            // Untermenü: erst die Gruppe, dann der Baustein
-            var groups = Yamorc.Groups;
-            Dialogs.Choose(this, Lang.T("YaMoRC-Decoder"), groups.Select(g => (Yamorc.GroupName(g.Group), (string?)string.Join(", ", g.Models.Select(m => m.Id)), false)).ToList(), gi =>
+            // Untermenü: erst der Hersteller, dann der Baustein (Gruppe steht vorn im Hinweis)
+            var makers = Decoders.Makers;
+            Dialogs.Choose(this, Lang.T("Digital-Decoder"), makers.Select(x => (x.Maker, (string?)string.Join(", ", x.Groups.Select(g => Decoders.GroupName(g.Group))), false)).ToList(), ki =>
             {
-                var models = groups[gi].Models;
-                Dialogs.Choose(this, Yamorc.GroupName(groups[gi].Group), models.Select(m => (m.Title, (string?)m.Description, _session.ModuleModel == m.Id)).ToList(),
+                var models = makers[ki].Groups.SelectMany(g => g.Models).ToList();
+                Dialogs.Choose(this, makers[ki].Maker, models.Select(m => (m.Title, (string?)$"{Decoders.GroupName(m.Group)} · {m.Description}", _session.ModuleModel == m.Id)).ToList(),
                     mi => { _session.SelectModule(models[mi].Id); SetTool(CanvasTool.Power); },
                     Lang.T("Baustein wählen, dann an die Stelle im Plan tippen. Die Startadresse wird automatisch vergeben und lässt sich in den Eigenschaften ändern."));
             });
@@ -598,7 +598,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Gleisanschluss"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("YaMoRC-Decoder…"), "yamorc", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
+        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Gleisanschluss"), "toolFeeder", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Digital-Decoder…"), "decoders", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
                       (Lang.T("Kabel verlegen…"), "toolWire", true), (Lang.T("Anschlüsse am Gleis…"), "connections", false),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabel zeigen"), "wires", true), (Lang.T("Elektrik nummerieren"), "numberElectrics", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
@@ -800,7 +800,7 @@ public sealed class MainActivity : Activity
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "wires" => _session.ShowWires,
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
-        "yamorc" => _session.Tool == CanvasTool.Power && _session.ModuleModel is not null,
+        "decoders" => _session.Tool == CanvasTool.Power && _session.ModuleModel is not null,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
@@ -899,7 +899,7 @@ public sealed class MainActivity : Activity
                 : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
             CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis tippen. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-            CanvasTool.Power => _session.ModuleModel is { } mm ? Lang.F($"{mm}: an die Stelle im Plan tippen, wo der Baustein liegen soll (auch neben der Platte).")
+            CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan tippen, wo der Baustein liegen soll (auch neben der Platte).")
                 : Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan tippen, wo sie stehen soll (auch neben der Platte)."),
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),

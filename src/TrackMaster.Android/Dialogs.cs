@@ -533,7 +533,7 @@ public static partial class Dialogs
                     }
                     case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
                     {
-                        var dm = Yamorc.ModelOf(s);
+                        var dm = Decoders.ModelOf(s);
                         var melden = dm?.Role == ModuleRole.Melden;
                         if (dm is not null) body.AddView(Hint(c, $"{dm.Maker} {dm.Title}"));
                         body.AddView(Columns(c,
@@ -545,13 +545,13 @@ public static partial class Dialogs
                         if (dm is not null)
                         {
                             mrows.Add((melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"), dm.Outputs.ToString(), null));
-                            if (Yamorc.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
+                            if (Decoders.Range(s) is { } mr) mrows.Add((melden ? Lang.T("Kontakte") : Lang.T("Adressen"), $"{mr.First}–{mr.Last}", null));
                             mrows.Add((Lang.T("Bus"), dm.Bus, null));
                         }
-                        mrows.Add((Lang.T("Kabel"), Yamorc.Ports(s).SelectMany(x => WireLayout.WiresAt(plan, x)).DistinctBy(w => w.Id).Count().ToString(), null));
+                        mrows.Add((Lang.T("Kabel"), Decoders.Ports(s).SelectMany(x => WireLayout.WiresAt(plan, x)).DistinctBy(w => w.Id).Count().ToString(), null));
                         if (dm is { Addresses: > 0 })
                         {
-                            var assigned = Yamorc.Assigned(plan, s);
+                            var assigned = Decoders.Assigned(plan, s);
                             if (assigned.Count == 0)
                                 mrows.Add((melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"), "–", null));
                             foreach (var a in assigned)
@@ -579,7 +579,7 @@ public static partial class Dialogs
                             prows.Add((Lang.T("Kabel"), PowerSupply.ClampPoints(s).SelectMany(x => WireLayout.WiresAt(plan, x)).DistinctBy(w => w.Id).Count().ToString(), null));
                         }
                         else prows.Add((Lang.T("Betrieb"), PowerSupply.ModeName(plan.Operation), null));
-                        if (Yamorc.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
+                        if (Decoders.ModelOf(s) is { } pdm) prows.Add((Lang.T("Gerät"), $"{pdm.Maker} {pdm.Id} – {pdm.Name}", null));
                         if (PowerSupply.GroundTerminal(s) is { } gt)
                         {
                             var grounded = WireLayout.WiresAt(plan, gt).Any();
@@ -1292,7 +1292,7 @@ public static partial class Dialogs
                 var row = Ui.Row(c, 8);
                 var text = Ui.Column(c, 0);
                 text.AddView(Ui.Label(c, it.Label, 14, color: conflicts.Contains(it) ? Ui.Danger : null));
-                text.AddView(Ui.Label(c, $"{it.Kind} · {Yamorc.Location(session.Plan, it.Address) ?? Lang.T("an keinem Decoder-Baustein")}", 12, color: Ui.TextSecondary));
+                text.AddView(Ui.Label(c, $"{it.Kind} · {Decoders.Location(session.Plan, it.Address) ?? Lang.T("an keinem Decoder-Baustein")}", 12, color: Ui.TextSecondary));
                 row.AddView(text, Ui.Weight(1, vertical: false));
                 var box = new EditText(c) { Text = it.Address?.ToString() ?? "", InputType = Android.Text.InputTypes.ClassNumber };
                 box.SetMinWidth(Ui.Dp(70));

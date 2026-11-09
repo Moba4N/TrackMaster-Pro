@@ -207,7 +207,7 @@ public sealed partial class MainWindow : Window
         Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
         Add("numberElectrics", () => Session.NumberElectrics());
         Add("routes", ShowRoutes);
-        Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => ExportTo(Lang.T("Export für Steuerprogramme"), "JSON-Datei (*.json)|*.json", $"{SafeName} – Steuerung.json", TrainRoutes.ToJson(Session.Plan)));
+        Pro("controlExport", Lang.T("Export für Steuerprogramme"), ExportControl);
         Add("view3d", () => Open3D(View3DMode.Orbit));
         Add("ride", () => Open3D(View3DMode.Ride));
         Add("daytime", () => Open3D(View3DMode.Evening));
@@ -1469,6 +1469,29 @@ public sealed partial class MainWindow : Window
     {
         var dlg = new SaveFileDialog { Filter = filter, Title = title, FileName = fileName };
         if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            File.WriteAllText(dlg.FileName, content, new System.Text.UTF8Encoding(false));
+            ShowMessage(Lang.F($"Gespeichert: {Path.GetFileName(dlg.FileName)}"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, Lang.F($"Speichern nicht möglich.\n\n{ex.Message}"), "TrackMaster Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Export für Steuerprogramme: Dateityp im Speichern-Dialog wählen (Text, CSV oder JSON).</summary>
+    private void ExportControl()
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = Lang.T("Export für Steuerprogramme"), FileName = Lang.F($"{SafeName} – Steuerung"),
+            Filter = Lang.T("Textdatei (*.txt)|*.txt") + "|" + Lang.T("CSV-Datei (*.csv)|*.csv") + "|JSON (*.json)|*.json",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        var ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
+        var kind = ext switch { ".csv" => 2, ".json" => 3, ".txt" => 1, _ => dlg.FilterIndex };
+        var content = kind switch { 2 => TrainRoutes.ControlCsv(Session.Plan), 3 => TrainRoutes.ToJson(Session.Plan), _ => TrainRoutes.ControlText(Session.Plan) };
         try
         {
             File.WriteAllText(dlg.FileName, content, new System.Text.UTF8Encoding(false));

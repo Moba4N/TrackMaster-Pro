@@ -562,7 +562,7 @@ public sealed class PlanView
         {
             var m = p.Middle();
             var s = ToScreen(m.X, m.Y);
-            DrawTag(c, p.Def.Number + (p.Address is { } a ? $" · {a}" : ""), s.X, s.Y - _gauge * 1.6f * _zoom - Ui.Dp(9));
+            DrawTag(c, (p.Name.Length > 0 ? p.Name + " · " : "") + p.Def.Number + (p.Address is { } a ? $" · {a}" : ""), s.X, s.Y - _gauge * 1.6f * _zoom - Ui.Dp(9));
         }
     }
 

@@ -286,6 +286,11 @@ public sealed class PropertiesPanel : DockPanel
         if (d.Drives > 0)
         {
             Section(Lang.T("Digital"));
+            var swName = new TextBox { Text = p.Name, MaxLength = 40 };
+            void CommitSwitchName() { var n = swName.Text.Trim(); if (n != p.Name) _session.Edit(() => p.Name = n); }
+            swName.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitSwitchName(); Keyboard.ClearFocus(); } };
+            swName.LostKeyboardFocus += (_, _) => CommitSwitchName();
+            _body.Children.Add(Theme.Field(Lang.T("Bezeichnung (z. B. W1)"), swName));
             var addr = NumberBox(p.Address ?? 0, v => p.Address = v >= 1 ? (int)Math.Round(v) : null, 0);
             _body.Children.Add(Columns(2, Theme.Field(Lang.T("Adresse (0 = keine)"), addr)));
         }

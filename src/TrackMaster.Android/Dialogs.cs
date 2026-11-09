@@ -280,10 +280,12 @@ public static partial class Dialogs
             body.AddView(Rows(c, (Lang.T("Nutzlänge"), UsableLength.Describe(session.Plan, run2), session.Plan.TrainLength > 0 && !run2.Closed && run2.Length < session.Plan.TrainLength ? Ui.Danger : null)));
         if (p.Group > 0)
             body.AddView(Rows(c, (Lang.T("Gruppe"), Lang.F($"{session.Plan.Pieces.Count(x => x.Group == p.Group)} Gleise"), null)));
-        EditText? address = null;
+        EditText? address = null, swName = null;
         if (d.Drives > 0)
         {
             body.AddView(Section(c, Lang.T("Digital")));
+            swName = Ui.TextField(c, p.Name, "W1");
+            body.AddView(Ui.Field(c, Lang.T("Bezeichnung (z. B. W1)"), swName));
             address = Ui.Number(c, p.Address ?? 0);
             body.AddView(Ui.Field(c, Lang.T("Adresse (0 = keine)"), address));
         }
@@ -334,7 +336,8 @@ public static partial class Dialogs
             if (address is not null) Read(address, Lang.T("Adresse"), 0, 2048, errors, out va);
             if (errors.Count > 0) { session.Say(string.Join(" ", errors)); return false; }
             int? addr = address is null ? p.Address : va >= 1 ? (int)Math.Round(va) : null;
-            var changed = Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
+            var name = swName?.Text?.Trim() ?? p.Name;
+            var changed = name != p.Name || Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
                           || Math.Abs(vh - p.Height) > 1e-6 || Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9 || tunnel.Checked != p.Tunnel || addr != p.Address || locked.Checked != p.Locked;
             if (changed)
                 session.Edit(() =>
@@ -344,6 +347,7 @@ public static partial class Dialogs
                     if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
                     p.Tunnel = tunnel.Checked;
                     p.Address = addr;
+                    p.Name = name;
                     p.Locked = locked.Checked;
                 });
             return true;

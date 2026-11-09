@@ -332,7 +332,7 @@ public static class Electrics
             {
                 var m = p.Middle();
                 var kind = d.Kind == PieceKind.Switch ? Lang.T("Weiche") : "DKW";
-                list.Add(new SwitchingItem(kind, Lang.F($"{kind} {d.Number} (Nr. {p.Id})"), p.Id, null, p.Address, d.Drives, m.X, m.Y));
+                list.Add(new SwitchingItem(kind, string.IsNullOrWhiteSpace(p.Name) ? Lang.F($"{kind} {d.Number} (Nr. {p.Id})") : $"{kind} {p.Name}", p.Id, null, p.Address, d.Drives, m.X, m.Y));
             }
         }
         foreach (var s in plan.Signals)

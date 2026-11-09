@@ -295,7 +295,7 @@ public sealed class MainActivity : Activity
         Add("wires", Lang.T("Kabel zeigen"), () => Toggle(() => _session.ShowWires = !_session.ShowWires));
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
-        Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
+        Pro("controlExport", Lang.T("Export für Steuerprogramme"), ShowControlExport);
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
         Add("ride", Lang.T("Mitfahren"), () => Open3D(View3DMode.Ride));
         Add("daytime", Lang.T("Tageszeit"), () => Open3D(View3DMode.Evening));
@@ -1080,6 +1080,20 @@ public sealed class MainActivity : Activity
                     else Export(ConnectionList.ToCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Anschlussliste.csv"));
                 });
         });
+    }
+
+    private void ShowControlExport()
+    {
+        var text = TrainRoutes.ControlText(_session.Plan);
+        Dialogs.ShowText(this, Lang.T("Export für Steuerprogramme"), text, Lang.T("Speichern…"), () =>
+            Dialogs.Choose(this, Lang.T("Export für Steuerprogramme"),
+                [(Lang.T("Als TXT speichern"), null, false), (Lang.T("Als CSV speichern"), null, false), (Lang.T("Als JSON speichern"), null, false)],
+                i =>
+                {
+                    if (i == 0) Export(text, "text/plain", Lang.F($"{SafeName} – Steuerung.txt"));
+                    else if (i == 1) Export(TrainRoutes.ControlCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Steuerung.csv"));
+                    else Export(TrainRoutes.ToJson(_session.Plan), "application/json", Lang.F($"{SafeName} – Steuerung.json"));
+                }));
     }
 
     private void ShowRoutes()

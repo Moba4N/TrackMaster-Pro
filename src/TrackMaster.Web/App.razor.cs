@@ -342,7 +342,7 @@ public partial class App : ComponentBase, IAppHost
         Add("wires", Lang.T("Kabel zeigen"), () => { _session.ShowWires = !_session.ShowWires; _session.Say(_session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); _view.Invalidate(); });
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
-        Pro("controlExport", Lang.T("Export für Steuerprogramme"), () => Export(TrainRoutes.ToJson(_session.Plan), "application/json", $"{SafeName} – Steuerung.json"));
+        Pro("controlExport", Lang.T("Export für Steuerprogramme"), ShowControlExport);
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
         Add("ride", Lang.T("Mitfahren"), () => Open3D(View3DMode.Ride));
         Add("daytime", Lang.T("Tageszeit"), () => Open3D(View3DMode.Evening));

@@ -158,6 +158,7 @@ public static class PlanSerializer
         [JsonPropertyName("grade"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double Grade { get; set; }
         [JsonPropertyName("tunnel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Tunnel { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
+        [JsonPropertyName("name"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Name { get; set; }
         [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Level { get; set; }
         [JsonPropertyName("lock"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Lock { get; set; }
         [JsonPropertyName("group"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Group { get; set; }
@@ -230,6 +231,7 @@ public static class PlanSerializer
                 Grade = Math.Round(p.Grade, 6),
                 Tunnel = p.Tunnel,
                 Addr = p.Address,
+                Name = string.IsNullOrEmpty(p.Name) ? null : p.Name,
                 Level = p.Level,
                 Lock = p.Locked,
                 Group = p.Group,
@@ -348,7 +350,7 @@ public static class PlanSerializer
             var piece = new PlacedPiece
             {
                 Id = p.Id is { } pid && pid > 0 && plan.Find(pid) is null ? pid : plan.NextId, Key = p.Key, X = p.X, Y = p.Y, Rotation = p.Rot, Flipped = p.Flip,
-                Height = p.Z, Grade = double.IsFinite(p.Grade) ? p.Grade : 0, Tunnel = p.Tunnel, Address = p.Addr, Level = LevelOf(p.Level),
+                Height = p.Z, Grade = double.IsFinite(p.Grade) ? p.Grade : 0, Tunnel = p.Tunnel, Address = p.Addr, Name = p.Name ?? "", Level = LevelOf(p.Level),
                 Locked = p.Lock, Group = Math.Max(0, p.Group),
             };
             plan.Pieces.Add(piece);

@@ -19,6 +19,8 @@ public sealed class PlacedPiece
     public int Level { get; set; }
     /// <summary>Digitaladresse (Weichen und Kreuzungsweichen).</summary>
     public int? Address { get; set; }
+    /// <summary>Eigene Bezeichnung (z. B. „W1“ für eine Weiche), leer = keine.</summary>
+    public string Name { get; set; } = "";
     /// <summary>Gesperrt: lässt sich nicht verschieben, drehen, spiegeln oder löschen.</summary>
     public bool Locked { get; set; }
     /// <summary>Gruppe (0 = keine): ein Klick wählt alle Gleise der Gruppe.</summary>
@@ -72,7 +74,7 @@ public sealed class PlacedPiece
 
     public PlacedPiece Clone() => new()
     {
-        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Level = Level, Locked = Locked, Group = Group,
+        Id = Id, Key = Key, X = X, Y = Y, Rotation = Rotation, Flipped = Flipped, Height = Height, Grade = Grade, Tunnel = Tunnel, Address = Address, Name = Name, Level = Level, Locked = Locked, Group = Group,
     };
 }
 

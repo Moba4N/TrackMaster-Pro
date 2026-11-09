@@ -2033,7 +2033,8 @@
                         <span class="@(conflicts.Contains(it) ? "danger" : "")">@it.Label</span>
                         <span class="secondary small">@Lang.F($"{it.Kind} · Decoder {it.Decoder?.ToString() ?? "–"}, Ausgang {it.Port?.ToString() ?? "–"}")</span>
                     </span>
-                    <input class="input narrow" inputmode="numeric" value="@(it.Address?.ToString() ?? "")" @onchange="e => SetAddress(item, e.Value?.ToString())" />
+                    <input class="input narrow" maxlength="40" placeholder="@Lang.T("Name")" title="@Lang.T("Bezeichnung")" value="@ItemName(it)" @onchange="e => SetItemName(item, e.Value?.ToString())" />
+                    <input class="input narrow" inputmode="numeric" title="@Lang.T("Adresse")" value="@(it.Address?.ToString() ?? "")" @onchange="e => SetAddress(item, e.Value?.ToString())" />
                 </div>
             }
         </div>
@@ -2043,6 +2044,20 @@
     {
         var first = Math.Clamp((int)(Fmt.Parse(D("first")) ?? 1), 1, 2048);
         _session.AssignAddresses(first, D("missing") == "1");
+    }
+
+    private string ItemName(SwitchingItem item)
+        => item.PieceId is { } pid ? _session.Plan.Find(pid)?.Name ?? "" : _session.Plan.Signals.FirstOrDefault(s => s.Id == item.SignalId)?.Name ?? "";
+
+    private void SetItemName(SwitchingItem item, string? text)
+    {
+        var t = (text ?? "").Trim();
+        if (t == ItemName(item)) return;
+        _session.Edit(() =>
+        {
+            if (item.PieceId is { } pid && _session.Plan.Find(pid) is { } p) p.Name = t;
+            else if (_session.Plan.Signals.FirstOrDefault(s => s.Id == item.SignalId) is { } s) s.Name = t;
+        });
     }
 
     private void SetAddress(SwitchingItem item, string? text)
@@ -2056,6 +2071,17 @@
             if (item.PieceId is { } pid && _session.Plan.Find(pid) is { } p) p.Address = value;
             else if (_session.Plan.Signals.FirstOrDefault(s => s.Id == item.SignalId) is { } s) s.Address = value;
         });
+    }
+
+    /// <summary>Export Steuerung: Übersicht anzeigen und als Text, CSV oder JSON speichern.</summary>
+    private void ShowControlExport()
+    {
+        var text = TrainRoutes.ControlText(_session.Plan);
+        var d = Show(Lang.T("Export für Steuerprogramme"), @<pre class="mono">@text</pre>, wide: true);
+        d.Buttons.Add(new(Lang.T("Als TXT speichern"), () => { Export(text, "text/plain", Lang.F($"{SafeName} – Steuerung.txt")); return false; }));
+        d.Buttons.Add(new(Lang.T("Als CSV speichern"), () => { Export(TrainRoutes.ControlCsv(_session.Plan), "text/csv", Lang.F($"{SafeName} – Steuerung.csv")); return false; }));
+        d.Buttons.Add(new(Lang.T("Als JSON speichern"), () => { Export(TrainRoutes.ToJson(_session.Plan), "application/json", Lang.F($"{SafeName} – Steuerung.json")); return false; }));
+        d.Buttons.Add(new(Lang.T("Schließen"), () => true, true));
     }
 
     private void ShowText(string title, string text, string saveLabel, Action save, string? save2Label = null, Action? save2 = null)
@@ -2829,7 +2855,7 @@
                 @if (p.Def.Drives > 0)
                 {
                     <div class="section">@Lang.T("Weichenantrieb")</div>
-                    <div class="secondary small">@(p.Address is { } addr ? Lang.F($"Digitaladresse {addr}") : Lang.T("Noch keine Digitaladresse (Elektrik › Decoder)."))</div>
+                    <div class="secondary small">@(p.Name.Length > 0 ? p.Name + " · " : "")@(p.Address is { } addr ? Lang.F($"Digitaladresse {addr}") : Lang.T("Noch keine Digitaladresse (Elektrik › Decoder)."))</div>
                 }
             }
         </div>);

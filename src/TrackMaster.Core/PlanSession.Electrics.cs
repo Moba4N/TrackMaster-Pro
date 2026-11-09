@@ -140,15 +140,16 @@ public sealed partial class PlanSession
     public bool ShowWires { get; set; } = true;
 
     /// <summary>
-    /// Elektrik durchnummerieren, von links oben nach rechts unten: Gleisanschlüsse G1, G2 …, Rückmelder M1, M2 … und Kabel K1, K2 ….
-    /// Rückmelder ohne Kontakt bekommen ihre Nummer auch als Kontakt, sofern die noch frei ist.
+    /// Elektrik durchnummerieren, von links oben nach rechts unten: Gleisanschlüsse G1, G2 …, Rückmelder M1, M2 …, Kabel K1, K2 …
+    /// und Weichen W1, W2 … (nur Weichen ohne eigenen Namen). Rückmelder ohne Kontakt bekommen ihre Nummer auch als Kontakt, sofern die noch frei ist.
     /// </summary>
     public void NumberElectrics()
     {
         var plan = Plan;
-        if (plan.Feeders.Count + plan.Detectors.Count + plan.Scenery.Count(s => s.IsWire) == 0)
+        var switches = plan.Pieces.Where(p => p.Def.Drives > 0).ToList();
+        if (plan.Feeders.Count + plan.Detectors.Count + plan.Scenery.Count(s => s.IsWire) + switches.Count == 0)
         {
-            Say(Lang.T("Noch nichts zu nummerieren: keine Gleisanschlüsse, Rückmelder oder Kabel im Plan."));
+            Say(Lang.T("Noch nichts zu nummerieren: keine Gleisanschlüsse, Rückmelder, Weichen oder Kabel im Plan."));
             return;
         }
         // Reihenfolge: in Streifen von 10 cm von oben nach unten, darin von links nach rechts
@@ -166,8 +167,20 @@ public sealed partial class PlanSession
         }
         n = 0;
         foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count > 0).OrderBy(w => Key(w.Points[0]))) w.Name = $"K{++n}";
+        var wires = n;
+        // Weichen: eigene Namen bleiben, automatische (W1, W2 …) werden neu vergeben
+        static bool Auto(string name) => name.Length == 0 || (name.Length > 1 && name[0] == 'W' && name.Skip(1).All(char.IsDigit));
+        var taken = switches.Where(p => !Auto(p.Name)).Select(p => p.Name).ToHashSet();
+        n = 0;
+        var named = 0;
+        foreach (var p in switches.Where(p => Auto(p.Name)).OrderBy(p => Key((p.Middle().X, p.Middle().Y))))
+        {
+            do n++; while (taken.Contains($"W{n}"));
+            p.Name = $"W{n}";
+            named++;
+        }
         Commit();
-        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Rückmelder (M), {n} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
+        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Rückmelder (M), {named} Weichen (W), {wires} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
     }
 
     /// <summary>Farbe für neue Verteilerleisten (Werkzeug „Verteiler“).</summary>

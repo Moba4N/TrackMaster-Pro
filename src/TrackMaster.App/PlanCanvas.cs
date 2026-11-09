@@ -464,7 +464,7 @@ public sealed class PlanCanvas : FrameworkElement
         {
             var m = p.Middle();
             var s = ToScreen(m.X, m.Y);
-            DrawTag(dc, p.Def.Number + (p.Address is { } a ? $" · {a}" : ""), new Point(s.X, s.Y - _gauge * 1.6 * _zoom - 8));
+            DrawTag(dc, (p.Name.Length > 0 ? p.Name + " · " : "") + p.Def.Number + (p.Address is { } a ? $" · {a}" : ""), new Point(s.X, s.Y - _gauge * 1.6 * _zoom - 8));
         }
     }
 

@@ -128,6 +128,7 @@
                 _f["height"] = N(p.Height, 1);
                 _f["grade"] = N(p.EffectiveGrade * 100, 2);
                 _f["address"] = p.Address?.ToString() ?? "";
+                _f["name"] = p.Name;
                 break;
             case null:
                 _f["name"] = Plan.Name;
@@ -320,7 +321,8 @@
         if (p.Def.Drives > 0 && F("address").Trim().Length > 0) Read("address", Lang.T("Adresse"), 0, 2048, errors, out va);
         if (Fail(errors)) return;
         int? addr = p.Def.Drives == 0 ? p.Address : va >= 1 ? (int)Math.Round(va) : null;
-        var changed = Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
+        var name = p.Def.Drives == 0 ? p.Name : F("name").Trim();
+        var changed = name != p.Name || Math.Abs(vx - p.X) > 1e-6 || Math.Abs(vy - p.Y) > 1e-6 || Math.Abs(Angles.Normalize(vr) - p.Rotation) > 1e-6
                       || Math.Abs(vh - p.Height) > 1e-6 || Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9 || addr != p.Address;
         if (changed)
             Session.Edit(() =>
@@ -329,6 +331,7 @@
                 p.Height = vh;
                 if (Math.Abs(vg / 100 - p.EffectiveGrade) > 1e-9) p.Grade = vg / 100;
                 p.Address = addr;
+                p.Name = name;
             });
     }
 
@@ -407,6 +410,8 @@
         @if (d.Drives > 0)
         {
             <div class="section">@Lang.T("Digital")</div>
+            <label class="field-label">@Lang.T("Bezeichnung (z. B. W1)")</label>
+            <input class="input" maxlength="40" value="@F("name")" @onchange="@(e => Set("name", e, ApplyPiece))" />
             <label class="field-label">@Lang.T("Adresse (leer = keine)")</label>
             <input class="input" inputmode="numeric" value="@F("address")" @onchange="@(e => Set("address", e, ApplyPiece))" />
         }

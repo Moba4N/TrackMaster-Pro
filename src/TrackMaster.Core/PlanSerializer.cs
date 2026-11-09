@@ -91,6 +91,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("var"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Variant { get; set; }
         [JsonPropertyName("model"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Model { get; set; }
         [JsonPropertyName("color"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Color { get; set; }
+        [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
     }
 
     private sealed class FeederDto
@@ -254,7 +255,8 @@ public static partial class PlanSerializer
                 Name = s.Name,
                 Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
-                Model = s.IsModel ? s.Model : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
+                Model = s.IsModel || s.Kind == SceneryKind.Power && !string.IsNullOrEmpty(s.Model) ? s.Model : null,
+                Addr = s.Kind == SceneryKind.Power ? s.Address : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
                 Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
@@ -396,7 +398,8 @@ public static partial class PlanSerializer
                 Id = Id(s.Id), Kind = kind, Name = s.Name ?? SceneryItem.KindName(kind), X = s.X, Y = s.Y, Width = s.W, Depth = s.D, Rotation = s.Rot, Height = s.H, Level = LevelOf(s.Level),
                 Variant = kind == SceneryKind.Obstacle && Enum.IsDefined((ObstacleType)s.Variant) || kind == SceneryKind.Plate || kind == SceneryKind.Wire && Enum.IsDefined((WireUse)s.Variant) || kind == SceneryKind.Power && Enum.IsDefined((PowerSourceType)s.Variant) ? s.Variant : 0,
                 Points = (s.Points ?? []).Where(q => q.Length >= 2).Select(q => (q[0], q[1])).ToList(),
-                Model = kind == SceneryKind.Building && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
+                Model = kind is SceneryKind.Building or SceneryKind.Power && !string.IsNullOrWhiteSpace(s.Model) ? s.Model.Trim() : null,
+                Address = kind == SceneryKind.Power && s.Addr is > 0 and <= 4096 ? s.Addr : null,
                 Color = kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is { } sc ? ModelBody.ToHex(sc) : null,
             };
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];

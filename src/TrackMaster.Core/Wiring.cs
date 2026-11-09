@@ -121,6 +121,12 @@ public static class WireLayout
             list.Add(new(x, y, PowerSupply.HasGround(type) ? Lang.F($"{name} – Bahnstrom (B)") : name));
             if (PowerSupply.GroundTerminal(src) is { } gt) list.Add(new(gt.X, gt.Y, Lang.F($"{name} – Masse (0)")));
         }
+        foreach (var mod in PowerSupply.Modules(plan))
+            if (Yamorc.ModelOf(mod) is { } m)
+            {
+                var ports = Yamorc.Ports(mod);
+                for (var i = 0; i < ports.Count; i++) list.Add(new(ports[i].X, ports[i].Y, $"{mod.Name} ({m.Id}) – {Yamorc.PortName(m, i)}"));
+            }
         foreach (var d in PowerSupply.Distributors(plan))
         {
             var name = Lang.F($"{d.Name} ({ColorName(PowerSupply.DistributorColor(d))})");

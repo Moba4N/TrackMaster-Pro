@@ -584,7 +584,7 @@
                 Num("rotation", Lang.T("Drehung"), -360, 360, v => s.Rotation = Angles.Normalize(v));
                 if (PowerSupply.Type(s) != PowerSourceType.Baustein && int.TryParse(F("variant"), out var ptype) && Enum.IsDefined((PowerSourceType)ptype) && (PowerSourceType)ptype != PowerSourceType.Baustein)
                     apply.Add(() => PowerSupply.ApplyType(s, (PowerSourceType)ptype, Plan.Gauge, Session.DistributorColor));
-                if (PowerSupply.Type(s) == PowerSourceType.Baustein && Yamorc.ModelOf(s) is { Addresses: > 0 })
+                if (PowerSupply.Type(s) == PowerSourceType.Baustein && Decoders.ModelOf(s) is { Addresses: > 0 })
                 {
                     double ma = 0;
                     if (F("maddr").Trim().Length > 0) Read("maddr", Lang.T("Startadresse"), 1, 4096, errors, out ma);
@@ -671,7 +671,7 @@
                 <div class="tip-box">@Electrics.CurrentHint(Plan)</div>
                 break;
             case SceneryKind.Power when PowerSupply.Type(s) == PowerSourceType.Baustein:
-                var dm = Yamorc.ModelOf(s);
+                var dm = Decoders.ModelOf(s);
                 <div class="title">@(dm is null ? s.Model : $"{dm.Maker} {dm.Id}")</div>
                 <div class="secondary">@dm?.Name</div>
                 @if (dm is { Addresses: > 0 })
@@ -684,17 +684,17 @@
                     @if (dm is not null)
                     {
                         <dt>@(dm.Role == ModuleRole.Melden ? Lang.T("Melder-Eingänge") : Lang.T("Ausgänge"))</dt><dd>@dm.Outputs</dd>
-                        @if (Yamorc.Range(s) is { } mr)
+                        @if (Decoders.Range(s) is { } mr)
                         {
                             <dt>@(dm.Role == ModuleRole.Melden ? Lang.T("Kontakte") : Lang.T("Adressen"))</dt><dd>@($"{mr.First}–{mr.Last}")</dd>
                         }
                         <dt>@Lang.T("Bus")</dt><dd>@dm.Bus</dd>
                     }
-                    <dt>@Lang.T("Kabel")</dt><dd>@Yamorc.Ports(s).SelectMany(c => WireLayout.WiresAt(Plan, c)).DistinctBy(w => w.Id).Count()</dd>
+                    <dt>@Lang.T("Kabel")</dt><dd>@Decoders.Ports(s).SelectMany(c => WireLayout.WiresAt(Plan, c)).DistinctBy(w => w.Id).Count()</dd>
                 </dl>
                 @if (dm is { Addresses: > 0 })
                 {
-                    var assigned = Yamorc.Assigned(Plan, s);
+                    var assigned = Decoders.Assigned(Plan, s);
                     <div class="section">@(dm.Role == ModuleRole.Melden ? Lang.T("Angeschlossene Rückmelder") : Lang.T("Angeschlossene Weichen und Signale"))</div>
                     @if (assigned.Count == 0)
                     {
@@ -740,7 +740,7 @@
                     {
                         <dt>@Lang.T("Betrieb")</dt><dd>@PowerSupply.ModeName(Plan.Operation)</dd>
                     }
-                    @if (Yamorc.ModelOf(s) is { } pm)
+                    @if (Decoders.ModelOf(s) is { } pm)
                     {
                         <dt>@Lang.T("Gerät")</dt><dd>@($"{pm.Maker} {pm.Title}")</dd>
                     }

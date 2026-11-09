@@ -214,14 +214,14 @@ public partial class App : ComponentBase, IAppHost
     /// <summary>Offenes Kontextmenü (Rechtsklick im Plan) an dieser Stelle der Zeichenfläche.</summary>
     private (float X, float Y)? _ctx;
 
-    /// <summary>Offenes Untermenü der YaMoRC-Bausteine (Bildschirmposition) und die aufgeklappte Gruppe.</summary>
+    /// <summary>Offenes Untermenü der Digital-Decoder (Bildschirmposition) und der aufgeklappte Hersteller.</summary>
     private (float X, float Y)? _dropdown;
-    private ModuleGroup? _dropdownGroup;
+    private string? _dropdownGroup;
 
-    /// <summary>Ribbon-Knopf: „YaMoRC-Decoder“ klappt das Untermenü auf, alle anderen führen ihren Befehl aus.</summary>
+    /// <summary>Ribbon-Knopf: „Digital-Decoder“ klappt das Untermenü auf, alle anderen führen ihren Befehl aus.</summary>
     private void RibbonClick(string id, MouseEventArgs e)
     {
-        if (id != "yamorc") { Run(id); return; }
+        if (id != "decoders") { Run(id); return; }
         _dropdown = _dropdown is null ? ((float)e.ClientX - 30, (float)e.ClientY + 24) : null;
         _dropdownGroup = null;
     }
@@ -332,7 +332,7 @@ public partial class App : ComponentBase, IAppHost
             if (_session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
             else AskDistributorColor(hex => { _session.DistributorColor = hex; _session.PowerType = PowerSourceType.Verteiler; SetTool(CanvasTool.Power); });
         });
-        Add("yamorc", Lang.T("YaMoRC-Decoder"), () => { _dropdown = _dropdown is null ? (200f, 140f) : null; _dropdownGroup = null; });
+        Add("decoders", Lang.T("Digital-Decoder"), () => { _dropdown = _dropdown is null ? (200f, 140f) : null; _dropdownGroup = null; });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("toolSignal", Lang.T("Signal setzen"), () =>
         {
@@ -510,7 +510,7 @@ public partial class App : ComponentBase, IAppHost
         "toolFeeder" => _session.Tool == CanvasTool.Feeder,
         "wires" => _session.ShowWires,
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
-        "yamorc" => _session.Tool == CanvasTool.Power && _session.ModuleModel is not null,
+        "decoders" => _session.Tool == CanvasTool.Power && _session.ModuleModel is not null,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
@@ -533,7 +533,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolPower", "toolDistributor", "yamorc", "toolIsolation", "wires", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolFeeder", "toolPower", "toolDistributor", "decoders", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connFeeder", "connDetector", "connIsolate",
     ];
@@ -558,7 +558,7 @@ public partial class App : ComponentBase, IAppHost
             : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => _session.ModuleModel is { } mm ? Lang.F($"{mm}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte).")
+        CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte).")
             : Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan klicken, wo sie stehen soll (auch neben der Platte)."),
         CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_view.PolygonPoints}) – an Gleisanschlüssen, Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
         CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),

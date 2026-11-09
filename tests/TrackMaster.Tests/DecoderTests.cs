@@ -2,17 +2,43 @@ using TrackMaster.Core;
 
 namespace TrackMaster.Tests;
 
-/// <summary>YaMoRC-Decoder als einzelne Bausteine: Liste, Setzen, Adressbereiche, Zuordnung und Speichern.</summary>
-public class YamorcTests
+/// <summary>Digital-Decoder als einzelne Bausteine: Liste, Setzen, Adressbereiche, Zuordnung und Speichern.</summary>
+public class DecoderTests
 {
     [Fact]
     public void Jedes_Modell_hat_eine_Gruppe_und_eindeutige_Kennung()
     {
-        Assert.Equal(Yamorc.Models.Count, Yamorc.Models.Select(m => m.Id).Distinct().Count());
-        Assert.Equal(Yamorc.Models.Count, Yamorc.Groups.Sum(g => g.Models.Count));
-        Assert.All(Yamorc.Models, m => Assert.False(string.IsNullOrWhiteSpace(m.Name)));
-        Assert.Contains(Yamorc.Models, m => m.Id == "YD8116");
-        Assert.Contains(Yamorc.Models, m => m.Role == ModuleRole.Melden);
+        Assert.Equal(Decoders.Models.Count, Decoders.Models.Select(m => m.Id).Distinct().Count());
+        Assert.Equal(Decoders.Models.Count, Decoders.Makers.Sum(m => m.Groups.Sum(g => g.Models.Count)));
+        Assert.All(Decoders.Models, m => Assert.False(string.IsNullOrWhiteSpace(m.Name)));
+        Assert.Contains(Decoders.Models, m => m.Id == "YD8116");
+        Assert.Contains(Decoders.Models, m => m.Role == ModuleRole.Melden);
+    }
+
+    [Fact]
+    public void Alle_Hersteller_stehen_im_Untermenü()
+    {
+        var makers = Decoders.Makers.Select(m => m.Maker).ToList();
+        foreach (var mk in new[] { "ESU", "Märklin", "Roco", "Lenz", "Viessmann", "Uhlenbrock", "Digikeijs", "LDT", "Tams", "Qdecoder", "Digitrax", "NCE", "YaMoRC" })
+            Assert.Contains(mk, makers);
+        Assert.Equal(Decoders.Models.Count, Decoders.Makers.Sum(m => m.Groups.Sum(g => g.Models.Count)));
+        // Zentralen und Booster speisen, Rückmelder melden
+        Assert.All(Decoders.Models.Where(m => m.Role == ModuleRole.Strom), m => Assert.Contains(m.Group, new[] { ModuleGroup.Zentrale, ModuleGroup.Booster }));
+        Assert.All(Decoders.Models.Where(m => m.Role == ModuleRole.Melden), m => Assert.Equal(ModuleGroup.Rueckmelder, m.Group));
+    }
+
+    [Fact]
+    public void Artikelnummern_bekommen_den_Hersteller_im_Namen()
+    {
+        var s = new PlanSession { IsPro = () => true };
+        var esu = s.AddModule("51831", 0, -200)!;
+        Assert.Equal("ESU 51831 1", esu.Name);
+        Assert.Equal("ESU 51831", PowerSupply.Label(esu));
+        Assert.Equal((1, 8), Decoders.Range(esu));
+        var ms = s.AddModule("60226", 300, -300)!;
+        Assert.Equal(PowerSourceType.Zentrale, PowerSupply.Type(ms));
+        var boost = s.AddModule("10806", 600, -300)!;
+        Assert.Equal(PowerSourceType.Booster, PowerSupply.Type(boost));
     }
 
     [Fact]
@@ -23,17 +49,17 @@ public class YamorcTests
         var b = s.AddModule("YD8008", 400, -200)!;
         var r = s.AddModule("YD6016LN-CS", 700, -200)!;
         Assert.Equal(PowerSourceType.Baustein, PowerSupply.Type(a));
-        Assert.Equal((1, 16), Yamorc.Range(a));
-        Assert.Equal((17, 24), Yamorc.Range(b));
+        Assert.Equal((1, 16), Decoders.Range(a));
+        Assert.Equal((17, 24), Decoders.Range(b));
         // Rückmelder zählen eigene Kontakte
-        Assert.Equal((1, 16), Yamorc.Range(r));
+        Assert.Equal((1, 16), Decoders.Range(r));
         Assert.Equal("YD8116 1", a.Name);
         Assert.Contains(a, PowerSupply.Modules(s.Plan));
         Assert.DoesNotContain(a, PowerSupply.Sources(s.Plan));
     }
 
     [Fact]
-    public void Zentrale_von_YaMoRC_wird_als_Zentrale_gesetzt()
+    public void Zentrale_eines_Herstellers_wird_als_Zentrale_gesetzt()
     {
         var s = new PlanSession { IsPro = () => true };
         s.SelectModule("YD7010");
@@ -53,11 +79,11 @@ public class YamorcTests
         var items = Electrics.SwitchingItems(s.Plan);
         Assert.NotEmpty(items);
         var m = s.AddModule("YD8044", 0, -200)!;
-        var assigned = Yamorc.Assigned(s.Plan, m);
+        var assigned = Decoders.Assigned(s.Plan, m);
         Assert.NotEmpty(assigned);
         Assert.All(assigned, x => Assert.InRange(x.Address, 1, 4));
-        Assert.Equal("YD8044 1, Ausgang 1", Yamorc.Location(s.Plan, 1));
-        Assert.Null(Yamorc.Location(s.Plan, 5));
+        Assert.Equal("YD8044 1, Ausgang 1", Decoders.Location(s.Plan, 1));
+        Assert.Null(Decoders.Location(s.Plan, 5));
         // Adressen außerhalb des Bausteins werden gemeldet
         if (items.Sum(i => i.AddressCount) > 4)
             Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Decoder" && i.Level == IssueLevel.Hinweis);

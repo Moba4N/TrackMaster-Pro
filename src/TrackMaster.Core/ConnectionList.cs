@@ -33,7 +33,7 @@ public static class ConnectionList
             var bWires = Wires(PowerSupply.Terminal(src));
             rows.Add(new(Lang.T("Stromquelle"), src.Name, PowerSupply.TypeName(type), "",
                 bWires.Length == 0 ? "" : PowerSupply.HasGround(type) ? Lang.F($"Bahnstrom (B): {bWires}") : bWires,
-                feeders.Length == 0 ? "" : Lang.F($"Gleisanschlüsse {feeders}"), "", "", "", "", note));
+                feeders.Length == 0 ? "" : Lang.F($"Einspeisungen {feeders}"), "", "", "", "", note));
         }
         foreach (var d in PowerSupply.Distributors(plan))
         {
@@ -54,8 +54,8 @@ public static class ConnectionList
         {
             if (plan.Find(f.PieceId) is not { } p) continue;
             var pt = Electrics.FeederPoint(plan, p, f);
-            rows.Add(new(Lang.T("Gleisanschluss"), f.Label, "", Join(Piece(f.PieceId), Section(f.PieceId)), f.Circuit, Wires(pt), "", "", "", "",
-                current == CurrentKind.Gleichstrom && f.Reversed ? Lang.T("Polung getauscht") : ""));
+            rows.Add(new(f.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"), f.Label, "", Join(Piece(f.PieceId), Section(f.PieceId)), f.Circuit, Wires(pt), "", "", "", "",
+                current == CurrentKind.Gleichstrom || f.Ground ? (f.Reversed ? Lang.T("rechte Schiene") : Lang.T("linke Schiene")) : ""));
         }
         foreach (var w in plan.Scenery.Where(s => s.IsWire && s.Points.Count >= 2))
         {

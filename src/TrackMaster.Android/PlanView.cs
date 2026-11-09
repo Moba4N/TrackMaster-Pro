@@ -215,23 +215,22 @@ public sealed class PlanView : View
     /// <summary>Kabel: Punkt setzen; an Gleisanschlüssen, Rückmeldern, Signalen, Weichenantrieben und Kabelenden rastet er ein.</summary>
     private void AddWirePoint((double X, double Y) world)
     {
-        var (sx, sy, anchor) = WireLayout.Snap(_session.View, world.X, world.Y, Ui.Dp(22) / _zoom);
+        var (sx, sy, anchor) = _session.SnapWire(world.X, world.Y, Ui.Dp(22) / _zoom);
         // Kabel liegen rechtwinklig: freie Punkte rasten waagerecht/senkrecht ein, an Anschlüssen entsteht ein Knick
         _polygon.AddRange(WireLayout.OrthoStep(_polygon, (sx, sy), anchor is not null));
         _session.Say(anchor is not null
             ? Lang.F($"Kabel: angeschlossen an {anchor.Text}. Weitere Punkte setzen, Doppelklick oder „Fertig“ beendet.")
-            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Gleisanschlüssen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder „Fertig“ beendet.")
+            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Zentrale, Verteilern, Rückmeldern, Signalen und auf dem Gleis rastet das Ende ein. Doppelklick oder „Fertig“ beendet.")
             : Lang.F($"Kabel: {_polygon.Count} Punkte."));
         PolygonChanged?.Invoke();
         Invalidate();
     }
 
-    /// <summary>Kabel an einem festen Punkt beginnen (z. B. am Gleisanschluss aus dem Gleismenü).</summary>
+    /// <summary>Kabel an einem festen Punkt beginnen (z. B. an der Klemme einer Zentrale).</summary>
     public void StartWireAt(double x, double y)
     {
         _polygon.Clear();
         _polygon.Add((x, y));
-        _session.Say(Lang.T("Kabel beginnt am Gleisanschluss: weitere Punkte setzen, Doppelklick oder „Fertig“ beendet."));
         PolygonChanged?.Invoke();
         Invalidate();
     }
@@ -578,7 +577,7 @@ public sealed class PlanView : View
             var m = first.Middle();
             var p = ToScreen(m.X, m.Y);
             var color = PlanPainter.SectionColors[(s.Number - 1) % PlanPainter.SectionColors.Length];
-            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Gleisanschluss") : string.Join(", ", s.Circuits);
+            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Einspeisung") : string.Join(", ", s.Circuits);
             DrawTag(c, Lang.F($"Abschnitt {s.Number} · {circuits}"), p.X, p.Y + _gauge * 1.8f * _zoom + Ui.Dp(10), color, 10);
         }
     }

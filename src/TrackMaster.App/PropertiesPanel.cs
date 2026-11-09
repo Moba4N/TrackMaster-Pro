@@ -203,7 +203,7 @@ public sealed class PropertiesPanel : DockPanel
              (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
              (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Theme.DangerBrush : null),
              (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count} Gleisanschl. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
+             (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Objekte · {plan.Feeders.Count(f => !f.Ground)} Einsp. · {plan.Signals.Count} Signale") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
              (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Theme.OpenEndBrush : Theme.SuccessBrush));
         _body.Children.Add(Buttons(Cmd(Lang.T("Stückliste"), "List", "bom"), Cmd(Lang.T("Planprüfung"), "Shield", "check")));
         _body.Children.Add(new Border
@@ -600,17 +600,22 @@ public sealed class PropertiesPanel : DockPanel
                         }
                         if (PowerSupply.FeedsTrack(ptype))
                         {
-                            var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
-                            prows.Add((Lang.T("Gleisanschlüsse"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            var psections = Electrics.Sections(plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                            prows.Add((Lang.T("Einspeisungen"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Masse am Gleis"), PowerSupply.GroundsOf(plan, s).Count().ToString(), null));
                             prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
                             prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
                             if (!PowerSupply.Fits(ptype, plan.Operation))
                                 prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Theme.OpenEndBrush));
                         }
                         Rows(prows.ToArray());
-                        _body.Children.Add(Tip(PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.HasGround(ptype)
-                            ? Lang.T("Die rote Linie führt vom Bahnstrom (B) zu den Gleisanschlüssen. Die Masse (0) daneben mit einem braunen Kabel zum Gleis oder zu einem Masse-Verteiler legen.")
-                            : Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")))));
+                        if (PowerSupply.FeedsTrack(ptype))
+                            _body.Children.Add(PowerSupply.HasGround(ptype)
+                                ? Buttons(Cmd(Lang.T("Kabel von hier verlegen"), "Wire", "wireFromSource"), Cmd(Lang.T("Masse-Kabel von hier"), "Wire", "groundFromSource"))
+                                : Buttons(Cmd(Lang.T("Kabel von hier verlegen"), "Wire", "wireFromSource")));
+                        _body.Children.Add(Tip(PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.FeedsTrack(ptype)
+                            ? Lang.T("Einspeisung: „Kabel von hier verlegen“ und das Kabel auf dem Gleis enden lassen – dort entsteht die Einspeisung. Ein Gleis kann mehrere haben. Die Masse (0) genauso auf die andere Schiene bzw. (Mittelleiter) auf eine Schiene legen, auch über einen Masse-Verteiler.")
+                            : Lang.T("Kabel rasten an der Klemme unten ein.")))));
                         break;
                     case SceneryKind.Tree:
                         _body.Children.Add(Columns(2,
@@ -623,7 +628,7 @@ public sealed class PropertiesPanel : DockPanel
                 break;
 
             case Feeder f:
-                _headerRight.Text = Lang.T("Gleisanschluss");
+                _headerRight.Text = f.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung");
                 var circuit = new ComboBox { IsEditable = true, Text = f.Circuit, Height = 28 };
                 foreach (var c in _session.CircuitNames.Append(f.Circuit).Append(_session.NewCircuitName()).Distinct())
                     circuit.Items.Add(c);
@@ -641,12 +646,19 @@ public sealed class PropertiesPanel : DockPanel
                     _body.Children.Add(Theme.Label(Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan."), 11, false, Theme.OpenEndBrush));
                 _body.Children.Add(new Border { Height = 8 });
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+                var frows = new List<(string, string, System.Windows.Media.Brush?)>
+                {
+                    (Lang.T("Anschluss"), f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"), null),
+                };
+                if (f.WireId is { } fwid && plan.Scenery.FirstOrDefault(w => w.Id == fwid) is { } fwire)
+                    frows.Add((Lang.T("Kabel"), fwire.Name, null));
+                Rows(frows.ToArray());
                 Rows((Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
                      (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null),
                      (Lang.T("Stromart"), Electrics.CurrentName(Electrics.Current(plan)), null));
-                if (Electrics.Current(plan) == CurrentKind.Gleichstrom)
+                if (Electrics.Current(plan) == CurrentKind.Gleichstrom || f.Ground)
                 {
-                    var reversed = new CheckBox { Content = Lang.T("Polung getauscht (Plus und Minus vertauscht)"), IsChecked = f.Reversed, Margin = new Thickness(0, 0, 0, 8) };
+                    var reversed = new CheckBox { Content = Lang.T("An der rechten Schiene (in Gleisrichtung)"), IsChecked = f.Reversed, Margin = new Thickness(0, 0, 0, 8) };
                     reversed.Click += (_, _) => _session.ToggleFeederPolarity(f.Id);
                     _body.Children.Add(reversed);
                 }

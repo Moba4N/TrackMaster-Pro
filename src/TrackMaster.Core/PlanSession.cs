@@ -503,7 +503,7 @@ public sealed partial class PlanSession
             Plan.Pieces.Add(q);
             Selection.Add(q.Id);
         }
-        foreach (var f in src.Feeders) Plan.Feeders.Add(new Feeder { Id = Plan.NextId++, PieceId = map[f.PieceId], Circuit = f.Circuit, Reversed = f.Reversed, Name = f.Name });
+        foreach (var f in src.Feeders) { var q = f.Clone(); q.Id = Plan.NextId++; q.PieceId = map[f.PieceId]; q.WireId = null; Plan.Feeders.Add(q); }
         foreach (var i in src.Isolations) Plan.Isolations.Add(new Isolation { Id = Plan.NextId++, PieceId = map[i.PieceId], Index = i.Index });
         foreach (var g in src.Signals)
         {
@@ -773,6 +773,17 @@ public sealed partial class PlanSession
         DropHidden();
         Commit();
         Say(visible ? Lang.F($"{Plan.Levels[index].Name} eingeblendet.") : Lang.F($"{Plan.Levels[index].Name} ausgeblendet."));
+    }
+
+    /// <summary>Alle Ebenen auf einmal ein- oder ausblenden (keine Planänderung).</summary>
+    public void SetAllLevelsVisible(bool visible)
+    {
+        if (Plan.Levels.All(l => l.Visible == visible)) return;
+        foreach (var l in Plan.Levels) l.Visible = visible;
+        Dirty = true;
+        DropHidden();
+        Commit();
+        Say(visible ? Lang.T("Alle Ebenen eingeblendet.") : Lang.T("Alle Ebenen ausgeblendet. Ein Häkchen oder ein Klick auf eine Ebene zeigt sie wieder."));
     }
 
     /// <summary>Nur eine Ebene zeigen (oder mit <paramref name="index"/> = −1 alle).</summary>
@@ -1539,7 +1550,7 @@ public sealed partial class PlanSession
     /// <summary>Entfernt ein Objekt (Einspeisung, Signal, Trennstelle, Gelände) direkt, z. B. mit dem Werkzeug.</summary>
     public void RemoveObject(int id)
     {
-        var what = FindObject(id) switch { Feeder => Lang.T("Gleisanschluss"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
+        var what = FindObject(id) switch { Feeder fd => fd.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"), Signal => "Signal", Isolation => Lang.T("Trennstelle"), Detector => Lang.T("Rückmelder"), _ => Lang.T("Objekt") };
         Record();
         if (!Plan.RemoveObject(id)) { History.DiscardLast(); return; }
         if (SelectedObject == id) SelectedObject = null;

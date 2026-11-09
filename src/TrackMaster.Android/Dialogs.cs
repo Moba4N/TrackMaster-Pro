@@ -176,7 +176,7 @@ public static partial class Dialogs
             (Lang.T("Kleinster Radius"), stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–", null),
             (Lang.T("Größte Steigung"), stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"), stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? Ui.Danger : null),
             (Lang.T("Höchster Punkt"), $"{Fmt.Num(stats.MaxHeight, 0)} mm", null),
-            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Gleisanschl. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
+            (Lang.T("Gelände / Elektrik"), Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count(f => !f.Ground)} Einsp. · {plan.Signals.Count} Sig.") + (plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : ""), null),
             (Lang.T("Offene Gleisenden"), stats.OpenEnds.ToString(), stats.OpenEnds > 0 ? Ui.OpenEnd : Ui.Success)));
         body.AddView(Hint(c, Lang.T("So geht’s: Tippe ein orangefarbenes Gleisende an und dann ein Gleis in der Bibliothek – es wird dort angesetzt. ") +
                              Lang.T("Gewählte Gleise lassen sich mit dem Finger verschieben und rasten an freien Enden ein. Zwei Finger zoomen und verschieben die Ansicht, ") +
@@ -300,7 +300,6 @@ public static partial class Dialogs
             body.AddView(Section(c, Lang.T("Elektrik")));
             body.AddView(Ui.Label(c, session.ConnectionSummary(p.Id), 13, color: Ui.TextSecondary));
         }
-        if (!d.IsTable) Cmd(Lang.T("Anschlüsse…"), "connections");
         Cmd(Lang.T("Drehen"), "rotR");
         if (d.CanFlip) Cmd(Lang.T("Spiegeln"), "flip");
         if (conns.Count > 1) Cmd(Lang.T("Anschluss"), "swap");
@@ -587,17 +586,25 @@ public static partial class Dialogs
                         }
                         if (PowerSupply.FeedsTrack(ptype))
                         {
-                            var psections = Electrics.Sections(plan).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
-                            prows.Add((Lang.T("Gleisanschlüsse"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            var psections = Electrics.Sections(plan).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
+                            prows.Add((Lang.T("Einspeisungen"), PowerSupply.FeedersOf(plan, s).Count().ToString(), null));
+                            prows.Add((Lang.T("Masse am Gleis"), PowerSupply.GroundsOf(plan, s).Count().ToString(), null));
                             prows.Add((Lang.T("Stromabschnitte"), psections.Count == 0 ? "–" : string.Join(", ", psections.Select(x => x.Number)), null));
                             prows.Add((Lang.T("Gleislänge"), $"{Fmt.Num(psections.Sum(x => x.LengthMm) / 1000, 2)} m", null));
                             if (!PowerSupply.Fits(ptype, plan.Operation))
                                 prows.Add((Lang.T("Hinweis"), plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."), Ui.OpenEnd));
                         }
                         body.AddView(Rows(c, prows.ToArray()));
-                        body.AddView(Hint(c, PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.HasGround(ptype)
-                            ? Lang.T("Die rote Linie führt vom Bahnstrom (B) zu den Gleisanschlüssen. Die Masse (0) daneben mit einem braunen Kabel zum Gleis oder zu einem Masse-Verteiler legen.")
-                            : Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein.")))));
+                        if (PowerSupply.FeedsTrack(ptype))
+                        {
+                            var pbuttons = Ui.Row(c, 6);
+                            pbuttons.AddView(Ui.Button(c, Lang.T("Kabel von hier verlegen"), () => { dialog?.Dismiss(); run("wireFromSource"); }));
+                            if (PowerSupply.HasGround(ptype)) pbuttons.AddView(Ui.Button(c, Lang.T("Masse-Kabel von hier"), () => { dialog?.Dismiss(); run("groundFromSource"); }));
+                            body.AddView(pbuttons);
+                        }
+                        body.AddView(Hint(c, PowerSupply.Description(ptype) + (ptype == PowerSourceType.Verteiler ? "" : " " + (PowerSupply.FeedsTrack(ptype)
+                            ? Lang.T("Einspeisung: „Kabel von hier verlegen“ und das Kabel auf dem Gleis enden lassen – dort entsteht die Einspeisung. Ein Gleis kann mehrere haben. Die Masse (0) genauso auf die andere Schiene bzw. (Mittelleiter) auf eine Schiene legen, auch über einen Masse-Verteiler.")
+                            : Lang.T("Kabel rasten an der Klemme unten ein.")))));
                         break;
                     }
                     case SceneryKind.Tree:
@@ -638,11 +645,21 @@ public static partial class Dialogs
                 body.AddView(Ui.Field(c, plan.Operation == PowerMode.Analog ? Lang.T("Hängt an (Trafo)") : Lang.T("Hängt an (Zentrale / Booster)"), circuit));
                 if (PowerSupply.SourceOf(plan, f) is null) body.AddView(Hint(c, Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")));
                 var section = Electrics.Sections(plan).FirstOrDefault(x => x.PieceIds.Contains(f.PieceId));
+                var frows = new List<(string, string, Color?)> { (Lang.T("Anschluss"), f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"), null) };
+                if (f.WireId is { } fwid && plan.Scenery.FirstOrDefault(w => w.Id == fwid) is { } fwire) frows.Add((Lang.T("Kabel"), fwire.Name, null));
+                body.AddView(Rows(c, frows.ToArray()));
+                CheckBox? right = null;
+                if (Electrics.Current(plan) == CurrentKind.Gleichstrom || f.Ground)
+                {
+                    right = new CheckBox(c) { Text = Lang.T("An der rechten Schiene (in Gleisrichtung)"), Checked = f.Reversed };
+                    body.AddView(right);
+                }
                 body.AddView(Rows(c, (Lang.T("Gleis"), $"{plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId})", null),
                     (Lang.T("Stromabschnitt"), section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m", null)));
                 DeleteButton();
-                dialog = Show(c, Lang.T("Gleisanschluss"), body, Lang.T("Übernehmen"), () =>
+                dialog = Show(c, f.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"), body, Lang.T("Übernehmen"), () =>
                 {
+                    if (right is not null && right.Checked != f.Reversed) session.ToggleFeederPolarity(f.Id);
                     var t = (circuit.Text ?? "").Trim();
                     if (t.Length > 0 && t != f.Circuit) session.SetFeederCircuit(f.Id, t);
                     return true;

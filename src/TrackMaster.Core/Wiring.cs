@@ -8,7 +8,8 @@ public sealed record WireColor(string Name, string Hex);
 
 /// <summary>
 /// Selbst verlegte Kabel (<see cref="SceneryKind.Wire"/>): Linienzug von Punkt zu Punkt, Länge, Farbe und Querschnitt.
-/// Die Enden rasten an Gleisanschlüssen, Zentrale/Booster (Bahnstrom und Masse), Verteilern, Rückmeldern, Signalen, Gleisenden und anderen Kabeln ein.
+/// Die Enden rasten an Einspeisungen, Zentrale/Booster (Bahnstrom und Masse), Verteilern, Rückmeldern, Signalen, Gleisenden und anderen Kabeln ein.
+/// Ein Ende auf einem Gleis legt dort eine Einspeisung an (siehe <see cref="PlanSession.AddWire"/>).
 /// </summary>
 public static class WireLayout
 {
@@ -111,7 +112,9 @@ public static class WireLayout
             if (plan.Find(f.PieceId) is { } p)
             {
                 var (x, y) = Electrics.FeederPoint(plan, p, f);
-                list.Add(new(x, y, f.Name.Length > 0 ? Lang.F($"Gleisanschluss {f.Name} an Gleis Nr. {p.Id}") : Lang.F($"Gleisanschluss an Gleis Nr. {p.Id}")));
+                list.Add(new(x, y, f.Ground
+                    ? (f.Name.Length > 0 ? Lang.F($"Masse {f.Name} an Gleis Nr. {p.Id}") : Lang.F($"Masse an Gleis Nr. {p.Id}"))
+                    : (f.Name.Length > 0 ? Lang.F($"Einspeisung {f.Name} an Gleis Nr. {p.Id}") : Lang.F($"Einspeisung an Gleis Nr. {p.Id}"))));
             }
         foreach (var src in PowerSupply.Sources(plan))
         {

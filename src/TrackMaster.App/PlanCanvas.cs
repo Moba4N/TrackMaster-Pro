@@ -217,22 +217,22 @@ public sealed class PlanCanvas : FrameworkElement
     /// <summary>Kabel: Punkt setzen; an Gleisanschlüssen, Rückmeldern, Signalen, Weichenantrieben und Kabelenden rastet er ein.</summary>
     private void AddWirePoint(Point world)
     {
-        var (sx, sy, anchor) = WireLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom);
+        var (sx, sy, anchor) = _session.SnapWire(world.X, world.Y, 12 / _zoom);
         // Kabel liegen rechtwinklig: freie Punkte rasten waagerecht/senkrecht ein, an Anschlüssen entsteht ein Knick
         _polygon.AddRange(WireLayout.OrthoStep(_polygon, (sx, sy), anchor is not null));
         _session.Say(anchor is not null
             ? Lang.F($"Kabel: angeschlossen an {anchor.Text}. Weitere Punkte setzen, Doppelklick oder Eingabetaste beendet.")
-            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Gleisanschlüssen, Rückmeldern und Signalen rastet das Ende ein. Doppelklick oder Eingabetaste beendet.")
+            : _polygon.Count == 1 ? Lang.T("Kabel: weitere Punkte setzen – an Zentrale, Verteilern, Rückmeldern, Signalen und auf dem Gleis rastet das Ende ein. Doppelklick oder Eingabetaste beendet.")
             : Lang.F($"Kabel: {_polygon.Count} Punkte."));
         InvalidateVisual();
     }
 
-    /// <summary>Kabel an einem festen Punkt beginnen (z. B. am Gleisanschluss aus dem Kontextmenü).</summary>
+    /// <summary>Kabel an einem festen Punkt beginnen (z. B. an der Klemme einer Zentrale).</summary>
     public void StartWireAt(double x, double y)
     {
         _polygon.Clear();
         _polygon.Add((x, y));
-        _session.Say(Lang.T("Kabel beginnt am Gleisanschluss: weitere Punkte setzen, Doppelklick oder Eingabetaste beendet."));
+        _session.Say(Lang.T("Kabel beginnt hier: weitere Punkte setzen, Doppelklick oder Eingabetaste beendet."));
         InvalidateVisual();
     }
 
@@ -339,7 +339,7 @@ public sealed class PlanCanvas : FrameworkElement
             Brush wire = rgb is { } wc ? new SolidColorBrush(Color.FromRgb(wc.R, wc.G, wc.B)) : Theme.AccentBrush;
             var width = Math.Max(_gauge * 0.35, 2.2 / z);
             dc.DrawGeometry(null, new Pen(wire, width) { LineJoin = PenLineJoin.Round }, PlanScene.Polyline(_polygon));
-            var (sx, sy, anchor) = WireLayout.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z);
+            var (sx, sy, anchor) = _session.SnapWire(_lastWorld.X, _lastWorld.Y, 12 / z);
             var preview = new List<(double X, double Y)> { _polygon[^1] };
             preview.AddRange(WireLayout.OrthoStep(_polygon, (sx, sy), anchor is not null));
             dc.DrawGeometry(null, new Pen(wire, width * 0.7) { DashStyle = DashStyles.Dash, LineJoin = PenLineJoin.Round }, PlanScene.Polyline(preview));
@@ -562,7 +562,7 @@ public sealed class PlanCanvas : FrameworkElement
             var m = first.Middle();
             var p = ToScreen(m.X, m.Y);
             var color = PlanScene.SectionColors[(s.Number - 1) % PlanScene.SectionColors.Length];
-            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Gleisanschluss") : string.Join(", ", s.Circuits);
+            var circuits = s.Circuits.Count == 0 ? Lang.T("ohne Einspeisung") : string.Join(", ", s.Circuits);
             DrawTag(dc, Lang.F($"Abschnitt {s.Number} · {circuits}"), new Point(p.X, p.Y + _gauge * 1.8 * _zoom + 10), new SolidColorBrush(color), 10.5);
         }
     }

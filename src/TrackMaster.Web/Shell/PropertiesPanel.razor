@@ -61,7 +61,7 @@
     {
         SceneryItem { IsPower: true } p => PowerSupply.TypeName(PowerSupply.Type(p)),
         SceneryItem s => SceneryItem.KindName(s.Kind),
-        Feeder => Lang.T("Gleisanschluss"),
+        Feeder fd => fd.Ground ? Lang.T("Masse am Gleis") : Lang.T("Einspeisung"),
         Isolation => Lang.T("Trennstelle"),
         Signal => "Signal",
         Detector => Lang.T("Rückmelder"),
@@ -297,7 +297,7 @@
             <dt>@Lang.T("Kleinster Radius")</dt><dd>@(stats.SmallestRadius is { } r ? $"{Fmt.Num(r)} mm" : "–")</dd>
             <dt>@Lang.T("Größte Steigung")</dt><dd class="@(stats.MaxGrade * 100 > PlanCheck.WarnGradePercent ? "danger" : "")">@(stats.MaxGrade > 0 ? $"{Fmt.Num(stats.MaxGrade * 100, 1)} %" : Lang.T("eben"))</dd>
             <dt>@Lang.T("Höchster Punkt")</dt><dd>@Fmt.Num(stats.MaxHeight, 0) mm</dd>
-            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count} Gleisanschl. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
+            <dt>@Lang.T("Gelände / Elektrik")</dt><dd>@Lang.F($"{plan.Scenery.Count} Obj. · {plan.Feeders.Count(f => !f.Ground)} Einsp. · {plan.Signals.Count} Sig.")@(plan.Detectors.Count > 0 ? Lang.F($" · {plan.Detectors.Count} RM") : "")</dd>
             <dt>@Lang.T("Offene Gleisenden")</dt><dd class="@(stats.OpenEnds > 0 ? "open" : "ok")">@stats.OpenEnds</dd>
         </dl>
         <div class="button-row">
@@ -421,7 +421,6 @@
         </dl>
         <div class="section">@Lang.T("Elektrik")</div>
         <div class="secondary small">@Session.ConnectionSummary(p.Id)</div>
-        <div class="button-row"><button class="btn" @onclick="@(() => Run("connections"))">@((MarkupString)Icons.Svg("Connector", 16)) @Lang.T("Anschlüsse…")</button></div>
         <div class="button-row wrap">
             <button class="btn" @onclick="@(() => Run("rotR"))">@((MarkupString)Icons.Svg("RotateRight", 16)) @Lang.T("Drehen")</button>
             @if (d.CanFlip)
@@ -751,8 +750,12 @@
                     }
                     @if (PowerSupply.FeedsTrack(ptype))
                     {
-                        <dt>@Lang.T("Gleisanschlüsse")</dt><dd>@attached.Count</dd>
-                        var sections = Electrics.Sections(Plan, Session.Connections).Where(x => x.Feeders.Any(fd => fd.Circuit == s.Name)).ToList();
+                        <dt>@Lang.T("Einspeisungen")</dt><dd>@attached.Count</dd>
+                        @if (PowerSupply.HasGround(ptype) || Electrics.Current(Plan) == CurrentKind.Gleichstrom)
+                        {
+                            <dt>@Lang.T("Masse am Gleis")</dt><dd>@PowerSupply.GroundsOf(Plan, s).Count()</dd>
+                        }
+                        var sections = Electrics.Sections(Plan, Session.Connections).Where(x => x.Supply.Any(fd => fd.Circuit == s.Name)).ToList();
                         <dt>@Lang.T("Stromabschnitte")</dt><dd>@(sections.Count == 0 ? "–" : string.Join(", ", sections.Select(x => x.Number)))</dd>
                         <dt>@Lang.T("Gleislänge")</dt><dd>@Fmt.Num(sections.Sum(x => x.LengthMm) / 1000, 2) m</dd>
                     }
@@ -761,9 +764,19 @@
                 {
                     <div class="error-box">@(Plan.Operation == PowerMode.Analog ? Lang.T("Passt nicht zum Analogbetrieb.") : Lang.T("Passt nicht zum Digitalbetrieb."))</div>
                 }
-                <div class="tip-box">@PowerSupply.Description(ptype) @(ptype == PowerSourceType.Verteiler ? "" : PowerSupply.HasGround(ptype)
-                    ? Lang.T("Die rote Linie führt vom Bahnstrom (B) zu den Gleisanschlüssen. Die Masse (0) daneben mit einem braunen Kabel zum Gleis oder zu einem Masse-Verteiler legen.")
-                    : Lang.T("Gleisanschlüsse hängen über den Namen daran (gestrichelte Linie); Kabel rasten an der Klemme unten ein."))</div>
+                @if (PowerSupply.FeedsTrack(ptype))
+                {
+                    <div class="button-row wrap">
+                        <button class="btn" @onclick="@(() => Run("wireFromSource"))">@((MarkupString)Icons.Svg("Wire", 16)) @Lang.T("Kabel von hier verlegen")</button>
+                        @if (PowerSupply.HasGround(ptype))
+                        {
+                            <button class="btn" @onclick="@(() => Run("groundFromSource"))">@((MarkupString)Icons.Svg("Wire", 16)) @Lang.T("Masse-Kabel von hier")</button>
+                        }
+                    </div>
+                }
+                <div class="tip-box">@PowerSupply.Description(ptype) @(ptype == PowerSourceType.Verteiler ? "" : PowerSupply.FeedsTrack(ptype)
+                    ? Lang.T("Einspeisung: „Kabel von hier verlegen“ und das Kabel auf dem Gleis enden lassen – dort entsteht die Einspeisung. Ein Gleis kann mehrere haben. Die Masse (0) genauso auf die andere Schiene bzw. (Mittelleiter) auf eine Schiene legen, auch über einen Masse-Verteiler.")
+                    : Lang.T("Kabel rasten an der Klemme unten ein."))</div>
                 break;
             case SceneryKind.Plate:
                 <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>
@@ -888,13 +901,18 @@
             <div class="error-box">@Lang.F($"Für „{f.Circuit}“ steht noch keine Zentrale bzw. kein Trafo im Plan.")</div>
         }
         <dl class="rows">
+            <dt>@Lang.T("Anschluss")</dt><dd>@(f.Ground ? Lang.T("Masse (0)") : Lang.T("Bahnstrom (B)"))</dd>
+            @if (f.WireId is { } wid && Plan.Scenery.FirstOrDefault(w => w.Id == wid) is { } wire)
+            {
+                <dt>@Lang.T("Kabel")</dt><dd>@wire.Name</dd>
+            }
             <dt>@Lang.T("Gleis")</dt><dd>@Plan.Find(f.PieceId)?.Def.Number (Nr. @f.PieceId)</dd>
             <dt>@Lang.T("Stromabschnitt")</dt><dd>@(section is null ? "–" : $"{section.Number} · {Fmt.Num(section.LengthMm / 1000, 2)} m")</dd>
             <dt>@Lang.T("Stromart")</dt><dd>@Electrics.CurrentName(Electrics.Current(Plan))</dd>
         </dl>
-        @if (Electrics.Current(Plan) == CurrentKind.Gleichstrom)
+        @if (Electrics.Current(Plan) == CurrentKind.Gleichstrom || f.Ground)
         {
-            <label class="check"><input type="checkbox" checked="@f.Reversed" @onchange="@(_ => Session.ToggleFeederPolarity(f.Id))" /> @Lang.T("Polung getauscht (Plus und Minus vertauscht)")</label>
+            <label class="check"><input type="checkbox" checked="@f.Reversed" @onchange="@(_ => Session.ToggleFeederPolarity(f.Id))" /> @Lang.T("An der rechten Schiene (in Gleisrichtung)")</label>
         }
         <div class="button-row"><button class="btn" @onclick="@(() => Run("delete"))">@((MarkupString)Icons.Svg("Delete", 16)) @Lang.T("Löschen")</button></div>
     };

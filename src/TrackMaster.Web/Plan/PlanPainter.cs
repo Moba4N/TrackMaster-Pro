@@ -169,6 +169,7 @@ public sealed class PlanPainter
     private static readonly Color BridgeShadow = Color.Argb(0x60, 0x30, 0x30, 0x30);
     private static readonly Color TunnelWall = Color.Rgb(0x6B, 0x5A, 0x48);
     private static readonly Color FeederColor = Color.Rgb(0xC4, 0x2B, 0x1C);
+    private static readonly Color GroundColor = Color.Rgb(0x79, 0x55, 0x48);
     private static readonly Color IsolationColor = Color.Rgb(0xE0, 0x6C, 0x00);
 
     /// <summary>Zeichnet alles in Weltkoordinaten; die Canvas ist bereits skaliert. <paramref name="zoom"/> = Pixel je mm.</summary>
@@ -519,7 +520,7 @@ public sealed class PlanPainter
             var (fpx, fpy) = Electrics.FeederPoint(plan, p, f);
             var cx = (float)fpx;
             var cy = (float)fpy;
-            c.DrawCircle(cx, cy, r, Fill(FeederColor));
+            c.DrawCircle(cx, cy, r, Fill(f.Ground ? GroundColor : FeederColor));
             c.DrawCircle(cx, cy, r, f.Id == selectedObject ? Stroke(Ui.Accent, 2.5f * d / z) : Stroke(Color.White, 1 / z));
             var bolt = new Path();
             bolt.MoveTo(cx + r * 0.15f, cy - r * 0.65f);
@@ -570,7 +571,7 @@ public sealed class PlanPainter
             p.Color = Color.Argb(0xC8, 0xD3, 0x2F, 0x2F);
             p.StrokeWidth = Math.Max(g * 0.18f, 1.3f * density / z);
             p.SetPathEffect(new DashPathEffect([Math.Max(g * 1.2f, 6 / z), Math.Max(g * 0.8f, 4 / z)], 0));
-            foreach (var f in PowerSupply.FeedersOf(plan, src))
+            foreach (var f in PowerSupply.FeedersOf(plan, src).Where(f => f.WireId is null))
                 if (plan.Find(f.PieceId) is { } piece)
                 {
                     var (fx, fy) = Electrics.FeederPoint(plan, piece, f);

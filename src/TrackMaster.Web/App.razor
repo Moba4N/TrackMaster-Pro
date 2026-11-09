@@ -413,7 +413,7 @@
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
                 new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),
-                new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Gleisanschlüsse (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
+                new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),
         ]),
         new(Lang.T("Ansicht"),
@@ -2035,7 +2035,7 @@
             var items = Electrics.SwitchingItems(_session.Plan);
             var conflicts = Electrics.AddressConflicts(items).SelectMany(x => x.Items).ToHashSet();
         }
-        @Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2). An welchem Ausgang sie hängen, ergibt sich aus den Decoder-Bausteinen im Plan (Elektrik › Digital-Decoder) und deren Startadresse."))
+        @Hint(Lang.T("Weichen belegen eine Adresse, DKW und Hauptsignale zwei (Hp0/Hp1/Hp2)."))
         @{
             var mods = PowerSupply.Modules(_session.Plan).Where(m => Decoders.ModelOf(m)?.Role == ModuleRole.Schalten).ToList();
         }
@@ -2746,7 +2746,7 @@
                         <span class="strong">@Electrics.CurrentName(k)</span>
                         <span class="secondary">@(k switch
                         {
-                            CurrentKind.Gleichstrom => Lang.T("Zweileiter-Gleis (z. B. Märklin Z, Fleischmann, Roco, Trix, Piko). Je Gleisanschluss Plus und Minus an die beiden Schienen; die Polung muss im ganzen Abschnitt gleich sein, Kehrschleifen brauchen eine Umpolung."),
+                            CurrentKind.Gleichstrom => Lang.T("Zweileiter-Gleis (z. B. Märklin Z, Fleischmann, Roco, Trix, Piko). Je Einspeisung Plus und Minus an die beiden Schienen; die Polung muss im ganzen Abschnitt gleich sein, Kehrschleifen brauchen eine Umpolung."),
                             CurrentKind.Wechselstrom => Lang.T("Mittelleiter-Gleis (Märklin H0, auch Märklin-Digital). Fahrstrom über den Mittelleiter (rot), Masse über die Schienen (braun); Kehrschleifen ohne Sonderschaltung."),
                             _ => Lang.T("Richtet sich nach dem verlegten Gleis: Mittelleiter → Wechselstrom, sonst Gleichstrom."),
                         })</span>

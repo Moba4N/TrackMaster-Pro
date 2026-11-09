@@ -303,13 +303,10 @@ public sealed class PropertiesPanel : DockPanel
         {
             Section(Lang.T("Elektrik"));
             _body.Children.Add(new TextBlock { Text = _session.ConnectionSummary(p.Id), TextWrapping = TextWrapping.Wrap, Foreground = Theme.TextSecondaryBrush, FontSize = 12, Margin = new Thickness(0, 0, 6, 4) });
-            var hasFeeder = _session.FeedersOn(p.Id).Count > 0;
             _body.Children.Add(Buttons(
-                hasFeeder ? Cmd(Lang.T("Gleisanschluss entfernen"), "Delete", "connFeederRemove") : Cmd(Lang.T("Gleisanschluss"), "Bolt", "connFeeder"),
                 Cmd(Lang.T("Trennen"), "Isolate", "connIsolate"),
-                Cmd(Lang.T("Rückmelder"), "Detector", "connDetector"),
-                Cmd(Lang.T("Kabel"), "Wire", "connWire")));
-            _body.Children.Add(Tip(Lang.T("Weitere Anschlüsse (Zentrale bzw. Trafo, Trennstelle je Ende, Polung) über das Kontextmenü: rechte Maustaste auf das Gleis.")));
+                Cmd(Lang.T("Rückmelder"), "Detector", "connDetector")));
+            _body.Children.Add(Tip(Lang.T("Strom kommt über ein Kabel: Zentrale, Booster oder Trafo wählen, „Kabel von hier verlegen“ und das Kabel auf diesem Gleis enden lassen. Trennstellen je Ende über das Kontextmenü (rechte Maustaste).")));
         }
 
         var buttons = new List<Button> { Cmd(Lang.T("Drehen"), "RotateRight", "rotR") };

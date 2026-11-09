@@ -33,6 +33,9 @@ public partial class App : ComponentBase, IAppHost
     // Schmale Fenster: Bibliothek und Eigenschaften als Schublade
     private bool _libraryOpen, _propsOpen;
 
+    /// <summary>Plan, für den der Hinweis „Der Plan ist noch leer“ geschlossen wurde (ein neuer Plan zeigt ihn wieder).</summary>
+    private LayoutPlan? _emptyHintClosedFor;
+
     public PlanView View => _view;
 
     private sealed record Command(string Name, Action Execute, bool Pro, Func<bool>? CanExecute);

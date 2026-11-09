@@ -851,7 +851,7 @@ public sealed partial class MainWindow : Window
                 Large(Lang.T("Lücke schließen"), "Connector", "flexConnect", Lang.T("Verbindet das aktive Gleisende mit dem gewählten (oder nächsten) Gleisende durch ein passend gebogenes Flexgleis.")),
                 Large(Lang.T("Parallel­gleis…"), "Parallel", "parallel", Lang.T("Flexgleis im festen Abstand neben die gewählten Gleise legen."))),
             Group(Lang.T("Ebenen"),
-                Large(Lang.T("Ebenen…"), "Layers", "levels", Lang.T("Bis zu 10 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))),
+                Large(Lang.T("Ebenen…"), "Layers", "levels", Lang.T("Bis zu 25 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))),
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
@@ -1247,7 +1247,7 @@ public sealed partial class MainWindow : Window
             return t;
         }
         var add = Tool("+", Lang.T("Neue Ebene darüber anlegen"), Session.AddLevel);
-        add.IsEnabled = plan.Levels.Count < 10;
+        add.IsEnabled = plan.Levels.Count < LayoutPlan.MaxLevels;
         _levelBar.Children.Add(add);
         _levelBar.Children.Add(Tool("…", Lang.T("Ebenen…"), AskLevels));
     }

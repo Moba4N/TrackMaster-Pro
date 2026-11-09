@@ -872,7 +872,7 @@ public sealed class MainActivity : Activity
             _levelBar.AddView(chip);
         }
         var add = Ui.Button(this, "+", _session.AddLevel);
-        add.Enabled = plan.Levels.Count < 10;
+        add.Enabled = plan.Levels.Count < LayoutPlan.MaxLevels;
         _levelBar.AddView(add);
         _levelBar.AddView(Ui.Button(this, "…", () => Run("levels")));
     }

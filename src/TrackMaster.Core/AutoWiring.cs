@@ -95,7 +95,21 @@ public static class AutoWiring
                     d.Address ??= plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1;
                     detectors++;
                 }
-                if (dets.Any(d => d.Source is { Length: > 0 })) continue;
+                if (dets.Any(d => d.Source is { Length: > 0 }))
+                {
+                    // Bahnstrom kommt über den Besetztmelder (Melderkabel), die Masse direkt von der Quelle ans Gleis
+                    if (PowerSupply.GroundTerminal(src) is { } srcGround)
+                        foreach (var piece in dets.Select(d => plan.Find(d.PieceId)).OfType<PlacedPiece>().DistinctBy(p => p.Id))
+                        {
+                            var left = sides.TryGetValue(piece.Id, out var sd) && sd;
+                            var ground = new Feeder { Id = plan.NextId++, PieceId = piece.Id, Circuit = src.Name, Ground = true, Reversed = !left };
+                            var w = AddWire(plan, srcGround, Electrics.FeederPoint(plan, piece, ground), WireUse.Rueckleiter, Lang.F($"Masse {src.Name} → Gleis Nr. {piece.Id}"), current);
+                            ground.WireId = w.Id;
+                            plan.Feeders.Add(ground);
+                            wires++;
+                        }
+                    continue;
+                }
             }
             var from = src;
             if (loop)
@@ -145,8 +159,7 @@ public static class AutoWiring
                 plan.Feeders.Add(supply);
                 feeds++;
                 wires++;
-                // Masse: Gleichstrom an jeder Einspeisung, Wechselstrom einmal je Abschnitt
-                if (current == CurrentKind.Gleichstrom || k == 0)
+                // Masse: an jeder Einspeisung ein eigenes Kabel zum Gleis
                 {
                     var w2 = AddWire(plan, gOut, Electrics.FeederPoint(plan, piece, ground), WireUse.Rueckleiter, Lang.F($"Masse {from.Name} → Gleis Nr. {piece.Id}"), current);
                     ground.WireId = w2.Id;

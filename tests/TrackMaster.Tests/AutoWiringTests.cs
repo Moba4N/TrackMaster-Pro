@@ -49,6 +49,8 @@ public class AutoWiringTests
         Assert.NotEmpty(PowerSupply.GroundsOf(s.Plan, zentrale));
         // jede Einspeisung hängt an einem Kabel, das an der Quelle beginnt
         Assert.All(s.Plan.Feeders, f => Assert.Contains(s.Plan.Scenery, w => w.Id == f.WireId));
+        // zu jeder Bahnstrom-Einspeisung führt auch ein Massekabel ans selbe Gleis
+        Assert.All(s.Plan.Feeders.Where(f => !f.Ground), f => Assert.Contains(s.Plan.Feeders, g => g.Ground && g.PieceId == f.PieceId && g.WireId is not null));
 
         // ein zweiter Lauf ersetzt, statt zu verdoppeln; Rückgängig in einem Schritt
         var feeders = s.Plan.Feeders.Count;
@@ -140,7 +142,10 @@ public class AutoWiringTests
         s.AutoWire();
         Assert.True(s.Plan.DetectorWiring);
         var bm = Assert.Single(PowerSupply.Modules(s.Plan), m => m.Model == "Besetztmelder");
-        Assert.DoesNotContain(s.Plan.Feeders, f => f.PieceId == spur.Id);
+        Assert.DoesNotContain(s.Plan.Feeders, f => f.PieceId == spur.Id && !f.Ground);
+        // Masse des Melderabschnitts per Kabel von der Quelle ans Gleis
+        var g = Assert.Single(s.Plan.Feeders, f => f.PieceId == spur.Id && f.Ground);
+        Assert.Contains(s.Plan.Scenery, w => w.Id == g.WireId);
         Assert.NotNull(s.DetectorOn(spur.Id)!.Source);
         Assert.Contains(s.Plan.Scenery, w => DetectorWiring.IsAutoFeed(w) && w.Points[0] == Decoders.FeedTerminals(bm)!.Value.Track);
         Assert.Empty(Errors(s.Plan));

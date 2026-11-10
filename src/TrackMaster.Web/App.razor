@@ -131,6 +131,7 @@
                     }
                     <div class="ctx-sep" role="separator"></div>
                     <button role="menuitem" @onclick="@(() => CtxRun("wires"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@(_session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"))</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("autoWire"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@Lang.T("Automatisch verkabeln")</span></button>
                     <button role="menuitem" @onclick="@(() => CtxRun("detectorWires"))">@((MarkupString)Icons.Svg("Detector", 16))<span>@(_session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"))</span></button>
                     <button role="menuitem" @onclick="@(() => CtxRun("numberElectrics"))">@((MarkupString)Icons.Svg("Hash", 16))<span>@Lang.T("Elektrik nummerieren")</span></button>
                 </div>
@@ -407,11 +408,14 @@
                 new(Lang.T("Trafo / Zentrale"), "Power", "toolPower", true, Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Danach mit „Kabel von hier verlegen“ Bahnstrom und Masse aufs Gleis legen; jedes Kabelende auf einem Gleis ist eine Einspeisung.")),
                 new(Lang.T("Kabel zeigen"), "Wire", "wires", false, Lang.T("Selbst verlegte Kabel und die roten Verbindungslinien ein- oder ausblenden.")),
                 new(Lang.T("Kabel verlegen"), "Wire", "toolWire", true, Lang.T("Kabel selbst verlegen: Punkte anklicken, Doppelklick beendet. Die Enden rasten an Zentrale, Booster, Verteilern, Rückmeldern, Signalen und Weichenantrieben ein. Ein Ende auf einem Gleis wird zur Einspeisung (Bahnstrom oder Masse, je nachdem, woher das Kabel kommt).")),
-                new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
+                new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false),
+                new(Lang.T("Automatisch verkabeln"), "Wire", "autoWire", true, Lang.T("Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Kleine Anlagen speist die Zentrale; über mehrere Ebenen oder bei viel Gleis kommen Booster dazu und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Abschnitte mit Melder laufen über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.")),
+                new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
                 new(Lang.T("Nur Elektrik beschriften"), "Hash", "elecLabels", false, Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern an den Gleisen ausblenden und stattdessen die Abschnitte beschriften.")),
                 new(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", false)]),
             new(Lang.T("Digital"), [new(Lang.T("Adressen"), "Hash", "addresses", false, Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
+                new(Lang.T("Besetztmelder"), "Detector", "toolOccupancy", true, Lang.T("Besetztmelder (16 Eingänge) wie einen Booster in den Plan setzen. Er bekommt Bahnstrom (B) und Masse (0) von Zentrale oder Booster und speist die Abschnitte mit Melder.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
                 new(Lang.T("Melder verkabeln"), "Wire", "detectorWires", false, Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
                 new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),

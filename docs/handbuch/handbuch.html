@@ -1258,6 +1258,20 @@ Zentrale und Booster oder für eine Kehrschleife.</p>
 Beim <b>Zweileiter</b> trifft dabei die linke Schiene auf die rechte: Bahnstrom auf Masse, also ein Kurzschluss. Die Lösung: An beiden Enden der Schleife Trennstellen
 setzen und die Schleife über ein <b>Kehrschleifenmodul</b> (digital) bzw. einen <b>Polwendeschalter</b> (analog) versorgen. Das Programm erkennt Kehrschleifen selbst
 und meldet sie. Beim Mittelleiter gibt es dieses Problem nicht.</p>
+<h3>Automatisch verkabeln</h3>
+<p>Der schnellste Weg zur fertigen Verkabelung: Gleisplan bauen, Trennstellen setzen, dann <span class="ui">Elektrik › Automatisch verkabeln</span>
+(auch im Kontextmenü). Das Programm legt für jeden Abschnitt Einspeisungen mit <b>Bahnstrom und Masse</b> an – bei langen Abschnitten mehrere im Abstand
+der Einspeiseregel – und zieht die Kabel bis zur Quelle.</p>
+<ul>
+<li><b>Kleine Anlage</b> auf einer Ebene: die <b>Zentrale</b> speist alle Abschnitte.</li>
+<li><b>Mehrere Ebenen</b> (oder sehr viel Gleis): je Ebene bzw. angefangene 25 m Gleis (H0) ein <b>Booster</b>; die Zentrale bleibt nur fürs Schalten.
+Damit eine Ebene einen eigenen Booster bekommt, muss sie durch Trennstellen ein eigener Abschnitt sein.</li>
+<li><b>Gleichstrom (Zweileiter)</b>: jede Kehrschleife wird erkannt, fehlende Trennstellen an ihren Enden werden gesetzt und die Schleife über ein
+<b>Kehrschleifenmodul KS1, KS2 …</b> gespeist. Das Modul bekommt oben Bahnstrom (B) und Masse (0) von Zentrale bzw. Booster.</li>
+<li>Abschnitte mit <b>Melder</b> (digital) laufen über den <b>Besetztmelder</b>; er hängt wie ein Booster an Zentrale bzw. Booster. Den Besetztmelder können Sie
+auch selbst über <span class="ui">Elektrik › Besetztmelder</span> setzen.</li>
+</ul>
+<p>Ein erneuter Aufruf ersetzt die automatisch angelegten Kabel, Booster und Module; selbst verlegte Kabel bleiben. Alles lässt sich in einem Schritt rückgängig machen.</p>
 
 <h2 id="k9-2">Elektrik prüfen</h2>
 <p><span class="ui">Elektrik › Elektrik prüfen</span> untersucht den ganzen Plan und listet alles Auffällige auf. Ein Klick auf eine Meldung zeigt die Stelle im Plan.

@@ -622,7 +622,7 @@ public sealed class PlanScene
         var ring = new Pen(B(new Rgb(0x42, 0x42, 0x42)), Math.Max(tr * 0.25, 0.6 / z));
         for (var i = 0; i < n; i++) dc.DrawEllipse(B(new Rgb(0xF2, 0xC0, 0x00)), ring, new Point(-hw + step * (i + 0.5), hd), tr, tr);
         // Besetztmelder: Bahnstrom (B, rot) und Masse (0, braun) oben
-        if (m?.Role == ModuleRole.Melden)
+        if (Decoders.FeedTerminals(src) is not null)
         {
             dc.DrawEllipse(B(new Rgb(0xD3, 0x2F, 0x2F)), ring, new Point(-w / 6, -hd), tr * 1.2, tr * 1.2);
             dc.DrawEllipse(B(new Rgb(0x79, 0x55, 0x48)), ring, new Point(w / 6, -hd), tr * 1.2, tr * 1.2);

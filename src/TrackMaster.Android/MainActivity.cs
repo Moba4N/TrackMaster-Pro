@@ -267,6 +267,13 @@ public sealed class MainActivity : Activity
                 Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan tippen – auch neben die Platte, wo das Gerät später steht."));
         });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
+        Add("autoWire", Lang.T("Automatisch verkabeln"), () => { _session.ShowWires = true; _session.AutoWire(); });
+        Add("toolOccupancy", Lang.T("Besetztmelder setzen"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder") { SetTool(CanvasTool.Select); return; }
+            _session.SelectModule("Besetztmelder");
+            SetTool(CanvasTool.Power);
+        });
         Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, _session.SignalSystem, (t, sy) => { _session.SignalType = t; _session.SignalSystem = sy; SetTool(CanvasTool.Signal); }));
         Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
         Add("current", Lang.T("Betrieb und Stromart"), () =>
@@ -586,7 +593,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
+        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Automatisch verkabeln"), "autoWire", false), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Besetztmelder"), "toolOccupancy", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
                       (Lang.T("Kabel verlegen…"), "toolWire", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabel zeigen"), "wires", true), (Lang.T("Melder verkabeln"), "detectorWires", true), (Lang.T("Elektrik nummerieren"), "numberElectrics", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
@@ -787,6 +794,7 @@ public sealed class MainActivity : Activity
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "wires" => _session.ShowWires,
         "detectorWires" => _session.Plan.DetectorWiring,
+        "toolOccupancy" => _session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder",
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
@@ -888,7 +896,7 @@ public sealed class MainActivity : Activity
                 : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
             CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis tippen. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-            CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan tippen, wo der Baustein liegen soll (auch neben der Platte).")
+            CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Short}: an die Stelle im Plan tippen, wo der Baustein liegen soll (auch neben der Platte).")
                 : Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan tippen, wo sie stehen soll (auch neben der Platte)."),
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),

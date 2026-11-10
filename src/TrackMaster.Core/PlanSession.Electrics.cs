@@ -193,6 +193,25 @@ public sealed partial class PlanSession
         Say(Lang.F($"{n} Kabel und {mods} automatisch angelegte Besetztmelder entfernt. Selbst gesetzte Rückmeldemodule bleiben im Plan."));
     }
 
+    /// <summary>
+    /// Automatisch verkabeln (siehe <see cref="AutoWiring"/>): Strom und Masse für jeden Abschnitt, Booster bei großen Anlagen,
+    /// Kehrschleifenmodule bei Gleichstrom. Ein zweiter Lauf ersetzt das vorher automatisch Angelegte.
+    /// </summary>
+    public void AutoWire()
+    {
+        if (Plan.Pieces.Count == 0) { Say(Lang.T("Noch keine Gleise im Plan.")); return; }
+        Record();
+        var r = AutoWiring.Build(Plan);
+        if (r.Detectors > 0) ShowWires = true;
+        Commit();
+        var power = Plan.Operation == PowerMode.Analog ? Lang.T("Der Fahrtrafo speist alle Abschnitte.")
+            : r.CentralFeeds ? Lang.T("Kleine Anlage: die Zentrale speist alle Abschnitte.")
+            : Lang.F($"{r.Boosters} Booster speisen die Abschnitte (je Ebene bzw. Gleislänge), die Zentrale bleibt fürs Schalten.");
+        var loops = r.Loops > 0 ? " " + Lang.F($"{r.Loops} Kehrschleife(n) über Kehrschleifenmodul (KS) gespeist, {r.Isolations} Trennstelle(n) dafür gesetzt.") : "";
+        var dets = r.Detectors > 0 ? " " + Lang.F($"{r.Detectors} Melder über Besetztmelder angeschlossen.") : "";
+        Say(Lang.F($"Automatisch verkabelt: {r.Sections} Abschnitt(e), {r.Feeds} Einspeisung(en) mit Masse, {r.Wires} Kabel.") + " " + power + loops + dets);
+    }
+
     /// <summary>Startadresse eines Bausteins ändern.</summary>
     public void SetModuleAddress(int id, int? address)
     {

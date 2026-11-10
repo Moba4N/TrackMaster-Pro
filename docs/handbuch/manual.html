@@ -1248,6 +1248,20 @@ command station and booster, or for a reversing loop.</p>
 With <b>two-rail</b> track the left rail meets the right one: track power meets ground, a short circuit. The solution: put isolating joints at both ends of the loop
 and supply it via a <b>reversing module</b> (digital) or a <b>polarity reversing switch</b> (analog). The program detects reversing loops itself
 and reports them. With centre rail this problem does not exist.</p>
+<h3>Wire automatically</h3>
+<p>The quickest way to finished wiring: build the track plan, set the isolating joints, then <span class="ui">Electrics › Wire automatically</span>
+(also in the context menu). The program adds feeds with <b>track power and ground</b> to every section – several on long sections, spaced by the feeder rule –
+and runs the wires to the source.</p>
+<ul>
+<li><b>Small layout</b> on one level: the <b>command station</b> feeds all sections.</li>
+<li><b>Several levels</b> (or a lot of track): one <b>booster</b> per level or per started 25 m of track (H0); the command station is only used for switching.
+For a level to get its own booster it must be a separate section, divided off by isolating joints.</li>
+<li><b>DC (two-rail)</b>: every reversing loop is detected, missing isolating joints at its ends are set and the loop is fed via a
+<b>reversing module KS1, KS2 …</b>. The module gets track power (B) and ground (0) at the top from the command station or booster.</li>
+<li>Sections with a <b>detector</b> (digital) run via the <b>occupancy detector</b>; it hangs on the command station or a booster like a booster does. You can also
+place the occupancy detector yourself via <span class="ui">Electrics › Occupancy detector</span>.</li>
+</ul>
+<p>Running it again replaces the automatically added wires, boosters and modules; wires you laid yourself stay. Everything can be undone in one step.</p>
 
 <h2 id="k9-2">Checking the wiring</h2>
 <p><span class="ui">Wiring › Check wiring</span> examines the whole plan and lists everything unusual. Clicking a message shows the spot in the plan.

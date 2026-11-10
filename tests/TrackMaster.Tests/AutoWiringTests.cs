@@ -237,4 +237,26 @@ public class AutoWiringTests
         s.AutoWire();
         Assert.Empty(s.Plan.Detectors);
     }
+
+    [Fact]
+    public void Viele_Trennstellen_auf_einer_Ebene_bleiben_an_der_Zentrale()
+    {
+        // lange Anlage auf einer Ebene, jedes zweite Gleis getrennt
+        var plan = new LayoutPlan { GaugeId = "H0", BoardWidth = 40000, BoardHeight = 1000 };
+        double x = 100, y = 500, h = 180;
+        for (var i = 0; i < 40; i++)
+        {
+            var p = plan.Add(Catalog.FlexStraightKey("H0", 900));
+            PlanEditing.PlaceAt(p, 0, x, y, h);
+            var end = p.WorldConnectors()[1];
+            (x, y, h) = (end.X, end.Y, end.Heading);
+            if (i % 2 == 1) plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = p.Id, Index = 0 });
+        }
+        var s = Session(plan);
+        Assert.True(Electrics.Sections(s.Plan, Connectivity.Analyze(s.Plan)).Count >= 20);
+
+        s.AutoWire();
+        Assert.DoesNotContain(PowerSupply.Sources(s.Plan), x => PowerSupply.Type(x) == PowerSourceType.Booster);
+        Assert.Empty(Errors(s.Plan));
+    }
 }

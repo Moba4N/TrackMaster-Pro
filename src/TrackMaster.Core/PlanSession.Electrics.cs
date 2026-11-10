@@ -205,7 +205,7 @@ public sealed partial class PlanSession
         if (r.Detectors > 0) ShowWires = true;
         Commit();
         var power = Plan.Operation == PowerMode.Analog ? Lang.T("Der Fahrtrafo speist alle Abschnitte.")
-            : r.CentralFeeds ? Lang.T("Kleine Anlage: die Zentrale speist alle Abschnitte.")
+            : r.CentralFeeds ? Lang.T("Eine Ebene: die Zentrale speist alle Abschnitte.")
             : Lang.F($"{r.Boosters} Booster speisen die Abschnitte (je Ebene bzw. Gleislänge), die Zentrale bleibt fürs Schalten.");
         var loops = r.Loops > 0 ? " " + Lang.F($"{r.Loops} Kehrschleife(n) über Kehrschleifenmodul (KS) gespeist, {r.Isolations} Trennstelle(n) dafür gesetzt.") : "";
         var autoDets = r.AutoDetectors > 0 ? " " + Lang.F($"{r.AutoDetectors} Melder selbst gesetzt (je Abschnitt zwischen Trennstellen einer).") : "";

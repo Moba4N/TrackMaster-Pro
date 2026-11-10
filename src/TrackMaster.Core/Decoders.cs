@@ -56,6 +56,10 @@ public static class Decoders
 
     public static IReadOnlyList<DecoderModel> Models { get; } =
     [
+        // ── neutral (ohne Hersteller, für „Melder verkabeln“) ──
+        D("Allgemein", "Besetztmelder", Lang.T("Besetztmelder (16 Eingänge, neutral)"), Rm, 16, 16, "s88, LocoNet, R-Bus",
+            Lang.T("Neutraler Gleisbesetztmelder mit 16 Eingängen. Oben Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale, unten die Ausgänge zu den Meldeabschnitten.")),
+
         // ── ESU ──
         D("ESU", "51830", Lang.T("SwitchPilot 3 (4× Magnetartikel, 2× Servo)"), Mag, 6, 6, "DCC, Motorola",
             Lang.T("4 Ausgänge für Doppelspulenantriebe oder Licht und 2 Servoanschlüsse.")),
@@ -321,6 +325,10 @@ public static class Decoders
         var n = Math.Clamp(ModelOf(s)?.Outputs ?? 0, 0, 16);
         return Enumerable.Range(0, n).Select(i => PowerSupply.Local(s, -s.Width / 2 + s.Width * (i + 0.5) / n, s.Depth / 2)).ToList();
     }
+
+    /// <summary>Rückmeldebaustein: Klemmen an der Oberkante für Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale, sonst null.</summary>
+    public static ((double X, double Y) Track, (double X, double Y) Ground)? FeedTerminals(SceneryItem s)
+        => ModelOf(s)?.Role == ModuleRole.Melden ? (PowerSupply.Local(s, -s.Width / 6, -s.Depth / 2), PowerSupply.Local(s, s.Width / 6, -s.Depth / 2)) : null;
 
     /// <summary>Bezeichnung einer Klemme, z. B. „Ausgang 3“ oder „Melder 5“.</summary>
     public static string PortName(DecoderModel m, int index) => m.Role == ModuleRole.Melden ? Lang.F($"Melder {index + 1}") : Lang.F($"Ausgang {index + 1}");

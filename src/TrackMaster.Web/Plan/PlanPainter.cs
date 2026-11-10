@@ -634,6 +634,18 @@ public sealed class PlanPainter
             p.StrokeWidth = Math.Max(tr * 0.25f, 0.6f / z);
             c.DrawCircle(x, hd, tr, p);
         }
+        // Besetztmelder: Bahnstrom (B, rot) und Masse (0, braun) oben
+        if (feedback)
+            foreach (var (x, rgb) in new[] { (-w / 6, Color.Rgb(0xD3, 0x2F, 0x2F)), (w / 6, Color.Rgb(0x79, 0x55, 0x48)) })
+            {
+                p.SetStyle(Paint.Style.Fill);
+                p.Color = rgb;
+                c.DrawCircle(x, -hd, tr * 1.2f, p);
+                p.SetStyle(Paint.Style.Stroke);
+                p.Color = Color.Rgb(0x42, 0x42, 0x42);
+                p.StrokeWidth = Math.Max(tr * 0.25f, 0.6f / z);
+                c.DrawCircle(x, -hd, tr * 1.2f, p);
+            }
         c.Restore();
     }
 

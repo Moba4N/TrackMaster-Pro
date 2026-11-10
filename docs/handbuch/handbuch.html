@@ -1348,11 +1348,12 @@ Der Abschnitt gilt damit als gespeist – <span class="ui">Elektrik prüfen</spa
 im Kabelplan steht „Fahrstrom über Melder 3“.</p>
 <p><span class="ui">Elektrik › Melder verkabeln</span> (auch im Kontextmenü: <span class="ui">Rückmelder mit Modul verbinden</span>) verbindet jeden Rückmelder,
 der eine Kontaktnummer hat, mit einem violetten Kabel mit der passenden Klemme seines Rückmeldemoduls. Kontakt 5 landet an Melder 5 des ersten Moduls,
-Kontakt 20 an Melder 4 des zweiten. Gibt es für einen Kontakt noch kein Modul, legt das Programm eines unter dem Gleisplan an (je 16 Kontakte ein Modul;
-bei Wechselstrom ein s88 AC, sonst ein s88 DC – oder derselbe Typ wie Ihre schon gesetzten Rückmeldemodule).
+Kontakt 20 an Melder 4 des zweiten. Gibt es für einen Kontakt noch kein Modul, legt das Programm einen neutralen <b>Besetztmelder</b> unter dem Gleisplan an
+(„Besetztmelder 1“, „Besetztmelder 2“ …, je 16 Kontakte einer). Oben am Besetztmelder liegen Bahnstrom (B, rot) und Masse (0, braun):
+von dort führt je ein Kabel zur Zentrale bzw. zum Booster, die Sie beim Melder unter „Fahrstrom von“ gewählt haben. Damit sind Einspeisung und Masse des Abschnitts in Ordnung.
 Solange die Funktion eingeschaltet ist, folgen die Kabel jeder Änderung: neuer Rückmelder, andere Kontaktnummer, verschobenes Gleis oder gelöschter Rückmelder.
 Ein zweiter Klick auf <span class="ui">Melder verkabeln</span> (<span class="ui">Rückmelder-Kabel entfernen</span>) nimmt alle diese Kabel wieder heraus;
-die Module bleiben stehen und lassen sich einzeln löschen.</p>
+die automatisch angelegten Besetztmelder verschwinden mit, selbst gesetzte Rückmeldemodule bleiben stehen.</p>
 
 <h2 id="k9-11">Nummerieren</h2>
 <p><span class="ui">Elektrik › Nummerieren</span> gibt allen Einspeisungen (G1, G2 …), Meldern (Melder 1, Melder 2 …) und Kabeln (K1, K2 …) eine Nummer, von links oben nach rechts unten.

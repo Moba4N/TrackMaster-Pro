@@ -10,13 +10,19 @@ namespace TrackMaster.Core;
 public static class DetectorWiring
 {
     /// <summary>Automatisch verlegtes Rückmelder-Kabel (gehört zum Rückmelder auf diesem Gleis).</summary>
-    public static bool IsAuto(SceneryItem s) => s.IsWire && WireLayout.Use(s) == WireUse.Rueckmelder && s.Tracks.Count == 1;
+    public static bool IsAuto(SceneryItem s) => s.IsWire && WireLayout.Use(s) == WireUse.Rueckmelder && s.Tracks.Count == 1 && s.Tracks[0] != 0;
 
-    /// <summary>Gerät für neue Rückmeldemodule: wie die schon gesetzten, sonst s88 für Wechsel- bzw. Gleichstrom.</summary>
-    public static DecoderModel DefaultModel(LayoutPlan plan)
-        => PowerSupply.Modules(plan).Select(Decoders.ModelOf).OfType<DecoderModel>().Where(m => m.Role == ModuleRole.Melden)
-               .GroupBy(m => m.Id).OrderByDescending(g => g.Count()).Select(g => g.First()).FirstOrDefault()
-           ?? Decoders.Find(Electrics.Current(plan) == CurrentKind.Wechselstrom ? "60881" : "60882")!;
+    /// <summary>Automatisch verlegtes Kabel von Booster bzw. Zentrale (Bahnstrom oder Masse) zum Besetztmelder.</summary>
+    public static bool IsAutoFeed(SceneryItem s) => s.IsWire && WireLayout.Use(s) is WireUse.Fahrstrom or WireUse.Rueckleiter && s.Tracks is [0];
+
+    /// <summary>Automatisch angelegter Besetztmelder (Baustein).</summary>
+    public static bool IsAutoModule(SceneryItem s) => s.IsPower && s.Tracks is [0];
+
+    /// <summary>Von „Melder verkabeln“ angelegt (Kabel oder Baustein); wird beim Ausschalten wieder entfernt.</summary>
+    public static bool IsGenerated(SceneryItem s) => IsAuto(s) || IsAutoFeed(s) || IsAutoModule(s);
+
+    /// <summary>Gerät für neue Rückmeldemodule: der neutrale Besetztmelder (16 Eingänge, ohne Hersteller).</summary>
+    public static DecoderModel DefaultModel(LayoutPlan plan) => Decoders.Find("Besetztmelder")!;
 
     /// <summary>Neuen Baustein dieses Typs anlegen (Größe, Name „Typ n“), noch nicht im Plan.</summary>
     public static SceneryItem NewModule(LayoutPlan plan, DecoderModel m, double x, double y, int? address)
@@ -54,7 +60,7 @@ public static class DetectorWiring
         // Kabel ohne Rückmelder (und doppelte) entfernen
         var wires = new Dictionary<int, SceneryItem>();
         removed = plan.Scenery.RemoveAll(s => IsAuto(s) && (!wanted.ContainsKey(s.Tracks[0]) || !wires.TryAdd(s.Tracks[0], s)));
-        if (wanted.Count == 0) return new(0, 0, 0, removed);
+        if (wanted.Count == 0) return new(0, 0, 0, removed + plan.Scenery.RemoveAll(IsAutoFeed));
 
         // fehlende Module anlegen: Startadresse auf die Modulgröße ausgerichtet (1, 17, 33 … bei 16 Eingängen)
         var model = DefaultModel(plan);
@@ -69,6 +75,7 @@ public static class DetectorWiring
             var mod = NewModule(plan, model, x, y, start);
             mod.Id = plan.NextId++;
             mod.Level = Math.Clamp(plan.ActiveLevel, 0, plan.Levels.Count - 1);
+            mod.Tracks = [0];
             plan.Scenery.Add(mod);
             modules++;
         }
@@ -103,11 +110,53 @@ public static class DetectorWiring
             });
             added++;
         }
+
+        // Einspeisung der Besetztmelder: Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale an die Klemmen oben
+        var sources = PowerSupply.Sources(plan).Where(s => PowerSupply.Type(s) is PowerSourceType.Zentrale or PowerSourceType.Booster).ToList();
+        var want = new List<((double X, double Y) From, (double X, double Y) To, WireUse Use, string Name, int Level)>();
+        foreach (var mod in PowerSupply.Modules(plan).ToList())
+        {
+            if (Decoders.FeedTerminals(mod) is not { } ft || Decoders.Range(mod) is not { } r) continue;
+            var names = plan.Detectors.Where(d => d.Address is { } a && a >= r.First && a <= r.Last && wanted.ContainsKey(d.PieceId) && d.Source is { Length: > 0 })
+                .Select(d => d.Source!).Distinct();
+            foreach (var src in names.Select(n => sources.FirstOrDefault(s => s.Name == n)).OfType<SceneryItem>())
+            {
+                want.Add((ft.Track, PowerSupply.Terminal(src), WireUse.Fahrstrom, Lang.F($"Bahnstrom {src.Name} → {mod.Name}"), mod.Level));
+                if (PowerSupply.GroundTerminal(src) is { } g)
+                    want.Add((ft.Ground, g, WireUse.Rueckleiter, Lang.F($"Masse {src.Name} → {mod.Name}"), mod.Level));
+            }
+        }
+        bool Matches(SceneryItem w, ((double X, double Y) From, (double X, double Y) To, WireUse Use, string, int) x)
+            => WireLayout.Use(w) == x.Use && w.Points.Count >= 2 && Near(w.Points[0], x.From) && Near(w.Points[^1], x.To);
+        var keep = new HashSet<SceneryItem>();
+        var missing = new List<((double X, double Y) From, (double X, double Y) To, WireUse Use, string Name, int Level)>();
+        foreach (var x in want)
+            if (plan.Scenery.FirstOrDefault(w => IsAutoFeed(w) && !keep.Contains(w) && Matches(w, x)) is { } found) keep.Add(found);
+            else missing.Add(x);
+        removed += plan.Scenery.RemoveAll(w => IsAutoFeed(w) && !keep.Contains(w));
+        var lane = plan.Gauge.TrackWidth * 3;
+        foreach (var x in missing)
+        {
+            // erst ein Stück nach oben (Bahnstrom und Masse auf getrennten Höhen), dann hinüber und auf die Klemme der Quelle
+            var y = Math.Min(x.From.Y, x.To.Y) - lane * (x.Use == WireUse.Fahrstrom ? 1 : 2);
+            List<(double X, double Y)> pts = Math.Abs(x.From.X - x.To.X) < 0.5 ? [x.From, x.To] : [x.From, (x.From.X, y), (x.To.X, y), x.To];
+            plan.Scenery.Add(new SceneryItem
+            {
+                Kind = SceneryKind.Wire, Variant = (int)x.Use, Id = plan.NextId++, Name = x.Name, Level = x.Level, Tracks = [0],
+                Color = WireLayout.DefaultColor(x.Use, current), Depth = WireLayout.DefaultSection(x.Use, plan.Gauge),
+                Points = pts, X = pts[0].X, Y = pts[0].Y,
+            });
+            added++;
+        }
         return new(modules, added, moved, removed);
     }
 
-    /// <summary>Alle automatisch verlegten Rückmelder-Kabel entfernen; liefert die Anzahl.</summary>
-    public static int RemoveAll(LayoutPlan plan) => plan.Scenery.RemoveAll(IsAuto);
+    /// <summary>Alle von „Melder verkabeln“ angelegten Kabel und Besetztmelder entfernen; liefert die Zahl der Kabel und der Bausteine.</summary>
+    public static (int Wires, int Modules) RemoveAll(LayoutPlan plan)
+    {
+        var modules = plan.Scenery.RemoveAll(IsAutoModule);
+        return (plan.Scenery.RemoveAll(s => IsAuto(s) || IsAutoFeed(s)), modules);
+    }
 
     /// <summary>Kabelweg: vom Rückmelder senkrecht zur Höhe der Klemme, dann waagerecht hinüber.</summary>
     private static List<(double X, double Y)> Route((double X, double Y) from, (double X, double Y) to)

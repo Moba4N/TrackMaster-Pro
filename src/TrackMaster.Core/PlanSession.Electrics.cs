@@ -185,12 +185,12 @@ public sealed partial class PlanSession
             var withContact = Plan.Detectors.Count(d => d.Address is not null);
             Say(withContact == 0
                 ? Lang.T("Rückmelder werden automatisch verkabelt, sobald sie einen Kontakt haben.")
-                : Lang.F($"Rückmelder verkabelt: {r.Added} Kabel zum Rückmeldemodul verlegt, {r.Modules} Modul(e) neu angelegt. Ändert sich Kontakt oder Gleis, folgt das Kabel."));
+                : Lang.F($"Melder verkabelt: {r.Added} Kabel verlegt, {r.Modules} Besetztmelder angelegt. Bahnstrom (B) und Masse (0) kommen von Booster bzw. Zentrale. Ändert sich Kontakt, Quelle oder Gleis, folgen die Kabel."));
             return;
         }
-        var n = DetectorWiring.RemoveAll(Plan);
+        var (n, mods) = DetectorWiring.RemoveAll(Plan);
         Commit();
-        Say(Lang.F($"{n} Rückmelder-Kabel entfernt. Die Rückmeldemodule bleiben im Plan und lassen sich einzeln löschen."));
+        Say(Lang.F($"{n} Kabel und {mods} automatisch angelegte Besetztmelder entfernt. Selbst gesetzte Rückmeldemodule bleiben im Plan."));
     }
 
     /// <summary>Startadresse eines Bausteins ändern.</summary>

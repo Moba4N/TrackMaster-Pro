@@ -142,10 +142,25 @@ public static class Electrics
         {
             var ids = groups[i].Select(p => p.Id).ToList();
             var set = ids.ToHashSet();
-            result.Add(new PowerSection(i + 1, ids, groups[i].Sum(p => p.Def.TrackLength), plan.Feeders.Where(f => set.Contains(f.PieceId)).ToList()));
+            result.Add(new PowerSection(i + 1, ids, groups[i].Sum(p => p.Def.TrackLength), plan.Feeders.Concat(DetectorFeeds(plan)).Where(f => set.Contains(f.PieceId)).ToList()));
         }
         return result;
     }
+
+    /// <summary>
+    /// Fahrstrom über Melder (digital): Ein Gleisbesetztmelder mit <see cref="Detector.Source"/> sitzt zwischen Zentrale bzw. Booster und
+    /// Gleis; sein Gleis ist damit gespeist. Liefert dafür Einspeisungen, die nicht im Plan gespeichert sind (Kennung = minus Melder-Kennung).
+    /// </summary>
+    public static IEnumerable<Feeder> DetectorFeeds(LayoutPlan plan)
+    {
+        if (plan.Operation == PowerMode.Analog) yield break;
+        foreach (var d in plan.Detectors)
+            if (d.Source is { Length: > 0 } src && plan.Find(d.PieceId) is not null)
+                yield return new Feeder { Id = -d.Id, PieceId = d.PieceId, Circuit = src, Name = d.Name.Length > 0 ? d.Name : Lang.F($"Rückmelder Nr. {d.Id}") };
+    }
+
+    /// <summary>Einspeisung, die über einen Melder kommt (siehe <see cref="DetectorFeeds"/>).</summary>
+    public static bool IsDetectorFeed(Feeder f) => f.Id < 0;
 
     /// <summary>
     /// Sucht Kehrschleifen im Zweileiter-System: Jeder Gleisabschnitt hat eine linke und rechte Schiene. Über eine Verbindung
@@ -261,6 +276,7 @@ public static class Electrics
     {
         var sides = RailSides(plan, connectivity);
         var result = new List<(PowerSection, IReadOnlyList<Feeder>)>();
+        sections = sections.Select(s => s with { Feeders = s.Feeders.Where(f => !IsDetectorFeed(f)).ToList() }).ToList();
         foreach (var s in sections.Where(s => s.Feeders.Count > 1))
         {
             // Plus an Schiene B? (rechte Schiene = Gegenseite der linken; vertauscht dreht es um, ein Masseanschluss ebenso)
@@ -479,7 +495,7 @@ public static class Electrics
     {
         var mode = plan.Operation;
         var sources = PowerSupply.Sources(plan).ToList();
-        foreach (var g in plan.Feeders.Where(f => !f.Ground && plan.Find(f.PieceId) is not null).GroupBy(f => f.Circuit))
+        foreach (var g in plan.Feeders.Concat(DetectorFeeds(plan)).Where(f => !f.Ground && plan.Find(f.PieceId) is not null).GroupBy(f => f.Circuit))
         {
             var src = sources.FirstOrDefault(s => s.Name == g.Key);
             var pieces = g.Select(f => f.PieceId).Distinct().ToList();
@@ -620,8 +636,9 @@ public static class Electrics
             foreach (var f in s.Feeders)
                 sb.AppendLine((f.Ground
                     ? Lang.F($"    Masse {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}")
+                    : IsDetectorFeed(f) ? Lang.F($"    Fahrstrom über {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}")
                     : Lang.F($"    Einspeisung {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}"))
-                    + (r.Current == CurrentKind.Gleichstrom || f.Ground ? (f.Reversed ? Lang.T(" (rechte Schiene)") : Lang.T(" (linke Schiene)")) : ""));
+                    + (!IsDetectorFeed(f) && (r.Current == CurrentKind.Gleichstrom || f.Ground) ? (f.Reversed ? Lang.T(" (rechte Schiene)") : Lang.T(" (linke Schiene)")) : ""));
         }
         sb.AppendLine();
         sb.AppendLine(Lang.F($"Trennstellen ({plan.Isolations.Count})"));

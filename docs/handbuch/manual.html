@@ -1330,7 +1330,12 @@ Great Britain and the USA. The signal is shown in the plan and in the 3D view wi
 </ul>
 <figure class="third"><img src="img-en/rueckmelder.png" alt=""><figcaption>Choosing the type of feedback sensor.</figcaption></figure>
 <p>Then click the tracks. The contacts are numbered in sequence, 16 per feedback module. Clicking an existing sensor removes it.
-Change name, type and contact number in the properties.</p>
+Change name, type and contact number in the properties. The sensors are numbered “Melder 1”, “Melder 2” and so on.</p>
+<p>In digital operation an occupancy detector sits between the command station or booster and the track: the traction power flows through the detector into the track.
+In the properties, choose under <span class="ui">Traction power from (command station / booster)</span> where the detector gets its power from.
+A new detector automatically gets the command station or booster that already feeds its section, otherwise the first booster or the command station in the plan.
+The section then counts as fed – <span class="ui">Check electrics</span> no longer reports a missing feeder there. A red dashed line in the plan shows the connection,
+and the wiring plan lists “Traction power through Melder 3”.</p>
 <p><span class="ui">Electrics › Wire detectors</span> (also in the context menu: <span class="ui">Connect detectors to module</span>) connects every feedback sensor
 that has a contact number to the matching terminal of its feedback module with a violet wire. Contact 5 goes to input 5 of the first module,
 contact 20 to input 4 of the second. If there is no module for a contact yet, the program places one below the track plan (one module per 16 contacts;
@@ -1340,7 +1345,7 @@ Clicking <span class="ui">Wire detectors</span> again (<span class="ui">Remove d
 the modules stay and can be deleted one by one.</p>
 
 <h2 id="k9-11">Numbering</h2>
-<p><span class="ui">Wiring › Number</span> gives all feeders (G1, G2 …), feedback sensors (M1, M2 …) and wires (K1, K2 …) a number, from top left to bottom right.
+<p><span class="ui">Wiring › Number</span> gives all feeders (G1, G2 …), feedback sensors (Melder 1, Melder 2 …) and wires (K1, K2 …) a number, from top left to bottom right.
 Write the same numbers on the real wires when building – then you will find every wire again later.</p>
 
 <h2 id="k9-5">Wiring plan</h2>

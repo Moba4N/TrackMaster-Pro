@@ -1006,7 +1006,7 @@ public sealed partial class MainWindow : Window
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
                 Toggle(Lang.T("Melder verkabeln"), "Wire", false, () => Session.Plan.DetectorWiring, on => { if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); },
                     Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
-                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
+                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Melder (Melder 1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));

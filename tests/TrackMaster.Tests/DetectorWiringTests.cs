@@ -153,4 +153,50 @@ public class DetectorWiringTests
         s.SetDetectorWiring(true);
         Assert.Equal("60881", Assert.Single(FeedbackModules(s)).Model);
     }
+    [Fact]
+    public void Melder_heissen_fortlaufend_Melder_n()
+    {
+        var (s, pieces) = Line(3);
+        foreach (var p in pieces) s.ToggleDetectorOn(p.Id);
+        Assert.Equal(["Melder 1", "Melder 2", "Melder 3"], s.Plan.Detectors.Select(d => d.Name));
+        s.ToggleDetectorOn(pieces[1].Id);
+        s.ToggleDetectorOn(pieces[1].Id);
+        Assert.Equal("Melder 4", s.DetectorOn(pieces[1].Id)!.Name);
+    }
+
+    [Fact]
+    public void Melder_mit_Booster_speist_den_Abschnitt()
+    {
+        var (s, pieces) = Line(2);
+        var zentrale = s.AddPowerSource(PowerSourceType.Zentrale, 100, 900);
+        var booster = s.AddPowerSource(PowerSourceType.Booster, 600, 900);
+        Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Einspeisung" && i.Level == IssueLevel.Fehler);
+
+        // Neuer Melder bekommt den Booster als Quelle, der Abschnitt ist damit gespeist
+        s.ToggleDetectorOn(pieces[0].Id);
+        var d = s.DetectorOn(pieces[0].Id)!;
+        Assert.Equal(booster.Name, d.Source);
+        var issues = Electrics.Analyze(s.Plan).Issues;
+        Assert.DoesNotContain(issues, i => i.Category == "Einspeisung" && i.Level == IssueLevel.Fehler);
+        Assert.Single(PowerSupply.FeedersOf(s.Plan, booster));
+        Assert.Contains("Fahrstrom über Melder 1", Electrics.WiringPlan(s.Plan));
+        Assert.Empty(s.Plan.Feeders);
+
+        // Quelle wählbar, auch „keine“
+        s.SetDetectorSource(d.Id, zentrale.Name);
+        Assert.Single(PowerSupply.FeedersOf(s.Plan, zentrale));
+        s.SetDetectorSource(d.Id, null);
+        Assert.Contains(Electrics.Analyze(s.Plan).Issues, i => i.Category == "Einspeisung" && i.Level == IssueLevel.Fehler);
+
+        // Umbenennen der Quelle nimmt den Melder mit, Speichern behält die Wahl
+        s.SetDetectorSource(d.Id, booster.Name);
+        s.RenamePowerSource(booster.Id, "Booster Bahnhof");
+        Assert.Equal("Booster Bahnhof", d.Source);
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.Equal("Booster Bahnhof", back.Detectors.Single().Source);
+
+        // Analog gibt es keinen Fahrstrom über Melder
+        s.SetOperation(PowerMode.Analog);
+        Assert.Empty(Electrics.DetectorFeeds(s.Plan));
+    }
 }

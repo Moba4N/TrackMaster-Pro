@@ -370,7 +370,21 @@ public sealed class Detector
     public string Name { get; set; } = "";
     /// <summary>Kontakt bzw. Eingang am Rückmeldemodul (z. B. s88: Modul × 16 + Eingang).</summary>
     public int? Address { get; set; }
-    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address };
+    /// <summary>
+    /// Digital: Zentrale bzw. Booster (Name der Quelle), deren Fahrstrom über den Melder ins Gleis geht – der Gleisbesetztmelder sitzt
+    /// zwischen Booster-Ausgang und Gleis. Der Abschnitt gilt damit als gespeist (siehe <see cref="Electrics.DetectorFeeds"/>). null = keine.
+    /// </summary>
+    public string? Source { get; set; }
+    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address, Source = Source };
+
+    /// <summary>Name für den nächsten Melder: „Melder n“ mit der nächsten freien Nummer.</summary>
+    public static string NextName(LayoutPlan plan)
+    {
+        var max = 0;
+        foreach (var d in plan.Detectors)
+            if (d.Name.StartsWith("Melder ", StringComparison.Ordinal) && int.TryParse(d.Name.AsSpan(7), out var n)) max = Math.Max(max, n);
+        return $"Melder {Math.Max(max, plan.Detectors.Count) + 1}";
+    }
 
     public static string TypeName(DetectorType t) => t switch
     {

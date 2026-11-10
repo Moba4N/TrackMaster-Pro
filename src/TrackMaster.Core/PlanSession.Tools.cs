@@ -147,13 +147,12 @@ public sealed partial class PlanSession
     public void AddDetector(int pieceId)
     {
         Record();
-        var next = Plan.Detectors.Select(d => d.Address ?? 0).DefaultIfEmpty(0).Max() + 1;
-        var d = new Detector { Id = Plan.NextId++, PieceId = pieceId, Type = DetectorType, Name = $"RM{Plan.Detectors.Count + 1}", Address = next };
+        var d = NewDetector(pieceId);
         Plan.Detectors.Add(d);
         SelectedObject = d.Id;
         Selection.Clear();
         Commit();
-        Say(Lang.F($"Rückmelder {d.Name} an Gleis Nr. {pieceId} (Kontakt {next})."));
+        Say(DetectorPlacedText(d));
     }
 
     // ---------- Preise und Bestand ----------

@@ -241,7 +241,7 @@ public class Package12Tests
         Assert.Equal(2, s.Plan.Detectors.Count);
         Assert.Equal(2, s.Plan.Detectors[1].Address);
         Assert.Contains(BillOfMaterials.Accessories(s.Plan), a => a.Name.Contains(Detector.InputsPerModule.ToString()));
-        Assert.Contains("RM2", Electrics.WiringPlan(s.Plan));
+        Assert.Contains("Melder 2", Electrics.WiringPlan(s.Plan));
         Assert.Contains("\"detectors\"", TrainRoutes.ToJson(s.Plan));
         // Kopieren und Einfügen nimmt Rückmelder mit
         s.Select(pieces.Select(p => p.Id), false);

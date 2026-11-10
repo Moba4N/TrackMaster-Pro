@@ -679,6 +679,18 @@ public sealed class PropertiesPanel : DockPanel
                 dtype.SelectionChanged += (_, _) => { if (dtype.SelectedItem is ComboBoxItem { Tag: DetectorType t } && t != det.Type) _session.Edit(() => det.Type = t); };
                 _body.Children.Add(Theme.Field(Lang.T("Art"), dtype));
                 _body.Children.Add(Theme.Field(Lang.T("Kontakt am Rückmeldemodul (0 = keiner)"), NumberBox(det.Address ?? 0, v => det.Address = v >= 1 ? (int)Math.Round(Math.Min(v, 4096)) : null, 0)));
+                if (plan.Operation == PowerMode.Digital)
+                {
+                    var dsrc = new ComboBox { Height = 28 };
+                    dsrc.Items.Add(new ComboBoxItem { Content = Lang.T("keine Verbindung"), Tag = "", IsSelected = det.Source is null });
+                    foreach (var src in _session.DetectorSources)
+                        dsrc.Items.Add(new ComboBoxItem { Content = $"{src.Name} ({PowerSupply.TypeName(PowerSupply.Type(src))})", Tag = src.Name, IsSelected = src.Name == det.Source });
+                    if (det.Source is { } missing && _session.DetectorSources.All(x => x.Name != missing))
+                        dsrc.Items.Add(new ComboBoxItem { Content = Lang.F($"{missing} (fehlt im Plan)"), Tag = missing, IsSelected = true });
+                    var detId = det.Id;
+                    dsrc.SelectionChanged += (_, _) => { if (dsrc.SelectedItem is ComboBoxItem { Tag: string n }) _session.SetDetectorSource(detId, n); };
+                    _body.Children.Add(Theme.Field(Lang.T("Fahrstrom von (Zentrale / Booster)"), dsrc));
+                }
                 var drows = new List<(string, string, System.Windows.Media.Brush?)>();
                 if (det.Address is { } da) drows.Add((Lang.T("Modul / Eingang"), Lang.F($"{(da - 1) / Detector.InputsPerModule + 1} / {(da - 1) % Detector.InputsPerModule + 1}"), null));
                 drows.Add((Lang.T("Gleis"), $"{plan.Find(det.PieceId)?.Def.Number} (Nr. {det.PieceId})", null));

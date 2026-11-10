@@ -124,8 +124,9 @@ public class DetectorWiringTests
         s.SetDetectorWiring(false);
         Assert.Empty(AutoWires(s));
         Assert.Contains(own, s.Plan.Scenery);
-        Assert.Single(FeedbackModules(s));
-        Assert.Contains("2 Rückmelder-Kabel entfernt", said);
+        // automatisch angelegte Besetztmelder gehen mit
+        Assert.Empty(FeedbackModules(s));
+        Assert.Contains("2 Kabel und 1 automatisch angelegte Besetztmelder entfernt", said);
     }
 
     [Fact]
@@ -145,13 +146,16 @@ public class DetectorWiringTests
     }
 
     [Fact]
-    public void Wechselstrom_nimmt_s88_AC_sonst_s88_DC()
+    public void Neue_Module_sind_neutrale_Besetztmelder()
     {
         var (s, pieces) = Line(1);
         s.ToggleDetectorOn(pieces[0].Id);
         s.SetCurrent(CurrentKind.Wechselstrom);
         s.SetDetectorWiring(true);
-        Assert.Equal("60881", Assert.Single(FeedbackModules(s)).Model);
+        var m = Assert.Single(FeedbackModules(s));
+        Assert.Equal("Besetztmelder", m.Model);
+        Assert.Equal("Besetztmelder 1", m.Name);
+        Assert.Equal("Besetztmelder", PowerSupply.Label(m));
     }
     [Fact]
     public void Melder_heissen_fortlaufend_Melder_n()
@@ -198,5 +202,84 @@ public class DetectorWiringTests
         // Analog gibt es keinen Fahrstrom über Melder
         s.SetOperation(PowerMode.Analog);
         Assert.Empty(Electrics.DetectorFeeds(s.Plan));
+    }
+    [Fact]
+    public void Aeltere_Plaene_bekommen_Namen_und_Quelle_keine_Verbindung_bleibt()
+    {
+        var (s, pieces) = Line(2);
+        var zentrale = s.AddPowerSource(PowerSourceType.Zentrale, 100, 900);
+        // Plan wie vor der Änderung: „RM1“, „M2“, ohne Quelle
+        var json = PlanSerializer.ToJson(s.Plan);
+        var old = PlanSerializer.FromJson(json, out _);
+        old.Detectors.Add(new Detector { Id = old.NextId++, PieceId = pieces[0].Id, Name = "RM1", Address = 1 });
+        old.Detectors.Add(new Detector { Id = old.NextId++, PieceId = pieces[1].Id, Name = "M2", Address = 2 });
+        var loaded = PlanSerializer.FromJson(PlanSerializer.ToJson(old), out _);
+        Assert.All(loaded.Detectors, d => Assert.Null(d.Source));
+
+        var t = new PlanSession { IsPro = () => true };
+        t.Replace(loaded, null);
+        Assert.Equal(["Melder 1", "Melder 2"], t.Plan.Detectors.Select(d => d.Name));
+        Assert.All(t.Plan.Detectors, d => Assert.Equal(zentrale.Name, d.Source));
+        Assert.DoesNotContain(Electrics.Analyze(t.Plan).Issues, i => i.Category == "Einspeisung" && i.Level == IssueLevel.Fehler);
+
+        // „keine Verbindung“ bleibt auch nach Speichern und Öffnen
+        var d1 = t.Plan.Detectors[0];
+        t.SetDetectorSource(d1.Id, null);
+        Assert.Equal("", d1.Source);
+        var u = new PlanSession { IsPro = () => true };
+        u.Replace(PlanSerializer.FromJson(PlanSerializer.ToJson(t.Plan), out _), null);
+        Assert.Equal("", u.Plan.Detectors[0].Source);
+        Assert.Equal(zentrale.Name, u.Plan.Detectors[1].Source);
+    }
+
+    [Fact]
+    public void Quelle_wird_nachgetragen_wenn_die_Zentrale_spaeter_kommt()
+    {
+        var (s, pieces) = Line(1);
+        s.ToggleDetectorOn(pieces[0].Id);
+        Assert.Null(s.DetectorOn(pieces[0].Id)!.Source);
+        var booster = s.AddPowerSource(PowerSourceType.Booster, 100, 900);
+        Assert.Equal(booster.Name, s.DetectorOn(pieces[0].Id)!.Source);
+    }
+    [Fact]
+    public void Besetztmelder_bekommt_Bahnstrom_und_Masse_vom_Booster()
+    {
+        var (s, pieces) = Line(2);
+        var booster = s.AddPowerSource(PowerSourceType.Booster, 900, 1200);
+        s.ToggleDetectorOn(pieces[0].Id);
+        s.ToggleDetectorOn(pieces[1].Id);
+        s.SetDetectorWiring(true);
+        var m = Assert.Single(FeedbackModules(s));
+        var ft = Decoders.FeedTerminals(m)!.Value;
+        var feeds = s.Plan.Scenery.Where(DetectorWiring.IsAutoFeed).ToList();
+        Assert.Equal(2, feeds.Count);
+        var b = Assert.Single(feeds, w => WireLayout.Use(w) == WireUse.Fahrstrom);
+        Assert.Equal(ft.Track, b.Points[0]);
+        Assert.Equal(PowerSupply.Terminal(booster), b.Points[^1]);
+        var g = Assert.Single(feeds, w => WireLayout.Use(w) == WireUse.Rueckleiter);
+        Assert.Equal(ft.Ground, g.Points[0]);
+        Assert.Equal(PowerSupply.GroundTerminal(booster)!.Value, g.Points[^1]);
+        Assert.NotNull(WireLayout.EndAnchor(s.Plan, b, false));
+
+        // Einspeisung und Masse sind damit in Ordnung
+        var issues = Electrics.Analyze(s.Plan).Issues;
+        Assert.DoesNotContain(issues, i => i.Category is "Einspeisung" or "Masse" && i.Level != IssueLevel.Hinweis);
+        Assert.Equal(2, PowerSupply.GroundsOf(s.Plan, booster).Count());
+        Assert.Contains("Masse über Melder 1", Electrics.WiringPlan(s.Plan));
+
+        // Quelle wechseln: die Kabel gehen zur Zentrale
+        var z = s.AddPowerSource(PowerSourceType.Zentrale, 100, 1200);
+        foreach (var d in s.Plan.Detectors.ToList()) s.SetDetectorSource(d.Id, z.Name);
+        feeds = s.Plan.Scenery.Where(DetectorWiring.IsAutoFeed).ToList();
+        Assert.Equal(2, feeds.Count);
+        Assert.All(feeds, w => Assert.Contains(w.Points[^1], new[] { PowerSupply.Terminal(z), PowerSupply.GroundTerminal(z)!.Value }));
+
+        // Speichern, Öffnen, Ausschalten
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.Equal(2, back.Scenery.Count(DetectorWiring.IsAutoFeed));
+        Assert.Single(back.Scenery, DetectorWiring.IsAutoModule);
+        Assert.False(DetectorWiring.Sync(back).Any);
+        s.SetDetectorWiring(false);
+        Assert.DoesNotContain(s.Plan.Scenery, DetectorWiring.IsGenerated);
     }
 }

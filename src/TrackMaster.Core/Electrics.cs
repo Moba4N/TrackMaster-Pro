@@ -153,10 +153,19 @@ public static class Electrics
     /// </summary>
     public static IEnumerable<Feeder> DetectorFeeds(LayoutPlan plan)
     {
-        if (plan.Operation == PowerMode.Analog) yield break;
+        if (plan.Operation == PowerMode.Analog || plan.Detectors.Count == 0) yield break;
+        var sources = PowerSupply.Sources(plan).ToList();
         foreach (var d in plan.Detectors)
             if (d.Source is { Length: > 0 } src && plan.Find(d.PieceId) is not null)
-                yield return new Feeder { Id = -d.Id, PieceId = d.PieceId, Circuit = src, Name = d.Name.Length > 0 ? d.Name : Lang.F($"Rückmelder Nr. {d.Id}") };
+            {
+                var name = d.Name.Length > 0 ? d.Name : Lang.F($"Rückmelder Nr. {d.Id}");
+                // verkabelt: das Kabel zeigt die Verbindung, keine Linie zur Quelle
+                int? wire = plan.DetectorWiring && d.Address is not null ? 0 : null;
+                yield return new Feeder { Id = -d.Id, PieceId = d.PieceId, Circuit = src, Name = name, WireId = wire };
+                // Masse (0) von Booster bzw. Zentrale über den Besetztmelder an die Schiene
+                if (sources.FirstOrDefault(s => s.Name == src) is { } item && PowerSupply.HasGround(PowerSupply.Type(item)))
+                    yield return new Feeder { Id = -d.Id, PieceId = d.PieceId, Circuit = src, Name = name, Ground = true, WireId = wire };
+            }
     }
 
     /// <summary>Einspeisung, die über einen Melder kommt (siehe <see cref="DetectorFeeds"/>).</summary>
@@ -634,7 +643,9 @@ public static class Electrics
             sb.AppendLine(Lang.F($"  Abschnitt {s.Number}: {s.PieceIds.Count} Gleise, {Fmt.Num(s.LengthMm / 1000, 2)} m"));
             if (s.Feeders.Count == 0) sb.AppendLine(Lang.T("    keine Einspeisung!"));
             foreach (var f in s.Feeders)
-                sb.AppendLine((f.Ground
+                sb.AppendLine((f.Ground && IsDetectorFeed(f)
+                    ? Lang.F($"    Masse über {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}")
+                    : f.Ground
                     ? Lang.F($"    Masse {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}")
                     : IsDetectorFeed(f) ? Lang.F($"    Fahrstrom über {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}")
                     : Lang.F($"    Einspeisung {f.Label} an Gleis {plan.Find(f.PieceId)?.Def.Number} (Nr. {f.PieceId}) → {f.Circuit}"))

@@ -1338,11 +1338,12 @@ The section then counts as fed – <span class="ui">Check electrics</span> no lo
 and the wiring plan lists “Traction power through Melder 3”.</p>
 <p><span class="ui">Electrics › Wire detectors</span> (also in the context menu: <span class="ui">Connect detectors to module</span>) connects every feedback sensor
 that has a contact number to the matching terminal of its feedback module with a violet wire. Contact 5 goes to input 5 of the first module,
-contact 20 to input 4 of the second. If there is no module for a contact yet, the program places one below the track plan (one module per 16 contacts;
-an s88 AC for AC layouts, otherwise an s88 DC – or the same type as the feedback modules you have already placed).
+contact 20 to input 4 of the second. If there is no module for a contact yet, the program places a generic <b>occupancy detector</b> below the track plan
+(“Besetztmelder 1”, “Besetztmelder 2” …, one per 16 contacts). Track power (B, red) and ground (0, brown) are at the top of the occupancy detector:
+from there one wire each runs to the command station or booster you chose for the sensor under “Traction power from”. Feed and ground of the section are then fine.
 While the function is on, the wires follow every change: a new sensor, another contact number, a moved track or a deleted sensor.
 Clicking <span class="ui">Wire detectors</span> again (<span class="ui">Remove detector wires</span>) takes all these wires out again;
-the modules stay and can be deleted one by one.</p>
+the automatically added occupancy detectors go with them, feedback modules you placed yourself stay.</p>
 
 <h2 id="k9-11">Numbering</h2>
 <p><span class="ui">Wiring › Number</span> gives all feeders (G1, G2 …), feedback sensors (Melder 1, Melder 2 …) and wires (K1, K2 …) a number, from top left to bottom right.

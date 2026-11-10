@@ -2775,8 +2775,6 @@
  "Rückmelder-Kabel entfernen": "Remove detector wires",
  "Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.": "Automatically wire every detector that has a contact to the matching terminal of its feedback module. A missing module is placed below the plan (one module per 16 contacts). If the contact or the track changes, the wire follows. Switching off removes these wires again.",
  "Rückmelder werden automatisch verkabelt, sobald sie einen Kontakt haben.": "Detectors are wired automatically as soon as they have a contact.",
- "Rückmelder verkabelt: {0} Kabel zum Rückmeldemodul verlegt, {1} Modul(e) neu angelegt. Ändert sich Kontakt oder Gleis, folgt das Kabel.": "Detectors wired: {0} wire(s) laid to the feedback module, {1} module(s) added. If the contact or the track changes, the wire follows.",
- "{0} Rückmelder-Kabel entfernt. Die Rückmeldemodule bleiben im Plan und lassen sich einzeln löschen.": "{0} detector wire(s) removed. The feedback modules stay in the plan and can be deleted one by one.",
  "Kabel Rückmelder {0}": "Wire detector {0}",
  "Fahrstrom von (Zentrale / Booster)": "Traction power from (command station / booster)",
  "keine Verbindung": "not connected",
@@ -2785,5 +2783,13 @@
  "Fahrstrom über den Melder von „{0}“.": "Traction power from “{0}” through the detector.",
  "{0}: keine Verbindung zu Zentrale oder Booster.": "{0}: not connected to a command station or booster.",
  "{0}: Fahrstrom von „{1}“ über den Melder – der Abschnitt gilt als gespeist.": "{0}: traction power from “{1}” through the detector – the section counts as fed.",
- "    Fahrstrom über {0} an Gleis {1} (Nr. {2}) → {3}": "    Traction power through {0} on track {1} (no. {2}) → {3}"
+ "    Fahrstrom über {0} an Gleis {1} (Nr. {2}) → {3}": "    Traction power through {0} on track {1} (no. {2}) → {3}",
+ "Besetztmelder (16 Eingänge, neutral)": "Occupancy detector (16 inputs, generic)",
+ "Neutraler Gleisbesetztmelder mit 16 Eingängen. Oben Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale, unten die Ausgänge zu den Meldeabschnitten.": "Generic occupancy detector with 16 inputs. Track power (B) and ground (0) from the booster or command station at the top, the outputs to the detection sections at the bottom.",
+ "{0} – Bahnstrom (B) vom Booster": "{0} – track power (B) from booster",
+ "Bahnstrom {0} → {1}": "Track power {0} → {1}",
+ "Masse {0} → {1}": "Ground {0} → {1}",
+ "    Masse über {0} an Gleis {1} (Nr. {2}) → {3}": "    Ground through {0} on track {1} (no. {2}) → {3}",
+ "Melder verkabelt: {0} Kabel verlegt, {1} Besetztmelder angelegt. Bahnstrom (B) und Masse (0) kommen von Booster bzw. Zentrale. Ändert sich Kontakt, Quelle oder Gleis, folgen die Kabel.": "Detectors wired: {0} wire(s) laid, {1} occupancy detector(s) added. Track power (B) and ground (0) come from the booster or command station. If contact, source or track change, the wires follow.",
+ "{0} Kabel und {1} automatisch angelegte Besetztmelder entfernt. Selbst gesetzte Rückmeldemodule bleiben im Plan.": "{0} wire(s) and {1} automatically added occupancy detector(s) removed. Feedback modules you placed yourself stay in the plan."
 }

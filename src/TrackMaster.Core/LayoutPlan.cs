@@ -372,7 +372,8 @@ public sealed class Detector
     public int? Address { get; set; }
     /// <summary>
     /// Digital: Zentrale bzw. Booster (Name der Quelle), deren Fahrstrom über den Melder ins Gleis geht – der Gleisbesetztmelder sitzt
-    /// zwischen Booster-Ausgang und Gleis. Der Abschnitt gilt damit als gespeist (siehe <see cref="Electrics.DetectorFeeds"/>). null = keine.
+    /// zwischen Booster-Ausgang und Gleis. Der Abschnitt gilt damit als gespeist (siehe <see cref="Electrics.DetectorFeeds"/>).
+    /// "" = bewusst keine Verbindung, null = noch nicht gewählt (das Programm setzt dann Zentrale bzw. Booster des Abschnitts).
     /// </summary>
     public string? Source { get; set; }
     public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address, Source = Source };

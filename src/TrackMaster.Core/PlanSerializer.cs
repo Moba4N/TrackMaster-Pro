@@ -263,7 +263,7 @@ public static partial class PlanSerializer
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel || s.Kind == SceneryKind.Power && !string.IsNullOrEmpty(s.Model) ? s.Model : null,
                 Addr = s.Kind == SceneryKind.Power ? s.Address : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
-                Tracks = (s.IsModel || DetectorWiring.IsAuto(s)) && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
+                Tracks = (s.IsModel || DetectorWiring.IsGenerated(s)) && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Gnd = f.Ground, At = Math.Abs(f.At - 0.5) < 1e-9 ? null : Math.Round(f.At, 4), Wire = f.WireId, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),
@@ -413,7 +413,8 @@ public static partial class PlanSerializer
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
             // automatisch verlegtes Rückmelder-Kabel: Gleis des Rückmelders
-            if (kind == SceneryKind.Wire && item.Variant == (int)WireUse.Rueckmelder && s.Tracks is [var detPiece]) item.Tracks = [detPiece];
+            // automatisch verlegte Kabel und angelegte Besetztmelder (siehe DetectorWiring)
+            if (kind is SceneryKind.Wire or SceneryKind.Power && s.Tracks is [var autoTag]) item.Tracks = [autoTag];
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
             if (kind == SceneryKind.Wire && item.Points.Count < 2) continue;
@@ -444,7 +445,7 @@ public static partial class PlanSerializer
             if (plan.Find(d.Piece) is not null)
                 plan.Detectors.Add(new Detector
                 {
-                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = string.IsNullOrWhiteSpace(d.Src) ? null : d.Src.Trim(),
+                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = d.Src?.Trim(),
                     Type = Enum.TryParse<DetectorType>(d.Type, true, out var dt) ? dt : DetectorType.Strom,
                 });
         return plan;

@@ -682,10 +682,10 @@ public sealed class PropertiesPanel : DockPanel
                 if (plan.Operation == PowerMode.Digital)
                 {
                     var dsrc = new ComboBox { Height = 28 };
-                    dsrc.Items.Add(new ComboBoxItem { Content = Lang.T("keine Verbindung"), Tag = "", IsSelected = det.Source is null });
+                    dsrc.Items.Add(new ComboBoxItem { Content = Lang.T("keine Verbindung"), Tag = "", IsSelected = string.IsNullOrEmpty(det.Source) });
                     foreach (var src in _session.DetectorSources)
                         dsrc.Items.Add(new ComboBoxItem { Content = $"{src.Name} ({PowerSupply.TypeName(PowerSupply.Type(src))})", Tag = src.Name, IsSelected = src.Name == det.Source });
-                    if (det.Source is { } missing && _session.DetectorSources.All(x => x.Name != missing))
+                    if (det.Source is { Length: > 0 } missing && _session.DetectorSources.All(x => x.Name != missing))
                         dsrc.Items.Add(new ComboBoxItem { Content = Lang.F($"{missing} (fehlt im Plan)"), Tag = missing, IsSelected = true });
                     var detId = det.Id;
                     dsrc.SelectionChanged += (_, _) => { if (dsrc.SelectedItem is ComboBoxItem { Tag: string n }) _session.SetDetectorSource(detId, n); };

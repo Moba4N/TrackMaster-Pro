@@ -21,21 +21,39 @@ public static class AutoWiring
 
     public static bool IsAuto(SceneryItem s) => s.Tracks is [Tag] && (s.IsWire || s.IsPower);
 
-    public readonly record struct Result(int Sections, int Feeds, int Boosters, bool CentralFeeds, int Loops, int Isolations, int Detectors, int Wires);
+    public readonly record struct Result(int Sections, int Feeds, int Boosters, bool CentralFeeds, int Loops, int Isolations, int Detectors, int Wires,
+        string System = "", bool ThreeRail = false, bool CurrentAdjusted = false);
+
+    /// <summary>Verbautes Gleissystem: das mit der größten Gleislänge im Plan (Name, Mittelleiter ja/nein).</summary>
+    public static (string Name, bool ThreeRail) DetectSystem(LayoutPlan plan)
+    {
+        var top = plan.Pieces.GroupBy(p => (p.Def.GaugeId, p.Def.SystemId)).MaxBy(g => g.Sum(p => Math.Max(1, p.Def.TrackLength)));
+        if (top is null) return ("", false);
+        var sys = Catalog.GetSystem(top.Key.GaugeId, top.Key.SystemId);
+        return (sys?.Name ?? top.Key.SystemId, sys?.ThreeRail == true);
+    }
 
     /// <summary>Verkabelt den Plan neu; vorher automatisch Angelegtes wird ersetzt.</summary>
     public static Result Build(LayoutPlan plan)
     {
         if (plan.Pieces.Count == 0) return default;
         Clear(plan);
-        var current = Electrics.Current(plan);
+        // Gleissystem bestimmt die Verkabelung: Mittelleiter → Wechselstrom-Logik, Zweileiter → Gleichstrom-Logik mit Polung und Kehrschleifen
+        var (systemName, threeRail) = DetectSystem(plan);
+        var adjusted = false;
+        if (plan.Current != CurrentKind.Auto && (plan.Current == CurrentKind.Wechselstrom) != threeRail)
+        {
+            plan.Current = CurrentKind.Auto;
+            adjusted = true;
+        }
+        var current = threeRail ? CurrentKind.Wechselstrom : CurrentKind.Gleichstrom;
         var digital = plan.Operation == PowerMode.Digital;
         var scale = plan.Gauge.TrackWidth / 16.5;
 
         // 1. Kehrschleifen (Gleichstrom): ohne Trennstellen suchen, dann bei Bedarf trennen
         var isolationsAdded = 0;
         var loopCores = new List<HashSet<int>>();
-        if (current == CurrentKind.Gleichstrom && !Electrics.IsThreeRail(plan))
+        if (!threeRail)
         {
             var open = Clone(plan);
             open.Isolations.Clear();
@@ -87,7 +105,17 @@ public static class AutoWiring
             var loop = loopCores.Any(c => s.PieceIds.Any(c.Contains));
             // Abschnitte mit Rückmelder: Strom und Masse über den Besetztmelder
             var dets = plan.Detectors.Where(d => s.PieceIds.Contains(d.PieceId)).ToList();
-            if (digital && !loop && dets.Count > 0)
+            if (digital && !loop && dets.Count > 0 && threeRail)
+            {
+                // Mittelleiter: Melder über eine isolierte Außenschiene (Kontaktgleis) am Rückmeldemodul, der Abschnitt wird normal gespeist
+                foreach (var d in dets)
+                {
+                    d.Source = "";
+                    d.Address ??= plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1;
+                    detectors++;
+                }
+            }
+            else if (digital && !loop && dets.Count > 0)
             {
                 foreach (var d in dets)
                 {
@@ -171,7 +199,7 @@ public static class AutoWiring
 
         // Melder: Besetztmelder und ihre Kabel
         if (detectors > 0) plan.DetectorWiring = true;
-        return new(sections.Count, feeds, boosterCount, !useBoosters, loops, isolationsAdded, detectors, wires);
+        return new(sections.Count, feeds, boosterCount, !useBoosters, loops, isolationsAdded, detectors, wires, systemName, threeRail, adjusted);
     }
 
     /// <summary>Vorher automatisch Angelegtes entfernen: Kabel samt ihren Einspeisungen, Quellen und Kehrschleifenmodule.</summary>

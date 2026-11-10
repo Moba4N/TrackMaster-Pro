@@ -129,14 +129,22 @@ public class AutoWiringTests
     }
 
     [Fact]
-    public void Abschnitt_mit_Melder_wird_ueber_den_Besetztmelder_gespeist()
+    public void Zweileiter_Abschnitt_mit_Melder_wird_ueber_den_Besetztmelder_gespeist()
     {
-        var plan = SamplePlan.Build();
-        plan.Feeders.Clear();
-        plan.Scenery.RemoveAll(x => x.IsWire);
-        var spur = plan.Pieces.First(p => p.Def.Number == "24215");
+        // Zweileiter-Strecke aus Flexgleis, Trennstelle vor dem letzten Stück
+        var plan = new LayoutPlan { GaugeId = "H0", BoardWidth = 4000, BoardHeight = 1000 };
+        double x = 100, y = 500, h = 180;
+        for (var i = 0; i < 4; i++)
+        {
+            var p = plan.Add(Catalog.FlexStraightKey("H0", 400));
+            PlanEditing.PlaceAt(p, 0, x, y, h);
+            var end = p.WorldConnectors()[1];
+            (x, y, h) = (end.X, end.Y, end.Heading);
+        }
+        var spur = plan.Pieces[^1];
         plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = spur.Id, Index = 0 });
         var s = Session(plan);
+        Assert.False(AutoWiring.DetectSystem(s.Plan).ThreeRail);
         s.ToggleDetectorOn(spur.Id);
 
         s.AutoWire();
@@ -148,6 +156,48 @@ public class AutoWiringTests
         Assert.Contains(s.Plan.Scenery, w => w.Id == g.WireId);
         Assert.NotNull(s.DetectorOn(spur.Id)!.Source);
         Assert.Contains(s.Plan.Scenery, w => DetectorWiring.IsAutoFeed(w) && w.Points[0] == Decoders.FeedTerminals(bm)!.Value.Track);
+        Assert.Empty(Errors(s.Plan));
+    }
+
+    [Fact]
+    public void Gleissystem_bestimmt_die_Verkabelung_Mittelleiter()
+    {
+        var plan = SamplePlan.Build();
+        plan.Feeders.Clear();
+        plan.Scenery.RemoveAll(x => x.IsWire);
+        plan.Current = CurrentKind.Gleichstrom; // falsch eingestellt
+        var s = Session(plan);
+        string? msg = null;
+        s.Message += m => msg = m;
+
+        s.AutoWire();
+        var (name, threeRail) = AutoWiring.DetectSystem(s.Plan);
+        Assert.True(threeRail);
+        Assert.Equal(CurrentKind.Auto, s.Plan.Current);
+        Assert.Equal(CurrentKind.Wechselstrom, Electrics.Current(s.Plan));
+        Assert.Contains(name, msg);
+        Assert.Contains("Mittelleiter", msg);
+        // Mittelleiter: keine Polung, keine Kehrschleifenmodule
+        Assert.All(s.Plan.Feeders.Where(f => !f.Ground), f => Assert.False(f.Reversed));
+        Assert.DoesNotContain(PowerSupply.Modules(s.Plan), m => m.Model == "Kehrschleifenmodul");
+        Assert.Empty(Errors(s.Plan));
+    }
+
+    [Fact]
+    public void Mittelleiter_Melderabschnitt_wird_normal_gespeist()
+    {
+        var plan = SamplePlan.Build();
+        plan.Feeders.Clear();
+        plan.Scenery.RemoveAll(x => x.IsWire);
+        var spur = plan.Pieces.First(p => p.Def.Number == "24215");
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = spur.Id, Index = 0 });
+        var s = Session(plan);
+        s.ToggleDetectorOn(spur.Id);
+
+        s.AutoWire();
+        var section = Electrics.Sections(s.Plan, Connectivity.Analyze(s.Plan)).Single(x => x.PieceIds.Contains(spur.Id));
+        Assert.Contains(s.Plan.Feeders, f => !f.Ground && section.PieceIds.Contains(f.PieceId) && f.Id > 0);
+        Assert.Equal("", s.DetectorOn(spur.Id)!.Source);
         Assert.Empty(Errors(s.Plan));
     }
 }

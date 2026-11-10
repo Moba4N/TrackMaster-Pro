@@ -2807,5 +2807,9 @@
  "Kehrschleifenmodul (neutral)": "Reverse loop module (generic)",
  "Kleine Anlage: die Zentrale speist alle Abschnitte.": "Small layout: the command station feeds all sections.",
  "Noch keine Gleise im Plan.": "No tracks in the plan yet.",
- "Polt den Kehrschleifenabschnitt automatisch um (Zweileiter). Oben Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale, unten die beiden Ausgänge zur Kehrschleife.": "Switches the polarity of the reverse loop section automatically (two-rail). At the top track power (B) and ground (0) from the booster or command station, at the bottom the two outputs to the reverse loop."
+ "Polt den Kehrschleifenabschnitt automatisch um (Zweileiter). Oben Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale, unten die beiden Ausgänge zur Kehrschleife.": "Switches the polarity of the reverse loop section automatically (two-rail). At the top track power (B) and ground (0) from the booster or command station, at the bottom the two outputs to the reverse loop.",
+ "{0} Melder über isolierte Außenschiene (Kontaktgleis) am Rückmeldemodul.": "{0} detector(s) via isolated outer rail (contact track) on the feedback module.",
+ "Gleissystem {0}: Mittelleiter, Bahnstrom an den Mittelleiter, Masse an die Schienen.": "Track system {0}: centre rail, track power to the centre rail, ground to the rails.",
+ "Gleissystem {0}: Zweileiter, Bahnstrom und Masse je an eine Schiene, gleiche Seite im Abschnitt.": "Track system {0}: two-rail, track power and ground each to one rail, same side within a section.",
+ "Die eingestellte Stromart passte nicht zum Gleis und steht jetzt auf „Automatisch (nach Gleis)“.": "The selected current type did not match the track and is now set to “Automatic (from track)”."
 }

@@ -3,8 +3,8 @@ namespace TrackMaster.Core;
 /// <summary>
 /// „Automatisch verkabeln“: aus Gleisplan und Trennstellen die ganze Stromversorgung anlegen.
 /// <list type="bullet">
-/// <item>Stromquellen: kleine Anlage auf einer Ebene → die Zentrale speist alles. Mehrere Ebenen oder viel Gleis → je Ebene
-/// (bzw. je angefangene <see cref="BoosterLength"/>) ein Booster; die Zentrale bleibt dann fürs Schalten.</item>
+/// <item>Stromquellen: Anlage auf einer Ebene → die Zentrale speist alles. Mehrere Ebenen → je Ebene ein Booster;
+/// die Zentrale bleibt dann fürs Schalten. Trennstellen allein ergeben keine weiteren Booster.</item>
 /// <item>Jeder Abschnitt bekommt Bahnstrom und Masse: mit Rückmelder über den Besetztmelder (siehe <see cref="DetectorWiring"/>),
 /// sonst direkt mit Kabeln von der Quelle (etwa alle <see cref="Electrics.FeederSpacingH0"/> m eine Einspeisung, bei Gleichstrom polrichtig).</item>
 /// <item>Gleichstrom: Kehrschleifen werden erkannt, bei Bedarf an beiden Enden getrennt und über ein Kehrschleifenmodul (KS1, KS2 …) gespeist.</item>
@@ -15,9 +15,6 @@ public static class AutoWiring
 {
     /// <summary>Markierung für automatisch angelegte Quellen, Kehrschleifenmodule und Kabel.</summary>
     public const int Tag = -1;
-
-    /// <summary>Gleislänge je Booster in H0 (mm); andere Spuren im Verhältnis der Spurweite.</summary>
-    public const double BoosterLength = 25000;
 
     public static bool IsAuto(SceneryItem s) => s.Tracks is [Tag] && (s.IsWire || s.IsPower);
 
@@ -72,15 +69,14 @@ public static class AutoWiring
         // Ebene eines Abschnitts = Ebene mit der größten Gleislänge darin (eine Rampe zählt nicht als eigene Ebene)
         int LevelOf(PowerSection s) => s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().GroupBy(p => p.Level).MaxBy(g => g.Sum(p => p.Def.TrackLength))?.Key ?? 0;
         var levels = sections.Select(LevelOf).Distinct().Order().ToList();
-        var length = plan.Pieces.Sum(p => p.Def.TrackLength);
         var sources = new List<SceneryItem>();
         var central = PowerSupply.Sources(plan).FirstOrDefault(s => PowerSupply.Type(s) == (digital ? PowerSourceType.Zentrale : PowerSourceType.Fahrtrafo))
                       ?? AddSource(plan, digital ? PowerSourceType.Zentrale : PowerSourceType.Fahrtrafo);
         var boosterCount = 0;
-        var useBoosters = digital && (levels.Count > 1 || length > BoosterLength * scale);
+        var useBoosters = digital && levels.Count > 1;
         if (useBoosters)
         {
-            boosterCount = Math.Clamp(Math.Max(levels.Count, (int)Math.Ceiling(length / (BoosterLength * scale))), 1, Math.Max(1, sections.Count));
+            boosterCount = levels.Count;
             var existing = PowerSupply.Sources(plan).Where(s => PowerSupply.Type(s) == PowerSourceType.Booster).ToList();
             for (var i = 0; i < boosterCount; i++) sources.Add(i < existing.Count ? existing[i] : AddSource(plan, PowerSourceType.Booster));
         }
@@ -90,7 +86,7 @@ public static class AutoWiring
         SceneryItem SourceFor(PowerSection s, int index)
         {
             if (sources.Count == 1) return sources[0];
-            return levels.Count > 1 ? sources[Math.Min(levels.IndexOf(LevelOf(s)), sources.Count - 1)] : sources[index % sources.Count];
+            return sources[Math.Clamp(levels.IndexOf(LevelOf(s)), 0, sources.Count - 1)];
         }
 
         // 3. Abschnitte speisen
@@ -219,6 +215,32 @@ public static class AutoWiring
         return new(sections.Count, feeds, boosterCount, !useBoosters, loops, isolationsAdded, detectors, wires, systemName, threeRail, adjusted, autoDetectors);
     }
 
+    public readonly record struct Removed(int Wires, int Feeds, int Sources, int Modules, int Detectors, int Isolations)
+    {
+        public int Total => Wires + Feeds + Sources + Modules + Detectors + Isolations;
+    }
+
+    /// <summary>
+    /// „Verkabelung entfernen“: alles, was „Automatisch verkabeln“ angelegt hat, wieder heraus – Kabel, Einspeisungen, Zentrale/Booster,
+    /// Kehrschleifen- und Besetztmelder samt Kabeln, automatisch gesetzte Melder und Trennstellen. Selbst Gesetztes bleibt.
+    /// </summary>
+    public static bool HasAny(LayoutPlan plan)
+        => plan.Scenery.Any(s => IsAuto(s) || DetectorWiring.IsGenerated(s)) || plan.Detectors.Any(d => d.Auto) || plan.Isolations.Any(i => i.Auto) || plan.DetectorWiring;
+
+    public static Removed RemoveAll(LayoutPlan plan)
+    {
+        var wireIds = plan.Scenery.Where(s => s.IsWire && IsAuto(s)).Select(s => s.Id).ToHashSet();
+        var feeds = plan.Feeders.Count(f => f.WireId is { } w && wireIds.Contains(w));
+        var sources = plan.Scenery.Count(s => s.IsPower && IsAuto(s) && Decoders.ModelOf(s) is null);
+        var ks = plan.Scenery.Count(s => s.IsPower && IsAuto(s) && Decoders.ModelOf(s) is not null);
+        var dets = plan.Detectors.Count(d => d.Auto);
+        Clear(plan);
+        var isolations = plan.Isolations.RemoveAll(i => i.Auto);
+        var (detWires, detModules) = DetectorWiring.RemoveAll(plan);
+        plan.DetectorWiring = false;
+        return new(wireIds.Count + detWires, feeds, sources, ks + detModules, dets, isolations);
+    }
+
     /// <summary>Vorher automatisch Angelegtes entfernen: Kabel samt ihren Einspeisungen, Quellen und Kehrschleifenmodule.</summary>
     public static int Clear(LayoutPlan plan)
     {
@@ -240,7 +262,7 @@ public static class AutoWiring
         {
             if (!core.Contains(c.PieceId) || c.Link is not { } l || core.Contains(l.PieceId)) continue;
             if (plan.Isolations.Any(i => (i.PieceId == c.PieceId && i.Index == c.Index) || (i.PieceId == l.PieceId && i.Index == l.Index))) continue;
-            plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = c.PieceId, Index = c.Index });
+            plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = c.PieceId, Index = c.Index, Auto = true });
             n++;
         }
         return n;

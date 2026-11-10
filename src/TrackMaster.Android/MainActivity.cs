@@ -268,6 +268,8 @@ public sealed class MainActivity : Activity
         });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
         Add("autoWire", Lang.T("Automatisch verkabeln"), () => { _session.ShowWires = true; _session.AutoWire(); });
+        Add("autoWireRemove", Lang.T("Verkabelung entfernen"), () => _session.RemoveAutoWiring());
+        Add("trackConnRemove", Lang.T("Verbindungen zum Gleis entfernen"), () => _session.RemoveTrackConnections());
         Add("toolOccupancy", Lang.T("Besetztmelder setzen"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder") { SetTool(CanvasTool.Select); return; }
@@ -593,7 +595,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Automatisch verkabeln"), "autoWire", false), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Besetztmelder"), "toolOccupancy", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
+        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Automatisch verkabeln"), "autoWire", false), (Lang.T("Verkabelung entfernen"), "autoWireRemove", false), (Lang.T("Verbindungen zum Gleis entfernen"), "trackConnRemove", false), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Besetztmelder"), "toolOccupancy", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
                       (Lang.T("Kabel verlegen…"), "toolWire", true),
                       (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabel zeigen"), "wires", true), (Lang.T("Melder verkabeln"), "detectorWires", true), (Lang.T("Elektrik nummerieren"), "numberElectrics", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),

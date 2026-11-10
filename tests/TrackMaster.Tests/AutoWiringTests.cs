@@ -237,4 +237,93 @@ public class AutoWiringTests
         s.AutoWire();
         Assert.Empty(s.Plan.Detectors);
     }
+
+    [Fact]
+    public void Viele_Trennstellen_auf_einer_Ebene_bleiben_an_der_Zentrale()
+    {
+        // lange Anlage auf einer Ebene, jedes zweite Gleis getrennt
+        var plan = new LayoutPlan { GaugeId = "H0", BoardWidth = 40000, BoardHeight = 1000 };
+        double x = 100, y = 500, h = 180;
+        for (var i = 0; i < 40; i++)
+        {
+            var p = plan.Add(Catalog.FlexStraightKey("H0", 900));
+            PlanEditing.PlaceAt(p, 0, x, y, h);
+            var end = p.WorldConnectors()[1];
+            (x, y, h) = (end.X, end.Y, end.Heading);
+            if (i % 2 == 1) plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = p.Id, Index = 0 });
+        }
+        var s = Session(plan);
+        Assert.True(Electrics.Sections(s.Plan, Connectivity.Analyze(s.Plan)).Count >= 20);
+
+        s.AutoWire();
+        Assert.DoesNotContain(PowerSupply.Sources(s.Plan), x => PowerSupply.Type(x) == PowerSourceType.Booster);
+        Assert.Empty(Errors(s.Plan));
+    }
+
+    [Fact]
+    public void Verkabelung_entfernen_nimmt_alles_Automatische_heraus()
+    {
+        // Gleichstrom-Kehrschleife: Trennstellen, KS-Modul, Kabel, Einspeisungen
+        var s = Session(Balloon());
+        var userIso = s.Plan.Isolations.Count;
+        s.AutoWire();
+        Assert.NotEmpty(s.Plan.Feeders);
+        Assert.Contains(s.Plan.Isolations, i => i.Auto);
+        Assert.True(PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _).Isolations.Any(i => i.Auto));
+
+        s.RemoveAutoWiring();
+        Assert.Empty(s.Plan.Feeders);
+        Assert.DoesNotContain(s.Plan.Scenery, x => x.IsWire || x.IsPower);
+        Assert.Equal(userIso, s.Plan.Isolations.Count);
+        Assert.Empty(s.Plan.Detectors);
+
+        // Rückgängig holt alles in einem Schritt zurück
+        s.Undo();
+        Assert.NotEmpty(s.Plan.Feeders);
+        Assert.Single(PowerSupply.Modules(s.Plan), m => m.Model == "Kehrschleifenmodul");
+    }
+
+    [Fact]
+    public void Verkabelung_entfernen_laesst_Melder_und_Kabel_von_Hand_stehen()
+    {
+        var plan = SamplePlan.Build();
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = plan.Pieces.First(p => p.Def.Number == "24215").Id, Index = 0 });
+        var s = Session(plan);
+        var manualFeeders = s.Plan.Feeders.Count;
+        var manualWires = s.Plan.Scenery.Count(x => x.IsWire);
+        var manualDetectors = s.Plan.Detectors.Count;
+        s.AutoWire();
+        Assert.Contains(s.Plan.Detectors, d => d.Auto);
+
+        s.RemoveAutoWiring();
+        Assert.DoesNotContain(s.Plan.Detectors, d => d.Auto);
+        Assert.Equal(manualDetectors, s.Plan.Detectors.Count);
+        Assert.Equal(manualFeeders, s.Plan.Feeders.Count);
+        Assert.False(s.Plan.DetectorWiring);
+        Assert.Single(s.Plan.Isolations);
+        Assert.True(s.Plan.Scenery.Count(x => x.IsWire) <= manualWires);
+    }
+
+    [Fact]
+    public void Verbindungen_zum_Gleis_entfernen_nimmt_alle_Anschluesse_heraus()
+    {
+        var plan = SamplePlan.Build();
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = plan.Pieces.First(p => p.Def.Number == "24215").Id, Index = 0 });
+        var s = Session(plan);
+        Assert.NotEmpty(s.Plan.Feeders); // von Hand gelegte Einspeisung im Beispielplan
+        s.AutoWire();
+        var sources = PowerSupply.Sources(s.Plan).Count();
+        var detectors = s.Plan.Detectors.Count;
+
+        s.RemoveTrackConnections();
+        Assert.Empty(s.Plan.Feeders);
+        // auch das Massekabel des Beispielplans (ohne eigene Einspeisung, Ende auf dem Gleis) ist weg
+        Assert.DoesNotContain(s.Plan.Scenery, w => w.IsWire && (WireUse)w.Variant is WireUse.Fahrstrom or WireUse.Rueckleiter && !DetectorWiring.IsGenerated(w));
+        Assert.Equal(sources, PowerSupply.Sources(s.Plan).Count());
+        Assert.Equal(detectors, s.Plan.Detectors.Count);
+        Assert.Single(s.Plan.Isolations);
+
+        s.Undo();
+        Assert.NotEmpty(s.Plan.Feeders);
+    }
 }

@@ -2795,7 +2795,7 @@
  "Automatisch verkabelt: {0} Abschnitt(e), {1} Einspeisung(en) mit Masse, {2} Kabel.": "Wired automatically: {0} section(s), {1} feed(s) with ground, {2} wire(s).",
  "Bahnstrom {0} → Gleis Nr. {1}": "Track power {0} → track no. {1}",
  "Masse {0} → Gleis Nr. {1}": "Ground {0} → track no. {1}",
- "{0} Booster speisen die Abschnitte (je Ebene bzw. Gleislänge), die Zentrale bleibt fürs Schalten.": "{0} boosters feed the sections (per level or track length); the command station is kept for switching.",
+ "{0} Booster speisen die Abschnitte (je Ebene einer), die Zentrale bleibt fürs Schalten.": "{0} boosters feed the sections (one per level); the command station is kept for switching.",
  "{0} Melder über Besetztmelder angeschlossen.": "{0} detector(s) connected via occupancy detector.",
  "{0} Kehrschleife(n) über Kehrschleifenmodul (KS) gespeist, {1} Trennstelle(n) dafür gesetzt.": "{0} reverse loop(s) fed via reverse loop module (KS), {1} isolation(s) set for it.",
  "Automatisch verkabeln": "Wire automatically",
@@ -2804,7 +2804,7 @@
  "Besetztmelder": "Occupancy detector",
  "Der Fahrtrafo speist alle Abschnitte.": "The power pack feeds all sections.",
  "Kehrschleifenmodul (neutral)": "Reverse loop module (generic)",
- "Kleine Anlage: die Zentrale speist alle Abschnitte.": "Small layout: the command station feeds all sections.",
+ "Eine Ebene: die Zentrale speist alle Abschnitte.": "One level: the command station feeds all sections.",
  "Noch keine Gleise im Plan.": "No tracks in the plan yet.",
  "Polt den Kehrschleifenabschnitt automatisch um (Zweileiter). Oben Bahnstrom (B) und Masse (0) von Booster bzw. Zentrale, unten die beiden Ausgänge zur Kehrschleife.": "Switches the polarity of the reverse loop section automatically (two-rail). At the top track power (B) and ground (0) from the booster or command station, at the bottom the two outputs to the reverse loop.",
  "{0} Melder über isolierte Außenschiene (Kontaktgleis) am Rückmeldemodul.": "{0} detector(s) via isolated outer rail (contact track) on the feedback module.",
@@ -2812,5 +2812,13 @@
  "Gleissystem {0}: Zweileiter, Bahnstrom und Masse je an eine Schiene, gleiche Seite im Abschnitt.": "Track system {0}: two-rail, track power and ground each to one rail, same side within a section.",
  "Die eingestellte Stromart passte nicht zum Gleis und steht jetzt auf „Automatisch (nach Gleis)“.": "The selected current type did not match the track and is now set to “Automatic (from track)”.",
  "{0} Melder selbst gesetzt (je Abschnitt zwischen Trennstellen einer).": "{0} detector(s) placed automatically (one per section between isolations).",
- "Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Kleine Anlagen speist die Zentrale; über mehrere Ebenen oder bei viel Gleis kommen Booster dazu und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Digital setzt es je Abschnitt einen Melder und speist ihn über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.": "Build the track plan and set the isolations first, then the program does the wiring: every section gets track power and ground. Small layouts are fed by the command station; across several levels or with a lot of track, boosters are added and the command station only switches. With DC, every reverse loop gets a reverse loop module (KS1 …). In digital mode it places one detector per section and feeds it via the occupancy detector. Running it again replaces the automatic wiring."
+ "Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Liegt alles auf einer Ebene, speist die Zentrale; über mehrere Ebenen bekommt jede Ebene einen Booster und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Digital setzt es je Abschnitt einen Melder und speist ihn über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.": "Build the track plan and set the isolations first, then the program does the wiring: every section gets track power and ground. If everything is on one level, the command station feeds it; across several levels each level gets a booster and the command station only switches. With DC, every reverse loop gets a reverse loop module (KS1 …). In digital mode it places one detector per section and feeds it via the occupancy detector. Running it again replaces the automatic wiring.",
+ "Es gibt keine automatische Verkabelung zum Entfernen.": "There is no automatic wiring to remove.",
+ "Automatische Verkabelung entfernt: {0} Kabel, {1} Anschlüsse am Gleis, {2} Zentrale/Booster, {3} Module, {4} Melder, {5} Trennstellen. Selbst Gesetztes bleibt.": "Automatic wiring removed: {0} wire(s), {1} track connection(s), {2} command station/booster(s), {3} module(s), {4} detector(s), {5} isolation(s). Anything you placed yourself stays.",
+ "Verkabelung entfernen": "Remove wiring",
+ "Alles, was „Automatisch verkabeln“ angelegt hat, wieder herausnehmen: Kabel, Anschlüsse am Gleis, Zentrale und Booster, Kehrschleifen- und Besetztmelder, Melder und Trennstellen. Selbst Gesetztes bleibt. Rückgängig holt alles zurück.": "Take out everything “Wire automatically” added: wires, track connections, command station and boosters, reverse loop modules and occupancy detectors, detectors and isolations. Anything you placed yourself stays. Undo brings it all back.",
+ "Es gibt keine Verbindungen zum Gleis.": "There are no connections to the track.",
+ "Verbindungen zum Gleis entfernt: {0} Anschlüsse und {1} Kabel. Zentrale, Booster, Module, Melder und Trennstellen bleiben.": "Track connections removed: {0} connection(s) and {1} wire(s). Command station, boosters, modules, detectors and isolations stay.",
+ "Verbindungen zum Gleis entfernen": "Remove track connections",
+ "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back."
 }

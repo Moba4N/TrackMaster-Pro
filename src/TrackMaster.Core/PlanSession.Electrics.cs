@@ -153,15 +153,12 @@ public sealed partial class PlanSession
     {
         if (Decoders.Find(id) is not { } m) return null;
         var type = Decoders.PlacedAs(m);
-        var item = PowerSupply.Create(Plan, type, x, y);
-        item.Model = m.Id;
-        if (type == PowerSourceType.Baustein)
+        SceneryItem item;
+        if (type == PowerSourceType.Baustein) item = DetectorWiring.NewModule(Plan, m, x, y, Decoders.NextStart(Plan, m));
+        else
         {
-            (item.Width, item.Depth) = Decoders.Size(Plan.Gauge, m);
-            item.Address = Decoders.NextStart(Plan, m);
-            var used = Plan.Scenery.Select(s => s.Name).ToHashSet();
-            for (var n = 1; ; n++)
-                if (!used.Contains($"{m.Short} {n}")) { item.Name = $"{m.Short} {n}"; break; }
+            item = PowerSupply.Create(Plan, type, x, y);
+            item.Model = m.Id;
         }
         item = AddScenery(item);
         Say(Lang.F($"{m.Maker} {m.Title} „{item.Name}“ gesetzt.") + " " + (Decoders.Range(item) is { } r
@@ -169,6 +166,87 @@ public sealed partial class PlanSession
                 : Lang.F($"Adressen {r.First}–{r.Last}: Weichen und Signale mit diesen Adressen hängen an diesem Baustein."))
             : m.Description));
         return item;
+    }
+
+    /// <summary>
+    /// Rückmelder automatisch mit Rückmeldemodulen verkabeln (an) bzw. diese Kabel entfernen (aus). Eingeschaltet bekommt jeder
+    /// Rückmelder mit Kontakt ein Kabel zur passenden Klemme; fehlende Module werden unter dem Plan angelegt. Die Module bleiben beim Ausschalten stehen.
+    /// </summary>
+    public void SetDetectorWiring(bool on)
+    {
+        if (Plan.DetectorWiring == on) return;
+        Record();
+        Plan.DetectorWiring = on;
+        if (on)
+        {
+            // Melder ohne Quelle bekommen Zentrale bzw. Booster ihres Abschnitts
+            var r = DetectorWiring.Sync(Plan);
+            Commit();
+            var withContact = Plan.Detectors.Count(d => d.Address is not null);
+            Say(withContact == 0
+                ? Lang.T("Rückmelder werden automatisch verkabelt, sobald sie einen Kontakt haben.")
+                : Lang.F($"Melder verkabelt: {r.Added} Kabel verlegt, {r.Modules} Besetztmelder angelegt. Bahnstrom (B) und Masse (0) kommen von Booster bzw. Zentrale. Ändert sich Kontakt, Quelle oder Gleis, folgen die Kabel."));
+            return;
+        }
+        var (n, mods) = DetectorWiring.RemoveAll(Plan);
+        Commit();
+        Say(Lang.F($"{n} Kabel und {mods} automatisch angelegte Besetztmelder entfernt. Selbst gesetzte Rückmeldemodule bleiben im Plan."));
+    }
+
+    /// <summary>
+    /// Automatisch verkabeln (siehe <see cref="AutoWiring"/>): Strom und Masse für jeden Abschnitt, Booster bei großen Anlagen,
+    /// Kehrschleifenmodule bei Gleichstrom. Ein zweiter Lauf ersetzt das vorher automatisch Angelegte.
+    /// </summary>
+    /// <summary>
+    /// Alle Verbindungen zum Gleis entfernen: jede Einspeisung (Bahnstrom und Masse, automatisch oder von Hand) samt ihrem Kabel.
+    /// Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen.
+    /// </summary>
+    public void RemoveTrackConnections()
+    {
+        var wireIds = Plan.Feeders.Where(f => f.WireId is not null).Select(f => f.WireId!.Value).ToHashSet();
+        // auch Bahnstrom- und Massekabel ohne eigene Einspeisung, deren Ende auf einem Gleis liegt
+        bool OnTrack((double X, double Y) p) => Electrics.TrackHit(Plan, p.X, p.Y) is not null;
+        var wireItems = Plan.Scenery.Where(x => x.IsWire && (wireIds.Contains(x.Id)
+            || x.Points.Count > 1 && (WireUse)x.Variant is WireUse.Fahrstrom or WireUse.Rueckleiter && !DetectorWiring.IsGenerated(x)
+               && (OnTrack(x.Points[0]) || OnTrack(x.Points[^1])))).ToHashSet();
+        var feeds = Plan.Feeders.Count;
+        if (feeds + wireItems.Count == 0) { Say(Lang.T("Es gibt keine Verbindungen zum Gleis.")); return; }
+        Record();
+        Plan.Feeders.Clear();
+        Plan.Scenery.RemoveAll(wireItems.Contains);
+        Commit();
+        Say(Lang.F($"Verbindungen zum Gleis entfernt: {feeds} Anschlüsse und {wireItems.Count} Kabel. Zentrale, Booster, Module, Melder und Trennstellen bleiben."));
+    }
+
+    /// <summary>Alles automatisch Verkabelte wieder entfernen (ein Schritt, rückgängig machbar).</summary>
+    public void RemoveAutoWiring()
+    {
+        if (!AutoWiring.HasAny(Plan)) { Say(Lang.T("Es gibt keine automatische Verkabelung zum Entfernen.")); return; }
+        Record();
+        var r = AutoWiring.RemoveAll(Plan);
+        Commit();
+        Say(Lang.F($"Automatische Verkabelung entfernt: {r.Wires} Kabel, {r.Feeds} Anschlüsse am Gleis, {r.Sources} Zentrale/Booster, {r.Modules} Module, {r.Detectors} Melder, {r.Isolations} Trennstellen. Selbst Gesetztes bleibt."));
+    }
+
+    public void AutoWire()
+    {
+        if (Plan.Pieces.Count == 0) { Say(Lang.T("Noch keine Gleise im Plan.")); return; }
+        Record();
+        var r = AutoWiring.Build(Plan);
+        if (r.Detectors > 0) ShowWires = true;
+        Commit();
+        var power = Plan.Operation == PowerMode.Analog ? Lang.T("Der Fahrtrafo speist alle Abschnitte.")
+            : r.CentralFeeds ? Lang.T("Eine Ebene: die Zentrale speist alle Abschnitte.")
+            : Lang.F($"{r.Boosters} Booster speisen die Abschnitte (je Ebene bzw. Gleislänge), die Zentrale bleibt fürs Schalten.");
+        var loops = r.Loops > 0 ? " " + Lang.F($"{r.Loops} Kehrschleife(n) über Kehrschleifenmodul (KS) gespeist, {r.Isolations} Trennstelle(n) dafür gesetzt.") : "";
+        var autoDets = r.AutoDetectors > 0 ? " " + Lang.F($"{r.AutoDetectors} Melder selbst gesetzt (je Abschnitt zwischen Trennstellen einer).") : "";
+        var dets = r.Detectors == 0 ? ""
+            : " " + (r.ThreeRail ? Lang.F($"{r.Detectors} Melder über isolierte Außenschiene (Kontaktgleis) am Rückmeldemodul.")
+                                 : Lang.F($"{r.Detectors} Melder über Besetztmelder angeschlossen."));
+        var system = r.ThreeRail ? Lang.F($"Gleissystem {r.System}: Mittelleiter, Bahnstrom an den Mittelleiter, Masse an die Schienen.")
+                                 : Lang.F($"Gleissystem {r.System}: Zweileiter, Bahnstrom und Masse je an eine Schiene, gleiche Seite im Abschnitt.");
+        var adjusted = r.CurrentAdjusted ? " " + Lang.T("Die eingestellte Stromart passte nicht zum Gleis und steht jetzt auf „Automatisch (nach Gleis)“.") : "";
+        Say(system + adjusted + " " + Lang.F($"Automatisch verkabelt: {r.Sections} Abschnitt(e), {r.Feeds} Einspeisung(en) mit Masse, {r.Wires} Kabel.") + " " + power + loops + autoDets + dets);
     }
 
     /// <summary>Startadresse eines Bausteins ändern.</summary>
@@ -206,7 +284,7 @@ public sealed partial class PlanSession
         var used = plan.Detectors.Where(d => d.Address is not null).Select(d => d.Address!.Value).ToHashSet();
         foreach (var d in plan.Detectors.OrderBy(d => Key(At(d.PieceId))))
         {
-            d.Name = $"M{++n}";
+            d.Name = $"Melder {++n}";
             if (d.Address is null && used.Add(n)) d.Address = n;
         }
         n = 0;
@@ -224,7 +302,7 @@ public sealed partial class PlanSession
             named++;
         }
         Commit();
-        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Rückmelder (M), {named} Weichen (W), {wires} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
+        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Melder (Melder 1 …), {named} Weichen (W), {wires} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
     }
 
     /// <summary>Farbe für neue Verteilerleisten (Werkzeug „Verteiler“).</summary>
@@ -284,6 +362,7 @@ public sealed partial class PlanSession
         if (PowerSupply.Items(Plan).Any(s => s.Id != id && s.Name == name)) { Say(Lang.F($"Es gibt schon eine Stromquelle „{name}“.")); return; }
         Record();
         foreach (var f in Plan.Feeders.Where(f => f.Circuit == item.Name)) f.Circuit = name;
+        foreach (var d in Plan.Detectors.Where(d => d.Source == item.Name)) d.Source = name;
         item.Name = name;
         Commit();
     }
@@ -405,11 +484,52 @@ public sealed partial class PlanSession
             Say(Lang.F($"Rückmelder {d.Name} entfernt."));
             return;
         }
-        var next = Plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1;
-        var det = new Detector { Id = Plan.NextId++, PieceId = pieceId, Type = DetectorType, Name = $"RM{Plan.Detectors.Count + 1}", Address = next };
+        var det = NewDetector(pieceId);
         Plan.Detectors.Add(det);
         Commit();
-        Say(Lang.F($"Rückmelder {det.Name} an Gleis Nr. {pieceId} (Kontakt {next})."));
+        Say(DetectorPlacedText(det));
+    }
+
+    /// <summary>Neuer Melder für ein Gleis: „Melder n“, nächster freier Kontakt und (digital) Fahrstrom von Zentrale bzw. Booster.</summary>
+    internal Detector NewDetector(int pieceId) => new()
+    {
+        Id = Plan.NextId++, PieceId = pieceId, Type = DetectorType, Name = Detector.NextName(Plan),
+        Address = Plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1, Source = DefaultDetectorSource(pieceId),
+    };
+
+    internal string DetectorPlacedText(Detector d)
+ => Lang.F($"{d.Name} an Gleis Nr. {d.PieceId} (Kontakt {d.Address}).") + (d.Source is { Length: > 0 } s ? " " + Lang.F($"Fahrstrom über den Melder von „{s}“.") : "");
+
+    /// <summary>Zentralen und Booster, von denen ein Melder den Fahrstrom bekommen kann.</summary>
+    public IReadOnlyList<SceneryItem> DetectorSources
+        => PowerSupply.Sources(Plan).Where(s => PowerSupply.Type(s) is PowerSourceType.Zentrale or PowerSourceType.Booster).ToList();
+
+    /// <summary>
+    /// Quelle für einen neuen Melder (nur digital): die Zentrale bzw. der Booster, der den Abschnitt schon speist, sonst der erste Booster
+    /// bzw. die Zentrale im Plan; ohne solche Quelle keine.
+    /// </summary>
+    internal string? DefaultDetectorSource(int pieceId)
+    {
+        if (Plan.Operation == PowerMode.Analog) return null;
+        var names = DetectorSources.Select(s => s.Name).ToHashSet();
+        if (names.Count == 0) return null;
+        var section = Electrics.Sections(Plan, Connections).FirstOrDefault(s => s.PieceIds.Contains(pieceId));
+        if (section?.Circuits.FirstOrDefault(names.Contains) is { } fed) return fed;
+        var boosters = DetectorSources.Where(s => PowerSupply.Type(s) == PowerSourceType.Booster).ToList();
+        return (boosters.Count > 0 ? boosters[0] : DetectorSources[0]).Name;
+    }
+
+    /// <summary>Zentrale bzw. Booster eines Melders wählen (null = keine): sein Gleis bekommt den Fahrstrom über den Melder.</summary>
+    public void SetDetectorSource(int detectorId, string? source)
+    {
+        if (Plan.Detectors.FirstOrDefault(d => d.Id == detectorId) is not { } d) return;
+        // "" = bewusst keine Verbindung (null hieße: noch nicht gewählt, dann setzt das Programm eine Quelle)
+        source = string.IsNullOrWhiteSpace(source) ? "" : source.Trim();
+        if (d.Source == source) return;
+        Record();
+        d.Source = source;
+        Commit();
+        Say(source.Length == 0 ? Lang.F($"{d.Name}: keine Verbindung zu Zentrale oder Booster.") : Lang.F($"{d.Name}: Fahrstrom von „{source}“ über den Melder – der Abschnitt gilt als gespeist."));
     }
 
     /// <summary>Trennstellen an allen Enden des Gleises setzen (bzw. alle entfernen, wenn schon alle getrennt sind).</summary>

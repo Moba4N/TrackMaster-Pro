@@ -1258,6 +1258,25 @@ Zentrale und Booster oder für eine Kehrschleife.</p>
 Beim <b>Zweileiter</b> trifft dabei die linke Schiene auf die rechte: Bahnstrom auf Masse, also ein Kurzschluss. Die Lösung: An beiden Enden der Schleife Trennstellen
 setzen und die Schleife über ein <b>Kehrschleifenmodul</b> (digital) bzw. einen <b>Polwendeschalter</b> (analog) versorgen. Das Programm erkennt Kehrschleifen selbst
 und meldet sie. Beim Mittelleiter gibt es dieses Problem nicht.</p>
+<h3>Automatisch verkabeln</h3>
+<p>Der schnellste Weg zur fertigen Verkabelung: Gleisplan bauen, Trennstellen setzen, dann <span class="ui">Elektrik › Automatisch verkabeln</span>
+(auch im Kontextmenü). Das Programm legt für jeden Abschnitt Einspeisungen mit <b>Bahnstrom und Masse</b> an – bei langen Abschnitten mehrere im Abstand
+der Einspeiseregel – und zieht die Kabel bis zur Quelle.</p>
+<ul>
+<li><b>Gleissystem:</b> Das Programm erkennt das verbaute Gleis (das mit der größten Gleislänge). Mittelleiter (z. B. Märklin C- und K-Gleis): Bahnstrom an den Mittelleiter, Masse an die Schienen, keine Polung; Melder über eine isolierte Außenschiene am Rückmeldemodul. Zweileiter: Bahnstrom und Masse je an eine Schiene, im Abschnitt immer dieselbe Seite; Kehrschleifen bekommen ein Kehrschleifenmodul, Melder laufen über den Besetztmelder. Passt die eingestellte Stromart nicht zum Gleis, wird sie auf „Automatisch (nach Gleis)“ gestellt.</li>
+<li><b>Masse:</b> Jede Einspeisung bekommt ein eigenes Massekabel ans Gleis.</li>
+<li><b>Anlage auf einer Ebene</b>, egal wie viele Trennstellen: die <b>Zentrale</b> speist alle Abschnitte.</li>
+<li><b>Mehrere Ebenen:</b> je Ebene ein <b>Booster</b>; die Zentrale bleibt nur fürs Schalten. Trennstellen allein erzeugen keine weiteren Booster.
+Damit eine Ebene einen eigenen Booster bekommt, muss sie durch Trennstellen ein eigener Abschnitt sein.</li>
+<li><b>Gleichstrom (Zweileiter)</b>: jede Kehrschleife wird erkannt, fehlende Trennstellen an ihren Enden werden gesetzt und die Schleife über ein
+<b>Kehrschleifenmodul KS1, KS2 …</b> gespeist. Das Modul bekommt oben Bahnstrom (B) und Masse (0) von Zentrale bzw. Booster.</li>
+<li><b>Melder setzt das Programm selbst:</b> Digital wird jeder Abschnitt zwischen Trennstellen ein Meldeabschnitt mit einem Melder (Melder 1, 2 …, fortlaufender Kontakt); Kehrschleifen ausgenommen. Rückmelder müssen Sie also nicht mehr von Hand setzen. Selbst gesetzte Melder bleiben, ein erneuter Lauf ersetzt nur die automatischen.</li>
+<li>Abschnitte mit <b>Melder</b> (digital) laufen über den <b>Besetztmelder</b>; er hängt wie ein Booster an Zentrale bzw. Booster. Den Besetztmelder können Sie
+auch selbst über <span class="ui">Elektrik › Besetztmelder</span> setzen.</li>
+</ul>
+<p>Ein erneuter Aufruf ersetzt die automatisch angelegten Kabel, Booster und Module; selbst verlegte Kabel bleiben. Alles lässt sich in einem Schritt rückgängig machen.
+<span class="ui">Elektrik › Verkabelung entfernen</span> (auch im Kontextmenü) nimmt alles Automatische wieder heraus: Kabel, Anschlüsse am Gleis, Zentrale und Booster, Kehrschleifen- und Besetztmelder, Melder und die für Kehrschleifen gesetzten Trennstellen. Was Sie selbst gesetzt haben, bleibt.
+<span class="ui">Elektrik › Verbindungen zum Gleis entfernen</span> nimmt dagegen nur alle Anschlüsse am Gleis heraus – Bahnstrom und Masse, automatisch oder von Hand gelegt – samt ihren Kabeln; Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen.</p>
 
 <h2 id="k9-2">Elektrik prüfen</h2>
 <p><span class="ui">Elektrik › Elektrik prüfen</span> untersucht den ganzen Plan und listet alles Auffällige auf. Ein Klick auf eine Meldung zeigt die Stelle im Plan.
@@ -1340,10 +1359,23 @@ Großbritannien und USA. Das Signal wird im Plan und in der 3D-Ansicht mit dem p
 </ul>
 <figure class="third"><img src="img/rueckmelder.png" alt=""><figcaption>Art des Rückmelders wählen.</figcaption></figure>
 <p>Klicken Sie dann auf die Gleise. Die Kontakte werden fortlaufend nummeriert, 16 je Rückmeldemodul. Ein Klick auf einen vorhandenen Rückmelder entfernt ihn.
-Name, Art und Kontaktnummer ändern Sie in den Eigenschaften.</p>
+Name, Art und Kontaktnummer ändern Sie in den Eigenschaften. Die Melder heißen fortlaufend „Melder 1“, „Melder 2“ usw.</p>
+<p>Im Digitalbetrieb sitzt ein Gleisbesetztmelder zwischen Zentrale bzw. Booster und Gleis: Der Fahrstrom fließt durch den Melder ins Gleis.
+In den Eigenschaften wählen Sie deshalb unter <span class="ui">Fahrstrom von (Zentrale / Booster)</span>, woher der Melder seinen Strom bekommt.
+Ein neuer Melder bekommt automatisch die Zentrale bzw. den Booster, der seinen Abschnitt schon speist, sonst den ersten Booster bzw. die Zentrale im Plan.
+Der Abschnitt gilt damit als gespeist – <span class="ui">Elektrik prüfen</span> meldet dort keine fehlende Einspeisung mehr. Im Plan zeigt eine rot gestrichelte Linie die Verbindung,
+im Kabelplan steht „Fahrstrom über Melder 3“.</p>
+<p><span class="ui">Elektrik › Melder verkabeln</span> (auch im Kontextmenü: <span class="ui">Rückmelder mit Modul verbinden</span>) verbindet jeden Rückmelder,
+der eine Kontaktnummer hat, mit einem violetten Kabel mit der passenden Klemme seines Rückmeldemoduls. Kontakt 5 landet an Melder 5 des ersten Moduls,
+Kontakt 20 an Melder 4 des zweiten. Gibt es für einen Kontakt noch kein Modul, legt das Programm einen neutralen <b>Besetztmelder</b> unter dem Gleisplan an
+(„Besetztmelder 1“, „Besetztmelder 2“ …, je 16 Kontakte einer). Oben am Besetztmelder liegen Bahnstrom (B, rot) und Masse (0, braun):
+von dort führt je ein Kabel zur Zentrale bzw. zum Booster, die Sie beim Melder unter „Fahrstrom von“ gewählt haben. Damit sind Einspeisung und Masse des Abschnitts in Ordnung.
+Solange die Funktion eingeschaltet ist, folgen die Kabel jeder Änderung: neuer Rückmelder, andere Kontaktnummer, verschobenes Gleis oder gelöschter Rückmelder.
+Ein zweiter Klick auf <span class="ui">Melder verkabeln</span> (<span class="ui">Rückmelder-Kabel entfernen</span>) nimmt alle diese Kabel wieder heraus;
+die automatisch angelegten Besetztmelder verschwinden mit, selbst gesetzte Rückmeldemodule bleiben stehen.</p>
 
 <h2 id="k9-11">Nummerieren</h2>
-<p><span class="ui">Elektrik › Nummerieren</span> gibt allen Einspeisungen (G1, G2 …), Rückmeldern (M1, M2 …) und Kabeln (K1, K2 …) eine Nummer, von links oben nach rechts unten.
+<p><span class="ui">Elektrik › Nummerieren</span> gibt allen Einspeisungen (G1, G2 …), Meldern (Melder 1, Melder 2 …) und Kabeln (K1, K2 …) eine Nummer, von links oben nach rechts unten.
 Schreiben Sie dieselben Nummern beim Bauen an die echten Kabel – dann finden Sie später jede Leitung wieder.</p>
 
 <h2 id="k9-5">Kabelplan</h2>

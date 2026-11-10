@@ -43,6 +43,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("models"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModelFile.ModelDto>? Models { get; set; }
         [JsonPropertyName("current"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Current { get; set; }
         [JsonPropertyName("operation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Operation { get; set; }
+        [JsonPropertyName("detWires"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? DetWires { get; set; }
     }
 
     private sealed class DetectorDto
@@ -52,6 +53,8 @@ public static partial class PlanSerializer
         [JsonPropertyName("type")] public string? Type { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
+        [JsonPropertyName("src"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Src { get; set; }
+        [JsonPropertyName("auto"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Auto { get; set; }
     }
 
     private sealed class BackgroundDto
@@ -111,6 +114,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Id { get; set; }
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("end")] public int End { get; set; }
+        [JsonPropertyName("auto"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Auto { get; set; }
     }
 
     private sealed class SignalDto
@@ -261,13 +265,14 @@ public static partial class PlanSerializer
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel || s.Kind == SceneryKind.Power && !string.IsNullOrEmpty(s.Model) ? s.Model : null,
                 Addr = s.Kind == SceneryKind.Power ? s.Address : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
-                Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
+                Tracks = (s.IsModel || DetectorWiring.IsGenerated(s) || AutoWiring.IsAuto(s)) && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Gnd = f.Ground, At = Math.Abs(f.At - 0.5) < 1e-9 ? null : Math.Round(f.At, 4), Wire = f.WireId, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),
             Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
             Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
-            Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
+            DetWires = plan.DetectorWiring ? true : null,
+            Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index, Auto = i.Auto ? true : null }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
                 { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), System = g.System == SignalSystem.HV ? null : g.System.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
             Levels = plan.Levels.Count == 1 && plan.Levels[0] is { Height: 0, Visible: true } ? null
@@ -275,7 +280,7 @@ public static partial class PlanSerializer
             ActiveLevel = plan.ActiveLevel,
             Benchwork = plan.Benchwork,
             Detectors = plan.Detectors.Count == 0 ? null : plan.Detectors.Select(d => new DetectorDto
-                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address }).ToList(),
+                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address, Src = d.Source, Auto = d.Auto ? true : null }).ToList(),
             Train = plan.TrainLength > 0 ? plan.TrainLength : null,
             Prices = plan.Prices.Count == 0 ? null : new Dictionary<string, double>(plan.Prices),
             Stock = plan.Stock.Count == 0 ? null : new Dictionary<string, int>(plan.Stock),
@@ -317,6 +322,7 @@ public static partial class PlanSerializer
             TrainLength = dto.Train is double tl && double.IsFinite(tl) ? Math.Clamp(tl, 0, 100000) : 0,
             Current = dto.Current switch { "ac" => CurrentKind.Wechselstrom, "dc" => CurrentKind.Gleichstrom, _ => CurrentKind.Auto },
             Operation = dto.Operation == "analog" ? PowerMode.Analog : PowerMode.Digital,
+            DetectorWiring = dto.DetWires == true,
         };
         foreach (var (k, v) in dto.Prices ?? [])
             if (double.IsFinite(v) && v >= 0) plan.Prices[k] = v;
@@ -408,6 +414,9 @@ public static partial class PlanSerializer
             };
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
+            // automatisch verlegtes Rückmelder-Kabel: Gleis des Rückmelders
+            // automatisch verlegte Kabel und angelegte Besetztmelder (siehe DetectorWiring)
+            if (kind is SceneryKind.Wire or SceneryKind.Power && s.Tracks is [var autoTag]) item.Tracks = [autoTag];
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
             if (kind == SceneryKind.Wire && item.Points.Count < 2) continue;
@@ -425,7 +434,7 @@ public static partial class PlanSerializer
                 plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev, Ground = f.Gnd, At = Math.Clamp(f.At ?? 0.5, 0, 1), WireId = f.Wire, Name = f.Name?.Trim() ?? "" });
         foreach (var i in dto.Isolations ?? [])
             if (plan.Find(i.Piece) is { } ip && i.End >= 0 && i.End < ip.WorldConnectors().Count)
-                plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End });
+                plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End, Auto = i.Auto == true });
         foreach (var g in dto.Signals ?? [])
             if (plan.Find(g.Piece) is { } gp && g.End >= 0 && g.End < gp.WorldConnectors().Count)
                 plan.Signals.Add(new Signal
@@ -438,7 +447,7 @@ public static partial class PlanSerializer
             if (plan.Find(d.Piece) is not null)
                 plan.Detectors.Add(new Detector
                 {
-                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr,
+                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = d.Src?.Trim(), Auto = d.Auto == true,
                     Type = Enum.TryParse<DetectorType>(d.Type, true, out var dt) ? dt : DetectorType.Strom,
                 });
         return plan;

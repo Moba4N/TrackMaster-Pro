@@ -129,6 +129,11 @@ public static class WireLayout
             {
                 var ports = Decoders.Ports(mod);
                 for (var i = 0; i < ports.Count; i++) list.Add(new(ports[i].X, ports[i].Y, $"{mod.Name} ({m.Id}) – {Decoders.PortName(m, i)}"));
+                if (Decoders.FeedTerminals(mod) is { } ft)
+                {
+                    list.Add(new(ft.Track.X, ft.Track.Y, Lang.F($"{mod.Name} – Bahnstrom (B) vom Booster")));
+                    list.Add(new(ft.Ground.X, ft.Ground.Y, Lang.F($"{mod.Name} – Masse (0)")));
+                }
             }
         foreach (var d in PowerSupply.Distributors(plan))
         {

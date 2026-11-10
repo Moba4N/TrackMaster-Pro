@@ -675,6 +675,11 @@ public static partial class Dialogs
                 body.AddView(Ui.Field(c, Lang.T("Art"), type));
                 var address = Ui.Number(c, det.Address ?? 0);
                 body.AddView(Ui.Field(c, Lang.T("Kontakt am Rückmeldemodul (0 = keiner)"), address));
+                var srcNames = new List<string> { "" };
+                srcNames.AddRange(session.DetectorSources.Select(x => x.Name));
+                if (det.Source is { Length: > 0 } missing && !srcNames.Contains(missing)) srcNames.Add(missing);
+                var srcChoice = Choice(c, srcNames.Select(n => n.Length == 0 ? Lang.T("keine Verbindung") : n).ToList(), Math.Max(0, srcNames.IndexOf(det.Source ?? "")));
+                if (plan.Operation == PowerMode.Digital) body.AddView(Ui.Field(c, Lang.T("Fahrstrom von (Zentrale / Booster)"), srcChoice));
                 var rows = new List<(string, string, Color?)>();
                 if (det.Address is { } da) rows.Add((Lang.T("Modul / Eingang"), Lang.F($"{(da - 1) / Detector.InputsPerModule + 1} / {(da - 1) % Detector.InputsPerModule + 1}"), null));
                 rows.Add((Lang.T("Gleis"), $"{plan.Find(det.PieceId)?.Def.Number} (Nr. {det.PieceId})", null));
@@ -689,7 +694,8 @@ public static partial class Dialogs
                     var t = types[Math.Max(0, type.SelectedItemPosition)];
                     var n = (name.Text ?? "").Trim();
                     int? addr = a >= 1 ? (int)Math.Round(a) : null;
-                    if (n != det.Name || t != det.Type || addr != det.Address) session.Edit(() => { det.Name = n; det.Type = t; det.Address = addr; });
+                    var src = plan.Operation == PowerMode.Digital ? srcNames[Math.Clamp(srcChoice.SelectedItemPosition, 0, srcNames.Count - 1)] : det.Source;
+                    if (n != det.Name || t != det.Type || addr != det.Address || src != det.Source) session.Edit(() => { det.Name = n; det.Type = t; det.Address = addr; det.Source = src; });
                     return true;
                 });
                 break;

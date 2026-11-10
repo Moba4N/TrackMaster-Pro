@@ -305,7 +305,9 @@ public sealed class Isolation
     public int Id { get; set; }
     public int PieceId { get; set; }
     public int Index { get; set; }
-    public Isolation Clone() => new() { Id = Id, PieceId = PieceId, Index = Index };
+    /// <summary>Von „Automatisch verkabeln“ gesetzt (Kehrschleife); „Verkabelung entfernen“ nimmt sie wieder heraus.</summary>
+    public bool Auto { get; set; }
+    public Isolation Clone() => new() { Id = Id, PieceId = PieceId, Index = Index, Auto = Auto };
 }
 
 public enum SignalType { Hauptsignal, Vorsignal, Ausfahrsignal, Sperrsignal, Blocksignal }
@@ -370,7 +372,24 @@ public sealed class Detector
     public string Name { get; set; } = "";
     /// <summary>Kontakt bzw. Eingang am Rückmeldemodul (z. B. s88: Modul × 16 + Eingang).</summary>
     public int? Address { get; set; }
-    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address };
+    /// <summary>
+    /// Digital: Zentrale bzw. Booster (Name der Quelle), deren Fahrstrom über den Melder ins Gleis geht – der Gleisbesetztmelder sitzt
+    /// zwischen Booster-Ausgang und Gleis. Der Abschnitt gilt damit als gespeist (siehe <see cref="Electrics.DetectorFeeds"/>).
+    /// "" = bewusst keine Verbindung, null = noch nicht gewählt (das Programm setzt dann Zentrale bzw. Booster des Abschnitts).
+    /// </summary>
+    public string? Source { get; set; }
+    /// <summary>Von „Automatisch verkabeln“ gesetzt (je Abschnitt ein Melder); ein erneuter Lauf ersetzt ihn.</summary>
+    public bool Auto { get; set; }
+    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address, Source = Source, Auto = Auto };
+
+    /// <summary>Name für den nächsten Melder: „Melder n“ mit der nächsten freien Nummer.</summary>
+    public static string NextName(LayoutPlan plan)
+    {
+        var max = 0;
+        foreach (var d in plan.Detectors)
+            if (d.Name.StartsWith("Melder ", StringComparison.Ordinal) && int.TryParse(d.Name.AsSpan(7), out var n)) max = Math.Max(max, n);
+        return $"Melder {Math.Max(max, plan.Detectors.Count) + 1}";
+    }
 
     public static string TypeName(DetectorType t) => t switch
     {
@@ -480,6 +499,8 @@ public sealed class LayoutPlan
     public CurrentKind Current { get; set; }
     /// <summary>Betriebsart: digital (Zentrale, Booster) oder analog (Fahrtrafo).</summary>
     public PowerMode Operation { get; set; }
+    /// <summary>Rückmelder mit Kontakt automatisch mit ihrem Rückmeldemodul verkabeln (siehe <see cref="TrackMaster.Core.DetectorWiring"/>).</summary>
+    public bool DetectorWiring { get; set; }
 
     public Gauge Gauge => Catalog.GetGauge(GaugeId);
 
@@ -527,7 +548,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation,
+            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation, DetectorWiring = DetectorWiring,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);

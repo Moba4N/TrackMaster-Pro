@@ -204,6 +204,10 @@ public sealed partial class MainWindow : Window
         Add("wiring", ShowWiring);
         Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
         Add("numberElectrics", () => Session.NumberElectrics());
+        Add("autoWire", () => { Session.ShowWires = true; Session.AutoWire(); Canvas.Rebuild(); });
+        Add("autoWireRemove", () => { Session.RemoveAutoWiring(); Canvas.Rebuild(); });
+        Add("trackConnRemove", () => { Session.RemoveTrackConnections(); Canvas.Rebuild(); });
+        Add("detectorWires", () => { var on = !Session.Plan.DetectorWiring; if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); });
         Add("routes", ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ExportControl);
         Add("view3d", () => Open3D(View3DMode.Orbit));
@@ -575,7 +579,7 @@ public sealed partial class MainWindow : Window
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
         CanvasTool.Tree => Lang.T("Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => Decoders.Find(Session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
+        CanvasTool.Power => Decoders.Find(Session.ModuleModel) is { } mm ? Lang.F($"{mm.Short}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
             : Lang.T("Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
@@ -991,6 +995,9 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Stromversorgung"),
                 currentMenu, powerMenu,
                 ToolToggle(Lang.T("Trennstelle"), "Isolate", false, CanvasTool.Isolation, "toolIsolation", Lang.T("Isolierte Schienenverbinder an einer Gleisverbindung setzen.")),
+                Small(Lang.T("Automatisch verkabeln"), "Wire", "autoWire", Lang.T("Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Liegt alles auf einer Ebene, speist die Zentrale; über mehrere Ebenen bekommt jede Ebene einen Booster und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Digital setzt es je Abschnitt einen Melder und speist ihn über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.")),
+                Small(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove", Lang.T("Alles, was „Automatisch verkabeln“ angelegt hat, wieder herausnehmen: Kabel, Anschlüsse am Gleis, Zentrale und Booster, Kehrschleifen- und Besetztmelder, Melder und Trennstellen. Selbst Gesetztes bleibt. Rückgängig holt alles zurück.")),
+                Small(Lang.T("Verbindungen zum Gleis entfernen"), "Delete", "trackConnRemove", Lang.T("Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.")),
                 Toggle(Lang.T("Stromkreise zeigen"), "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
                 Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
                     Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
@@ -1002,8 +1009,11 @@ public sealed partial class MainWindow : Window
                 Small(Lang.T("Adressen"), "Hash", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 signalMenu,
                 distributorMenu,
+                Small(Lang.T("Besetztmelder"), "Detector", "moduleBesetztmelder", Lang.T("Besetztmelder (16 Eingänge) wie einen Booster in den Plan setzen. Er bekommt Bahnstrom (B) und Masse (0) von Zentrale oder Booster und speist die Abschnitte mit Melder.")),
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
-                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
+                Toggle(Lang.T("Melder verkabeln"), "Wire", false, () => Session.Plan.DetectorWiring, on => { if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); },
+                    Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
+                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Melder (Melder 1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));
@@ -1607,6 +1617,10 @@ public sealed partial class MainWindow : Window
         if (menu.Items.Count == 0) menu.Items.Add(Cmd(Lang.T("Ganze Anlage"), "Fit", "fit"));
         if (menu.Items[menu.Items.Count - 1] is not Separator) menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(Session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"), "Wire", "wires"));
+        menu.Items.Add(Cmd(Lang.T("Automatisch verkabeln"), "Wire", "autoWire"));
+        menu.Items.Add(Cmd(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove"));
+        menu.Items.Add(Cmd(Lang.T("Verbindungen zum Gleis entfernen"), "Delete", "trackConnRemove"));
+        menu.Items.Add(Cmd(Session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"), "Detector", "detectorWires"));
         menu.Items.Add(Cmd(Lang.T("Elektrik nummerieren"), "Hash", "numberElectrics"));
         if (menu.Items[menu.Items.Count - 1] is Separator) menu.Items.RemoveAt(menu.Items.Count - 1);
         menu.PlacementTarget = Canvas;

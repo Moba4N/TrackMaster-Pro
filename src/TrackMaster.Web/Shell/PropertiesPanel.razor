@@ -953,6 +953,21 @@
         </select>
         <label class="field-label">@Lang.T("Kontakt am Rückmeldemodul (leer = keiner)")</label>
         <input class="input" inputmode="numeric" value="@F("address")" @onchange="@(e => Set("address", e, ApplyDetector))" />
+        @if (Plan.Operation == PowerMode.Digital)
+        {
+            <label class="field-label">@Lang.T("Fahrstrom von (Zentrale / Booster)")</label>
+            <select class="input" value="@(det.Source ?? "")" @onchange="@(e => Session.SetDetectorSource(det.Id, e.Value?.ToString()))">
+                <option value="">@Lang.T("keine Verbindung")</option>
+                @foreach (var src in Session.DetectorSources)
+                {
+                    <option value="@src.Name">@src.Name (@PowerSupply.TypeName(PowerSupply.Type(src)))</option>
+                }
+                @if (det.Source is { Length: > 0 } missing && Session.DetectorSources.All(x => x.Name != missing))
+                {
+                    <option value="@missing">@Lang.F($"{missing} (fehlt im Plan)")</option>
+                }
+            </select>
+        }
         <dl class="rows">
             @if (det.Address is { } a)
             {

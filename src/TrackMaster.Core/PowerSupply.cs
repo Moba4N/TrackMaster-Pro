@@ -99,10 +99,11 @@ public static class PowerSupply
     public static SceneryItem? SourceOf(LayoutPlan plan, Feeder f) => TrackSources(plan).FirstOrDefault(s => s.Name == f.Circuit);
 
     /// <summary>Bahnstrom-Einspeisungen dieser Quelle (ohne Masseanschlüsse).</summary>
-    public static IEnumerable<Feeder> FeedersOf(LayoutPlan plan, SceneryItem source) => plan.Feeders.Where(f => !f.Ground && f.Circuit == source.Name);
+    /// <summary>Gleisanschlüsse mit Bahnstrom von dieser Quelle, auch über Melder (<see cref="Electrics.DetectorFeeds"/>).</summary>
+    public static IEnumerable<Feeder> FeedersOf(LayoutPlan plan, SceneryItem source) => plan.Feeders.Concat(Electrics.DetectorFeeds(plan)).Where(f => !f.Ground && f.Circuit == source.Name);
 
     /// <summary>Masseanschlüsse am Gleis, die von dieser Quelle kommen.</summary>
-    public static IEnumerable<Feeder> GroundsOf(LayoutPlan plan, SceneryItem source) => plan.Feeders.Where(f => f.Ground && f.Circuit == source.Name);
+    public static IEnumerable<Feeder> GroundsOf(LayoutPlan plan, SceneryItem source) => plan.Feeders.Concat(Electrics.DetectorFeeds(plan)).Where(f => f.Ground && f.Circuit == source.Name);
 
     /// <summary>Symbolgröße nach Spurweite (H0: etwa 165 × 100 mm, ungefähr wie eine Zentrale).</summary>
     public static (double Width, double Depth) Size(Gauge gauge)

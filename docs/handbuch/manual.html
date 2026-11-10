@@ -1248,6 +1248,25 @@ command station and booster, or for a reversing loop.</p>
 With <b>two-rail</b> track the left rail meets the right one: track power meets ground, a short circuit. The solution: put isolating joints at both ends of the loop
 and supply it via a <b>reversing module</b> (digital) or a <b>polarity reversing switch</b> (analog). The program detects reversing loops itself
 and reports them. With centre rail this problem does not exist.</p>
+<h3>Wire automatically</h3>
+<p>The quickest way to finished wiring: build the track plan, set the isolating joints, then <span class="ui">Electrics › Wire automatically</span>
+(also in the context menu). The program adds feeds with <b>track power and ground</b> to every section – several on long sections, spaced by the feeder rule –
+and runs the wires to the source.</p>
+<ul>
+<li><b>Track system:</b> The program detects the track used (the one with the most track length). Centre rail (e.g. Märklin C and K track): track power to the centre rail, ground to the rails, no polarity; detectors via an isolated outer rail on the feedback module. Two-rail: track power and ground each to one rail, always the same side within a section; reversing loops get a reversing module, detectors run via the occupancy detector. If the selected current type does not match the track, it is set to “Automatic (from track)”.</li>
+<li><b>Ground:</b> every feed gets its own ground wire to the track.</li>
+<li><b>Layout on one level</b>, however many isolating joints: the <b>command station</b> feeds all sections.</li>
+<li><b>Several levels:</b> one <b>booster</b> per level; the command station is only used for switching. Isolating joints alone never add boosters.
+For a level to get its own booster it must be a separate section, divided off by isolating joints.</li>
+<li><b>DC (two-rail)</b>: every reversing loop is detected, missing isolating joints at its ends are set and the loop is fed via a
+<b>reversing module KS1, KS2 …</b>. The module gets track power (B) and ground (0) at the top from the command station or booster.</li>
+<li><b>Detectors are placed automatically:</b> in digital mode every section between isolating joints becomes a detection section with one detector (Melder 1, 2 …, consecutive contact); reversing loops excepted. You no longer need to place feedback sensors by hand. Detectors you placed yourself stay; running it again only replaces the automatic ones.</li>
+<li>Sections with a <b>detector</b> (digital) run via the <b>occupancy detector</b>; it hangs on the command station or a booster like a booster does. You can also
+place the occupancy detector yourself via <span class="ui">Electrics › Occupancy detector</span>.</li>
+</ul>
+<p>Running it again replaces the automatically added wires, boosters and modules; wires you laid yourself stay. Everything can be undone in one step.
+<span class="ui">Electrics › Remove wiring</span> (also in the context menu) takes out everything automatic: wires, track connections, command station and boosters, reversing modules and occupancy detectors, detectors and the isolating joints set for reversing loops. Anything you placed yourself stays.
+<span class="ui">Electrics › Remove track connections</span> on the other hand only takes out all connections to the track – track power and ground, automatic or laid by hand – together with their wires; command station, boosters, modules, detectors and isolating joints stay.</p>
 
 <h2 id="k9-2">Checking the wiring</h2>
 <p><span class="ui">Wiring › Check wiring</span> examines the whole plan and lists everything unusual. Clicking a message shows the spot in the plan.
@@ -1330,10 +1349,23 @@ Great Britain and the USA. The signal is shown in the plan and in the 3D view wi
 </ul>
 <figure class="third"><img src="img-en/rueckmelder.png" alt=""><figcaption>Choosing the type of feedback sensor.</figcaption></figure>
 <p>Then click the tracks. The contacts are numbered in sequence, 16 per feedback module. Clicking an existing sensor removes it.
-Change name, type and contact number in the properties.</p>
+Change name, type and contact number in the properties. The sensors are numbered “Melder 1”, “Melder 2” and so on.</p>
+<p>In digital operation an occupancy detector sits between the command station or booster and the track: the traction power flows through the detector into the track.
+In the properties, choose under <span class="ui">Traction power from (command station / booster)</span> where the detector gets its power from.
+A new detector automatically gets the command station or booster that already feeds its section, otherwise the first booster or the command station in the plan.
+The section then counts as fed – <span class="ui">Check electrics</span> no longer reports a missing feeder there. A red dashed line in the plan shows the connection,
+and the wiring plan lists “Traction power through Melder 3”.</p>
+<p><span class="ui">Electrics › Wire detectors</span> (also in the context menu: <span class="ui">Connect detectors to module</span>) connects every feedback sensor
+that has a contact number to the matching terminal of its feedback module with a violet wire. Contact 5 goes to input 5 of the first module,
+contact 20 to input 4 of the second. If there is no module for a contact yet, the program places a generic <b>occupancy detector</b> below the track plan
+(“Besetztmelder 1”, “Besetztmelder 2” …, one per 16 contacts). Track power (B, red) and ground (0, brown) are at the top of the occupancy detector:
+from there one wire each runs to the command station or booster you chose for the sensor under “Traction power from”. Feed and ground of the section are then fine.
+While the function is on, the wires follow every change: a new sensor, another contact number, a moved track or a deleted sensor.
+Clicking <span class="ui">Wire detectors</span> again (<span class="ui">Remove detector wires</span>) takes all these wires out again;
+the automatically added occupancy detectors go with them, feedback modules you placed yourself stay.</p>
 
 <h2 id="k9-11">Numbering</h2>
-<p><span class="ui">Wiring › Number</span> gives all feeders (G1, G2 …), feedback sensors (M1, M2 …) and wires (K1, K2 …) a number, from top left to bottom right.
+<p><span class="ui">Wiring › Number</span> gives all feeders (G1, G2 …), feedback sensors (Melder 1, Melder 2 …) and wires (K1, K2 …) a number, from top left to bottom right.
 Write the same numbers on the real wires when building – then you will find every wire again later.</p>
 
 <h2 id="k9-5">Wiring plan</h2>

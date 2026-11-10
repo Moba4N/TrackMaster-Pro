@@ -17,7 +17,7 @@
         <img class="app-logo" src="img/logo-small.png" alt="TrackMaster Pro" title="@Lang.T("Über das Programm")" @onclick="@(() => Run("about"))" />
         <div class="titles">
             <span class="app-name">TrackMaster Pro</span>
-            <span class="doc-title" title="@plan.Name">@plan.Name@(_session.Dirty ? " •" : "")</span>
+            <span class="doc-title" title="@(_session.Dirty ? Lang.F($"{plan.Name} – ungespeicherte Änderungen") : plan.Name)">@plan.Name@(_session.Dirty ? " •" : "")</span>
         </div>
         <button class="icon-btn" title="@Lang.T("Rückgängig (Strg+Z)")" disabled="@(!_session.History.CanUndo)" @onclick="@(() => Run("undo"))">@((MarkupString)Icons.Svg("Undo", 20))</button>
         <button class="icon-btn" title="@Lang.T("Wiederholen (Strg+Y)")" disabled="@(!_session.History.CanRedo)" @onclick="@(() => Run("redo"))">@((MarkupString)Icons.Svg("Redo", 20))</button>
@@ -131,6 +131,10 @@
                     }
                     <div class="ctx-sep" role="separator"></div>
                     <button role="menuitem" @onclick="@(() => CtxRun("wires"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@(_session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"))</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("autoWire"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@Lang.T("Automatisch verkabeln")</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("autoWireRemove"))">@((MarkupString)Icons.Svg("Delete", 16))<span>@Lang.T("Verkabelung entfernen")</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("trackConnRemove"))">@((MarkupString)Icons.Svg("Delete", 16))<span>@Lang.T("Verbindungen zum Gleis entfernen")</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("detectorWires"))">@((MarkupString)Icons.Svg("Detector", 16))<span>@(_session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"))</span></button>
                     <button role="menuitem" @onclick="@(() => CtxRun("numberElectrics"))">@((MarkupString)Icons.Svg("Hash", 16))<span>@Lang.T("Elektrik nummerieren")</span></button>
                 </div>
             }
@@ -169,6 +173,20 @@
                     <button class="icon-btn" title="@Lang.T("Hervorhebung beenden")" @onclick="CloseIssueNav">✕</button>
                 </div>
             }
+            @if (plan.Pieces.Count == 0 && plan.Scenery.Count == 0 && _session.Tool == CanvasTool.Select && _dialog is null && !_open3D && !ReferenceEquals(_emptyHintClosedFor, plan))
+            {
+                <div class="empty-hint" role="note">
+                    <button class="icon-btn empty-close" title="@Lang.T("Schließen")" aria-label="@Lang.T("Schließen")" @onclick="@(() => _emptyHintClosedFor = plan)">@((MarkupString)Icons.Svg("Close", 18))</button>
+                    <div class="strong">@Lang.T("Der Plan ist noch leer.")</div>
+                    <div class="secondary">@Lang.T("Ein Gleis in der Gleisbibliothek anklicken oder auf die Platte ziehen – jedes weitere setzt am freien Ende an.")</div>
+                    <div class="button-row inline">
+                        <button class="btn only-narrow" @onclick="@(() => { _libraryOpen = true; _propsOpen = false; })">@Lang.T("Gleisbibliothek")</button>
+                        <button class="btn" @onclick="@(() => Run("suggest"))">@Lang.T("Planvorschlag…")</button>
+                        <button class="btn" @onclick="@(() => Run("sample"))">@Lang.T("Beispielanlage")</button>
+                        <button class="btn" @onclick="@(() => Run("help"))">@Lang.T("Bedienung")</button>
+                    </div>
+                </div>
+            }
             @if (_toast is not null)
             {
                 <div class="toast" role="status" @onclick="() => _toast = null">@_toast</div>
@@ -192,12 +210,12 @@
             var k = i;
             var level = plan.Levels[k];
             <span class="lb-chip @(plan.ActiveLevel == k ? "active" : "") @(level.Visible ? "" : "hidden")">
-                <input type="checkbox" title="@Lang.T("Ein- oder ausblenden")" checked="@level.Visible" disabled="@(plan.ActiveLevel == k && level.Visible && plan.Levels.Count(l => l.Visible) == 1)" @onchange="@(e => _session.SetLevelVisible(k, e.Value is true))" />
-                <button title="@Lang.T("Aktive Ebene: neue Gleise kommen hierher")" @onclick="@(() => _session.SetActiveLevel(k))">@level.Name <span class="secondary">@Fmt.Num(level.Height, 0)</span></button>
+                <input type="checkbox" title="@Lang.T("Ein- oder ausblenden")" aria-label="@Lang.F($"{level.Name} ein- oder ausblenden")" checked="@level.Visible" disabled="@(plan.ActiveLevel == k && level.Visible && plan.Levels.Count(l => l.Visible) == 1)" @onchange="@(e => _session.SetLevelVisible(k, e.Value is true))" />
+                <button title="@Lang.F($"{level.Name}, Grundhöhe {Fmt.Num(level.Height, 0)} mm – antippen: neue Gleise kommen auf diese Ebene")" aria-pressed="@(plan.ActiveLevel == k)" @onclick="@(() => _session.SetActiveLevel(k))">@level.Name <span class="secondary">@Fmt.Num(level.Height, 0) mm</span></button>
             </span>
         }
-        <button class="lb-add" title="@Lang.T("Ebene hinzufügen")" disabled="@(plan.Levels.Count >= LayoutPlan.MaxLevels)" @onclick="@(() => _session.AddLevel())">+</button>
-        <button class="lb-add" title="@Lang.T("Ebenen bearbeiten")" @onclick="@(() => Run("levels"))">…</button>
+        <button class="lb-add" title="@Lang.T("Ebene hinzufügen")" aria-label="@Lang.T("Ebene hinzufügen")" disabled="@(plan.Levels.Count >= LayoutPlan.MaxLevels)" @onclick="@(() => _session.AddLevel())">+</button>
+        <button class="lb-add" title="@Lang.T("Ebenen bearbeiten")" aria-label="@Lang.T("Ebenen bearbeiten")" @onclick="@(() => Run("levels"))">…</button>
         @{ var anyVisible = plan.Levels.Any(l => l.Visible); }
         <button class="lb-add lb-all" title="@(anyVisible ? Lang.T("Alle Ebenen ausblenden") : Lang.T("Alle Ebenen einblenden"))" @onclick="@(() => _session.SetAllLevelsVisible(!anyVisible))">@(anyVisible ? Lang.T("Alle ausblenden") : Lang.T("Alle einblenden"))</button>
     </div>
@@ -215,8 +233,8 @@
         <span class="st-spacer"></span>
         <span class="st-item hide-narrow" id="status-xy"></span>
         <span class="st-item hide-narrow">@_zoomText</span>
-        <button class="st-toggle @(_session.SnapEnabled ? "on" : "")" title="@Lang.T("Gleise rasten an freien Enden ein")" @onclick="@(() => Run("snap"))">@Lang.T("Einrasten")</button>
-        <button class="st-toggle @(_session.ShowGrid ? "on" : "")" title="@Lang.T("Raster anzeigen")" @onclick="@(() => Run("grid"))">@Lang.T("Raster")</button>
+        <button class="st-toggle @(_session.SnapEnabled ? "on" : "")" aria-pressed="@_session.SnapEnabled" title="@Lang.T("Gleise rasten an freien Enden ein")" @onclick="@(() => Run("snap"))">@Lang.T("Einrasten")</button>
+        <button class="st-toggle @(_session.ShowGrid ? "on" : "")" aria-pressed="@_session.ShowGrid" title="@Lang.T("Raster anzeigen")" @onclick="@(() => Run("grid"))">@Lang.T("Raster")</button>
     </footer>
 
     @if (_editModel is { } editModel)
@@ -392,14 +410,20 @@
                 new(Lang.T("Trafo / Zentrale"), "Power", "toolPower", true, Lang.T("Digitalzentrale, Booster, Fahrtrafo oder Zubehörtrafo als Symbol in den Plan setzen – auch neben die Platte. Danach mit „Kabel von hier verlegen“ Bahnstrom und Masse aufs Gleis legen; jedes Kabelende auf einem Gleis ist eine Einspeisung.")),
                 new(Lang.T("Kabel zeigen"), "Wire", "wires", false, Lang.T("Selbst verlegte Kabel und die roten Verbindungslinien ein- oder ausblenden.")),
                 new(Lang.T("Kabel verlegen"), "Wire", "toolWire", true, Lang.T("Kabel selbst verlegen: Punkte anklicken, Doppelklick beendet. Die Enden rasten an Zentrale, Booster, Verteilern, Rückmeldern, Signalen und Weichenantrieben ein. Ein Ende auf einem Gleis wird zur Einspeisung (Bahnstrom oder Masse, je nachdem, woher das Kabel kommt).")),
-                new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false), new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
+                new(Lang.T("Trennstelle"), "Isolate", "toolIsolation", false),
+                new(Lang.T("Automatisch verkabeln"), "Wire", "autoWire", true, Lang.T("Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Liegt alles auf einer Ebene, speist die Zentrale; über mehrere Ebenen bekommt jede Ebene einen Booster und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Digital setzt es je Abschnitt einen Melder und speist ihn über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.")),
+                new(Lang.T("Verbindungen zum Gleis entfernen"), "Delete", "trackConnRemove", false, Lang.T("Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.")),
+                new(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove", false, Lang.T("Alles, was „Automatisch verkabeln“ angelegt hat, wieder herausnehmen: Kabel, Anschlüsse am Gleis, Zentrale und Booster, Kehrschleifen- und Besetztmelder, Melder und Trennstellen. Selbst Gesetztes bleibt. Rückgängig holt alles zurück.")),
+                new(Lang.T("Stromkreise zeigen"), "Grid", "sections", false),
                 new(Lang.T("Nur Elektrik beschriften"), "Hash", "elecLabels", false, Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern an den Gleisen ausblenden und stattdessen die Abschnitte beschriften.")),
                 new(Lang.T("Elektrik prüfen"), "Shield", "elecCheck", false)]),
             new(Lang.T("Digital"), [new(Lang.T("Adressen"), "Hash", "addresses", false, Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
+                new(Lang.T("Besetztmelder"), "Detector", "toolOccupancy", true, Lang.T("Besetztmelder (16 Eingänge) wie einen Booster in den Plan setzen. Er bekommt Bahnstrom (B) und Masse (0) von Zentrale oder Booster und speist die Abschnitte mit Melder.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
+                new(Lang.T("Melder verkabeln"), "Wire", "detectorWires", false, Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
                 new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),
-                new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
+                new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Einspeisungen (G1 …), Melder (Melder 1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),
         ]),
         new(Lang.T("Ansicht"),

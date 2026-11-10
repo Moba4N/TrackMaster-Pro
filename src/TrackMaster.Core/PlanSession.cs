@@ -149,6 +149,10 @@ public sealed partial class PlanSession
         }
         // Ausstattung am Gleis wechselt mit dem Gleis die Ebene (die Höhe bestimmt die 3D-Ansicht jedes Mal neu)
         ModelPlacement.SyncLevels(Plan);
+        // Melder ohne gewählte Quelle (ältere Pläne, Quelle erst später gesetzt) bekommen Zentrale bzw. Booster ihres Abschnitts
+        foreach (var d in Plan.Detectors.Where(d => d.Source is null)) d.Source = DefaultDetectorSource(d.PieceId);
+        // Rückmelder-Kabel folgen Kontakt und Gleis des Rückmelders
+        DetectorWiring.Sync(Plan);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
         if (Active is { } a && Connections.Find(a.PieceId, a.Index) is not { IsOpen: true }) Active = null;
         Changed?.Invoke();
@@ -167,6 +171,9 @@ public sealed partial class PlanSession
         Issues = [];
         FocusedIssue = null;
         Active = null;
+        // ältere Pläne: automatische Melder-Namen „RM3“ bzw. „M3“ heißen jetzt „Melder 3“
+        foreach (var d in plan.Detectors)
+            if (System.Text.RegularExpressions.Regex.Match(d.Name, @"^R?M(\d+)$") is { Success: true } m) d.Name = $"Melder {m.Groups[1].Value}";
         Commit();
     }
 
@@ -254,8 +261,11 @@ public sealed partial class PlanSession
     public void OpenJson(string json, string? name)
     {
         var plan = PlanSerializer.FromJson(json, out var skipped, out var newer);
-        Replace(plan, name);
-        Say(OpenedMessage(plan, skipped, newer));
+        // Web und Android fragen vor dem Öffnen nicht nach: geänderte Pläne holt Rückgängig zurück
+        var keep = Dirty && Plan.Pieces.Count + Plan.Scenery.Count > 0;
+        if (keep) History.Record(Plan);
+        Replace(plan, name, keepHistory: keep);
+        Say(OpenedMessage(plan, skipped, newer) + (keep ? " " + Lang.T("Rückgängig holt den vorherigen Plan zurück.") : ""));
     }
 
     /// <summary>Gleissystem der Bibliothek wählen; der Plan merkt es sich beim Speichern.</summary>

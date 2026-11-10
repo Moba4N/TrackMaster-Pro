@@ -22,7 +22,7 @@ public static class AutoWiring
     public static bool IsAuto(SceneryItem s) => s.Tracks is [Tag] && (s.IsWire || s.IsPower);
 
     public readonly record struct Result(int Sections, int Feeds, int Boosters, bool CentralFeeds, int Loops, int Isolations, int Detectors, int Wires,
-        string System = "", bool ThreeRail = false, bool CurrentAdjusted = false);
+        string System = "", bool ThreeRail = false, bool CurrentAdjusted = false, int AutoDetectors = 0);
 
     /// <summary>Verbautes Gleissystem: das mit der größten Gleislänge im Plan (Name, Mittelleiter ja/nein).</summary>
     public static (string Name, bool ThreeRail) DetectSystem(LayoutPlan plan)
@@ -98,6 +98,23 @@ public static class AutoWiring
         var spacing = Electrics.FeederSpacingH0 * 1000 * scale;
         int feeds = 0, detectors = 0, wires = 0, loops = 0, ks = 0;
         var ordered = sections.OrderByDescending(s => s.LengthMm).ToList();
+        // Digital mit mehreren Abschnitten: jeder Abschnitt zwischen Trennstellen wird ein Meldeabschnitt (außer Kehrschleifen)
+        var autoDetectors = 0;
+        if (digital && sections.Count > 1)
+            foreach (var s in sections.OrderBy(s => s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().Select(p => p.Y).DefaultIfEmpty(0).Min())
+                                      .ThenBy(s => s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().Select(p => p.X).DefaultIfEmpty(0).Min()))
+            {
+                if (loopCores.Any(c => s.PieceIds.Any(c.Contains)) || plan.Detectors.Any(d => s.PieceIds.Contains(d.PieceId))) continue;
+                var pieces = s.PieceIds.Select(plan.Find).OfType<PlacedPiece>().ToList();
+                var piece = pieces.Where(p => p.Def.Kind != PieceKind.Switch && p.Def.Drives == 0).MaxBy(p => p.Def.TrackLength) ?? pieces.FirstOrDefault();
+                if (piece is null) continue;
+                plan.Detectors.Add(new Detector
+                {
+                    Id = plan.NextId++, PieceId = piece.Id, Name = Detector.NextName(plan), Auto = true,
+                    Address = plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1,
+                });
+                autoDetectors++;
+            }
         for (var i = 0; i < ordered.Count; i++)
         {
             var s = ordered[i];
@@ -199,7 +216,7 @@ public static class AutoWiring
 
         // Melder: Besetztmelder und ihre Kabel
         if (detectors > 0) plan.DetectorWiring = true;
-        return new(sections.Count, feeds, boosterCount, !useBoosters, loops, isolationsAdded, detectors, wires, systemName, threeRail, adjusted);
+        return new(sections.Count, feeds, boosterCount, !useBoosters, loops, isolationsAdded, detectors, wires, systemName, threeRail, adjusted, autoDetectors);
     }
 
     /// <summary>Vorher automatisch Angelegtes entfernen: Kabel samt ihren Einspeisungen, Quellen und Kehrschleifenmodule.</summary>
@@ -210,6 +227,7 @@ public static class AutoWiring
         // automatisch angelegte Quellen: Melder, die auf sie zeigen, wählen beim nächsten Lauf neu
         foreach (var src in plan.Scenery.Where(s => s.IsPower && IsAuto(s)))
             foreach (var d in plan.Detectors.Where(d => d.Source == src.Name)) d.Source = null;
+        plan.Detectors.RemoveAll(d => d.Auto);
         return plan.Scenery.RemoveAll(IsAuto);
     }
 

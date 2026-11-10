@@ -200,4 +200,41 @@ public class AutoWiringTests
         Assert.Equal("", s.DetectorOn(spur.Id)!.Source);
         Assert.Empty(Errors(s.Plan));
     }
+
+    [Fact]
+    public void Melder_werden_je_Abschnitt_selbst_gesetzt()
+    {
+        var plan = SamplePlan.Build();
+        plan.Feeders.Clear();
+        plan.Scenery.RemoveAll(x => x.IsWire);
+        plan.Detectors.Clear();
+        var spur = plan.Pieces.First(p => p.Def.Number == "24215");
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = spur.Id, Index = 0 });
+        var s = Session(plan);
+        var sections = Electrics.Sections(s.Plan, Connectivity.Analyze(s.Plan));
+        Assert.Equal(2, sections.Count);
+
+        s.AutoWire();
+        Assert.Equal(2, s.Plan.Detectors.Count);
+        Assert.All(sections, sec => Assert.Single(s.Plan.Detectors, d => sec.PieceIds.Contains(d.PieceId)));
+        Assert.All(s.Plan.Detectors, d => Assert.True(d.Auto));
+        Assert.Equal(["Melder 1", "Melder 2"], s.Plan.Detectors.Select(d => d.Name).Order());
+        Assert.Empty(Errors(s.Plan));
+
+        // erneuter Lauf ersetzt, gespeichert bleibt die Kennung
+        s.AutoWire();
+        Assert.Equal(2, s.Plan.Detectors.Count);
+        var loaded = PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _);
+        Assert.All(loaded.Detectors, d => Assert.True(d.Auto));
+    }
+
+    [Fact]
+    public void Ohne_Trennstellen_keine_Melder()
+    {
+        var plan = SamplePlan.Build();
+        plan.Detectors.Clear();
+        var s = Session(plan);
+        s.AutoWire();
+        Assert.Empty(s.Plan.Detectors);
+    }
 }

@@ -205,6 +205,7 @@ public sealed partial class MainWindow : Window
         Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
         Add("numberElectrics", () => Session.NumberElectrics());
         Add("autoWire", () => { Session.ShowWires = true; Session.AutoWire(); Canvas.Rebuild(); });
+        Add("autoWireRemove", () => { Session.RemoveAutoWiring(); Canvas.Rebuild(); });
         Add("detectorWires", () => { var on = !Session.Plan.DetectorWiring; if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); });
         Add("routes", ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ExportControl);
@@ -994,6 +995,7 @@ public sealed partial class MainWindow : Window
                 currentMenu, powerMenu,
                 ToolToggle(Lang.T("Trennstelle"), "Isolate", false, CanvasTool.Isolation, "toolIsolation", Lang.T("Isolierte Schienenverbinder an einer Gleisverbindung setzen.")),
                 Small(Lang.T("Automatisch verkabeln"), "Wire", "autoWire", Lang.T("Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Liegt alles auf einer Ebene, speist die Zentrale; über mehrere Ebenen bekommt jede Ebene einen Booster und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Digital setzt es je Abschnitt einen Melder und speist ihn über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.")),
+                Small(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove", Lang.T("Alles, was „Automatisch verkabeln“ angelegt hat, wieder herausnehmen: Kabel, Anschlüsse am Gleis, Zentrale und Booster, Kehrschleifen- und Besetztmelder, Melder und Trennstellen. Selbst Gesetztes bleibt. Rückgängig holt alles zurück.")),
                 Toggle(Lang.T("Stromkreise zeigen"), "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
                 Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
                     Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
@@ -1614,6 +1616,7 @@ public sealed partial class MainWindow : Window
         if (menu.Items[menu.Items.Count - 1] is not Separator) menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(Session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"), "Wire", "wires"));
         menu.Items.Add(Cmd(Lang.T("Automatisch verkabeln"), "Wire", "autoWire"));
+        menu.Items.Add(Cmd(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove"));
         menu.Items.Add(Cmd(Session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"), "Detector", "detectorWires"));
         menu.Items.Add(Cmd(Lang.T("Elektrik nummerieren"), "Hash", "numberElectrics"));
         if (menu.Items[menu.Items.Count - 1] is Separator) menu.Items.RemoveAt(menu.Items.Count - 1);

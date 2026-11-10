@@ -114,6 +114,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Id { get; set; }
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("end")] public int End { get; set; }
+        [JsonPropertyName("auto"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Auto { get; set; }
     }
 
     private sealed class SignalDto
@@ -271,7 +272,7 @@ public static partial class PlanSerializer
             Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
             Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
             DetWires = plan.DetectorWiring ? true : null,
-            Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
+            Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index, Auto = i.Auto ? true : null }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
                 { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), System = g.System == SignalSystem.HV ? null : g.System.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
             Levels = plan.Levels.Count == 1 && plan.Levels[0] is { Height: 0, Visible: true } ? null
@@ -433,7 +434,7 @@ public static partial class PlanSerializer
                 plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev, Ground = f.Gnd, At = Math.Clamp(f.At ?? 0.5, 0, 1), WireId = f.Wire, Name = f.Name?.Trim() ?? "" });
         foreach (var i in dto.Isolations ?? [])
             if (plan.Find(i.Piece) is { } ip && i.End >= 0 && i.End < ip.WorldConnectors().Count)
-                plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End });
+                plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End, Auto = i.Auto == true });
         foreach (var g in dto.Signals ?? [])
             if (plan.Find(g.Piece) is { } gp && g.End >= 0 && g.End < gp.WorldConnectors().Count)
                 plan.Signals.Add(new Signal

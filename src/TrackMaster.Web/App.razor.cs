@@ -356,6 +356,7 @@ public partial class App : ComponentBase, IAppHost
         Add("wires", Lang.T("Kabel zeigen"), () => { _session.ShowWires = !_session.ShowWires; _session.Say(_session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); _view.Invalidate(); });
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("autoWire", Lang.T("Automatisch verkabeln"), () => { _session.ShowWires = true; _session.AutoWire(); });
+        Add("autoWireRemove", Lang.T("Verkabelung entfernen"), () => _session.RemoveAutoWiring());
         Add("toolOccupancy", Lang.T("Besetztmelder setzen"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder") SetTool(CanvasTool.Select);

@@ -305,7 +305,9 @@ public sealed class Isolation
     public int Id { get; set; }
     public int PieceId { get; set; }
     public int Index { get; set; }
-    public Isolation Clone() => new() { Id = Id, PieceId = PieceId, Index = Index };
+    /// <summary>Von „Automatisch verkabeln“ gesetzt (Kehrschleife); „Verkabelung entfernen“ nimmt sie wieder heraus.</summary>
+    public bool Auto { get; set; }
+    public Isolation Clone() => new() { Id = Id, PieceId = PieceId, Index = Index, Auto = Auto };
 }
 
 public enum SignalType { Hauptsignal, Vorsignal, Ausfahrsignal, Sperrsignal, Blocksignal }

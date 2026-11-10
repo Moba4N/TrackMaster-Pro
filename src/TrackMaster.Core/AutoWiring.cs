@@ -215,6 +215,32 @@ public static class AutoWiring
         return new(sections.Count, feeds, boosterCount, !useBoosters, loops, isolationsAdded, detectors, wires, systemName, threeRail, adjusted, autoDetectors);
     }
 
+    public readonly record struct Removed(int Wires, int Feeds, int Sources, int Modules, int Detectors, int Isolations)
+    {
+        public int Total => Wires + Feeds + Sources + Modules + Detectors + Isolations;
+    }
+
+    /// <summary>
+    /// „Verkabelung entfernen“: alles, was „Automatisch verkabeln“ angelegt hat, wieder heraus – Kabel, Einspeisungen, Zentrale/Booster,
+    /// Kehrschleifen- und Besetztmelder samt Kabeln, automatisch gesetzte Melder und Trennstellen. Selbst Gesetztes bleibt.
+    /// </summary>
+    public static bool HasAny(LayoutPlan plan)
+        => plan.Scenery.Any(s => IsAuto(s) || DetectorWiring.IsGenerated(s)) || plan.Detectors.Any(d => d.Auto) || plan.Isolations.Any(i => i.Auto) || plan.DetectorWiring;
+
+    public static Removed RemoveAll(LayoutPlan plan)
+    {
+        var wireIds = plan.Scenery.Where(s => s.IsWire && IsAuto(s)).Select(s => s.Id).ToHashSet();
+        var feeds = plan.Feeders.Count(f => f.WireId is { } w && wireIds.Contains(w));
+        var sources = plan.Scenery.Count(s => s.IsPower && IsAuto(s) && Decoders.ModelOf(s) is null);
+        var ks = plan.Scenery.Count(s => s.IsPower && IsAuto(s) && Decoders.ModelOf(s) is not null);
+        var dets = plan.Detectors.Count(d => d.Auto);
+        Clear(plan);
+        var isolations = plan.Isolations.RemoveAll(i => i.Auto);
+        var (detWires, detModules) = DetectorWiring.RemoveAll(plan);
+        plan.DetectorWiring = false;
+        return new(wireIds.Count + detWires, feeds, sources, ks + detModules, dets, isolations);
+    }
+
     /// <summary>Vorher automatisch Angelegtes entfernen: Kabel samt ihren Einspeisungen, Quellen und Kehrschleifenmodule.</summary>
     public static int Clear(LayoutPlan plan)
     {
@@ -236,7 +262,7 @@ public static class AutoWiring
         {
             if (!core.Contains(c.PieceId) || c.Link is not { } l || core.Contains(l.PieceId)) continue;
             if (plan.Isolations.Any(i => (i.PieceId == c.PieceId && i.Index == c.Index) || (i.PieceId == l.PieceId && i.Index == l.Index))) continue;
-            plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = c.PieceId, Index = c.Index });
+            plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = c.PieceId, Index = c.Index, Auto = true });
             n++;
         }
         return n;

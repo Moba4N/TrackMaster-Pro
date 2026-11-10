@@ -197,6 +197,16 @@ public sealed partial class PlanSession
     /// Automatisch verkabeln (siehe <see cref="AutoWiring"/>): Strom und Masse für jeden Abschnitt, Booster bei großen Anlagen,
     /// Kehrschleifenmodule bei Gleichstrom. Ein zweiter Lauf ersetzt das vorher automatisch Angelegte.
     /// </summary>
+    /// <summary>Alles automatisch Verkabelte wieder entfernen (ein Schritt, rückgängig machbar).</summary>
+    public void RemoveAutoWiring()
+    {
+        if (!AutoWiring.HasAny(Plan)) { Say(Lang.T("Es gibt keine automatische Verkabelung zum Entfernen.")); return; }
+        Record();
+        var r = AutoWiring.RemoveAll(Plan);
+        Commit();
+        Say(Lang.F($"Automatische Verkabelung entfernt: {r.Wires} Kabel, {r.Feeds} Anschlüsse am Gleis, {r.Sources} Zentrale/Booster, {r.Modules} Module, {r.Detectors} Melder, {r.Isolations} Trennstellen. Selbst Gesetztes bleibt."));
+    }
+
     public void AutoWire()
     {
         if (Plan.Pieces.Count == 0) { Say(Lang.T("Noch keine Gleise im Plan.")); return; }

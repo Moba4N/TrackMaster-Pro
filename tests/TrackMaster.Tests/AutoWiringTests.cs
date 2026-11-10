@@ -259,4 +259,48 @@ public class AutoWiringTests
         Assert.DoesNotContain(PowerSupply.Sources(s.Plan), x => PowerSupply.Type(x) == PowerSourceType.Booster);
         Assert.Empty(Errors(s.Plan));
     }
+
+    [Fact]
+    public void Verkabelung_entfernen_nimmt_alles_Automatische_heraus()
+    {
+        // Gleichstrom-Kehrschleife: Trennstellen, KS-Modul, Kabel, Einspeisungen
+        var s = Session(Balloon());
+        var userIso = s.Plan.Isolations.Count;
+        s.AutoWire();
+        Assert.NotEmpty(s.Plan.Feeders);
+        Assert.Contains(s.Plan.Isolations, i => i.Auto);
+        Assert.True(PlanSerializer.FromJson(PlanSerializer.ToJson(s.Plan), out _).Isolations.Any(i => i.Auto));
+
+        s.RemoveAutoWiring();
+        Assert.Empty(s.Plan.Feeders);
+        Assert.DoesNotContain(s.Plan.Scenery, x => x.IsWire || x.IsPower);
+        Assert.Equal(userIso, s.Plan.Isolations.Count);
+        Assert.Empty(s.Plan.Detectors);
+
+        // Rückgängig holt alles in einem Schritt zurück
+        s.Undo();
+        Assert.NotEmpty(s.Plan.Feeders);
+        Assert.Single(PowerSupply.Modules(s.Plan), m => m.Model == "Kehrschleifenmodul");
+    }
+
+    [Fact]
+    public void Verkabelung_entfernen_laesst_Melder_und_Kabel_von_Hand_stehen()
+    {
+        var plan = SamplePlan.Build();
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = plan.Pieces.First(p => p.Def.Number == "24215").Id, Index = 0 });
+        var s = Session(plan);
+        var manualFeeders = s.Plan.Feeders.Count;
+        var manualWires = s.Plan.Scenery.Count(x => x.IsWire);
+        var manualDetectors = s.Plan.Detectors.Count;
+        s.AutoWire();
+        Assert.Contains(s.Plan.Detectors, d => d.Auto);
+
+        s.RemoveAutoWiring();
+        Assert.DoesNotContain(s.Plan.Detectors, d => d.Auto);
+        Assert.Equal(manualDetectors, s.Plan.Detectors.Count);
+        Assert.Equal(manualFeeders, s.Plan.Feeders.Count);
+        Assert.False(s.Plan.DetectorWiring);
+        Assert.Single(s.Plan.Isolations);
+        Assert.True(s.Plan.Scenery.Count(x => x.IsWire) <= manualWires);
+    }
 }

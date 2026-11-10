@@ -376,7 +376,9 @@ public sealed class Detector
     /// "" = bewusst keine Verbindung, null = noch nicht gewählt (das Programm setzt dann Zentrale bzw. Booster des Abschnitts).
     /// </summary>
     public string? Source { get; set; }
-    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address, Source = Source };
+    /// <summary>Von „Automatisch verkabeln“ gesetzt (je Abschnitt ein Melder); ein erneuter Lauf ersetzt ihn.</summary>
+    public bool Auto { get; set; }
+    public Detector Clone() => new() { Id = Id, PieceId = PieceId, Type = Type, Name = Name, Address = Address, Source = Source, Auto = Auto };
 
     /// <summary>Name für den nächsten Melder: „Melder n“ mit der nächsten freien Nummer.</summary>
     public static string NextName(LayoutPlan plan)

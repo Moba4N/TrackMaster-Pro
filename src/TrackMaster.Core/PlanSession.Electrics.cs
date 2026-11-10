@@ -208,13 +208,14 @@ public sealed partial class PlanSession
             : r.CentralFeeds ? Lang.T("Kleine Anlage: die Zentrale speist alle Abschnitte.")
             : Lang.F($"{r.Boosters} Booster speisen die Abschnitte (je Ebene bzw. Gleislänge), die Zentrale bleibt fürs Schalten.");
         var loops = r.Loops > 0 ? " " + Lang.F($"{r.Loops} Kehrschleife(n) über Kehrschleifenmodul (KS) gespeist, {r.Isolations} Trennstelle(n) dafür gesetzt.") : "";
+        var autoDets = r.AutoDetectors > 0 ? " " + Lang.F($"{r.AutoDetectors} Melder selbst gesetzt (je Abschnitt zwischen Trennstellen einer).") : "";
         var dets = r.Detectors == 0 ? ""
             : " " + (r.ThreeRail ? Lang.F($"{r.Detectors} Melder über isolierte Außenschiene (Kontaktgleis) am Rückmeldemodul.")
                                  : Lang.F($"{r.Detectors} Melder über Besetztmelder angeschlossen."));
         var system = r.ThreeRail ? Lang.F($"Gleissystem {r.System}: Mittelleiter, Bahnstrom an den Mittelleiter, Masse an die Schienen.")
                                  : Lang.F($"Gleissystem {r.System}: Zweileiter, Bahnstrom und Masse je an eine Schiene, gleiche Seite im Abschnitt.");
         var adjusted = r.CurrentAdjusted ? " " + Lang.T("Die eingestellte Stromart passte nicht zum Gleis und steht jetzt auf „Automatisch (nach Gleis)“.") : "";
-        Say(system + adjusted + " " + Lang.F($"Automatisch verkabelt: {r.Sections} Abschnitt(e), {r.Feeds} Einspeisung(en) mit Masse, {r.Wires} Kabel.") + " " + power + loops + dets);
+        Say(system + adjusted + " " + Lang.F($"Automatisch verkabelt: {r.Sections} Abschnitt(e), {r.Feeds} Einspeisung(en) mit Masse, {r.Wires} Kabel.") + " " + power + loops + autoDets + dets);
     }
 
     /// <summary>Startadresse eines Bausteins ändern.</summary>

@@ -179,6 +179,8 @@ public sealed partial class PlanSession
         Plan.DetectorWiring = on;
         if (on)
         {
+            // Melder ohne Quelle bekommen Zentrale bzw. Booster ihres Abschnitts
+            foreach (var d in Plan.Detectors.Where(d => d.Source is null)) d.Source = DefaultDetectorSource(d.PieceId);
             var r = DetectorWiring.Sync(Plan);
             Commit();
             var withContact = Plan.Detectors.Count(d => d.Address is not null);
@@ -227,7 +229,7 @@ public sealed partial class PlanSession
         var used = plan.Detectors.Where(d => d.Address is not null).Select(d => d.Address!.Value).ToHashSet();
         foreach (var d in plan.Detectors.OrderBy(d => Key(At(d.PieceId))))
         {
-            d.Name = $"M{++n}";
+            d.Name = $"Melder {++n}";
             if (d.Address is null && used.Add(n)) d.Address = n;
         }
         n = 0;
@@ -245,7 +247,7 @@ public sealed partial class PlanSession
             named++;
         }
         Commit();
-        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Rückmelder (M), {named} Weichen (W), {wires} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
+        Say(Lang.F($"Nummeriert: {plan.Feeders.Count} Gleisanschlüsse (G), {plan.Detectors.Count} Melder (Melder 1 …), {named} Weichen (W), {wires} Kabel (K). Die vollständige Liste steht im Kabelplan und lässt sich als CSV oder Text speichern."));
     }
 
     /// <summary>Farbe für neue Verteilerleisten (Werkzeug „Verteiler“).</summary>
@@ -305,6 +307,7 @@ public sealed partial class PlanSession
         if (PowerSupply.Items(Plan).Any(s => s.Id != id && s.Name == name)) { Say(Lang.F($"Es gibt schon eine Stromquelle „{name}“.")); return; }
         Record();
         foreach (var f in Plan.Feeders.Where(f => f.Circuit == item.Name)) f.Circuit = name;
+        foreach (var d in Plan.Detectors.Where(d => d.Source == item.Name)) d.Source = name;
         item.Name = name;
         Commit();
     }
@@ -426,11 +429,51 @@ public sealed partial class PlanSession
             Say(Lang.F($"Rückmelder {d.Name} entfernt."));
             return;
         }
-        var next = Plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1;
-        var det = new Detector { Id = Plan.NextId++, PieceId = pieceId, Type = DetectorType, Name = $"RM{Plan.Detectors.Count + 1}", Address = next };
+        var det = NewDetector(pieceId);
         Plan.Detectors.Add(det);
         Commit();
-        Say(Lang.F($"Rückmelder {det.Name} an Gleis Nr. {pieceId} (Kontakt {next})."));
+        Say(DetectorPlacedText(det));
+    }
+
+    /// <summary>Neuer Melder für ein Gleis: „Melder n“, nächster freier Kontakt und (digital) Fahrstrom von Zentrale bzw. Booster.</summary>
+    internal Detector NewDetector(int pieceId) => new()
+    {
+        Id = Plan.NextId++, PieceId = pieceId, Type = DetectorType, Name = Detector.NextName(Plan),
+        Address = Plan.Detectors.Select(x => x.Address ?? 0).DefaultIfEmpty(0).Max() + 1, Source = DefaultDetectorSource(pieceId),
+    };
+
+    internal string DetectorPlacedText(Detector d)
+        => Lang.F($"{d.Name} an Gleis Nr. {d.PieceId} (Kontakt {d.Address}).") + (d.Source is { } s ? " " + Lang.F($"Fahrstrom über den Melder von „{s}“.") : "");
+
+    /// <summary>Zentralen und Booster, von denen ein Melder den Fahrstrom bekommen kann.</summary>
+    public IReadOnlyList<SceneryItem> DetectorSources
+        => PowerSupply.Sources(Plan).Where(s => PowerSupply.Type(s) is PowerSourceType.Zentrale or PowerSourceType.Booster).ToList();
+
+    /// <summary>
+    /// Quelle für einen neuen Melder (nur digital): die Zentrale bzw. der Booster, der den Abschnitt schon speist, sonst der erste Booster
+    /// bzw. die Zentrale im Plan; ohne solche Quelle keine.
+    /// </summary>
+    private string? DefaultDetectorSource(int pieceId)
+    {
+        if (Plan.Operation == PowerMode.Analog) return null;
+        var names = DetectorSources.Select(s => s.Name).ToHashSet();
+        if (names.Count == 0) return null;
+        var section = Electrics.Sections(Plan, Connections).FirstOrDefault(s => s.PieceIds.Contains(pieceId));
+        if (section?.Circuits.FirstOrDefault(names.Contains) is { } fed) return fed;
+        var boosters = DetectorSources.Where(s => PowerSupply.Type(s) == PowerSourceType.Booster).ToList();
+        return (boosters.Count > 0 ? boosters[0] : DetectorSources[0]).Name;
+    }
+
+    /// <summary>Zentrale bzw. Booster eines Melders wählen (null = keine): sein Gleis bekommt den Fahrstrom über den Melder.</summary>
+    public void SetDetectorSource(int detectorId, string? source)
+    {
+        if (Plan.Detectors.FirstOrDefault(d => d.Id == detectorId) is not { } d) return;
+        source = string.IsNullOrWhiteSpace(source) ? null : source;
+        if (d.Source == source) return;
+        Record();
+        d.Source = source;
+        Commit();
+        Say(source is null ? Lang.F($"{d.Name}: keine Verbindung zu Zentrale oder Booster.") : Lang.F($"{d.Name}: Fahrstrom von „{source}“ über den Melder – der Abschnitt gilt als gespeist."));
     }
 
     /// <summary>Trennstellen an allen Enden des Gleises setzen (bzw. alle entfernen, wenn schon alle getrennt sind).</summary>

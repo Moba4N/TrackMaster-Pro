@@ -53,6 +53,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("type")] public string? Type { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
+        [JsonPropertyName("src"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Src { get; set; }
     }
 
     private sealed class BackgroundDto
@@ -277,7 +278,7 @@ public static partial class PlanSerializer
             ActiveLevel = plan.ActiveLevel,
             Benchwork = plan.Benchwork,
             Detectors = plan.Detectors.Count == 0 ? null : plan.Detectors.Select(d => new DetectorDto
-                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address }).ToList(),
+                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address, Src = d.Source }).ToList(),
             Train = plan.TrainLength > 0 ? plan.TrainLength : null,
             Prices = plan.Prices.Count == 0 ? null : new Dictionary<string, double>(plan.Prices),
             Stock = plan.Stock.Count == 0 ? null : new Dictionary<string, int>(plan.Stock),
@@ -443,7 +444,7 @@ public static partial class PlanSerializer
             if (plan.Find(d.Piece) is not null)
                 plan.Detectors.Add(new Detector
                 {
-                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr,
+                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = string.IsNullOrWhiteSpace(d.Src) ? null : d.Src.Trim(),
                     Type = Enum.TryParse<DetectorType>(d.Type, true, out var dt) ? dt : DetectorType.Strom,
                 });
         return plan;

@@ -1340,7 +1340,12 @@ Großbritannien und USA. Das Signal wird im Plan und in der 3D-Ansicht mit dem p
 </ul>
 <figure class="third"><img src="img/rueckmelder.png" alt=""><figcaption>Art des Rückmelders wählen.</figcaption></figure>
 <p>Klicken Sie dann auf die Gleise. Die Kontakte werden fortlaufend nummeriert, 16 je Rückmeldemodul. Ein Klick auf einen vorhandenen Rückmelder entfernt ihn.
-Name, Art und Kontaktnummer ändern Sie in den Eigenschaften.</p>
+Name, Art und Kontaktnummer ändern Sie in den Eigenschaften. Die Melder heißen fortlaufend „Melder 1“, „Melder 2“ usw.</p>
+<p>Im Digitalbetrieb sitzt ein Gleisbesetztmelder zwischen Zentrale bzw. Booster und Gleis: Der Fahrstrom fließt durch den Melder ins Gleis.
+In den Eigenschaften wählen Sie deshalb unter <span class="ui">Fahrstrom von (Zentrale / Booster)</span>, woher der Melder seinen Strom bekommt.
+Ein neuer Melder bekommt automatisch die Zentrale bzw. den Booster, der seinen Abschnitt schon speist, sonst den ersten Booster bzw. die Zentrale im Plan.
+Der Abschnitt gilt damit als gespeist – <span class="ui">Elektrik prüfen</span> meldet dort keine fehlende Einspeisung mehr. Im Plan zeigt eine rot gestrichelte Linie die Verbindung,
+im Kabelplan steht „Fahrstrom über Melder 3“.</p>
 <p><span class="ui">Elektrik › Melder verkabeln</span> (auch im Kontextmenü: <span class="ui">Rückmelder mit Modul verbinden</span>) verbindet jeden Rückmelder,
 der eine Kontaktnummer hat, mit einem violetten Kabel mit der passenden Klemme seines Rückmeldemoduls. Kontakt 5 landet an Melder 5 des ersten Moduls,
 Kontakt 20 an Melder 4 des zweiten. Gibt es für einen Kontakt noch kein Modul, legt das Programm eines unter dem Gleisplan an (je 16 Kontakte ein Modul;
@@ -1350,7 +1355,7 @@ Ein zweiter Klick auf <span class="ui">Melder verkabeln</span> (<span class="ui"
 die Module bleiben stehen und lassen sich einzeln löschen.</p>
 
 <h2 id="k9-11">Nummerieren</h2>
-<p><span class="ui">Elektrik › Nummerieren</span> gibt allen Einspeisungen (G1, G2 …), Rückmeldern (M1, M2 …) und Kabeln (K1, K2 …) eine Nummer, von links oben nach rechts unten.
+<p><span class="ui">Elektrik › Nummerieren</span> gibt allen Einspeisungen (G1, G2 …), Meldern (Melder 1, Melder 2 …) und Kabeln (K1, K2 …) eine Nummer, von links oben nach rechts unten.
 Schreiben Sie dieselben Nummern beim Bauen an die echten Kabel – dann finden Sie später jede Leitung wieder.</p>
 
 <h2 id="k9-5">Kabelplan</h2>

@@ -180,7 +180,6 @@ public sealed partial class PlanSession
         if (on)
         {
             // Melder ohne Quelle bekommen Zentrale bzw. Booster ihres Abschnitts
-            foreach (var d in Plan.Detectors.Where(d => d.Source is null)) d.Source = DefaultDetectorSource(d.PieceId);
             var r = DetectorWiring.Sync(Plan);
             Commit();
             var withContact = Plan.Detectors.Count(d => d.Address is not null);
@@ -443,7 +442,7 @@ public sealed partial class PlanSession
     };
 
     internal string DetectorPlacedText(Detector d)
-        => Lang.F($"{d.Name} an Gleis Nr. {d.PieceId} (Kontakt {d.Address}).") + (d.Source is { } s ? " " + Lang.F($"Fahrstrom über den Melder von „{s}“.") : "");
+ => Lang.F($"{d.Name} an Gleis Nr. {d.PieceId} (Kontakt {d.Address}).") + (d.Source is { Length: > 0 } s ? " " + Lang.F($"Fahrstrom über den Melder von „{s}“.") : "");
 
     /// <summary>Zentralen und Booster, von denen ein Melder den Fahrstrom bekommen kann.</summary>
     public IReadOnlyList<SceneryItem> DetectorSources
@@ -453,7 +452,7 @@ public sealed partial class PlanSession
     /// Quelle für einen neuen Melder (nur digital): die Zentrale bzw. der Booster, der den Abschnitt schon speist, sonst der erste Booster
     /// bzw. die Zentrale im Plan; ohne solche Quelle keine.
     /// </summary>
-    private string? DefaultDetectorSource(int pieceId)
+    internal string? DefaultDetectorSource(int pieceId)
     {
         if (Plan.Operation == PowerMode.Analog) return null;
         var names = DetectorSources.Select(s => s.Name).ToHashSet();
@@ -468,12 +467,13 @@ public sealed partial class PlanSession
     public void SetDetectorSource(int detectorId, string? source)
     {
         if (Plan.Detectors.FirstOrDefault(d => d.Id == detectorId) is not { } d) return;
-        source = string.IsNullOrWhiteSpace(source) ? null : source;
+        // "" = bewusst keine Verbindung (null hieße: noch nicht gewählt, dann setzt das Programm eine Quelle)
+        source = string.IsNullOrWhiteSpace(source) ? "" : source.Trim();
         if (d.Source == source) return;
         Record();
         d.Source = source;
         Commit();
-        Say(source is null ? Lang.F($"{d.Name}: keine Verbindung zu Zentrale oder Booster.") : Lang.F($"{d.Name}: Fahrstrom von „{source}“ über den Melder – der Abschnitt gilt als gespeist."));
+        Say(source.Length == 0 ? Lang.F($"{d.Name}: keine Verbindung zu Zentrale oder Booster.") : Lang.F($"{d.Name}: Fahrstrom von „{source}“ über den Melder – der Abschnitt gilt als gespeist."));
     }
 
     /// <summary>Trennstellen an allen Enden des Gleises setzen (bzw. alle entfernen, wenn schon alle getrennt sind).</summary>

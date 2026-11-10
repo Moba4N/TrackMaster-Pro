@@ -962,7 +962,7 @@
                 {
                     <option value="@src.Name">@src.Name (@PowerSupply.TypeName(PowerSupply.Type(src)))</option>
                 }
-                @if (det.Source is { } missing && Session.DetectorSources.All(x => x.Name != missing))
+                @if (det.Source is { Length: > 0 } missing && Session.DetectorSources.All(x => x.Name != missing))
                 {
                     <option value="@missing">@Lang.F($"{missing} (fehlt im Plan)")</option>
                 }

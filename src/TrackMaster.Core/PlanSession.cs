@@ -149,6 +149,8 @@ public sealed partial class PlanSession
         }
         // Ausstattung am Gleis wechselt mit dem Gleis die Ebene (die Höhe bestimmt die 3D-Ansicht jedes Mal neu)
         ModelPlacement.SyncLevels(Plan);
+        // Melder ohne gewählte Quelle (ältere Pläne, Quelle erst später gesetzt) bekommen Zentrale bzw. Booster ihres Abschnitts
+        foreach (var d in Plan.Detectors.Where(d => d.Source is null)) d.Source = DefaultDetectorSource(d.PieceId);
         // Rückmelder-Kabel folgen Kontakt und Gleis des Rückmelders
         DetectorWiring.Sync(Plan);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
@@ -169,6 +171,9 @@ public sealed partial class PlanSession
         Issues = [];
         FocusedIssue = null;
         Active = null;
+        // ältere Pläne: automatische Melder-Namen „RM3“ bzw. „M3“ heißen jetzt „Melder 3“
+        foreach (var d in plan.Detectors)
+            if (System.Text.RegularExpressions.Regex.Match(d.Name, @"^R?M(\d+)$") is { Success: true } m) d.Name = $"Melder {m.Groups[1].Value}";
         Commit();
     }
 

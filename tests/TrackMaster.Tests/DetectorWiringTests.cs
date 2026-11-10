@@ -199,4 +199,42 @@ public class DetectorWiringTests
         s.SetOperation(PowerMode.Analog);
         Assert.Empty(Electrics.DetectorFeeds(s.Plan));
     }
+    [Fact]
+    public void Aeltere_Plaene_bekommen_Namen_und_Quelle_keine_Verbindung_bleibt()
+    {
+        var (s, pieces) = Line(2);
+        var zentrale = s.AddPowerSource(PowerSourceType.Zentrale, 100, 900);
+        // Plan wie vor der Änderung: „RM1“, „M2“, ohne Quelle
+        var json = PlanSerializer.ToJson(s.Plan);
+        var old = PlanSerializer.FromJson(json, out _);
+        old.Detectors.Add(new Detector { Id = old.NextId++, PieceId = pieces[0].Id, Name = "RM1", Address = 1 });
+        old.Detectors.Add(new Detector { Id = old.NextId++, PieceId = pieces[1].Id, Name = "M2", Address = 2 });
+        var loaded = PlanSerializer.FromJson(PlanSerializer.ToJson(old), out _);
+        Assert.All(loaded.Detectors, d => Assert.Null(d.Source));
+
+        var t = new PlanSession { IsPro = () => true };
+        t.Replace(loaded, null);
+        Assert.Equal(["Melder 1", "Melder 2"], t.Plan.Detectors.Select(d => d.Name));
+        Assert.All(t.Plan.Detectors, d => Assert.Equal(zentrale.Name, d.Source));
+        Assert.DoesNotContain(Electrics.Analyze(t.Plan).Issues, i => i.Category == "Einspeisung" && i.Level == IssueLevel.Fehler);
+
+        // „keine Verbindung“ bleibt auch nach Speichern und Öffnen
+        var d1 = t.Plan.Detectors[0];
+        t.SetDetectorSource(d1.Id, null);
+        Assert.Equal("", d1.Source);
+        var u = new PlanSession { IsPro = () => true };
+        u.Replace(PlanSerializer.FromJson(PlanSerializer.ToJson(t.Plan), out _), null);
+        Assert.Equal("", u.Plan.Detectors[0].Source);
+        Assert.Equal(zentrale.Name, u.Plan.Detectors[1].Source);
+    }
+
+    [Fact]
+    public void Quelle_wird_nachgetragen_wenn_die_Zentrale_spaeter_kommt()
+    {
+        var (s, pieces) = Line(1);
+        s.ToggleDetectorOn(pieces[0].Id);
+        Assert.Null(s.DetectorOn(pieces[0].Id)!.Source);
+        var booster = s.AddPowerSource(PowerSourceType.Booster, 100, 900);
+        Assert.Equal(booster.Name, s.DetectorOn(pieces[0].Id)!.Source);
+    }
 }

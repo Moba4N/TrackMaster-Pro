@@ -444,7 +444,7 @@ public static partial class PlanSerializer
             if (plan.Find(d.Piece) is not null)
                 plan.Detectors.Add(new Detector
                 {
-                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = string.IsNullOrWhiteSpace(d.Src) ? null : d.Src.Trim(),
+                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = d.Src?.Trim(),
                     Type = Enum.TryParse<DetectorType>(d.Type, true, out var dt) ? dt : DetectorType.Strom,
                 });
         return plan;

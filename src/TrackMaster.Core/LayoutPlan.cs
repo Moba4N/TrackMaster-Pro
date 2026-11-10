@@ -480,6 +480,8 @@ public sealed class LayoutPlan
     public CurrentKind Current { get; set; }
     /// <summary>Betriebsart: digital (Zentrale, Booster) oder analog (Fahrtrafo).</summary>
     public PowerMode Operation { get; set; }
+    /// <summary>Rückmelder mit Kontakt automatisch mit ihrem Rückmeldemodul verkabeln (siehe <see cref="TrackMaster.Core.DetectorWiring"/>).</summary>
+    public bool DetectorWiring { get; set; }
 
     public Gauge Gauge => Catalog.GetGauge(GaugeId);
 
@@ -527,7 +529,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation,
+            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation, DetectorWiring = DetectorWiring,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);

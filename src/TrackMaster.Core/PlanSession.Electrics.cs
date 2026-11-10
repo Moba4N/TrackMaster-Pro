@@ -153,15 +153,12 @@ public sealed partial class PlanSession
     {
         if (Decoders.Find(id) is not { } m) return null;
         var type = Decoders.PlacedAs(m);
-        var item = PowerSupply.Create(Plan, type, x, y);
-        item.Model = m.Id;
-        if (type == PowerSourceType.Baustein)
+        SceneryItem item;
+        if (type == PowerSourceType.Baustein) item = DetectorWiring.NewModule(Plan, m, x, y, Decoders.NextStart(Plan, m));
+        else
         {
-            (item.Width, item.Depth) = Decoders.Size(Plan.Gauge, m);
-            item.Address = Decoders.NextStart(Plan, m);
-            var used = Plan.Scenery.Select(s => s.Name).ToHashSet();
-            for (var n = 1; ; n++)
-                if (!used.Contains($"{m.Short} {n}")) { item.Name = $"{m.Short} {n}"; break; }
+            item = PowerSupply.Create(Plan, type, x, y);
+            item.Model = m.Id;
         }
         item = AddScenery(item);
         Say(Lang.F($"{m.Maker} {m.Title} „{item.Name}“ gesetzt.") + " " + (Decoders.Range(item) is { } r
@@ -169,6 +166,30 @@ public sealed partial class PlanSession
                 : Lang.F($"Adressen {r.First}–{r.Last}: Weichen und Signale mit diesen Adressen hängen an diesem Baustein."))
             : m.Description));
         return item;
+    }
+
+    /// <summary>
+    /// Rückmelder automatisch mit Rückmeldemodulen verkabeln (an) bzw. diese Kabel entfernen (aus). Eingeschaltet bekommt jeder
+    /// Rückmelder mit Kontakt ein Kabel zur passenden Klemme; fehlende Module werden unter dem Plan angelegt. Die Module bleiben beim Ausschalten stehen.
+    /// </summary>
+    public void SetDetectorWiring(bool on)
+    {
+        if (Plan.DetectorWiring == on) return;
+        Record();
+        Plan.DetectorWiring = on;
+        if (on)
+        {
+            var r = DetectorWiring.Sync(Plan);
+            Commit();
+            var withContact = Plan.Detectors.Count(d => d.Address is not null);
+            Say(withContact == 0
+                ? Lang.T("Rückmelder werden automatisch verkabelt, sobald sie einen Kontakt haben.")
+                : Lang.F($"Rückmelder verkabelt: {r.Added} Kabel zum Rückmeldemodul verlegt, {r.Modules} Modul(e) neu angelegt. Ändert sich Kontakt oder Gleis, folgt das Kabel."));
+            return;
+        }
+        var n = DetectorWiring.RemoveAll(Plan);
+        Commit();
+        Say(Lang.F($"{n} Rückmelder-Kabel entfernt. Die Rückmeldemodule bleiben im Plan und lassen sich einzeln löschen."));
     }
 
     /// <summary>Startadresse eines Bausteins ändern.</summary>

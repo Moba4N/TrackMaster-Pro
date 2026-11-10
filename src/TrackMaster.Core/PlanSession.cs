@@ -149,6 +149,8 @@ public sealed partial class PlanSession
         }
         // Ausstattung am Gleis wechselt mit dem Gleis die Ebene (die Höhe bestimmt die 3D-Ansicht jedes Mal neu)
         ModelPlacement.SyncLevels(Plan);
+        // Rückmelder-Kabel folgen Kontakt und Gleis des Rückmelders
+        DetectorWiring.Sync(Plan);
         if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
         if (Active is { } a && Connections.Find(a.PieceId, a.Index) is not { IsOpen: true }) Active = null;
         Changed?.Invoke();

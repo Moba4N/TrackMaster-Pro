@@ -2769,5 +2769,13 @@
  "„{0}“ ist ein Zubehörtrafo für Licht und Weichen, an ihm hängen aber {1} Gleisanschluss/-anschlüsse. Fahrstrom kommt von der Zentrale, einem Booster oder einem Fahrtrafo.": "“{0}” is an accessory transformer for lights and turnouts, but {1} track connection(s) are linked to it. Traction power comes from the command station, a booster or a power pack.",
  "„{0}“ ist eine {1}, die Anlage ist aber auf Analogbetrieb gestellt. Betrieb auf digital stellen oder die Quelle zum Fahrtrafo machen.": "“{0}” is a {1}, but the layout is set to analog operation. Switch operation to digital or make the source a power pack.",
  "„{0}“ lässt sich nicht öffnen.\n\n{1}": "“{0}” cannot be opened.\n\n{1}",
- "„{0}“ wurde geändert. Speichern ist in der Basis-Version nicht enthalten (Datei › Lizenz).\n\nÄnderungen verwerfen?": "“{0}” has been changed. Saving is not included in the Basic version (File › Licence).\n\nDiscard changes?"
+ "„{0}“ wurde geändert. Speichern ist in der Basis-Version nicht enthalten (Datei › Lizenz).\n\nÄnderungen verwerfen?": "“{0}” has been changed. Saving is not included in the Basic version (File › Licence).\n\nDiscard changes?",
+ "Melder verkabeln": "Wire detectors",
+ "Rückmelder mit Modul verbinden": "Connect detectors to module",
+ "Rückmelder-Kabel entfernen": "Remove detector wires",
+ "Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.": "Automatically wire every detector that has a contact to the matching terminal of its feedback module. A missing module is placed below the plan (one module per 16 contacts). If the contact or the track changes, the wire follows. Switching off removes these wires again.",
+ "Rückmelder werden automatisch verkabelt, sobald sie einen Kontakt haben.": "Detectors are wired automatically as soon as they have a contact.",
+ "Rückmelder verkabelt: {0} Kabel zum Rückmeldemodul verlegt, {1} Modul(e) neu angelegt. Ändert sich Kontakt oder Gleis, folgt das Kabel.": "Detectors wired: {0} wire(s) laid to the feedback module, {1} module(s) added. If the contact or the track changes, the wire follows.",
+ "{0} Rückmelder-Kabel entfernt. Die Rückmeldemodule bleiben im Plan und lassen sich einzeln löschen.": "{0} detector wire(s) removed. The feedback modules stay in the plan and can be deleted one by one.",
+ "Kabel Rückmelder {0}": "Wire detector {0}"
 }

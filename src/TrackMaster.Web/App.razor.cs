@@ -357,6 +357,7 @@ public partial class App : ComponentBase, IAppHost
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
         Add("autoWire", Lang.T("Automatisch verkabeln"), () => { _session.ShowWires = true; _session.AutoWire(); });
         Add("autoWireRemove", Lang.T("Verkabelung entfernen"), () => _session.RemoveAutoWiring());
+        Add("trackConnRemove", Lang.T("Verbindungen zum Gleis entfernen"), () => _session.RemoveTrackConnections());
         Add("toolOccupancy", Lang.T("Besetztmelder setzen"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder") SetTool(CanvasTool.Select);

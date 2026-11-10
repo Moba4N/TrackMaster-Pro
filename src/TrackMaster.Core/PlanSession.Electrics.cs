@@ -197,6 +197,27 @@ public sealed partial class PlanSession
     /// Automatisch verkabeln (siehe <see cref="AutoWiring"/>): Strom und Masse für jeden Abschnitt, Booster bei großen Anlagen,
     /// Kehrschleifenmodule bei Gleichstrom. Ein zweiter Lauf ersetzt das vorher automatisch Angelegte.
     /// </summary>
+    /// <summary>
+    /// Alle Verbindungen zum Gleis entfernen: jede Einspeisung (Bahnstrom und Masse, automatisch oder von Hand) samt ihrem Kabel.
+    /// Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen.
+    /// </summary>
+    public void RemoveTrackConnections()
+    {
+        var wireIds = Plan.Feeders.Where(f => f.WireId is not null).Select(f => f.WireId!.Value).ToHashSet();
+        // auch Bahnstrom- und Massekabel ohne eigene Einspeisung, deren Ende auf einem Gleis liegt
+        bool OnTrack((double X, double Y) p) => Electrics.TrackHit(Plan, p.X, p.Y) is not null;
+        var wireItems = Plan.Scenery.Where(x => x.IsWire && (wireIds.Contains(x.Id)
+            || x.Points.Count > 1 && (WireUse)x.Variant is WireUse.Fahrstrom or WireUse.Rueckleiter && !DetectorWiring.IsGenerated(x)
+               && (OnTrack(x.Points[0]) || OnTrack(x.Points[^1])))).ToHashSet();
+        var feeds = Plan.Feeders.Count;
+        if (feeds + wireItems.Count == 0) { Say(Lang.T("Es gibt keine Verbindungen zum Gleis.")); return; }
+        Record();
+        Plan.Feeders.Clear();
+        Plan.Scenery.RemoveAll(wireItems.Contains);
+        Commit();
+        Say(Lang.F($"Verbindungen zum Gleis entfernt: {feeds} Anschlüsse und {wireItems.Count} Kabel. Zentrale, Booster, Module, Melder und Trennstellen bleiben."));
+    }
+
     /// <summary>Alles automatisch Verkabelte wieder entfernen (ein Schritt, rückgängig machbar).</summary>
     public void RemoveAutoWiring()
     {

@@ -303,4 +303,27 @@ public class AutoWiringTests
         Assert.Single(s.Plan.Isolations);
         Assert.True(s.Plan.Scenery.Count(x => x.IsWire) <= manualWires);
     }
+
+    [Fact]
+    public void Verbindungen_zum_Gleis_entfernen_nimmt_alle_Anschluesse_heraus()
+    {
+        var plan = SamplePlan.Build();
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = plan.Pieces.First(p => p.Def.Number == "24215").Id, Index = 0 });
+        var s = Session(plan);
+        Assert.NotEmpty(s.Plan.Feeders); // von Hand gelegte Einspeisung im Beispielplan
+        s.AutoWire();
+        var sources = PowerSupply.Sources(s.Plan).Count();
+        var detectors = s.Plan.Detectors.Count;
+
+        s.RemoveTrackConnections();
+        Assert.Empty(s.Plan.Feeders);
+        // auch das Massekabel des Beispielplans (ohne eigene Einspeisung, Ende auf dem Gleis) ist weg
+        Assert.DoesNotContain(s.Plan.Scenery, w => w.IsWire && (WireUse)w.Variant is WireUse.Fahrstrom or WireUse.Rueckleiter && !DetectorWiring.IsGenerated(w));
+        Assert.Equal(sources, PowerSupply.Sources(s.Plan).Count());
+        Assert.Equal(detectors, s.Plan.Detectors.Count);
+        Assert.Single(s.Plan.Isolations);
+
+        s.Undo();
+        Assert.NotEmpty(s.Plan.Feeders);
+    }
 }

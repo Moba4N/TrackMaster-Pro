@@ -49,6 +49,8 @@ public class AutoWiringTests
         Assert.NotEmpty(PowerSupply.GroundsOf(s.Plan, zentrale));
         // jede Einspeisung hängt an einem Kabel, das an der Quelle beginnt
         Assert.All(s.Plan.Feeders, f => Assert.Contains(s.Plan.Scenery, w => w.Id == f.WireId));
+        // zu jeder Bahnstrom-Einspeisung führt auch ein Massekabel ans selbe Gleis
+        Assert.All(s.Plan.Feeders.Where(f => !f.Ground), f => Assert.Contains(s.Plan.Feeders, g => g.Ground && g.PieceId == f.PieceId && g.WireId is not null));
 
         // ein zweiter Lauf ersetzt, statt zu verdoppeln; Rückgängig in einem Schritt
         var feeders = s.Plan.Feeders.Count;
@@ -127,7 +129,62 @@ public class AutoWiringTests
     }
 
     [Fact]
-    public void Abschnitt_mit_Melder_wird_ueber_den_Besetztmelder_gespeist()
+    public void Zweileiter_Abschnitt_mit_Melder_wird_ueber_den_Besetztmelder_gespeist()
+    {
+        // Zweileiter-Strecke aus Flexgleis, Trennstelle vor dem letzten Stück
+        var plan = new LayoutPlan { GaugeId = "H0", BoardWidth = 4000, BoardHeight = 1000 };
+        double x = 100, y = 500, h = 180;
+        for (var i = 0; i < 4; i++)
+        {
+            var p = plan.Add(Catalog.FlexStraightKey("H0", 400));
+            PlanEditing.PlaceAt(p, 0, x, y, h);
+            var end = p.WorldConnectors()[1];
+            (x, y, h) = (end.X, end.Y, end.Heading);
+        }
+        var spur = plan.Pieces[^1];
+        plan.Isolations.Add(new Isolation { Id = plan.NextId++, PieceId = spur.Id, Index = 0 });
+        var s = Session(plan);
+        Assert.False(AutoWiring.DetectSystem(s.Plan).ThreeRail);
+        s.ToggleDetectorOn(spur.Id);
+
+        s.AutoWire();
+        Assert.True(s.Plan.DetectorWiring);
+        var bm = Assert.Single(PowerSupply.Modules(s.Plan), m => m.Model == "Besetztmelder");
+        Assert.DoesNotContain(s.Plan.Feeders, f => f.PieceId == spur.Id && !f.Ground);
+        // Masse des Melderabschnitts per Kabel von der Quelle ans Gleis
+        var g = Assert.Single(s.Plan.Feeders, f => f.PieceId == spur.Id && f.Ground);
+        Assert.Contains(s.Plan.Scenery, w => w.Id == g.WireId);
+        Assert.NotNull(s.DetectorOn(spur.Id)!.Source);
+        Assert.Contains(s.Plan.Scenery, w => DetectorWiring.IsAutoFeed(w) && w.Points[0] == Decoders.FeedTerminals(bm)!.Value.Track);
+        Assert.Empty(Errors(s.Plan));
+    }
+
+    [Fact]
+    public void Gleissystem_bestimmt_die_Verkabelung_Mittelleiter()
+    {
+        var plan = SamplePlan.Build();
+        plan.Feeders.Clear();
+        plan.Scenery.RemoveAll(x => x.IsWire);
+        plan.Current = CurrentKind.Gleichstrom; // falsch eingestellt
+        var s = Session(plan);
+        string? msg = null;
+        s.Message += m => msg = m;
+
+        s.AutoWire();
+        var (name, threeRail) = AutoWiring.DetectSystem(s.Plan);
+        Assert.True(threeRail);
+        Assert.Equal(CurrentKind.Auto, s.Plan.Current);
+        Assert.Equal(CurrentKind.Wechselstrom, Electrics.Current(s.Plan));
+        Assert.Contains(name, msg);
+        Assert.Contains("Mittelleiter", msg);
+        // Mittelleiter: keine Polung, keine Kehrschleifenmodule
+        Assert.All(s.Plan.Feeders.Where(f => !f.Ground), f => Assert.False(f.Reversed));
+        Assert.DoesNotContain(PowerSupply.Modules(s.Plan), m => m.Model == "Kehrschleifenmodul");
+        Assert.Empty(Errors(s.Plan));
+    }
+
+    [Fact]
+    public void Mittelleiter_Melderabschnitt_wird_normal_gespeist()
     {
         var plan = SamplePlan.Build();
         plan.Feeders.Clear();
@@ -138,11 +195,9 @@ public class AutoWiringTests
         s.ToggleDetectorOn(spur.Id);
 
         s.AutoWire();
-        Assert.True(s.Plan.DetectorWiring);
-        var bm = Assert.Single(PowerSupply.Modules(s.Plan), m => m.Model == "Besetztmelder");
-        Assert.DoesNotContain(s.Plan.Feeders, f => f.PieceId == spur.Id);
-        Assert.NotNull(s.DetectorOn(spur.Id)!.Source);
-        Assert.Contains(s.Plan.Scenery, w => DetectorWiring.IsAutoFeed(w) && w.Points[0] == Decoders.FeedTerminals(bm)!.Value.Track);
+        var section = Electrics.Sections(s.Plan, Connectivity.Analyze(s.Plan)).Single(x => x.PieceIds.Contains(spur.Id));
+        Assert.Contains(s.Plan.Feeders, f => !f.Ground && section.PieceIds.Contains(f.PieceId) && f.Id > 0);
+        Assert.Equal("", s.DetectorOn(spur.Id)!.Source);
         Assert.Empty(Errors(s.Plan));
     }
 }

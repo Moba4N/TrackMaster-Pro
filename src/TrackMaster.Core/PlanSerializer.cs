@@ -263,7 +263,7 @@ public static partial class PlanSerializer
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel || s.Kind == SceneryKind.Power && !string.IsNullOrEmpty(s.Model) ? s.Model : null,
                 Addr = s.Kind == SceneryKind.Power ? s.Address : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
-                Tracks = (s.IsModel || DetectorWiring.IsGenerated(s)) && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
+                Tracks = (s.IsModel || DetectorWiring.IsGenerated(s) || AutoWiring.IsAuto(s)) && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Gnd = f.Ground, At = Math.Abs(f.At - 0.5) < 1e-9 ? null : Math.Round(f.At, 4), Wire = f.WireId, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),

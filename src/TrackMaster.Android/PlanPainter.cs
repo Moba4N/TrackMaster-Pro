@@ -637,7 +637,7 @@ public sealed class PlanPainter
             c.DrawCircle(x, hd, tr, p);
         }
         // Besetztmelder: Bahnstrom (B, rot) und Masse (0, braun) oben
-        if (m?.Role == ModuleRole.Melden)
+        if (Decoders.FeedTerminals(src) is not null)
             foreach (var (x, rgb) in new[] { (-w / 6, Color.Rgb(0xD3, 0x2F, 0x2F)), (w / 6, Color.Rgb(0x79, 0x55, 0x48)) })
             {
                 p.SetStyle(Paint.Style.Fill);

@@ -204,6 +204,7 @@ public sealed partial class MainWindow : Window
         Add("wiring", ShowWiring);
         Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
         Add("numberElectrics", () => Session.NumberElectrics());
+        Add("detectorWires", () => { var on = !Session.Plan.DetectorWiring; if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); });
         Add("routes", ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ExportControl);
         Add("view3d", () => Open3D(View3DMode.Orbit));
@@ -1003,6 +1004,8 @@ public sealed partial class MainWindow : Window
                 signalMenu,
                 distributorMenu,
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
+                Toggle(Lang.T("Melder verkabeln"), "Wire", false, () => Session.Plan.DetectorWiring, on => { if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); },
+                    Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
                 Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
@@ -1607,6 +1610,7 @@ public sealed partial class MainWindow : Window
         if (menu.Items.Count == 0) menu.Items.Add(Cmd(Lang.T("Ganze Anlage"), "Fit", "fit"));
         if (menu.Items[menu.Items.Count - 1] is not Separator) menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(Session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"), "Wire", "wires"));
+        menu.Items.Add(Cmd(Session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"), "Detector", "detectorWires"));
         menu.Items.Add(Cmd(Lang.T("Elektrik nummerieren"), "Hash", "numberElectrics"));
         if (menu.Items[menu.Items.Count - 1] is Separator) menu.Items.RemoveAt(menu.Items.Count - 1);
         menu.PlacementTarget = Canvas;

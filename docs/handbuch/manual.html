@@ -1331,6 +1331,13 @@ Great Britain and the USA. The signal is shown in the plan and in the 3D view wi
 <figure class="third"><img src="img-en/rueckmelder.png" alt=""><figcaption>Choosing the type of feedback sensor.</figcaption></figure>
 <p>Then click the tracks. The contacts are numbered in sequence, 16 per feedback module. Clicking an existing sensor removes it.
 Change name, type and contact number in the properties.</p>
+<p><span class="ui">Electrics › Wire detectors</span> (also in the context menu: <span class="ui">Connect detectors to module</span>) connects every feedback sensor
+that has a contact number to the matching terminal of its feedback module with a violet wire. Contact 5 goes to input 5 of the first module,
+contact 20 to input 4 of the second. If there is no module for a contact yet, the program places one below the track plan (one module per 16 contacts;
+an s88 AC for AC layouts, otherwise an s88 DC – or the same type as the feedback modules you have already placed).
+While the function is on, the wires follow every change: a new sensor, another contact number, a moved track or a deleted sensor.
+Clicking <span class="ui">Wire detectors</span> again (<span class="ui">Remove detector wires</span>) takes all these wires out again;
+the modules stay and can be deleted one by one.</p>
 
 <h2 id="k9-11">Numbering</h2>
 <p><span class="ui">Wiring › Number</span> gives all feeders (G1, G2 …), feedback sensors (M1, M2 …) and wires (K1, K2 …) a number, from top left to bottom right.

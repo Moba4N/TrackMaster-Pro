@@ -355,6 +355,7 @@ public partial class App : ComponentBase, IAppHost
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
         Add("wires", Lang.T("Kabel zeigen"), () => { _session.ShowWires = !_session.ShowWires; _session.Say(_session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); _view.Invalidate(); });
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
+        Add("detectorWires", Lang.T("Rückmelder mit Modul verbinden"), () => { var on = !_session.Plan.DetectorWiring; if (on) _session.ShowWires = true; _session.SetDetectorWiring(on); });
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ShowControlExport);
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
@@ -499,6 +500,7 @@ public partial class App : ComponentBase, IAppHost
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "wires" => _session.ShowWires,
+        "detectorWires" => _session.Plan.DetectorWiring,
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
@@ -524,7 +526,7 @@ public partial class App : ComponentBase, IAppHost
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
         "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
-        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate",
+        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate", "detectorWires",
     ];
 
     private void SetTool(CanvasTool tool)

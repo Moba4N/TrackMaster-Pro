@@ -131,6 +131,7 @@
                     }
                     <div class="ctx-sep" role="separator"></div>
                     <button role="menuitem" @onclick="@(() => CtxRun("wires"))">@((MarkupString)Icons.Svg("Wire", 16))<span>@(_session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"))</span></button>
+                    <button role="menuitem" @onclick="@(() => CtxRun("detectorWires"))">@((MarkupString)Icons.Svg("Detector", 16))<span>@(_session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"))</span></button>
                     <button role="menuitem" @onclick="@(() => CtxRun("numberElectrics"))">@((MarkupString)Icons.Svg("Hash", 16))<span>@Lang.T("Elektrik nummerieren")</span></button>
                 </div>
             }
@@ -412,6 +413,7 @@
             new(Lang.T("Digital"), [new(Lang.T("Adressen"), "Hash", "addresses", false, Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 new(Lang.T("Signal setzen…"), "Signal", "toolSignal", true, Lang.T("Signalart wählen, dann auf ein Gleisende klicken.")),
                 new(Lang.T("Rückmelder…"), "Detector", "toolDetector", true, Lang.T("Rückmelder (Gleisbesetztmelder, Schaltgleis, Reedkontakt) auf Gleise setzen; sie stehen im Kabelplan, in der Stückliste und im Export für Steuerprogramme.")),
+                new(Lang.T("Melder verkabeln"), "Wire", "detectorWires", false, Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
                 new(Lang.T("Verteiler…"), "Distributor", "toolDistributor", true, Lang.T("Verteilerleiste in Rot, Schwarz, Blau, Gelb oder Braun setzen. Alle Kabel an ihren Klemmen sind verbunden – z. B. die gemeinsame Masse von Zentrale, Boostern und Gleis.")),
                 new(Lang.T("Nummerieren"), "Hash", "numberElectrics", false, Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 new(Lang.T("Kabelplan"), "Wire", "wiring", false), new(Lang.T("Fahrstraßen"), "Route", "routes", false), new(Lang.T("Export Steuerung"), "Export", "controlExport", false)]),

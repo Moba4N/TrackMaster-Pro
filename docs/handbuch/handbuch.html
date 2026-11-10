@@ -1341,6 +1341,13 @@ Großbritannien und USA. Das Signal wird im Plan und in der 3D-Ansicht mit dem p
 <figure class="third"><img src="img/rueckmelder.png" alt=""><figcaption>Art des Rückmelders wählen.</figcaption></figure>
 <p>Klicken Sie dann auf die Gleise. Die Kontakte werden fortlaufend nummeriert, 16 je Rückmeldemodul. Ein Klick auf einen vorhandenen Rückmelder entfernt ihn.
 Name, Art und Kontaktnummer ändern Sie in den Eigenschaften.</p>
+<p><span class="ui">Elektrik › Melder verkabeln</span> (auch im Kontextmenü: <span class="ui">Rückmelder mit Modul verbinden</span>) verbindet jeden Rückmelder,
+der eine Kontaktnummer hat, mit einem violetten Kabel mit der passenden Klemme seines Rückmeldemoduls. Kontakt 5 landet an Melder 5 des ersten Moduls,
+Kontakt 20 an Melder 4 des zweiten. Gibt es für einen Kontakt noch kein Modul, legt das Programm eines unter dem Gleisplan an (je 16 Kontakte ein Modul;
+bei Wechselstrom ein s88 AC, sonst ein s88 DC – oder derselbe Typ wie Ihre schon gesetzten Rückmeldemodule).
+Solange die Funktion eingeschaltet ist, folgen die Kabel jeder Änderung: neuer Rückmelder, andere Kontaktnummer, verschobenes Gleis oder gelöschter Rückmelder.
+Ein zweiter Klick auf <span class="ui">Melder verkabeln</span> (<span class="ui">Rückmelder-Kabel entfernen</span>) nimmt alle diese Kabel wieder heraus;
+die Module bleiben stehen und lassen sich einzeln löschen.</p>
 
 <h2 id="k9-11">Nummerieren</h2>
 <p><span class="ui">Elektrik › Nummerieren</span> gibt allen Einspeisungen (G1, G2 …), Rückmeldern (M1, M2 …) und Kabeln (K1, K2 …) eine Nummer, von links oben nach rechts unten.

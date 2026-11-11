@@ -1510,13 +1510,50 @@ public sealed partial class PlanSession
         return item;
     }
 
-    /// <summary>Deckplatte nach den Maßen des Rahmens auf den Unterbau legen (über den gezeichneten Leisten bzw. der Platte des Plans).</summary>
+    /// <summary>
+    /// Platten automatisch nach Grundriss und Rahmen auflegen: je zusammenhängender Fläche eine Platte, die dem Umriss folgt –
+    /// Anlagenplatte (auch L, U, Module) samt allem, was gezogene Leisten einschließen (z. B. das Dreieck zwischen versetzten
+    /// Modulen und der Diagonale). Beim selbst gezeichneten Rahmen zählen nur die Leisten; schließen sie keine Fläche ein, wird
+    /// es ein Rechteck über den Leisten. Vorhandene Platten werden ersetzt. Gibt die erste (größte) Platte zurück.
+    /// </summary>
     public SceneryItem AddPlate()
     {
         var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
-        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Plate, X = x, Y = y, Width = w, Depth = d, Variant = t, Height = top });
-        Say(Lang.F($"Deckplatte {PlateLayout.Size(item)} mm, {t} mm stark, aufgelegt (Oberkante {Fmt.Num(top, 0)} mm). Lage, Größe, Stärke und Oberkante stehen in den Eigenschaften; verschieben mit der Maus oder den Pfeiltasten."));
-        return item;
+        var manual = Plan.Benchwork is { Manual: true } && Plan.Scenery.Any(b => b.IsBeam);
+        var shapes = FrameOutline.Plates(Plan, board: !manual);
+        if (shapes.Count == 0) shapes = [[(x, y), (x + w, y), (x + w, y + d), (x, y + d)]];
+        Record();
+        var replaced = Plan.Scenery.Count(p => p.IsPlate);
+        Plan.Scenery.RemoveAll(p => p.IsPlate);
+        var level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
+        var made = new List<SceneryItem>();
+        foreach (var shape in shapes)
+        {
+            var item = new SceneryItem { Kind = SceneryKind.Plate, Variant = t, Height = top, Level = level, Id = Plan.NextId++ };
+            // achsparallele Rechtecke bleiben einfache Platten, alles andere wird Sonderform
+            if (shape.Count == 4 && shape.Select((p, i) => (p, q: shape[(i + 1) % 4])).All(e => Math.Abs(e.p.X - e.q.X) < 0.05 || Math.Abs(e.p.Y - e.q.Y) < 0.05))
+            {
+                (item.X, item.Y) = (shape.Min(p => p.X), shape.Min(p => p.Y));
+                (item.Width, item.Depth) = (shape.Max(p => p.X) - item.X, shape.Max(p => p.Y) - item.Y);
+            }
+            else item.Points = shape;
+            PlateLayout.Repair(item);
+            item.Name = $"{SceneryItem.KindName(SceneryKind.Plate)} {made.Count + 1}";
+            Plan.Scenery.Add(item);
+            made.Add(item);
+        }
+        Selection.Clear();
+        Active = null;
+        SelectedObject = made[0].Id;
+        foreach (var m in made) _objects.Add(m.Id);
+        Commit();
+        var area = made.Sum(PlateLayout.Area);
+        Say((made.Count == 1
+                ? Lang.F($"Deckplatte nach Grundriss und Rahmen aufgelegt: {Fmt.Num(area, 2)} m², {t} mm stark, Oberkante {Fmt.Num(top, 0)} mm.")
+                : Lang.F($"{made.Count} Deckplatten nach Grundriss und Rahmen aufgelegt: zusammen {Fmt.Num(area, 2)} m², {t} mm stark, Oberkante {Fmt.Num(top, 0)} mm."))
+            + (replaced > 0 ? " " + Lang.T("Die bisherigen Platten wurden ersetzt; Rückgängig holt sie zurück.") : "")
+            + " " + Lang.T("Stärke und Oberkante stehen in den Eigenschaften."));
+        return made[0];
     }
 
     /// <summary>

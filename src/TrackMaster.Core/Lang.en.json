@@ -1743,8 +1743,6 @@
  "Plus und Minus tauschen": "Swap plus and minus",
  "Plus/Minus-Wandler für Lichtsignale mit gemeinsamer Kathode am YD8116.": "Plus/minus converter for common-cathode light signals on the YD8116.",
  "Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu.": "Plans with up to 50 tracks can also be saved in the Basic version. A Pro licence adds saving without a size limit, the parts lists, printing and the exports.",
- "Pläne sind mit der Windows-Version austauschbar (*.trackmaster.json).": "Plans can be exchanged with the Windows version (*.trackmaster.json).",
- "Pläne werden als *.mpr gespeichert. Windows und Android öffnen sie (dort unter „Alle Dateien“); Pläne *.trackmaster.json von dort lassen sich hier ebenso öffnen. Der aktuelle Plan wird zusätzlich laufend in diesem Browser gesichert.": "Plans are saved as *.mpr. Windows and Android open them (there under “All files”); *.trackmaster.json plans from there can be opened here too. The current plan is also saved continuously in this browser.",
  "Pläne, die das Modell verwenden, behalten ihre mitgespeicherte Fassung.": "Plans that use the model keep the version stored in them.",
  "Polt den Kehrschleifenabschnitt automatisch um (Zweileiter-Gleichstrom).": "Automatically reverses the polarity of the reverse loop section (two-rail DC).",
  "Polung": "Polarity",
@@ -2153,7 +2151,6 @@
  "TrackMaster Pro – {0} (Bauvorlage 1:1)": "TrackMaster Pro – {0} (building template 1:1)",
  "TrackMaster-Lizenz (*.lic)|*.lic|Alle Dateien (*.*)|*.*": "TrackMaster licence (*.lic)|*.lic|All files (*.*)|*.*",
  "TrackMaster-Plan": "TrackMaster plan",
- "TrackMaster-Plan (*.trackmaster.json)|*.trackmaster.json|JSON-Dateien (*.json)|*.json|Alle Dateien (*.*)|*.*": "TrackMaster plan (*.trackmaster.json)|*.trackmaster.json|JSON files (*.json)|*.json|All files (*.*)|*.*",
  "Trafo": "Transformer",
  "Trafo / Zentrale": "Transformer / command station",
  "Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug.": "Transformer / command station or distributor: click the spot in the plan where it should stand (also beside the baseboard). Esc ends the tool.",
@@ -2823,5 +2820,9 @@
  "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back.",
  "{0} Teile gelöscht. Rückgängig holt sie zurück.": "{0} parts deleted. Undo brings them back.",
  "{0} Teile gewählt. Ziehen verschiebt alle gewählten Teile.": "{0} parts selected. Dragging moves all selected parts.",
- "Rahmen aufziehen: alle Gleise darin werden gewählt (ohne Gleise die Leisten und Platten darin).": "Drag a frame: all tracks inside are selected (without tracks, the battens and boards inside)."
+ "Rahmen aufziehen: alle Gleise darin werden gewählt (ohne Gleise die Leisten und Platten darin).": "Drag a frame: all tracks inside are selected (without tracks, the battens and boards inside).",
+ "TrackMaster-Plan (*.mpr;*.trackmaster.json)|*.mpr;*.trackmaster.json|Ältere Pläne (*.json)|*.json|Alle Dateien (*.*)|*.*": "TrackMaster plan (*.mpr;*.trackmaster.json)|*.mpr;*.trackmaster.json|Older plans (*.json)|*.json|All files (*.*)|*.*",
+ "TrackMaster-Plan (*.mpr)|*.mpr": "TrackMaster plan (*.mpr)|*.mpr",
+ "Pläne werden als *.mpr gespeichert und sind mit Windows und der Webversion austauschbar; ältere *.trackmaster.json öffnen weiter.": "Plans are saved as *.mpr and can be exchanged with Windows and the web version; older *.trackmaster.json files still open.",
+ "Pläne werden als *.mpr gespeichert – wie in der Windows- und Android-Version, die Dateien sind austauschbar. Ältere Pläne *.trackmaster.json lassen sich weiter öffnen. Der aktuelle Plan wird zusätzlich laufend in diesem Browser gesichert.": "Plans are saved as *.mpr – as in the Windows and Android versions, and the files are interchangeable. Older *.trackmaster.json plans can still be opened. The current plan is also backed up continuously in this browser."
 }

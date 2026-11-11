@@ -1047,8 +1047,9 @@ public sealed class MainActivity : Activity
             () => Export(b.ToCsv(), "text/csv", Lang.F($"{SafeName} – Unterbau.csv")));
     }
 
-    private void AskFrame() => Dialogs.AskFrame(this, _session.Plan.Gauge, spec =>
+    private void AskFrame() => Dialogs.AskFrame(this, _session.Plan.Gauge, _session.Plan.Frame, (spec, use) =>
     {
+        _session.SetFrame(use ? spec : null);
         var f = FrameBuild.Build(_session.Plan, spec);
         Dialogs.ShowFrame(this, f,
             () => ExportSvgFiles(f.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Spanten")),

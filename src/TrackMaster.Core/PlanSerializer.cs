@@ -53,6 +53,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("levels"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<LevelDto>? Levels { get; set; }
         [JsonPropertyName("activeLevel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ActiveLevel { get; set; }
         [JsonPropertyName("benchwork"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BenchworkSpec? Benchwork { get; set; }
+        [JsonPropertyName("frame"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FrameDto? Frame { get; set; }
         [JsonPropertyName("detectors"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<DetectorDto>? Detectors { get; set; }
         [JsonPropertyName("train"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Train { get; set; }
         [JsonPropertyName("prices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, double>? Prices { get; set; }
@@ -62,6 +63,15 @@ public static partial class PlanSerializer
         [JsonPropertyName("current"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Current { get; set; }
         [JsonPropertyName("operation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Operation { get; set; }
         [JsonPropertyName("detWires"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? DetWires { get; set; }
+    }
+
+    private sealed class FrameDto
+    {
+        [JsonPropertyName("dir"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Dir { get; set; }
+        [JsonPropertyName("spacing")] public double Spacing { get; set; }
+        [JsonPropertyName("width")] public double Width { get; set; }
+        [JsonPropertyName("thick")] public double Thick { get; set; }
+        [JsonPropertyName("base")] public double Base { get; set; }
     }
 
     private sealed class DetectorDto
@@ -297,6 +307,7 @@ public static partial class PlanSerializer
                 : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
             ActiveLevel = plan.ActiveLevel,
             Benchwork = plan.Benchwork,
+            Frame = plan.Frame is { } fr ? new FrameDto { Dir = fr.Direction == FrameDirection.Laengs ? "laengs" : null, Spacing = fr.Spacing, Width = fr.TrasseWidth, Thick = fr.Thickness, Base = fr.BaseHeight } : null,
             Detectors = plan.Detectors.Count == 0 ? null : plan.Detectors.Select(d => new DetectorDto
                 { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address, Src = d.Source, Auto = d.Auto ? true : null }).ToList(),
             Train = plan.TrainLength > 0 ? plan.TrainLength : null,
@@ -366,6 +377,11 @@ public static partial class PlanSerializer
         plan.ActiveLevel = Math.Clamp(dto.ActiveLevel, 0, plan.Levels.Count - 1);
         plan.SystemId = string.IsNullOrWhiteSpace(dto.System) ? null : dto.System;
         if (dto.Benchwork is { } bench && Enum.IsDefined(bench.LegStyle) && Core.Benchwork.Validate(bench).Count == 0) plan.Benchwork = bench;
+        if (dto.Frame is { } fd)
+        {
+            var frame = new FrameSpec(fd.Dir == "laengs" ? FrameDirection.Laengs : FrameDirection.Quer, fd.Spacing, fd.Width, fd.Thick, fd.Base);
+            if (FrameBuild.Valid(frame)) plan.Frame = frame;
+        }
         int LevelOf(int level) => Math.Clamp(level, 0, plan.Levels.Count - 1);
         foreach (var l in dto.Board?.Legs ?? [])
             plan.BoardLegs.Add(new BoardLeg(l.Length > 0 && double.IsFinite(l[0]) ? Math.Max(0, l[0]) : 0, l.Length > 1 && double.IsFinite(l[1]) ? Math.Max(0, l[1]) : 0));

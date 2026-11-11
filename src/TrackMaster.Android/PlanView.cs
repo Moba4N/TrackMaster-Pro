@@ -182,6 +182,14 @@ public sealed class PlanView : View
             _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
+        if (_session.Tool == CanvasTool.Plate)
+        {
+            _session.AddPlate([.. _polygon]);
+            _polygon.Clear();
+            PolygonChanged?.Invoke();
+            Invalidate();
+            return;
+        }
         if (_session.Tool == CanvasTool.Room)
         {
             _session.AddScenery(new SceneryItem { Kind = SceneryKind.Room, Points = [.. _polygon], Width = RoomPlan.DefaultWall, Height = 2500, Name = Lang.T("Raum") });
@@ -376,6 +384,7 @@ public sealed class PlanView : View
             {
                 CanvasTool.Water => Color.Argb(0x60, 0x86, 0xBC, 0xE6),
                 CanvasTool.Room => Color.Argb(0x50, 0x9A, 0x8C, 0x78),
+                CanvasTool.Plate => Color.Argb(0x70, 0xC8, 0xA8, 0x78),
                 _ => Color.Argb(0x60, 0x9C, 0xB8, 0x7E),
             }));
             c.DrawPath(path, Stroke(Ui.Accent, 1.5f * Ui.Density / z));
@@ -919,7 +928,7 @@ public sealed class PlanView : View
             case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Model or CanvasTool.Power:
+            case CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Plate or CanvasTool.Wire or CanvasTool.Detector or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Model or CanvasTool.Power:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:
@@ -1017,6 +1026,14 @@ public sealed class PlanView : View
             case CanvasTool.Water:
             case CanvasTool.Room:
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
+                PolygonChanged?.Invoke();
+                Invalidate();
+                return;
+            case CanvasTool.Plate:
+                // Ecken rasten an Platte, Leisten und Raster ein; Antippen der ersten Ecke schließt ab
+                var tol = Ui.Dp(22) / _zoom;
+                if (_polygon.Count >= 3 && Math.Abs(world.X - _polygon[0].X) + Math.Abs(world.Y - _polygon[0].Y) < tol) { FinishPolygon(); return; }
+                _polygon.Add(BeamLayout.Snap(_session.View, world.X, world.Y, tol, _polygon.Count > 0 ? _polygon[^1] : null, grid: _session.SnapEnabled ? BeamLayout.GridStep : 0));
                 PolygonChanged?.Invoke();
                 Invalidate();
                 return;

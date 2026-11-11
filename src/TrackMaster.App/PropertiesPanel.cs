@@ -421,15 +421,15 @@ public sealed class PropertiesPanel : DockPanel
                         break;
                     case SceneryKind.Plate:
                         _body.Children.Add(Columns(2,
-                            Theme.Field(Lang.T("Links (mm)"), NumberBox(s.X, v => s.X = Math.Clamp(v, -20000, 20000), 1)),
-                            Theme.Field(Lang.T("Oben (mm)"), NumberBox(s.Y, v => s.Y = Math.Clamp(v, -20000, 20000), 1))));
+                            Theme.Field(Lang.T("Links (mm)"), NumberBox(s.X, v => PlateLayout.SetBox(s, x: Math.Clamp(v, -20000, 20000)), 1)),
+                            Theme.Field(Lang.T("Oben (mm)"), NumberBox(s.Y, v => PlateLayout.SetBox(s, y: Math.Clamp(v, -20000, 20000)), 1))));
                         _body.Children.Add(Columns(2,
-                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, PlateLayout.MinSize, PlateLayout.MaxSize), 1)),
-                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, PlateLayout.MinSize, PlateLayout.MaxSize), 1))));
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => PlateLayout.SetBox(s, width: v), 1)),
+                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => PlateLayout.SetBox(s, depth: v), 1))));
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Stärke (mm)"), NumberBox(PlateLayout.Thickness(s), v => s.Variant = (int)Math.Round(Math.Clamp(v, PlateLayout.MinThickness, PlateLayout.MaxThickness)), 0)),
                             Theme.Field(Lang.T("Oberkante (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, BeamLayout.MinTop, BeamLayout.MaxTop), 0))));
-                        Rows((Lang.T("Fläche"), $"{Fmt.Num(s.Width * s.Depth / 1e6, 2)} m²", null));
+                        Rows((Lang.T("Fläche"), $"{Fmt.Num(PlateLayout.Area(s), 2)} m²", null));
                         var fit = Theme.Button(Lang.T("An Rahmen anpassen"), "Resize");
                         fit.ToolTip = Lang.T("Legt die Platte wieder genau über die gezeichneten Leisten bzw. den Rahmen.");
                         fit.Click += (_, _) => _session.FitPlate(s);

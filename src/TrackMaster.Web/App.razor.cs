@@ -323,6 +323,8 @@ public partial class App : ComponentBase, IAppHost
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
+        Add("toolPlate", Lang.T("Platte zeichnen"), () => SetTool(CanvasTool.Plate));
+        Add("removePlates", Lang.T("Alle Platten entfernen"), () => { SetTool(CanvasTool.Select); _session.RemoveAllPlates(); });
         Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
@@ -507,6 +509,7 @@ public partial class App : ComponentBase, IAppHost
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
+        "toolPlate" => _session.Tool == CanvasTool.Plate,
         "wires" => _session.ShowWires,
         "detectorWires" => _session.Plan.DetectorWiring,
         "toolOccupancy" => _session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder",
@@ -533,7 +536,7 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPlate", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate", "detectorWires", "toolOccupancy",
     ];
@@ -571,6 +574,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
         CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
+        CanvasTool.Plate => Lang.F($"Platte zeichnen: Ecken setzen ({_view.PolygonPoints}) – Plattenecken, Kanten, Leisten und das Raster rasten ein. Klick auf die erste Ecke, Doppelklick oder „Fertig“ legt die Platte auf."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
             ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")

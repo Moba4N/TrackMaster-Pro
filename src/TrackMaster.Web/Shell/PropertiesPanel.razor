@@ -535,10 +535,10 @@
                 apply.Add(() => s.Color = ModelBody.ParseColor(wireColor) is { } wc ? ModelBody.ToHex(wc) : s.Color);
                 break;
             case SceneryKind.Plate:
-                Num("x", Lang.T("Links"), -20000, 20000, v => s.X = v);
-                Num("y", Lang.T("Oben"), -20000, 20000, v => s.Y = v);
-                Num("width", Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v);
-                Num("depth", Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v);
+                Num("x", Lang.T("Links"), -20000, 20000, v => PlateLayout.SetBox(s, x: v));
+                Num("y", Lang.T("Oben"), -20000, 20000, v => PlateLayout.SetBox(s, y: v));
+                Num("width", Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, width: v));
+                Num("depth", Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, depth: v));
                 Num("thick", Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v));
                 Num("height", Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v);
                 break;
@@ -782,7 +782,7 @@
                 <div class="cols">@NumField(Lang.T("Links (mm)"), "x", ApplyScenery)@NumField(Lang.T("Oben (mm)"), "y", ApplyScenery)</div>
                 <div class="cols">@NumField(Lang.T("Breite (mm)"), "width", ApplyScenery)@NumField(Lang.T("Tiefe (mm)"), "depth", ApplyScenery)</div>
                 <div class="cols">@NumField(Lang.T("Stärke (mm)"), "thick", ApplyScenery)@NumField(Lang.T("Oberkante (mm)"), "height", ApplyScenery)</div>
-                <dl class="rows"><dt>@Lang.T("Fläche")</dt><dd>@Fmt.Num(s.Width * s.Depth / 1e6, 2) m²</dd></dl>
+                <dl class="rows"><dt>@Lang.T("Fläche")</dt><dd>@Fmt.Num(PlateLayout.Area(s), 2) m²</dd></dl>
                 <div class="button-row"><button class="btn" title="@Lang.T("Legt die Platte wieder genau über die gezeichneten Leisten bzw. den Rahmen.")" @onclick="@(() => Session.FitPlate(s))">@((MarkupString)Icons.Svg("Resize", 16)) @Lang.T("An Rahmen anpassen")</button></div>
                 <div class="tip-box">@Lang.T("Links und Oben: linke obere Ecke im Plan. Oberkante über der Plattenoberkante des Plans (0 = Gleisebene). Mit Unterbau steht die Platte in der Materialliste.")</div>
                 break;

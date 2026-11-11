@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire, Power }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire, Power, Plate }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -25,7 +25,7 @@ public sealed partial class PlanSession
     /// Raster über die ganze Zeichenfläche statt nur auf der Platte: beim Rahmenbau (selbst gezeichnet, Leisten oder Deckplatten im Plan,
     /// Werkzeug „Leiste ziehen“), weil der Rahmen über die Platte hinausgehen kann.
     /// </summary>
-    public bool GridEverywhere => Tool == CanvasTool.Beam || Plan.Benchwork is { Manual: true } || Plan.Scenery.Any(IsFramePart);
+    public bool GridEverywhere => Tool is CanvasTool.Beam or CanvasTool.Plate || Plan.Benchwork is { Manual: true } || Plan.Scenery.Any(IsFramePart);
     public bool ShowEnds { get; set; } = true;
     public bool ShowLabels { get; set; }
     public bool ShowHeights { get; set; } = true;
@@ -1519,6 +1519,52 @@ public sealed partial class PlanSession
         return item;
     }
 
+    /// <summary>
+    /// Deckplatte in Sonderform (Vieleck, z. B. das Dreieck zwischen versetzten Modulen und der Diagonale). Stärke und Oberkante
+    /// wie bei „Platte auflegen“: auf den Leisten bzw. bündig mit der Platte des Rahmens. Null, wenn die Form zu klein ist.
+    /// </summary>
+    public SceneryItem? AddPlate(IReadOnlyList<(double X, double Y)> points)
+    {
+        var pts = PlateLayout.Clean(points);
+        if (pts.Count < 3 || Math.Abs(Geometry2D.SignedArea(pts)) < PlateLayout.MinSize * PlateLayout.MinSize)
+        {
+            Say(Lang.T("Eine Platte braucht mindestens drei Ecken, die eine Fläche einschließen."));
+            return null;
+        }
+        var (_, _, _, _, t, top) = PlateLayout.FromFrame(Plan);
+        var item = new SceneryItem { Kind = SceneryKind.Plate, Points = pts, Variant = t, Height = top };
+        PlateLayout.Repair(item);
+        AddScenery(item);
+        Say(Lang.F($"Platte in Sonderform aufgelegt: {Fmt.Num(Math.Abs(Geometry2D.SignedArea(pts)) / 1e6, 2)} m², {t} mm stark, Oberkante {Fmt.Num(top, 0)} mm. Stärke und Oberkante stehen in den Eigenschaften."));
+        return item;
+    }
+
+    /// <summary>
+    /// Alle Platten entfernen, damit nur der Rahmen zu sehen ist: aufgelegte Deckplatten löschen und die Platte des Unterbaus
+    /// (auch eigene Plattenstärken der Module) weglassen – offene Rahmenbauweise. Rückgängig holt alles zurück.
+    /// </summary>
+    public void RemoveAllPlates()
+    {
+        var plates = Plan.Scenery.Where(s => s.IsPlate).Select(s => s.Id).ToList();
+        var bench = Plan.Benchwork;
+        var top = bench is { TopThickness: > 0 } || Plan.Modules.Any(m => m.Thickness > 0);
+        if (plates.Count == 0 && !top)
+        {
+            Say(bench is null
+                ? Lang.T("Es liegen keine Platten auf. Ohne Unterbau gehört die Anlagenplatte zum Plan; einen Rahmen legt Gelände › Unterbau… an.")
+                : Lang.T("Es liegen keine Platten auf – zu sehen ist schon nur der Rahmen."));
+            return;
+        }
+        Record();
+        foreach (var id in plates) Plan.RemoveObject(id);
+        if (bench is not null) bench.TopThickness = 0;
+        foreach (var m in Plan.Modules) m.Thickness = 0;
+        Commit();
+        Say(bench is null
+            ? Lang.F($"{plates.Count} aufgelegte Platte(n) entfernt. Ohne Unterbau bleibt die Anlagenplatte; einen Rahmen legt Gelände › Unterbau… an.")
+            : Lang.T("Alle Platten entfernt – zu sehen ist nur noch der Rahmen (3D-Ansicht). „Platte auflegen“ bzw. „Platte zeichnen“ legt wieder Platten auf, Rückgängig holt alle zurück."));
+    }
+
     /// <summary>Gewählte Deckplatte wieder auf die Maße des Rahmens bringen.</summary>
     public void FitPlate(SceneryItem s)
     {
@@ -1526,6 +1572,7 @@ public sealed partial class PlanSession
         Record();
         var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
         (s.X, s.Y, s.Width, s.Depth) = (x, y, w, d);
+        s.Points = [];   // Sonderform wird wieder zum Rechteck über dem Rahmen
         s.Height = Math.Round(top - t + PlateLayout.Thickness(s), 1);   // auf dem Rahmen, eigene Stärke bleibt
         Commit();
     }

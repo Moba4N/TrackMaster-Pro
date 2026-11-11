@@ -261,7 +261,7 @@ public static partial class PlanSerializer
                 Id = withIds || plan.Feeders.Any(f => f.WireId == s.Id) ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) || (s.Kind == SceneryKind.Plate && s.Points.Count >= 3) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel || s.Kind == SceneryKind.Power && !string.IsNullOrEmpty(s.Model) ? s.Model : null,
                 Addr = s.Kind == SceneryKind.Power ? s.Address : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
@@ -426,7 +426,7 @@ public static partial class PlanSerializer
                 if (item.Width <= 0 || item.Depth <= 0) (item.Width, item.Depth) = PowerSupply.Type(item) == PowerSourceType.Verteiler ? PowerSupply.DistributorSize(plan.Gauge) : PowerSupply.Size(plan.Gauge);
             }
             if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
-            if (kind == SceneryKind.Plate && !PlateLayout.Valid(item)) PlateLayout.Repair(item);
+            if (kind == SceneryKind.Plate && (item.Points.Count > 0 || !PlateLayout.Valid(item))) PlateLayout.Repair(item);
             plan.Scenery.Add(item);
         }
         foreach (var f in dto.Feeders ?? [])

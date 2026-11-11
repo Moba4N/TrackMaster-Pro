@@ -5,7 +5,11 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>Was die Zeichnung zeigt (Zeichenfläche und Druck).</summary>
-public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject, bool Wires = true);
+public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject, bool Wires = true, IReadOnlySet<int>? SelectedObjects = null)
+{
+    /// <summary>Objekt gewählt (auch als Teil einer Mehrfachauswahl von Leisten und Platten)?</summary>
+    public bool IsSelected(int id) => id == SelectedObject || SelectedObjects?.Contains(id) == true;
+}
 
 /// <summary>
 /// Zeichnet den Plan in Weltkoordinaten (mm): Platte, Gelände, Gebäude, Gleise nach Höhe geschichtet (Brücken liegen oben),
@@ -321,9 +325,9 @@ public sealed class PlanScene
     private void DrawBeams(DrawingContext dc, double z, RenderOptions o, Pen selPen)
     {
         foreach (var p in _plan.Scenery.Where(s => s.IsPlate))
-            dc.DrawGeometry(PlateFill, p.Id == o.SelectedObject ? selPen : new Pen(BeamStroke, 1.5 / z) { DashStyle = new DashStyle([6, 3], 0) }, Polygon(PlateLayout.Outline(p)));
+            dc.DrawGeometry(PlateFill, o.IsSelected(p.Id) ? selPen : new Pen(BeamStroke, 1.5 / z) { DashStyle = new DashStyle([6, 3], 0) }, Polygon(PlateLayout.Outline(p)));
         foreach (var b in _plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2))
-            dc.DrawGeometry(BeamFill, b.Id == o.SelectedObject ? selPen : new Pen(BeamStroke, 1.2 / z), Polygon(BeamLayout.Outline(b)));
+            dc.DrawGeometry(BeamFill, o.IsSelected(b.Id) ? selPen : new Pen(BeamStroke, 1.2 / z), Polygon(BeamLayout.Outline(b)));
     }
 
     private void DrawRooms(DrawingContext dc, double z, RenderOptions o, Pen selPen)

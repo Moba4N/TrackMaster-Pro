@@ -264,10 +264,11 @@ public sealed class PlanCanvas : FrameworkElement
 
         dc.PushTransform(new MatrixTransform(ViewMatrix));
         var board = new Rect(0, 0, plan.BoardWidth, plan.BoardHeight);
-        scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject, _session.ShowWires),
+        scene.Draw(dc, z, new RenderOptions(_session.ShowScenery, _session.ShowSections, _session.Selection, _session.SelectedObject, _session.ShowWires, _session.SelectedObjects),
             d =>
             {
-                if (_session.ShowGrid)
+                if (_session.ShowGrid && _session.GridEverywhere) DrawGrid(d, null);
+                else if (_session.ShowGrid)
                 {
                     d.PushClip(PlanScene.BoardOutline(plan));
                     DrawGrid(d, board);
@@ -368,7 +369,7 @@ public sealed class PlanCanvas : FrameworkElement
         }
         if (_dimStart is { } ba && _session.Tool == CanvasTool.Beam)
         {
-            var be = BeamLayout.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z, ba);
+            var be = BeamLayout.Snap(_session.View, _lastWorld.X, _lastWorld.Y, 12 / z, ba, grid: BeamGrid);
             var w = Math.Max(BeamLayout.Defaults(_session.View).Width, 2 / z);
             dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(0x90, 0xD4, 0xB4, 0x82)), w), new Point(ba.X, ba.Y), new Point(be.X, be.Y));
             dc.DrawLine(new Pen(Theme.AccentBrush, 1.2 / z), new Point(ba.X, ba.Y), new Point(be.X, be.Y));
@@ -386,11 +387,18 @@ public sealed class PlanCanvas : FrameworkElement
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x80, 0xB8, 0x5C, 0x45)), new Pen(Theme.AccentBrush, 1.5 / z), new Rect(_dragStartWorld, _lastWorld));
     }
 
-    private void DrawGrid(DrawingContext dc, Rect board)
+    /// <summary>Leiste oder Deckplatte des Rahmens (lassen sich zu mehreren wählen).</summary>
+    private bool IsFramePart(int id) => _session.Plan.Scenery.FirstOrDefault(s => s.Id == id) is { } s && PlanSession.IsFramePart(s);
+
+    /// <summary>Raster, an dem neue Leisten einrasten (aus, wenn „Fang“ abgeschaltet ist).</summary>
+    private double BeamGrid => _session.SnapEnabled ? BeamLayout.GridStep : 0;
+
+    /// <summary>Raster auf der Platte bzw. mit <paramref name="board"/> = null über die ganze Zeichenfläche (Rahmenbau).</summary>
+    private void DrawGrid(DrawingContext dc, Rect? board)
     {
         var corners = new[] { new Point(0, 0), new Point(ActualWidth, 0), new Point(ActualWidth, ActualHeight), new Point(0, ActualHeight) }.Select(ToWorld).ToList();
         var view = new Rect(new Point(corners.Min(p => p.X), corners.Min(p => p.Y)), new Point(corners.Max(p => p.X), corners.Max(p => p.Y)));
-        view.Intersect(board);
+        if (board is { } b) view.Intersect(b);
         if (view.IsEmpty) return;
         void Lines(double step, Brush brush, double px)
         {
@@ -407,6 +415,8 @@ public sealed class PlanCanvas : FrameworkElement
         }
         if (10 * _zoom >= 6) Lines(10, Theme.GridMinorBrush, 1);
         if (100 * _zoom >= 8) Lines(100, Theme.GridMajorBrush, 1);
+        // weit herausgezoomt: Meterraster, damit immer ein Raster zu sehen ist
+        else if (board is null && 1000 * _zoom >= 8) Lines(1000, Theme.GridMajorBrush, 1);
     }
 
     private FormattedText Text(string s, double size, Brush brush, bool bold = false)
@@ -809,8 +819,8 @@ public sealed class PlanCanvas : FrameworkElement
                 InvalidateVisual();
                 return;
             case CanvasTool.Beam:
-                var bsnap = BeamLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom, _dimStart);
-                if (_dimStart is not { } bfrom) { _dimStart = bsnap; _session.Say(Lang.T("Leiste: jetzt das Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste; Esc bricht ab.")); }
+                var bsnap = BeamLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom, _dimStart, grid: BeamGrid);
+                if (_dimStart is not { } bfrom) { _dimStart = bsnap; _session.Say(Lang.T("Leiste: jetzt das Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste; Esc bricht ab.")); }
                 else if (Math.Abs(bsnap.X - bfrom.X) + Math.Abs(bsnap.Y - bfrom.Y) > 1) { _dimStart = null; _session.AddBeam(bfrom, bsnap); }
                 InvalidateVisual();
                 return;
@@ -866,11 +876,12 @@ public sealed class PlanCanvas : FrameworkElement
             _drag = DragMode.None;
             return;
         }
+        var additive = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) || Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         if (HitSmallObject(screen, world) is { } obj)
         {
-            _session.SelectObject(obj);
-            _session.BeginMove();
-            _drag = DragMode.Move;
+            // Umschalt/Strg: Leisten zur Auswahl hinzufügen oder herausnehmen; Ziehen verschiebt alle gewählten
+            if (_session.ClickObject(obj, additive)) { _session.BeginMove(12 / _zoom); _drag = DragMode.Move; }
+            else _drag = DragMode.None;
             return;
         }
         if (HitPiece(world) is { } piece)
@@ -886,11 +897,10 @@ public sealed class PlanCanvas : FrameworkElement
             _drag = DragMode.Move;
             return;
         }
-        if (HitArea(world) is { } area && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        if (HitArea(world) is { } area && (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) || IsFramePart(area)))
         {
-            _session.SelectObject(area);
-            _session.BeginMove();
-            _drag = DragMode.Move;
+            if (_session.ClickObject(area, additive)) { _session.BeginMove(12 / _zoom); _drag = DragMode.Move; }
+            else _drag = DragMode.None;
             return;
         }
         _drag = DragMode.Band;
@@ -985,7 +995,11 @@ public sealed class PlanCanvas : FrameworkElement
                 }
                 _band = null;
                 var ids = _session.View.Pieces.Where(p => { var m = p.Middle(); return band.Contains(ToScreen(m.X, m.Y)); }).Select(p => p.Id).ToList();
-                _session.Select(ids, add: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                // ohne Gleise im Rahmen: Leisten und Platten, die ganz darin liegen
+                var parts = _session.View.Scenery.Where(s => PlanSession.IsFramePart(s) && BeamLayout.Corners(s).Any()
+                    && BeamLayout.Corners(s).All(q => band.Contains(ToScreen(q.X, q.Y)))).Select(s => s.Id).ToList();
+                _session.SelectArea(ids, parts, add: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) || Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+                if (ids.Count == 0 && parts.Count > 0) _session.Say(Lang.F($"{_session.SelectedObjects.Count} Teile gewählt. Ziehen verschiebt alle gewählten Teile."));
                 break;
             case DragMode.Create:
                 var end = ToWorld(e.GetPosition(this));

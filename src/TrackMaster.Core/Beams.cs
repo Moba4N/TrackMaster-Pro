@@ -9,6 +9,8 @@ namespace TrackMaster.Core;
 public static class BeamLayout
 {
     public const double MinSection = 5, MaxWidth = 200, MaxDepth = 300, MinTop = -3000, MaxTop = 1000, MinLength = 10;
+    /// <summary>Raster, an dem Leisten und Platten einrasten, wenn keine Kante und keine andere Leiste in der Nähe ist (mm).</summary>
+    public const double GridStep = 10;
 
     /// <summary>Querschnitt und Lage einer neuen Leiste: wie die Zarge des Unterbaus, direkt unter der Platte.</summary>
     public static (double Width, double Depth, double Top) Defaults(LayoutPlan plan)
@@ -51,9 +53,10 @@ public static class BeamLayout
     /// <summary>
     /// Fangpunkt für eine Leiste: Plattenecken, Enden anderer Leisten und – vom Anfang <paramref name="from"/> aus senkrecht
     /// oder waagrecht – der Schnitt mit einer anderen Leiste; sonst der nächste Punkt auf einer Plattenkante oder Leiste.
-    /// So steht eine Strebe von einer Modulkante genau rechtwinklig auf der Diagonale.
+    /// So steht eine Strebe von einer Modulkante genau rechtwinklig auf der Diagonale. Mit <paramref name="grid"/> &gt; 0 rastet ein freier
+    /// Punkt am Raster ein, ein Punkt auf einer waagrechten oder senkrechten Kante entlang der Kante.
     /// </summary>
-    public static (double X, double Y) Snap(LayoutPlan plan, double x, double y, double tolerance, (double X, double Y)? from = null, int skipId = -1)
+    public static (double X, double Y) Snap(LayoutPlan plan, double x, double y, double tolerance, (double X, double Y)? from = null, int skipId = -1, double grid = 0)
     {
         var beams = plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2 && s.Id != skipId).ToList();
         var points = BoardGeometry.Outlines(plan).SelectMany(o => o).Concat(beams.SelectMany(s => s.Points)).ToList();
@@ -71,15 +74,89 @@ public static class BeamLayout
             for (int i = 0, j = o.Count - 1; i < o.Count; j = i++) edges.Add((o[j], o[i]));
         edges.AddRange(beams.Select(s => (s.Points[0], s.Points[1])));
         var foot = edges.Select(e => Foot(e.A, e.B, x, y)).ToList();
-        if (Nearest(foot, x, y, tolerance) is { } q) return Round(q);
-        // frei: vom Anfang aus waagrecht bzw. senkrecht, wenn fast
+        if (Nearest(foot, x, y, tolerance) is { } q)
+        {
+            if (grid > 0)
+            {
+                var e = edges[foot.IndexOf(q)];
+                // entlang einer waagrechten bzw. senkrechten Kante am Raster bleiben
+                if (Math.Abs(e.A.Y - e.B.Y) < 1e-6) q = (Math.Clamp(OnGrid(q.X, grid), Math.Min(e.A.X, e.B.X), Math.Max(e.A.X, e.B.X)), q.Y);
+                else if (Math.Abs(e.A.X - e.B.X) < 1e-6) q = (q.X, Math.Clamp(OnGrid(q.Y, grid), Math.Min(e.A.Y, e.B.Y), Math.Max(e.A.Y, e.B.Y)));
+            }
+            return Round(q);
+        }
+        // frei: vom Anfang aus waagrecht bzw. senkrecht, wenn fast; sonst am Raster
+        bool lockX = false, lockY = false;
         if (from is { } g)
         {
-            if (Math.Abs(x - g.X) < tolerance / 2) x = g.X;
-            if (Math.Abs(y - g.Y) < tolerance / 2) y = g.Y;
+            if (Math.Abs(x - g.X) < tolerance / 2) { x = g.X; lockX = true; }
+            if (Math.Abs(y - g.Y) < tolerance / 2) { y = g.Y; lockY = true; }
+        }
+        if (grid > 0)
+        {
+            if (!lockX) x = OnGrid(x, grid);
+            if (!lockY) y = OnGrid(y, grid);
         }
         return Round((x, y));
     }
+
+    private static double OnGrid(double v, double grid) => Math.Round(v / grid) * grid;
+
+    /// <summary>
+    /// Verschieben gewählter Leisten und Platten um (<paramref name="dx"/>, <paramref name="dy"/>) mit Einrasten: Ecken und Enden
+    /// rasten an Plattenecken, Enden anderer Leisten und Plattenkanten bzw. Mittellinien anderer Leisten ein, sonst am Raster.
+    /// Gibt die eingerastete Verschiebung zurück.
+    /// </summary>
+    public static (double X, double Y) SnapMove(LayoutPlan plan, IReadOnlyCollection<SceneryItem> moving, double dx, double dy, double tolerance, double grid = GridStep)
+    {
+        var ids = moving.Select(m => m.Id).ToHashSet();
+        var own = moving.SelectMany(Corners).Select(p => (X: p.X + dx, Y: p.Y + dy)).ToList();
+        if (own.Count == 0) return (dx, dy);
+        var others = plan.Scenery.Where(s => (s.IsBeam || s.IsPlate) && !ids.Contains(s.Id)).ToList();
+        var outlines = BoardGeometry.Outlines(plan);
+        var targets = outlines.SelectMany(o => o).Concat(others.SelectMany(Corners)).ToList();
+        (double X, double Y)? best = null;
+        var bestD = tolerance;
+        foreach (var p in own)
+            foreach (var t in targets)
+            {
+                var d = Math.Sqrt((t.X - p.X) * (t.X - p.X) + (t.Y - p.Y) * (t.Y - p.Y));
+                if (d < bestD) { bestD = d; best = (t.X - p.X, t.Y - p.Y); }
+            }
+        if (best is { } b) return Round((dx + b.X, dy + b.Y));
+        var edges = new List<((double X, double Y) A, (double X, double Y) B)>();
+        foreach (var o in outlines)
+            for (int i = 0, j = o.Count - 1; i < o.Count; j = i++) edges.Add((o[j], o[i]));
+        foreach (var s in others)
+        {
+            if (s.IsBeam && s.Points.Count == 2) edges.Add((s.Points[0], s.Points[1]));
+            else if (s.IsPlate) { var o = PlateLayout.Outline(s); for (int i = 0, j = o.Count - 1; i < o.Count; j = i++) edges.Add((o[j], o[i])); }
+        }
+        var hit = (P: (X: 0.0, Y: 0.0), E: (A: (X: 0.0, Y: 0.0), B: (X: 0.0, Y: 0.0)));
+        foreach (var p in own)
+            foreach (var e in edges)
+            {
+                var f = Foot(e.A, e.B, p.X, p.Y);
+                var d = Math.Sqrt((f.X - p.X) * (f.X - p.X) + (f.Y - p.Y) * (f.Y - p.Y));
+                if (d < bestD) { bestD = d; best = (f.X - p.X, f.Y - p.Y); hit = (p, e); }
+            }
+        if (best is { } c)
+        {
+            // an einer Kante: entlang der Kante am Raster bleiben, wenn sie waagrecht oder senkrecht ist
+            var (ex, ey) = (dx + c.X, dy + c.Y);
+            var (pt, edge) = hit;
+            if (grid > 0 && Math.Abs(edge.A.Y - edge.B.Y) < 1e-6) ex = dx + OnGrid(pt.X, grid) - pt.X;
+            else if (grid > 0 && Math.Abs(edge.A.X - edge.B.X) < 1e-6) ey = dy + OnGrid(pt.Y, grid) - pt.Y;
+            return Round((ex, ey));
+        }
+        if (grid <= 0) return (dx, dy);
+        var first = own[0];
+        return Round((dx + OnGrid(first.X, grid) - first.X, dy + OnGrid(first.Y, grid) - first.Y));
+    }
+
+    /// <summary>Punkte, die beim Verschieben einrasten: Enden einer Leiste bzw. Ecken einer Platte.</summary>
+    public static IEnumerable<(double X, double Y)> Corners(SceneryItem s)
+        => s.IsBeam ? s.Points.Count == 2 ? s.Points : [] : s.IsPlate ? PlateLayout.Outline(s) : [];
 
     private static (double X, double Y) Round((double X, double Y) p) => (Math.Round(p.X, 1), Math.Round(p.Y, 1));
 

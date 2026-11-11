@@ -1433,9 +1433,9 @@
  "Leiste": "Batten",
  "Leiste ziehen": "Draw batten",
  "Leiste {0} mm gesetzt ({1} mm). Querschnitt, Höhe und Länge stehen in den Eigenschaften, im Unterbau steht sie in Zuschnitt und Materialliste.": "Batten {0} mm placed ({1} mm). Cross-section, height and length are in the properties; the benchwork lists it in the cutting and material list.",
- "Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste.": "Batten: click start and end. Board edges, corners and other battens snap; from an edge also at a right angle onto a batten.",
- "Leiste: jetzt das Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste; Esc bricht ab.": "Batten: now click the end. Board edges, corners and other battens snap; from an edge also at a right angle onto a batten; Esc cancels.",
- "Leiste: jetzt das Ende antippen. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste.": "Batten: now tap the end. Board edges, corners and other battens snap; from an edge also at a right angle onto a batten.",
+ "Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste.": "Batten: click start and end. Board edges, corners, other battens and the grid snap; from an edge also at a right angle onto a batten.",
+ "Leiste: jetzt das Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste; Esc bricht ab.": "Batten: now click the end. Board edges, corners, other battens and the grid snap; from an edge also at a right angle onto a batten; Esc cancels.",
+ "Leiste: jetzt das Ende antippen. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste.": "Batten: now tap the end. Board edges, corners, other battens and the grid snap; from an edge also at a right angle onto a batten.",
  "Letzten Schritt zurücknehmen (Strg+Z).": "Undo the last step (Ctrl+Z).",
  "Licht": "Lights",
  "Licht und Zubehör": "Lights and accessories",
@@ -2820,5 +2820,8 @@
  "Es gibt keine Verbindungen zum Gleis.": "There are no connections to the track.",
  "Verbindungen zum Gleis entfernt: {0} Anschlüsse und {1} Kabel. Zentrale, Booster, Module, Melder und Trennstellen bleiben.": "Track connections removed: {0} connection(s) and {1} wire(s). Command station, boosters, modules, detectors and isolations stay.",
  "Verbindungen zum Gleis entfernen": "Remove track connections",
- "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back."
+ "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back.",
+ "{0} Teile gelöscht. Rückgängig holt sie zurück.": "{0} parts deleted. Undo brings them back.",
+ "{0} Teile gewählt. Ziehen verschiebt alle gewählten Teile.": "{0} parts selected. Dragging moves all selected parts.",
+ "Rahmen aufziehen: alle Gleise darin werden gewählt (ohne Gleise die Leisten und Platten darin).": "Drag a frame: all tracks inside are selected (without tracks, the battens and boards inside)."
 }

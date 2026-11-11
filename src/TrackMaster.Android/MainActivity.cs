@@ -912,8 +912,10 @@ public sealed class MainActivity : Activity
 
     private void SetTool(CanvasTool tool)
     {
-        if (_canvas.IsDrawingPolygon && tool != _session.Tool) _canvas.CancelPolygon();
-        _session.Tool = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        var next = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        // Werkzeug wechseln: angefangene Fläche, Leiste oder Maß verwerfen
+        if (next != _session.Tool) _canvas.CancelPolygon();
+        _session.Tool = next;
         if (_session.Tool != CanvasTool.Select) _session.ClearSelection();
         _canvas.Invalidate();
         UpdateToolBar();

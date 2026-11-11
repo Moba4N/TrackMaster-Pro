@@ -540,8 +540,10 @@ public partial class App : ComponentBase, IAppHost
 
     private void SetTool(CanvasTool tool)
     {
-        if (_view.IsDrawingPolygon && tool != _session.Tool) _view.CancelPolygon();
-        _session.Tool = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        var next = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        // Werkzeug wechseln: angefangene Fläche, Leiste oder Maß verwerfen
+        if (next != _session.Tool) _view.CancelPolygon();
+        _session.Tool = next;
         if (_session.Tool is not (CanvasTool.Select or CanvasTool.Pan)) _session.ClearSelection();
         _view.Invalidate();
         Refresh();
@@ -568,7 +570,7 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)} ({Signal.SystemShort(_session.SignalSystem)}): auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
-        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
+        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
             ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")

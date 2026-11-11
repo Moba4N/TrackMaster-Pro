@@ -1175,8 +1175,9 @@ public sealed class MainActivity : Activity
     {
         var intent = new Intent(Intent.ActionCreateDocument);
         intent.AddCategory(Intent.CategoryOpenable);
-        intent.SetType("application/json");
-        intent.PutExtra(Intent.ExtraTitle, $"{SafeName}.trackmaster.json");
+        // octet-stream statt application/json, sonst hängt mancher Speicherort „.json“ an „.mpr“ an
+        intent.SetType("application/octet-stream");
+        intent.PutExtra(Intent.ExtraTitle, $"{SafeName}{PlanSerializer.FileExtension}");
         StartActivityForResult(intent, RequestSave);
     }
 
@@ -1208,7 +1209,7 @@ public sealed class MainActivity : Activity
                     break;
                 case RequestSave:
                     WriteText(uri, PlanSerializer.ToJson(_session.Plan));
-                    _session.MarkSaved(DisplayName(uri) ?? $"{SafeName}.trackmaster.json");
+                    _session.MarkSaved(DisplayName(uri) ?? $"{SafeName}{PlanSerializer.FileExtension}");
                     break;
                 case RequestLicense:
                     InstallLicense(ReadText(uri));
@@ -1238,7 +1239,7 @@ public sealed class MainActivity : Activity
         try
         {
             var other = PlanSerializer.FromJson(ReadText(uri), out _);
-            var file = (DisplayName(uri) ?? Lang.T("Modul")).Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var file = PlanSerializer.BaseName(DisplayName(uri) ?? Lang.T("Modul"));
             var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : file;
             if (_session.AppendModule(other, title)) _canvas.Fit();
         }

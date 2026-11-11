@@ -161,7 +161,7 @@ Alle drei können dieselben Pläne öffnen und haben dieselben Register. Ein paa
   <tr><td>Beispiel laden</td><td><span class="ui">Datei › Beispielplan laden</span></td><td><span class="ui">Datei › Beispielanlage</span></td></tr>
   <tr><td>Einrasten ein/aus</td><td>Schalter <span class="ui">Fang</span> in der Statusleiste</td><td>Schalter <span class="ui">Einrasten</span> in der Statusleiste oder unter <span class="ui">Ansicht</span></td></tr>
   <tr><td>Hilfe zu Tasten</td><td><span class="ui">Ansicht › Tastenkürzel</span> (<kbd>F1</kbd>)</td><td><span class="ui">Ansicht › Bedienung</span> oder <span class="ui">Datei › Bedienung</span> (<kbd>F1</kbd>)</td></tr>
-  <tr><td>Plandatei</td><td>Endung <b>.trackmaster.json</b></td><td>Endung <b>.mpr</b> (gleicher Inhalt, öffnet auch .trackmaster.json)</td></tr>
+  <tr><td>Plandatei</td><td>Endung <b>.mpr</b> (öffnet auch ältere .trackmaster.json)</td><td>Endung <b>.mpr</b> (öffnet auch ältere .trackmaster.json)</td></tr>
   <tr><td>Nur hier</td><td>–</td><td>Planvorschlag aus dem eigenen Gleisbestand, Drehscheibe als Schnellbefehl, Module in verschiedenen Höhen, Gleise an Modulkanten trennen,
     Höhe an einem Verbindungspunkt ändern</td></tr>
 </table>
@@ -237,8 +237,8 @@ startet schneller.</p>
   <tr><td><b>Speichern</b></td><td><span class="ui">Datei › Speichern</span> lädt den Plan als Datei mit der Endung <b>.mpr</b> herunter, meist in den Ordner <i>Downloads</i>.
     <span class="ui">Datei › Speichern unter…</span> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>S</kbd>) fragt nach dem Dateinamen. In Chrome und Edge wählen Sie dabei auch
     den Ordner, und <span class="ui">Speichern</span> schreibt danach immer in diese Datei.</td></tr>
-  <tr><td><b>Öffnen</b></td><td><span class="ui">Datei › Öffnen…</span> lädt eine <b>.mpr</b>- oder <b>.trackmaster.json</b>-Datei. Der Inhalt ist derselbe wie unter Windows
-    und Android. Dort öffnen Sie eine .mpr-Datei, indem Sie im Öffnen-Fenster „Alle Dateien“ wählen.</td></tr>
+  <tr><td><b>Öffnen</b></td><td><span class="ui">Datei › Öffnen…</span> lädt eine <b>.mpr</b>- oder <b>.trackmaster.json</b>-Datei. Windows und Android speichern
+    ebenfalls als .mpr, die Dateien sind austauschbar.</td></tr>
   <tr><td><b>Lizenz</b></td><td><span class="ui">Datei › Lizenz…</span>: Lizenzdatei wählen oder ihren Inhalt einfügen. Sie gilt nur in diesem Browser. Nach dem Löschen der
     Websitedaten spielen Sie sie neu ein.</td></tr>
   <tr><td><b>3D-Ansicht</b></td><td>braucht WebGL. Meldet der Browser, dass er keine 3D-Grafik zeigen kann, schalten Sie in seinen Einstellungen die Hardwarebeschleunigung ein.</td></tr>
@@ -1477,11 +1477,11 @@ sich ansehen. Ein <b>Hinweis</b> ist ein Ratschlag – manchmal ist die Stelle g
   <tr><th style="width:22%"></th><th>Windows</th><th>Webversion</th></tr>
   <tr><td>Speichern</td><td><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span></td>
     <td><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>S</kbd>)</td></tr>
-  <tr><td>Dateiendung</td><td><code>.trackmaster.json</code></td><td><code>.mpr</code> – im Downloads-Ordner des Browsers oder am gewählten Ort</td></tr>
-  <tr><td>Öffnen</td><td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>), <span class="ui">Zuletzt geöffnet</span></td>
+  <tr><td>Dateiendung</td><td><code>.mpr</code> (ältere <code>.trackmaster.json</code> werden beim Speichern zu <code>.mpr</code>; die alte Datei bleibt)</td><td><code>.mpr</code> – im Downloads-Ordner des Browsers oder am gewählten Ort</td></tr>
+  <tr><td>Öffnen</td><td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>), <span class="ui">Zuletzt geöffnet</span>; öffnet <code>.mpr</code> und <code>.trackmaster.json</code></td>
     <td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>); öffnet <code>.mpr</code> und <code>.trackmaster.json</code></td></tr>
 </table>
-<p>Die Dateien sind zwischen Windows, Web und Android austauschbar. Unter Windows und Android wählen Sie zum Öffnen einer <code>.mpr</code>-Datei im Dateifenster „Alle Dateien“.
+<p>Alle drei Versionen speichern Pläne als <code>.mpr</code>; die Dateien sind zwischen Windows, Web und Android austauschbar. Ältere Pläne <code>.trackmaster.json</code> öffnen weiter.
 Beim Öffnen stellt sich die Gleisbibliothek auf das Gleissystem des Plans ein.</p>
 <p><b>Automatische Sicherung (Windows):</b> Während Sie arbeiten, sichert das Programm den Plan regelmäßig im Hintergrund. Wurde es nicht regulär beendet – etwa bei einem
 Stromausfall –, bietet es beim nächsten Start an, den gesicherten Stand wiederherzustellen. Das ersetzt nicht das Speichern.</p>

@@ -160,7 +160,7 @@ All three open the same plans and have the same tabs. A few things differ:</p>
   <tr><td>Loading the sample</td><td><span class="ui">File › Load sample plan</span></td><td><span class="ui">File › Sample layout</span></td></tr>
   <tr><td>Snapping on/off</td><td><span class="ui">Snap</span> switch in the status bar</td><td><span class="ui">Snap</span> switch in the status bar or under <span class="ui">View</span></td></tr>
   <tr><td>Help on keys</td><td><span class="ui">View › Shortcuts</span> (<kbd>F1</kbd>)</td><td><span class="ui">View › How to use</span> or <span class="ui">File › How to use</span> (<kbd>F1</kbd>)</td></tr>
-  <tr><td>Plan file</td><td>Extension <b>.trackmaster.json</b></td><td>Extension <b>.mpr</b> (same content; also opens .trackmaster.json)</td></tr>
+  <tr><td>Plan file</td><td>Extension <b>.mpr</b> (also opens older .trackmaster.json)</td><td>Extension <b>.mpr</b> (also opens older .trackmaster.json)</td></tr>
   <tr><td>Only here</td><td>–</td><td>Layout suggestion from your own track stock, turntable as a quick command, modules at different heights, cutting track at module edges,
     changing the height at a joint</td></tr>
 </table>
@@ -234,8 +234,8 @@ a few seconds. After that it comes from the browser's cache and starts faster.</
   <tr><td><b>Saving</b></td><td><span class="ui">File › Save</span> downloads the plan as a file with the extension <b>.mpr</b>, usually into the <i>Downloads</i> folder.
     <span class="ui">File › Save as…</span> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>) asks for the file name. In some browsers you also choose the folder,
     and <span class="ui">Save</span> then always writes to that file.</td></tr>
-  <tr><td><b>Opening</b></td><td><span class="ui">File › Open…</span> loads a <b>.mpr</b> or <b>.trackmaster.json</b> file. The content is the same as on Windows and Android.
-    There you open a .mpr file by choosing “All files” in the open window.</td></tr>
+  <tr><td><b>Opening</b></td><td><span class="ui">File › Open…</span> loads a <b>.mpr</b> or <b>.trackmaster.json</b> file. Windows and Android also save as .mpr;
+    the files are interchangeable.</td></tr>
   <tr><td><b>Licence</b></td><td><span class="ui">File › Licence…</span>: choose the licence file or paste its content. It applies only in this browser. After deleting the
     site data, install it again.</td></tr>
   <tr><td><b>3D view</b></td><td>needs WebGL. If the browser reports that it cannot show 3D graphics, turn on hardware acceleration in its settings.</td></tr>
@@ -1467,11 +1467,11 @@ decide where to go at the next turnout. <kbd>W</kbd> switches the next turnout t
   <tr><th style="width:22%"></th><th>Windows</th><th>Web version</th></tr>
   <tr><td>Saving</td><td><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span></td>
     <td><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>)</td></tr>
-  <tr><td>File extension</td><td><code>.trackmaster.json</code></td><td><code>.mpr</code> – in the browser's downloads folder or at the chosen location</td></tr>
-  <tr><td>Opening</td><td><span class="ui">File › Open…</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>), <span class="ui">Recently opened</span></td>
+  <tr><td>File extension</td><td><code>.mpr</code> (older <code>.trackmaster.json</code> files become <code>.mpr</code> when saved; the old file stays)</td><td><code>.mpr</code> – in the browser's downloads folder or at the chosen location</td></tr>
+  <tr><td>Opening</td><td><span class="ui">File › Open…</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>), <span class="ui">Recently opened</span>; opens <code>.mpr</code> and <code>.trackmaster.json</code></td>
     <td><span class="ui">File › Open…</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>); opens <code>.mpr</code> and <code>.trackmaster.json</code></td></tr>
 </table>
-<p>The files can be exchanged between Windows, web and Android. On Windows and Android, choose “All files” in the file window to open a <code>.mpr</code> file.
+<p>All three versions save plans as <code>.mpr</code>; the files can be exchanged between Windows, web and Android. Older <code>.trackmaster.json</code> plans still open.
 When a plan is opened, the track library switches to the plan's track system.</p>
 <p><b>Automatic backup (Windows):</b> while you work, the program regularly backs up the plan in the background. If it was not closed normally – for example
 after a power cut – it offers to restore the backed-up state at the next start. This does not replace saving.</p>

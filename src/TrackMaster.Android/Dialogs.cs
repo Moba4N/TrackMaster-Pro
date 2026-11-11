@@ -448,11 +448,11 @@ public static partial class Dialogs
                         break;
                     case SceneryKind.Plate:
                         body.AddView(Columns(c,
-                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => s.X = v)),
-                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => s.Y = v))));
+                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => PlateLayout.SetBox(s, x: v))),
+                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => PlateLayout.SetBox(s, y: v)))));
                         body.AddView(Columns(c,
-                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v)),
-                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v))));
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, width: v))),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, depth: v)))));
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Stärke (mm)"), Num(PlateLayout.Thickness(s), Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v))),
                             Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));

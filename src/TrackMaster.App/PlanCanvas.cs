@@ -194,6 +194,13 @@ public sealed class PlanCanvas : FrameworkElement
             if (_polygon.Count > 0) _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
+        if (_session.Tool == CanvasTool.Plate)
+        {
+            _session.AddPlate([.. _polygon]);
+            _polygon.Clear();
+            InvalidateVisual();
+            return;
+        }
         if (_session.Tool == CanvasTool.Room)
         {
             _session.AddScenery(new SceneryItem { Kind = SceneryKind.Room, Points = [.. _polygon], Width = RoomPlan.DefaultWall, Height = 2500, Name = Lang.T("Raum") });
@@ -355,6 +362,7 @@ public sealed class PlanCanvas : FrameworkElement
             {
                 CanvasTool.Water => new SolidColorBrush(Color.FromArgb(0x60, 0x86, 0xBC, 0xE6)),
                 CanvasTool.Room => new SolidColorBrush(Color.FromArgb(0x50, 0x9A, 0x8C, 0x78)),
+                CanvasTool.Plate => new SolidColorBrush(Color.FromArgb(0x70, 0xC8, 0xA8, 0x78)),
                 _ => new SolidColorBrush(Color.FromArgb(0x60, 0x9C, 0xB8, 0x7E)),
             };
             dc.DrawGeometry(fill, new Pen(Theme.AccentBrush, 1.5 / z) { DashStyle = DashStyles.Dash }, PlanScene.Polygon(pts));
@@ -794,6 +802,13 @@ public sealed class PlanCanvas : FrameworkElement
             case CanvasTool.Room:
                 if (e.ClickCount == 2) { FinishPolygon(); return; }
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
+                InvalidateVisual();
+                return;
+            case CanvasTool.Plate:
+                if (e.ClickCount == 2) { FinishPolygon(); return; }
+                // Klick auf die erste Ecke schließt ab; Ecken rasten an Platte, Leisten und Raster ein
+                if (_polygon.Count >= 3 && Math.Abs(world.X - _polygon[0].X) + Math.Abs(world.Y - _polygon[0].Y) < 12 / _zoom) { FinishPolygon(); return; }
+                _polygon.Add(BeamLayout.Snap(_session.View, world.X, world.Y, 12 / _zoom, _polygon.Count > 0 ? _polygon[^1] : null, grid: BeamGrid));
                 InvalidateVisual();
                 return;
             case CanvasTool.Wire:

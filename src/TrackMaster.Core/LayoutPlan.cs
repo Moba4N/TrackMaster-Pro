@@ -202,7 +202,7 @@ public sealed class SceneryItem
         var r = degrees * Math.PI / 180;
         double c = Math.Cos(r), s = Math.Sin(r);
         (double X, double Y) Turn(double x, double y) => (cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c);
-        if (Kind == SceneryKind.Plate)
+        if (Kind == SceneryKind.Plate && Points.Count < 3)
         {
             // Deckplatten bleiben achsparallel: Mitte drehen, bei Vierteldrehung Breite und Tiefe tauschen
             var m = Turn(X + Width / 2, Y + Depth / 2);
@@ -213,6 +213,7 @@ public sealed class SceneryItem
         (X, Y) = Turn(X, Y);
         Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
         if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle or SceneryKind.Power) Rotation = Angles.Normalize(Rotation + degrees);
+        if (Kind == SceneryKind.Plate) PlateLayout.Repair(this);   // umschließendes Rechteck der gedrehten Sonderform
     }
 
     public void MoveBy(double dx, double dy)

@@ -208,6 +208,8 @@ public static class BeamLayout
 /// Eine Deckplatte ist ein <see cref="SceneryItem"/> der Art <see cref="SceneryKind.Plate"/>: linke obere Ecke
 /// (<see cref="SceneryItem.X"/>, <see cref="SceneryItem.Y"/>), Breite und Tiefe (<see cref="SceneryItem.Width"/>,
 /// <see cref="SceneryItem.Depth"/>), Oberkante (<see cref="SceneryItem.Height"/>) und Stärke in mm (<see cref="SceneryItem.Variant"/>).
+/// Eine Platte in Sonderform hat ihren Umriss in <see cref="SceneryItem.Points"/> (mindestens drei Ecken); X, Y, Breite und Tiefe
+/// sind dann das umschließende Rechteck (für Zuschnitt und Anzeige).
 /// </summary>
 public static class PlateLayout
 {
@@ -217,16 +219,69 @@ public static class PlateLayout
     public static double Thickness(SceneryItem s) => Math.Clamp(s.Variant, MinThickness, MaxThickness);
 
     public static IReadOnlyList<(double X, double Y)> Outline(SceneryItem s)
-        => [(s.X, s.Y), (s.X + s.Width, s.Y), (s.X + s.Width, s.Y + s.Depth), (s.X, s.Y + s.Depth)];
+        => IsShaped(s) ? s.Points : [(s.X, s.Y), (s.X + s.Width, s.Y), (s.X + s.Width, s.Y + s.Depth), (s.X, s.Y + s.Depth)];
+
+    /// <summary>Platte in Sonderform (Vieleck statt Rechteck)?</summary>
+    public static bool IsShaped(SceneryItem s) => s.Points.Count >= 3;
+
+    /// <summary>Ecken einer Sonderform aufräumen: gerundet, doppelte Punkte und Punkte auf einer Geraden entfernt.</summary>
+    public static List<(double X, double Y)> Clean(IEnumerable<(double X, double Y)> points)
+    {
+        var pts = new List<(double X, double Y)>();
+        foreach (var p in points.Where(p => double.IsFinite(p.X) && double.IsFinite(p.Y)).Select(p => (Math.Round(p.X, 1), Math.Round(p.Y, 1))))
+            if (pts.Count == 0 || Math.Abs(pts[^1].Item1 - p.Item1) + Math.Abs(pts[^1].Item2 - p.Item2) > 0.5) pts.Add(p);
+        if (pts.Count > 1 && Math.Abs(pts[0].X - pts[^1].X) + Math.Abs(pts[0].Y - pts[^1].Y) <= 0.5) pts.RemoveAt(pts.Count - 1);
+        for (var i = 0; pts.Count > 3 && i < pts.Count;)
+        {
+            var (a, b, c) = (pts[(i + pts.Count - 1) % pts.Count], pts[i], pts[(i + 1) % pts.Count]);
+            var cross = (b.X - a.X) * (c.Y - b.Y) - (b.Y - a.Y) * (c.X - b.X);
+            if (Math.Abs(cross) < 1e-6 * Math.Max(1, Math.Abs(b.X - a.X) + Math.Abs(b.Y - a.Y)) * Math.Max(1, Math.Abs(c.X - b.X) + Math.Abs(c.Y - b.Y))) pts.RemoveAt(i);
+            else i++;
+        }
+        return pts;
+    }
+
+    /// <summary>Fläche in m² (Sonderform: Vieleck, sonst Breite × Tiefe).</summary>
+    public static double Area(SceneryItem s) => (IsShaped(s) ? Math.Abs(Geometry2D.SignedArea(s.Points)) : s.Width * s.Depth) / 1e6;
+
+    /// <summary>
+    /// Lage oder Größe aus den Eigenschaften setzen (linke obere Ecke, Breite, Tiefe). Eine Sonderform wird dabei verschoben bzw.
+    /// auf das neue umschließende Rechteck gestreckt.
+    /// </summary>
+    public static void SetBox(SceneryItem s, double? x = null, double? y = null, double? width = null, double? depth = null)
+    {
+        double nx = x ?? s.X, ny = y ?? s.Y;
+        double nw = Math.Clamp(width ?? s.Width, MinSize, MaxSize), nd = Math.Clamp(depth ?? s.Depth, MinSize, MaxSize);
+        if (IsShaped(s))
+        {
+            double ox = s.X, oy = s.Y, sx = s.Width > 0 ? nw / s.Width : 1, sy = s.Depth > 0 ? nd / s.Depth : 1;
+            s.Points = s.Points.Select(p => (Math.Round(nx + (p.X - ox) * sx, 1), Math.Round(ny + (p.Y - oy) * sy, 1))).ToList();
+        }
+        (s.X, s.Y, s.Width, s.Depth) = (nx, ny, nw, nd);
+    }
+
+    /// <summary>Umschließendes Rechteck einer Sonderform in X, Y, Breite und Tiefe übernehmen.</summary>
+    private static void Bounds(SceneryItem s)
+    {
+        if (!IsShaped(s)) return;
+        (s.X, s.Y) = (s.Points.Min(p => p.X), s.Points.Min(p => p.Y));
+        (s.Width, s.Depth) = (s.Points.Max(p => p.X) - s.X, s.Points.Max(p => p.Y) - s.Y);
+    }
 
     public static string Size(SceneryItem s) => $"{Fmt.Num(s.Width, 0)} × {Fmt.Num(s.Depth, 0)}";
 
-    public static bool Valid(SceneryItem s) => s.Width is >= MinSize and <= MaxSize && s.Depth is >= MinSize and <= MaxSize
+    public static bool Valid(SceneryItem s) => (!IsShaped(s) || s.Points.All(p => double.IsFinite(p.X) && double.IsFinite(p.Y))) && s.Width is >= MinSize and <= MaxSize && s.Depth is >= MinSize and <= MaxSize
         && s.Variant is >= MinThickness and <= MaxThickness && s.Height is >= BeamLayout.MinTop and <= BeamLayout.MaxTop
         && double.IsFinite(s.X) && double.IsFinite(s.Y);
 
     public static void Repair(SceneryItem s)
     {
+        if (s.Points.Count > 0)
+        {
+            s.Points = Clean(s.Points);
+            if (s.Points.Count < 3) s.Points = [];
+            Bounds(s);
+        }
         s.X = double.IsFinite(s.X) ? s.X : 0;
         s.Y = double.IsFinite(s.Y) ? s.Y : 0;
         s.Width = double.IsFinite(s.Width) ? Math.Clamp(s.Width, MinSize, MaxSize) : 600;

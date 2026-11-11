@@ -168,7 +168,9 @@ public sealed class Scene3DModel
 
         // Aufgelegte Deckplatten
         foreach (var s in plan.Scenery.Where(x => x.IsPlate))
-            Mesh(new Rgb(0xC8, 0xA8, 0x78)).Box(P(s.X, s.Y, s.Height - PlateLayout.Thickness(s)), P(s.X + s.Width, s.Y + s.Depth, s.Height));
+            if (PlateLayout.IsShaped(s))
+                Prism(PlateLayout.Outline(s), s.Height - PlateLayout.Thickness(s), s.Height, new Rgb(0xC8, 0xA8, 0x78), new Rgb(0xB4, 0x94, 0x66), SurfaceKind.Matte);
+            else Mesh(new Rgb(0xC8, 0xA8, 0x78)).Box(P(s.X, s.Y, s.Height - PlateLayout.Thickness(s)), P(s.X + s.Width, s.Y + s.Depth, s.Height));
 
         foreach (var s in Scenery ? plan.Scenery : [])
             switch (s.Kind)

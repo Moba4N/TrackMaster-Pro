@@ -250,6 +250,8 @@ public sealed class MainActivity : Activity
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
+        Add("toolPlate", Lang.T("Platte zeichnen"), () => SetTool(CanvasTool.Plate));
+        Add("removePlates", Lang.T("Alle Platten entfernen"), () => { SetTool(CanvasTool.Select); _session.RemoveAllPlates(); });
         Add("toolDistributor", Lang.T("Verteiler"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler) { SetTool(CanvasTool.Select); return; }
@@ -589,7 +591,7 @@ public sealed class MainActivity : Activity
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
                     (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Platte zeichnen"), "toolPlate", true), (Lang.T("Alle Platten entfernen"), "removePlates", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Ausstattung"), [.. ModelCommands.Select(m => (m.Category + "…", m.Command, true)), (Lang.T("Einfaches Gebäude"), "toolBuilding", true)]),
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
@@ -802,6 +804,7 @@ public sealed class MainActivity : Activity
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
         "toolRoom" => _session.Tool == CanvasTool.Room,
+        "toolPlate" => _session.Tool == CanvasTool.Plate,
         "toolDetector" => _session.Tool == CanvasTool.Detector,
         "toolDoor" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Tuer,
         "toolWindow" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Fenster,
@@ -880,7 +883,7 @@ public sealed class MainActivity : Activity
     {
         var tool = _session.Tool;
         _toolBar.Visibility = tool == CanvasTool.Select ? ViewStates.Gone : ViewStates.Visible;
-        var polygon = tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire;
+        var polygon = tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire or CanvasTool.Plate;
         _toolFinish.Visibility = _toolBack.Visibility = polygon ? ViewStates.Visible : ViewStates.Gone;
         _toolFinish.Enabled = _canvas.PolygonPoints >= (tool == CanvasTool.Wire ? 2 : 3);
         _toolBack.Enabled = _canvas.PolygonPoints > 0;
@@ -903,6 +906,7 @@ public sealed class MainActivity : Activity
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),
             CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
+            CanvasTool.Plate => Lang.F($"Platte zeichnen: Ecken antippen ({_canvas.PolygonPoints}) – Plattenecken, Kanten, Leisten und das Raster rasten ein. Erste Ecke antippen oder „Fertig“ legt die Platte auf."),
             CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_canvas.PolygonPoints}) – an Gleisanschlüssen, Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
             CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: antippen oder Rechteck aufziehen."),
             CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis tippen (Tippen auf einen Rückmelder entfernt ihn)."),

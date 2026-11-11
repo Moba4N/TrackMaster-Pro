@@ -205,6 +205,14 @@ public sealed class PlanView
             _session.Say(Lang.T("Eine Fläche braucht mindestens drei Punkte."));
             return;
         }
+        if (_session.Tool == CanvasTool.Plate)
+        {
+            _session.AddPlate([.. _polygon]);
+            _polygon.Clear();
+            PolygonChanged?.Invoke();
+            Invalidate();
+            return;
+        }
         if (_session.Tool == CanvasTool.Room)
         {
             _session.AddScenery(new SceneryItem { Kind = SceneryKind.Room, Points = [.. _polygon], Width = RoomPlan.DefaultWall, Height = 2500, Name = Lang.T("Raum") });
@@ -452,6 +460,7 @@ public sealed class PlanView
             {
                 CanvasTool.Water => Color.Argb(0x60, 0x86, 0xBC, 0xE6),
                 CanvasTool.Room => Color.Argb(0x50, 0x9A, 0x8C, 0x78),
+                CanvasTool.Plate => Color.Argb(0x70, 0xC8, 0xA8, 0x78),
                 _ => Color.Argb(0x60, 0x9C, 0xB8, 0x7E),
             }));
             c.DrawPath(path, Stroke(Ui.Accent, 1.5f * Ui.Density / z));
@@ -1052,7 +1061,7 @@ public sealed class PlanView
 
     public void DoubleClick(float x, float y)
     {
-        if (_session.Tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire)
+        if (_session.Tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire or CanvasTool.Plate)
         {
             // Der zweite Klick hat schon einen Punkt gesetzt
             if (_polygon.Count > 0) _polygon.RemoveAt(_polygon.Count - 1);
@@ -1105,6 +1114,9 @@ public sealed class PlanView
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 PolygonChanged?.Invoke();
                 Invalidate();
+                return;
+            case CanvasTool.Plate:
+                AddPlatePoint(world);
                 return;
             case CanvasTool.Wire:
                 AddWirePoint(world);
@@ -1229,6 +1241,20 @@ public sealed class PlanView
         Invalidate();
     }
 
+    /// <summary>Ecke einer Platte in Sonderform: rastet an Plattenecken und -kanten, Leisten und dem Raster ein; Klick auf die erste Ecke schließt ab.</summary>
+    private void AddPlatePoint((double X, double Y) world)
+    {
+        var tol = Reach(12, 22) / _zoom;
+        if (_polygon.Count >= 3 && Math.Abs(world.X - _polygon[0].X) + Math.Abs(world.Y - _polygon[0].Y) < tol)
+        {
+            FinishPolygon();
+            return;
+        }
+        _polygon.Add(BeamLayout.Snap(_session.View, world.X, world.Y, tol, _polygon.Count > 0 ? _polygon[^1] : null, grid: BeamGrid));
+        PolygonChanged?.Invoke();
+        Invalidate();
+    }
+
     /// <summary>Leiste oder Deckplatte des Rahmens (lassen sich zu mehreren wählen).</summary>
     private bool IsFramePart(int id) => _session.Plan.Scenery.FirstOrDefault(s => s.Id == id) is { } s && PlanSession.IsFramePart(s);
 
@@ -1273,6 +1299,9 @@ public sealed class PlanView
                 _polygon.Add((Math.Round(world.X), Math.Round(world.Y)));
                 PolygonChanged?.Invoke();
                 Invalidate();
+                return;
+            case CanvasTool.Plate:
+                AddPlatePoint(world);
                 return;
             case CanvasTool.Wire:
                 AddWirePoint(world);
@@ -1343,7 +1372,7 @@ public sealed class PlanView
             case CanvasTool.Obstacle:
                 _drag = DragMode.Building;
                 return;
-            case CanvasTool.Pan or CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Detector or CanvasTool.Model or CanvasTool.Power:
+            case CanvasTool.Pan or CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Plate or CanvasTool.Wire or CanvasTool.Tree or CanvasTool.Feeder or CanvasTool.Isolation or CanvasTool.Signal or CanvasTool.Label or CanvasTool.Dimension or CanvasTool.Beam or CanvasTool.Detector or CanvasTool.Model or CanvasTool.Power:
                 _drag = DragMode.Pan;
                 return;
             case CanvasTool.Flex:

@@ -95,6 +95,9 @@ public sealed class Scene3DModel
     /// <summary>Stützen unter hochliegenden Gleisen zeigen (je eine rechts und links neben dem Gleis) oder weglassen.</summary>
     public bool Piers { get; }
 
+    /// <summary>Oberkante Rahmen beim Spantenbau (Rahmen, Leisten und Platten rücken so weit nach unten); 0 ohne Spantenbau.</summary>
+    private readonly double _frameTop;
+
     public static readonly Rgb PierColor = new(0xA8, 0xA4, 0x9C);
 
     /// <summary>Tunnelstrecken (Gleise mit Tunnelröhre) zeigen oder ausblenden, damit man die übrige Anlage frei sieht.</summary>
@@ -105,7 +108,9 @@ public sealed class Scene3DModel
         _plan = plan;
         _g = plan.Gauge.TrackWidth;
         // Offener Rahmen (Spantenbau, ohne Deckplatte): nur das Holzgerüst zeigen, ohne Platte, Wiese und Gelände
-        OpenFrame = plan.Benchwork is { TopThickness: <= 0 } or { Manual: true };
+        OpenFrame = plan.Benchwork is { TopThickness: <= 0 } or { Manual: true } || plan.Frame is not null;
+        // Spantenbau: der Rahmen steht so tief, dass die Spanten zwischen Rahmen und Trassen Platz haben
+        if (plan.Frame is { } frame) _frameTop = FrameBuild.FootZ(plan.Gauge, frame);
         Scenery = scenery && !OpenFrame;
         Piers = piers;
         Tunnels = tunnels;
@@ -144,15 +149,17 @@ public sealed class Scene3DModel
         var thickness = bench is null ? Math.Max(g * 1.5, 15) : Math.Max(bench.TopThickness, 3);
         if (bench is not null) Bench(Benchwork.Build(plan, bench));
         var rects = BoardGeometry.Rects(plan);
+        var baseBoard = plan.Frame is not null && bench is null && !plan.Scenery.Any(x => x.IsBeam || x.IsPlate);
         for (var ri = 0; ri < rects.Count; ri++)
         {
             var r = rects[ri];
             // Module können in der Höhe versetzt sein und eine eigene Plattenstärke haben: Platte von z − Stärke bis z
             var module = plan.BoardShape == BoardShape.Module && ri < plan.Modules.Count ? plan.Modules[ri] : null;
-            var z = module?.Height ?? 0;
+            var z = (module?.Height ?? 0) + _frameTop;
             var t = module is { Thickness: > 0 } ? module.Thickness : thickness;
             var bottom = z - t;
-            if (OpenFrame && module is not { Thickness: > 0 }) continue;
+            // Spantenbau ohne Unterbau und eigene Leisten: die Platte als Grundbrett zeigen, damit die Spanten nicht in der Luft stehen
+            if (OpenFrame && module is not { Thickness: > 0 } && !baseBoard) continue;
             Mesh(new Rgb(0x6E, 0x5A, 0x40)).Box(P(r.X0, r.Y0, bottom), P(r.X1, r.Y1, z), top: false);
             if (bench is null) Mesh(new Rgb(0x8A, 0x6B, 0x4A)).Box(P(r.X0 - 2, r.Y0 - 2, bottom - Math.Min(t, thickness) * 0.6), P(r.X1 + 2, r.Y1 + 2, bottom));
             if (Scenery) Meadow(r.X0, r.Y0, r.X1, r.Y1, z);
@@ -163,14 +170,16 @@ public sealed class Scene3DModel
         foreach (var s in plan.Scenery.Where(x => x.IsBeam && x.Points.Count == 2))
         {
             var wood = new Rgb(0xD4, 0xB4, 0x82);
-            Prism(BeamLayout.Outline(s), s.Height - s.Depth, s.Height, wood, new Rgb(0xC2, 0x9E, 0x6C), SurfaceKind.Matte);
+            Prism(BeamLayout.Outline(s), s.Height - s.Depth + _frameTop, s.Height + _frameTop, wood, new Rgb(0xC2, 0x9E, 0x6C), SurfaceKind.Matte);
         }
 
         // Aufgelegte Deckplatten
         foreach (var s in plan.Scenery.Where(x => x.IsPlate))
             if (PlateLayout.IsShaped(s))
-                Prism(PlateLayout.Outline(s), s.Height - PlateLayout.Thickness(s), s.Height, new Rgb(0xC8, 0xA8, 0x78), new Rgb(0xB4, 0x94, 0x66), SurfaceKind.Matte);
-            else Mesh(new Rgb(0xC8, 0xA8, 0x78)).Box(P(s.X, s.Y, s.Height - PlateLayout.Thickness(s)), P(s.X + s.Width, s.Y + s.Depth, s.Height));
+                Prism(PlateLayout.Outline(s), s.Height - PlateLayout.Thickness(s) + _frameTop, s.Height + _frameTop, new Rgb(0xC8, 0xA8, 0x78), new Rgb(0xB4, 0x94, 0x66), SurfaceKind.Matte);
+            else Mesh(new Rgb(0xC8, 0xA8, 0x78)).Box(P(s.X, s.Y, s.Height - PlateLayout.Thickness(s) + _frameTop), P(s.X + s.Width, s.Y + s.Depth, s.Height + _frameTop));
+
+        if (plan.Frame is { } frame) Frame(FrameBuild.Build(plan, frame));
 
         foreach (var s in Scenery ? plan.Scenery : [])
             switch (s.Kind)
@@ -254,6 +263,8 @@ public sealed class Scene3DModel
     /// <summary>Holz-Unterbau: Rahmen, Beine, Traversen und Stellfüße (die Deckplatte ist die Platte selbst).</summary>
     private void Bench(BenchworkPlan b)
     {
+        // beim Spantenbau liegt die Oberkante des Rahmens (sonst Unterkante Deckplatte) auf _frameTop
+        var dz = _plan.Frame is null ? 0 : _frameTop + b.Spec.TopThickness;
         foreach (var p in b.Pieces)
         {
             var color = p.Kind switch
@@ -263,7 +274,7 @@ public sealed class Scene3DModel
                 BenchKind.Platte or BenchKind.Leiste => (Rgb?)null,
                 _ => new Rgb(0xD4, 0xB4, 0x82),
             };
-            if (color is { } c) Mesh(c).Box(P(p.X0, p.Y0, p.Z0), P(p.X1, p.Y1, p.Z1));
+            if (color is { } c) Mesh(c).Box(P(p.X0, p.Y0, p.Z0 + dz), P(p.X1, p.Y1, p.Z1 + dz));
         }
         if (!b.Spec.Feet) return;
         foreach (var p in b.Pieces.Where(p => p.Kind == BenchKind.Bein && p.Section == (b.Spec.LegStyle == BenchLegStyle.LBein ? b.Spec.FrameSection : p.Section)))
@@ -271,8 +282,95 @@ public sealed class Scene3DModel
             var cx = (p.X0 + p.X1) / 2;
             var cy = b.Spec.LegStyle == BenchLegStyle.LBein ? p.Y0 + b.Spec.LegDepth / 2 : (p.Y0 + p.Y1) / 2;
             var r = Math.Min(b.Spec.LegWidth, b.Spec.LegDepth) * 0.35;
-            Mesh(new Rgb(0x40, 0x40, 0x44)).Box(P(cx - r, cy - r, -b.Spec.Height), P(cx + r, cy + r, p.Z0));
+            Mesh(new Rgb(0x40, 0x40, 0x44)).Box(P(cx - r, cy - r, -b.Spec.Height + dz), P(cx + r, cy + r, p.Z0 + dz));
         }
+    }
+
+    public static readonly Rgb RibColor = new(0xD8, 0xBC, 0x8C);
+    public static readonly Rgb TrasseColor = new(0xC4, 0xA4, 0x72);
+
+    /// <summary>
+    /// Spantenbau: jeder Spant als senkrechtes Brett (Stärke wie die Trasse) vom Rahmen bis unter die Trassen, mit Ausschnitten für
+    /// darunter durchführende Gleise; dazu die Trassenbretter unter allen Gleisen.
+    /// </summary>
+    private void Frame(FramePlan f)
+    {
+        var spec = f.Spec;
+        var quer = spec.Direction == FrameDirection.Quer;
+        var half = spec.Thickness / 2;
+        var rib = Mesh(RibColor);
+        // Spant-Koordinaten (Lage quer zum Spant, u entlang, h nach oben ab Fuß) → Welt
+        Vec3 W(FrameRib r, double side, double u, double h)
+            => quer ? P(r.Position + side, r.Start + u, _frameTop + h) : P(r.Start + u, r.Position + side, _frameTop + h);
+        foreach (var r in f.Ribs)
+        {
+            var o = r.Outline;
+            // Teilstücke zwischen den Ecken des Umrisses und den Rändern der Ausschnitte
+            var cuts = r.Cutouts.SelectMany(c => new[] { c.From - r.Start, c.To - r.Start });
+            for (var i = 0; i + 1 < o.Count; i++)
+            {
+                var (u0, h0) = o[i];
+                var (u1, h1) = o[i + 1];
+                if (u1 - u0 < 0.01) continue;
+                var us = cuts.Where(u => u > u0 && u < u1).Prepend(u0).Append(u1).Distinct().Order().ToList();
+                for (var k = 0; k + 1 < us.Count; k++)
+                {
+                    double a = us[k], b = us[k + 1];
+                    double ta = h0 + (h1 - h0) * (a - u0) / (u1 - u0), tb = h0 + (h1 - h0) * (b - u0) / (u1 - u0);
+                    var mid = (a + b) / 2 + r.Start;
+                    var cut = r.Cutouts.FirstOrDefault(c => c.From <= mid && mid <= c.To);
+                    if (cut is null) { Slab(r, a, b, 0, 0, ta, tb); continue; }
+                    double F(double u) => cut.To - cut.From < 0.01 ? cut.BottomFrom : cut.BottomFrom + (cut.BottomTo - cut.BottomFrom) * (u + r.Start - cut.From) / (cut.To - cut.From);
+                    Slab(r, a, b, 0, 0, Math.Min(F(a), ta), Math.Min(F(b), tb));
+                    if (cut.Top < Math.Max(ta, tb)) Slab(r, a, b, Math.Min(cut.Top, ta), Math.Min(cut.Top, tb), ta, tb);
+                }
+            }
+        }
+
+        void Slab(FrameRib r, double a, double b, double za, double zb, double ta, double tb)
+        {
+            if (ta - za < 0.01 && tb - zb < 0.01) return;
+            Vec3 Q(double side, double u, double h) => W(r, side, u, h);
+            // Vorder- und Rückseite, Ober- und Unterkante, Stirnseiten
+            Face(rib, Q(-half, a, za), Q(-half, b, zb), Q(-half, b, tb), Q(-half, a, ta), quer ? new Vec3(-1, 0, 0) : new Vec3(0, 0, -1));
+            Face(rib, Q(half, a, za), Q(half, b, zb), Q(half, b, tb), Q(half, a, ta), quer ? new Vec3(1, 0, 0) : new Vec3(0, 0, 1));
+            Face(rib, Q(-half, a, ta), Q(-half, b, tb), Q(half, b, tb), Q(half, a, ta), new Vec3(0, 1, 0));
+            Face(rib, Q(-half, a, za), Q(-half, b, zb), Q(half, b, zb), Q(half, a, za), new Vec3(0, -1, 0));
+            Face(rib, Q(-half, a, za), Q(half, a, za), Q(half, a, ta), Q(-half, a, ta), quer ? new Vec3(0, 0, -1) : new Vec3(-1, 0, 0));
+            Face(rib, Q(-half, b, zb), Q(half, b, zb), Q(half, b, tb), Q(-half, b, tb), quer ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0));
+        }
+
+        // Trassenbretter: unter jedem Gleis von Unterkante Trasse bis Gleishöhe
+        var trasse = Mesh(TrasseColor);
+        var w = spec.TrasseWidth / 2;
+        foreach (var p in _plan.Pieces.Where(p => !p.Def.IsTable && (Tunnels || !p.Tunnel)))
+        {
+            var legs = p.WorldLegs();
+            for (var li = 0; li < legs.Count; li++)
+            {
+                var s = Samples(p, li, legs[li], Math.Max(_g * 2, 10), 0);
+                static (double X, double Y) N(double h) => (-Math.Sin(h), Math.Cos(h));
+                for (var i = 0; i + 1 < s.Count; i++)
+                {
+                    var (a, b) = (s[i], s[i + 1]);
+                    var (na, nb) = (N(a.H), N(b.H));
+                    Vec3 At((double X, double Y, double Z, double H) q, (double X, double Y) n, double off, double z) => P(q.X + n.X * off, q.Y + n.Y * off, z);
+                    double za = a.Z - spec.Thickness, zb = b.Z - spec.Thickness;
+                    // Wicklung wie beim Schotterbett: oben, unten, rechts, links
+                    trasse.Quad(At(a, na, -w, a.Z), At(b, nb, -w, b.Z), At(b, nb, w, b.Z), At(a, na, w, a.Z));
+                    trasse.Quad(At(a, na, -w, za), At(a, na, w, za), At(b, nb, w, zb), At(b, nb, -w, zb));
+                    trasse.Quad(At(a, na, w, a.Z), At(b, nb, w, b.Z), At(b, nb, w, zb), At(a, na, w, za));
+                    trasse.Quad(At(a, na, -w, za), At(b, nb, -w, zb), At(b, nb, -w, b.Z), At(a, na, -w, a.Z));
+                }
+            }
+        }
+    }
+
+    /// <summary>Viereck so gewunden, dass seine Vorderseite in Richtung <paramref name="outward"/> (Weltachsen der 3D-Ansicht) zeigt.</summary>
+    private static void Face(SceneMesh m, Vec3 a, Vec3 b, Vec3 c, Vec3 d, Vec3 outward)
+    {
+        if (Vec3.Dot(Vec3.Cross(b - a, c - a), outward) >= 0) m.Quad(a, b, c, d);
+        else m.Quad(a, d, c, b);
     }
 
     public static double Smooth(double x, double y, double scale, int seed)

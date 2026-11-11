@@ -856,7 +856,7 @@ public sealed partial class MainWindow : Window
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
                 Large(Lang.T("Höhen­profil"), "Profile", "profile", Lang.T("Höhe und Steigung entlang der gewählten Gleise als Diagramm.")),
-                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
+                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen. Eingeschaltet zeigt die 3D-Ansicht Spanten und Trassen.")),
                 Large(Lang.T("Trasse…"), "Ramp", "rampCut", Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")),
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
 
@@ -1713,7 +1713,9 @@ public sealed partial class MainWindow : Window
 
     private void AskFrame()
     {
-        if (Dialogs.AskFrame(this, Session.Plan.Gauge) is not { } spec) return;
+        if (Dialogs.AskFrame(this, Session.Plan.Gauge, Session.Plan.Frame) is not { } ask) return;
+        var spec = ask.Spec;
+        Session.SetFrame(ask.Use ? spec : null);
         var f = FrameBuild.Build(Session.Plan, spec);
         Dialogs.ShowFrame(this, f,
             () => ExportSvgFiles(Lang.T("Spanten als SVG speichern"), Lang.F($"{SafeName} – Spanten"), f.ToSvgFiles(SafeName)),

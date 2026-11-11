@@ -460,10 +460,12 @@ public static partial class Dialogs
     }
 
     /// <summary>Angaben für den Spantenbau der Anlage; liefert sie oder null.</summary>
-    public static FrameSpec? AskFrame(Window owner, Gauge gauge)
+    public static (FrameSpec Spec, bool Use)? AskFrame(Window owner, Gauge gauge, FrameSpec? current)
     {
-        var def = FrameBuild.Defaults(gauge);
-        var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("quer (parallel zur Tiefe)") }, new ComboBoxItem { Content = Lang.T("längs (parallel zur Breite)") } }, SelectedIndex = 0 };
+        var def = current ?? FrameBuild.Defaults(gauge);
+        var direction = new ComboBox { Height = 28, Items = { new ComboBoxItem { Content = Lang.T("quer (parallel zur Tiefe)") }, new ComboBoxItem { Content = Lang.T("längs (parallel zur Breite)") } }, SelectedIndex = def.Direction == FrameDirection.Laengs ? 1 : 0 };
+        var use = new CheckBox { Content = Lang.T("Spantenbau im Plan einschalten"), IsChecked = true, Margin = new Thickness(0, 6, 0, 2),
+            ToolTip = Lang.T("Die Maße werden mit dem Plan gespeichert; die 3D-Ansicht zeigt Spanten und Trassen.") };
         var spacing = NumberBox(def.Spacing, 0);
         var width = NumberBox(def.TrasseWidth, 0);
         var thick = NumberBox(def.Thickness, 0);
@@ -474,22 +476,23 @@ public static partial class Dialogs
         body.Children.Add(Columns(Theme.Field(Lang.T("Lage der Spanten"), direction), Theme.Field(Lang.T("Abstand höchstens (mm)"), spacing)));
         body.Children.Add(Columns(Theme.Field(Lang.T("Trassenbreite (mm)"), width), Theme.Field(Lang.T("Trassenstärke (mm)"), thick)));
         body.Children.Add(Theme.Field(Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)"), bas));
+        body.Children.Add(use);
         body.Children.Add(error);
         var ok = Theme.Button(Lang.T("Berechnen"), "Frame", accent: true);
         ok.IsDefault = true;
         var cancel = Theme.Button(Lang.T("Abbrechen"));
         cancel.IsCancel = true;
-        var w = Small(owner, Lang.T("Spantenbau"), body, 540, 430, cancel, ok);
-        FrameSpec? result = null;
+        var w = Small(owner, Lang.T("Spantenbau"), body, 540, 470, cancel, ok);
+        (FrameSpec, bool)? result = null;
         ok.Click += (_, _) =>
         {
             var errors = new List<string>();
-            Read(spacing, Lang.T("Abstand"), 50, 2000, errors, out var vs);
-            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
-            Read(thick, Lang.T("Trassenstärke"), 3, 50, errors, out var vt);
-            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var vb);
+            Read(spacing, Lang.T("Abstand"), FrameBuild.MinSpacing, FrameBuild.MaxSpacing, errors, out var vs);
+            Read(width, Lang.T("Trassenbreite"), FrameBuild.MinWidth, FrameBuild.MaxWidth, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), FrameBuild.MinThickness, FrameBuild.MaxThickness, errors, out var vt);
+            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), FrameBuild.MinBase, FrameBuild.MaxBase, errors, out var vb);
             if (errors.Count > 0) { error.Text = string.Join("\n", errors); return; }
-            result = new FrameSpec(direction.SelectedIndex == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb);
+            result = (new FrameSpec(direction.SelectedIndex == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb), use.IsChecked == true);
             w.Close();
         };
         w.ShowDialog();

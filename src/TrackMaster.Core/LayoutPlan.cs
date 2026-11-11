@@ -487,6 +487,8 @@ public sealed class LayoutPlan
     public double TrainLength { get; set; }
     /// <summary>Holz-Unterbau (Rahmen, Beine, Deckplatte); null = keiner geplant.</summary>
     public BenchworkSpec? Benchwork { get; set; }
+    /// <summary>Spantenbau als Teil des Plans (wie in Wintrack): die 3D-Ansicht zeigt Spanten und Trassen; null = aus.</summary>
+    public FrameSpec? Frame { get; set; }
     /// <summary>Ebenen; immer mindestens eine.</summary>
     public List<PlanLevel> Levels { get; } = [new() { Name = PlanLevel.DefaultName(0) }];
     /// <summary>Ebene, auf die neue Gleise und Objekte kommen.</summary>
@@ -549,7 +551,7 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation, DetectorWiring = DetectorWiring,
+            Benchwork = Benchwork, Frame = Frame, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation, DetectorWiring = DetectorWiring,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);

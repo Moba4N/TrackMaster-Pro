@@ -819,6 +819,19 @@ public sealed partial class PlanSession
         Say(Lang.F($"Unterbau übernommen: {b.LegCount} Beine, Oberkante {Fmt.Num(spec.Height, 0)} mm. Die 3D-Ansicht zeigt ihn."));
     }
 
+    /// <summary>Spantenbau im Plan einschalten (mit diesen Maßen) oder mit null ausschalten. Die 3D-Ansicht zeigt dann Spanten und Trassen.</summary>
+    public void SetFrame(FrameSpec? spec)
+    {
+        if (spec is not null && !FrameBuild.Valid(spec)) return;
+        if (spec == Plan.Frame) return;
+        Record();
+        Plan.Frame = spec;
+        Commit();
+        if (spec is null) { Say(Lang.T("Spantenbau ausgeschaltet.")); return; }
+        var n = FrameBuild.Build(Plan, spec).Ribs.Count;
+        Say(Lang.F($"Spantenbau eingeschaltet: {n} Spanten. Die 3D-Ansicht zeigt Spanten und Trassen."));
+    }
+
     // ---------- Ebenen ----------
 
     /// <summary>Ein- und Ausblenden ist keine Planänderung: Rückgängig lässt die Sichtbarkeit, wie sie ist.</summary>

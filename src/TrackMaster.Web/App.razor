@@ -365,7 +365,7 @@
             new(Lang.T("Ebenen"), [new(Lang.T("Ebenen…"), "Layers", "levels", true, Lang.T("Bis zu 25 Ebenen anlegen, einzeln ein- und ausblenden und Gleise auf eine Ebene legen."))]),
             new(Lang.T("Höhe"), [new(Lang.T("Steigung…"), "Slope", "gradient", true, Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 new(Lang.T("Gleis­wendel…"), "Helix", "helix", true, Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
-                new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
+                new(Lang.T("Spanten­bau…"), "Frame", "frame", true, Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen. Eingeschaltet zeigt die 3D-Ansicht Spanten und Trassen.")),
                 new(Lang.T("Trasse…"), "Ramp", "rampCut", true, Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")), new("Tunnel", "Tunnel", "tunnel", false),
                 new(Lang.T("Höhenprofil"), "Profile", "profile", false, Lang.T("Höhenverlauf der gewählten Gleise als Diagramm, mit Steigung je Gleis."))]),
         ]),
@@ -1607,9 +1607,10 @@
     private void AskFrame()
     {
         var plan = _session.Plan;
-        var def = FrameBuild.Defaults(plan.Gauge);
+        var def = plan.Frame ?? FrameBuild.Defaults(plan.Gauge);
         _d.Clear();
-        _d["dir"] = "0"; _d["spacing"] = N(def.Spacing); _d["width"] = N(def.TrasseWidth); _d["thick"] = N(def.Thickness); _d["base"] = N(def.BaseHeight);
+        _d["dir"] = def.Direction == FrameDirection.Laengs ? "1" : "0"; _d["spacing"] = N(def.Spacing); _d["width"] = N(def.TrasseWidth); _d["thick"] = N(def.Thickness); _d["base"] = N(def.BaseHeight);
+        _d["use"] = "1";
         var d = Show(Lang.T("Spantenbau"), @<div class="form">
             @Hint(Lang.T("Offene Rahmenbauweise: Spanten stehen in festem Abstand auf dem Rahmen, die Trassen liegen oben drauf. Höhe und Neigung jeder Auflage kommen aus den Gleishöhen. Liegt eine Trasse unter einer anderen, bekommt der Spant einen Ausschnitt mit Durchfahrtshöhe – so tragen dieselben Spanten mehrere Ebenen."))
             <div class="cols">
@@ -1624,18 +1625,21 @@
                 <div><label class="field-label">@Lang.T("Trassenbreite (mm)")</label><input class="input" inputmode="decimal" @bind='_d["width"]' @bind:event="oninput" /></div>
                 <div><label class="field-label">@Lang.T("Trassenstärke (mm)")</label><input class="input" inputmode="decimal" @bind='_d["thick"]' @bind:event="oninput" /></div>
                 <div><label class="field-label">@Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)")</label><input class="input" inputmode="decimal" @bind='_d["base"]' @bind:event="oninput" /></div>
+                <div><label class="field-label"><input type="checkbox" checked="@(D("use") == "1")" @onchange="@(e => _d["use"] = e.Value is true ? "1" : "")" /> @Lang.T("Spantenbau im Plan einschalten")</label>
+                    <div class="secondary">@Lang.T("Die Maße werden mit dem Plan gespeichert; die 3D-Ansicht zeigt Spanten und Trassen.")</div></div>
             </div>
         </div>, wide: true, keepFields: true);
         d.Buttons.Add(new(Lang.T("Abbrechen"), () => true));
         d.Buttons.Add(new(Lang.T("Berechnen"), () =>
         {
             var errors = new List<string>();
-            Read("spacing", Lang.T("Abstand"), 50, 2000, errors, out var spacing);
-            Read("width", Lang.T("Trassenbreite"), 10, 1000, errors, out var width);
-            Read("thick", Lang.T("Trassenstärke"), 3, 50, errors, out var thick);
-            Read("base", Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var bas);
+            Read("spacing", Lang.T("Abstand"), FrameBuild.MinSpacing, FrameBuild.MaxSpacing, errors, out var spacing);
+            Read("width", Lang.T("Trassenbreite"), FrameBuild.MinWidth, FrameBuild.MaxWidth, errors, out var width);
+            Read("thick", Lang.T("Trassenstärke"), FrameBuild.MinThickness, FrameBuild.MaxThickness, errors, out var thick);
+            Read("base", Lang.T("Schienenoberkante bei Höhe 0"), FrameBuild.MinBase, FrameBuild.MaxBase, errors, out var bas);
             if (!Fail(errors)) return false;
             var spec = new FrameSpec(D("dir") == "1" ? FrameDirection.Laengs : FrameDirection.Quer, spacing, width, thick, bas);
+            _session.SetFrame(D("use") == "1" ? spec : null);
             var result = FrameBuild.Build(plan, spec);
             CloseDialog();
             ShowFrame(result);

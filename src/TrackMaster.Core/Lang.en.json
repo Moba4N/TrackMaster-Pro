@@ -2841,5 +2841,10 @@
  "Deckplatte nach Grundriss und Rahmen aufgelegt: {0} m², {1} mm stark, Oberkante {2} mm.": "Top sheet laid from outline and frame: {0} m², {1} mm thick, top edge {2} mm.",
  "{0} Deckplatten nach Grundriss und Rahmen aufgelegt: zusammen {1} m², {2} mm stark, Oberkante {3} mm.": "{0} top sheets laid from outline and frame: {1} m² in total, {2} mm thick, top edge {3} mm.",
  "Die bisherigen Platten wurden ersetzt; Rückgängig holt sie zurück.": "The previous sheets were replaced; Undo brings them back.",
- "Stärke und Oberkante stehen in den Eigenschaften.": "Thickness and top edge are in the properties."
+ "Stärke und Oberkante stehen in den Eigenschaften.": "Thickness and top edge are in the properties.",
+ "Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen. Eingeschaltet zeigt die 3D-Ansicht Spanten und Trassen.": "Calculate ribs for open-frame construction from the track heights, also for several levels. When switched on, the 3D view shows ribs and roadbeds.",
+ "Spantenbau im Plan einschalten": "Switch on rib construction in the plan",
+ "Die Maße werden mit dem Plan gespeichert; die 3D-Ansicht zeigt Spanten und Trassen.": "The dimensions are saved with the plan; the 3D view shows ribs and roadbeds.",
+ "Spantenbau ausgeschaltet.": "Rib construction switched off.",
+ "Spantenbau eingeschaltet: {0} Spanten. Die 3D-Ansicht zeigt Spanten und Trassen.": "Rib construction switched on: {0} ribs. The 3D view shows ribs and roadbeds."
 }

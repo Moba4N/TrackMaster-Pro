@@ -312,6 +312,7 @@ public partial class App : ComponentBase, IAppHost
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -879,6 +880,12 @@ public partial class App : ComponentBase, IAppHost
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 ShowHelixMaterial(material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
         });
+    }
+
+    private void ShowHelixAgain()
+    {
+        if (_session.HelixMaterialAgain() is not { } material) return;
+        ShowHelixMaterial(material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
     }
 
     private void AskViewAngle() => AskAngle(Lang.T("Ansicht drehen"),

@@ -231,6 +231,7 @@ public sealed class MainActivity : Activity
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Add("gauge", Lang.T("Spurweite"), AskGauge);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
@@ -590,7 +591,7 @@ public sealed class MainActivity : Activity
         (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
-                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
+                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Holzliste Wendel…"), "helixMaterial", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
         (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Platte zeichnen"), "toolPlate", true), (Lang.T("Alle Platten entfernen"), "removePlates", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Ausstattung"), [.. ModelCommands.Select(m => (m.Category + "…", m.Command, true)), (Lang.T("Einfaches Gebäude"), "toolBuilding", true)]),
@@ -1030,6 +1031,13 @@ public sealed class MainActivity : Activity
                 Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
                     cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
         }, _session.Plan, _session.ActiveConnector?.Z);
+    }
+
+    private void ShowHelixAgain()
+    {
+        if (_session.HelixMaterialAgain() is not { } material) return;
+        Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
+            cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
     }
 
     private void AskBenchwork() => Dialogs.AskBenchwork(this, _session, ShowBenchwork);

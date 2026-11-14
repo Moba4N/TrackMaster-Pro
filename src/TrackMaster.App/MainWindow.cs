@@ -172,6 +172,7 @@ public sealed partial class MainWindow : Window
         Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
         Add("gradient", AskGradient, HasSelection);
         Add("helix", AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -855,6 +856,7 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
+                Small(Lang.T("Holzliste Wendel…"), "List", "helixMaterial", Lang.T("Holzliste und Zuschnitt einer schon gebauten Gleiswendel noch einmal zeigen – die mit einem gewählten Gleis, sonst die zuletzt gebaute.")),
                 Large(Lang.T("Höhen­profil"), "Profile", "profile", Lang.T("Höhe und Steigung entlang der gewählten Gleise als Diagramm.")),
                 Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen. Eingeschaltet zeigt die 3D-Ansicht Spanten und Trassen.")),
                 Large(Lang.T("Trasse…"), "Ramp", "rampCut", Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")),
@@ -1709,6 +1711,13 @@ public sealed partial class MainWindow : Window
                 Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv),
                     cut => ExportSvgFiles(Lang.T("Zuschnitt speichern"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel"), cut.ToSvgFiles(SafeName)));
         }
+    }
+
+    private void ShowHelixAgain()
+    {
+        if (Session.HelixMaterialAgain() is not { } material) return;
+        Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv),
+            cut => ExportSvgFiles(Lang.T("Zuschnitt speichern"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel"), cut.ToSvgFiles(SafeName)));
     }
 
     private void AskFrame()

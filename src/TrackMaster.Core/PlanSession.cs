@@ -1443,6 +1443,7 @@ public sealed partial class PlanSession
             var levelsBefore = Plan.Levels.Count;
             var (inner, outer) = Helix.Build(Plan, spec, ActiveConnector, center);
             var newLevels = Plan.Levels.Count - levelsBefore;
+            Plan.Helices.Add(new PlanHelix { Spec = spec, PieceIds = inner.Concat(outer).Select(p => p.Id).ToList() });
             Selection.Clear();
             foreach (var p in inner.Concat(outer)) Selection.Add(p.Id);
             var last = inner[^1];
@@ -1461,6 +1462,28 @@ public sealed partial class PlanSession
             Say(e.Message);
             return null;
         }
+    }
+
+    /// <summary>Gebaute Gleiswendeln, von denen noch Gleise im Plan liegen.</summary>
+    public IReadOnlyList<PlanHelix> Helices => Plan.Helices.Where(h => h.PieceIds.Any(id => Plan.Find(id) is not null)).ToList();
+
+    /// <summary>
+    /// Holzliste und Zuschnitt einer schon gebauten Gleiswendel: die mit einem gewählten Gleis, sonst die zuletzt gebaute.
+    /// Null, wenn im Plan keine gespeicherte Wendel liegt (Grund in der Statuszeile).
+    /// </summary>
+    public HelixMaterial? HelixMaterialAgain()
+    {
+        var all = Helices;
+        if (all.Count == 0)
+        {
+            Say(Lang.T("Im Plan ist keine Gleiswendel gespeichert. Wendeln aus älteren Plänen bitte einmal über „Gleiswendel…“ neu bauen."));
+            return null;
+        }
+        var helix = all.LastOrDefault(h => h.PieceIds.Any(Selection.Contains)) ?? all[^1];
+        if (all.Count > 1 && !helix.PieceIds.Any(Selection.Contains))
+            Say(Lang.F($"Im Plan liegen {all.Count} Gleiswendeln – gezeigt wird die zuletzt gebaute. Für eine andere vorher eines ihrer Gleise wählen."));
+        try { return Helix.Material(helix.Spec, Plan.Gauge); }
+        catch (Exception e) when (e is InvalidOperationException or KeyNotFoundException) { Say(e.Message); return null; }
     }
 
     /// <summary>

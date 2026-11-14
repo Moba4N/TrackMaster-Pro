@@ -54,6 +54,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("activeLevel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ActiveLevel { get; set; }
         [JsonPropertyName("benchwork"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BenchworkSpec? Benchwork { get; set; }
         [JsonPropertyName("frame"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FrameDto? Frame { get; set; }
+        [JsonPropertyName("helices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<HelixDto>? Helices { get; set; }
         [JsonPropertyName("detectors"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<DetectorDto>? Detectors { get; set; }
         [JsonPropertyName("train"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Train { get; set; }
         [JsonPropertyName("prices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, double>? Prices { get; set; }
@@ -63,6 +64,26 @@ public static partial class PlanSerializer
         [JsonPropertyName("current"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Current { get; set; }
         [JsonPropertyName("operation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Operation { get; set; }
         [JsonPropertyName("detWires"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? DetWires { get; set; }
+    }
+
+    private sealed class HelixDto
+    {
+        [JsonPropertyName("curve")] public string? Curve { get; set; }
+        [JsonPropertyName("turns")] public double Turns { get; set; }
+        [JsonPropertyName("rise")] public double Rise { get; set; }
+        [JsonPropertyName("right")] public bool Right { get; set; }
+        [JsonPropertyName("shape"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Shape { get; set; }
+        [JsonPropertyName("straight"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Straight { get; set; }
+        [JsonPropertyName("straights"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Straights { get; set; }
+        [JsonPropertyName("tracks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Tracks { get; set; }
+        [JsonPropertyName("spacing"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double Spacing { get; set; }
+        [JsonPropertyName("outer"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Outer { get; set; }
+        [JsonPropertyName("build"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Build { get; set; }
+        [JsonPropertyName("edge"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Edge { get; set; }
+        [JsonPropertyName("start"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Start { get; set; }
+        [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Level { get; set; }
+        [JsonPropertyName("perTurn"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool PerTurn { get; set; }
+        [JsonPropertyName("pieces")] public List<int>? Pieces { get; set; }
     }
 
     private sealed class FrameDto
@@ -243,7 +264,8 @@ public static partial class PlanSerializer
     /// <param name="withIds">Für Rückgängig-Schritte: auch Kennungen von Gelände und Elektrik behalten, damit die Auswahl erhalten bleibt.</param>
     public static string ToJson(LayoutPlan plan, bool withIds = false)
     {
-        var needIds = withIds || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0
+        var helices = plan.Helices.Where(h => h.PieceIds.Any(id => plan.Find(id) is not null)).ToList();
+        var needIds = withIds || helices.Count > 0 || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0
             || plan.Scenery.Any(s => s.Tracks.Count > 0);
         var dto = new FileDto
         {
@@ -307,6 +329,15 @@ public static partial class PlanSerializer
                 : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
             ActiveLevel = plan.ActiveLevel,
             Benchwork = plan.Benchwork,
+            Helices = helices.Count == 0 ? null : helices.Select(h => new HelixDto
+            {
+                Curve = h.Spec.CurveKey, Turns = h.Spec.Turns, Rise = h.Spec.Rise, Right = h.Spec.RightHand,
+                Shape = h.Spec.Shape == HelixShape.Rund ? null : h.Spec.Shape.ToString(), Straight = h.Spec.StraightKey, Straights = h.Spec.StraightCount,
+                Tracks = h.Spec.Tracks, Spacing = h.Spec.Spacing, Outer = h.Spec.OuterCurveKey,
+                Build = h.Spec.Construction == HelixConstruction.Gewindestangen ? null : h.Spec.Construction.ToString(),
+                Edge = h.Spec.Edge, Start = h.Spec.StartHeight, Level = h.Spec.Level, PerTurn = h.Spec.LevelPerTurn,
+                Pieces = h.PieceIds.Where(id => plan.Find(id) is not null).ToList(),
+            }).ToList(),
             Frame = plan.Frame is { } fr ? new FrameDto { Dir = fr.Direction == FrameDirection.Laengs ? "laengs" : null, Spacing = fr.Spacing, Width = fr.TrasseWidth, Thick = fr.Thickness, Base = fr.BaseHeight } : null,
             Detectors = plan.Detectors.Count == 0 ? null : plan.Detectors.Select(d => new DetectorDto
                 { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address, Src = d.Source, Auto = d.Auto ? true : null }).ToList(),
@@ -412,6 +443,23 @@ public static partial class PlanSerializer
             };
             plan.Pieces.Add(piece);
             plan.NextId = Math.Max(plan.NextId, piece.Id + 1);
+        }
+        // Gleiswendeln erst nach den Gleisen, damit ihre Gleise gefunden werden
+        foreach (var h in dto.Helices ?? [])
+        {
+            var ids = (h.Pieces ?? []).Where(id => plan.Find(id) is not null).Distinct().ToList();
+            if (ids.Count == 0 || h.Curve is null || Catalog.Find(h.Curve) is null) continue;
+            if ((h.Straight is not null && Catalog.Find(h.Straight) is null) || (h.Outer is not null && Catalog.Find(h.Outer) is null)) continue;
+            if (!double.IsFinite(h.Turns) || h.Turns <= 0 || !double.IsFinite(h.Rise) || h.Rise <= 0) continue;
+            var hshape = Enum.TryParse<HelixShape>(h.Shape ?? nameof(HelixShape.Rund), out var hs) && Enum.IsDefined(hs) ? hs : HelixShape.Rund;
+            var hbuild = Enum.TryParse<HelixConstruction>(h.Build ?? nameof(HelixConstruction.Gewindestangen), out var hb) && Enum.IsDefined(hb) ? hb : HelixConstruction.Gewindestangen;
+            plan.Helices.Add(new PlanHelix
+            {
+                Spec = new HelixSpec(h.Curve, h.Turns, h.Rise, h.Right, hshape, h.Straight, Math.Max(0, h.Straights), h.Tracks == 2 ? 2 : 1,
+                    double.IsFinite(h.Spacing) ? Math.Max(0, h.Spacing) : 0, h.Outer, hbuild, h.Edge is { } e && double.IsFinite(e) ? e : null,
+                    h.Start is { } st && double.IsFinite(st) ? st : null, h.Level, h.PerTurn),
+                PieceIds = ids,
+            });
         }
         var used = new HashSet<int>(plan.Pieces.Select(p => p.Id));
         int Id(int? wanted)

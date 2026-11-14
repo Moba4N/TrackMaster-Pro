@@ -489,6 +489,8 @@ public sealed class LayoutPlan
     public BenchworkSpec? Benchwork { get; set; }
     /// <summary>Spantenbau als Teil des Plans (wie in Wintrack): die 3D-Ansicht zeigt Spanten und Trassen; null = aus.</summary>
     public FrameSpec? Frame { get; set; }
+    /// <summary>Gebaute Gleiswendeln (Angaben und Gleise), für Holzliste und Zuschnitt im Nachhinein.</summary>
+    public List<PlanHelix> Helices { get; } = [];
     /// <summary>Ebenen; immer mindestens eine.</summary>
     public List<PlanLevel> Levels { get; } = [new() { Name = PlanLevel.DefaultName(0) }];
     /// <summary>Ebene, auf die neue Gleise und Objekte kommen.</summary>
@@ -555,6 +557,7 @@ public sealed class LayoutPlan
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);
+        v.Helices.AddRange(Helices);
         v.BoardLegs.AddRange(BoardLegs);
         v.Modules.AddRange(Modules);
         v.Pieces.AddRange(Pieces.Where(p => LevelVisible(p.Level)));

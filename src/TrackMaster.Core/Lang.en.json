@@ -2847,5 +2847,9 @@
  "Spantenbau im Plan einschalten": "Switch on rib construction in the plan",
  "Die Maße werden mit dem Plan gespeichert; die 3D-Ansicht zeigt Spanten und Trassen.": "The dimensions are saved with the plan; the 3D view shows ribs and roadbeds.",
  "Spantenbau ausgeschaltet.": "Rib construction switched off.",
- "Spantenbau eingeschaltet: {0} Spanten. Die 3D-Ansicht zeigt Spanten und Trassen.": "Rib construction switched on: {0} ribs. The 3D view shows ribs and roadbeds."
+ "Spantenbau eingeschaltet: {0} Spanten. Die 3D-Ansicht zeigt Spanten und Trassen.": "Rib construction switched on: {0} ribs. The 3D view shows ribs and roadbeds.",
+ "Holzliste Wendel…": "Helix timber list…",
+ "Holzliste und Zuschnitt einer schon gebauten Gleiswendel noch einmal zeigen – die mit einem gewählten Gleis, sonst die zuletzt gebaute.": "Show the timber list and cutting plans of a helix you already built – the one with a selected track, otherwise the last one built.",
+ "Im Plan ist keine Gleiswendel gespeichert. Wendeln aus älteren Plänen bitte einmal über „Gleiswendel…“ neu bauen.": "No helix is stored in the plan. For helixes from older plans, build them again once with “Helix…”.",
+ "Im Plan liegen {0} Gleiswendeln – gezeigt wird die zuletzt gebaute. Für eine andere vorher eines ihrer Gleise wählen.": "The plan has {0} helixes – showing the last one built. For another one, select one of its tracks first."
 }

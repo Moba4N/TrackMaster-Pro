@@ -121,6 +121,19 @@ public static class FrameBuild
         return new FrameSpec(FrameDirection.Quer, spacing, width, thickness, baseHeight);
     }
 
+    /// <summary>Grenzen der Eingaben im Dialog (mm).</summary>
+    public const double MinSpacing = 50, MaxSpacing = 2000, MinWidth = 10, MaxWidth = 1000, MinThickness = 3, MaxThickness = 50, MinBase = 10, MaxBase = 2000;
+
+    /// <summary>Alle Maße endlich und in den Grenzen des Dialogs.</summary>
+    public static bool Valid(FrameSpec s)
+        => Enum.IsDefined(s.Direction) && In(s.Spacing, MinSpacing, MaxSpacing) && In(s.TrasseWidth, MinWidth, MaxWidth)
+           && In(s.Thickness, MinThickness, MaxThickness) && In(s.BaseHeight, MinBase, MaxBase);
+
+    private static bool In(double v, double min, double max) => double.IsFinite(v) && v >= min && v <= max;
+
+    /// <summary>Höhe der Rahmenoberkante (Spantfuß) in der 3D-Ansicht, bezogen auf Gleishöhe 0 (= Oberkante Trasse dort).</summary>
+    public static double FootZ(Gauge g, FrameSpec s) => TrackBuildHeight(g) - s.BaseHeight;
+
     internal static string HeightText(FrameSupport s)
         => Math.Abs(s.HeightFrom - s.HeightTo) < 0.5 ? Fmt.Num(s.Mid, 0) : $"{Fmt.Num(s.HeightFrom, 0)} → {Fmt.Num(s.HeightTo, 0)}";
 

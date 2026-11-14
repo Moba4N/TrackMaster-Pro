@@ -1,6 +1,6 @@
 namespace TrackMaster.Core;
 
-public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire, Power }
+public enum CanvasTool { Select, Pan, Board, Terrain, Water, Building, Tree, Feeder, Isolation, Signal, Flex, Label, Dimension, Room, Obstacle, Detector, Model, Beam, Wire, Power, Plate }
 
 /// <summary>Ausrichten mehrerer Gleisgruppen an einer gemeinsamen Kante bzw. Mitte.</summary>
 public enum AlignMode { Left, Right, Top, Bottom, CenterX, CenterY }
@@ -21,6 +21,11 @@ public sealed partial class PlanSession
     public bool Dirty { get; private set; }
 
     public bool ShowGrid { get; set; } = true;
+    /// <summary>
+    /// Raster über die ganze Zeichenfläche statt nur auf der Platte: beim Rahmenbau (selbst gezeichnet, Leisten oder Deckplatten im Plan,
+    /// Werkzeug „Leiste ziehen“), weil der Rahmen über die Platte hinausgehen kann.
+    /// </summary>
+    public bool GridEverywhere => Tool is CanvasTool.Beam or CanvasTool.Plate || Plan.Benchwork is { Manual: true } || Plan.Scenery.Any(IsFramePart);
     public bool ShowEnds { get; set; } = true;
     public bool ShowLabels { get; set; }
     public bool ShowHeights { get; set; } = true;
@@ -38,8 +43,22 @@ public sealed partial class PlanSession
     public string ModelId { get; set; } = BuiltinModels.All[0].Id;
     /// <summary>Gewähltes Ausstattungsmodell (im Plan mitgespeichert, Grundmodell oder eigene Bibliothek).</summary>
     public ModelDefinition? CurrentModel => ModelLibrary.Find(Plan, ModelId);
-    /// <summary>Gewähltes Objekt (Gelände, Einspeisung, Trennstelle, Signal) – Gleise stehen in <see cref="Selection"/>.</summary>
-    public int? SelectedObject { get; private set; }
+    /// <summary>Gewähltes Objekt (Gelände, Einspeisung, Trennstelle, Signal) – Gleise stehen in <see cref="Selection"/>.
+    /// Sind mehrere Leisten oder Platten gewählt, ist es das zuletzt gewählte; alle stehen in <see cref="SelectedObjects"/>.</summary>
+    public int? SelectedObject
+    {
+        get => _selectedObject;
+        private set
+        {
+            _selectedObject = value;
+            _objects.Clear();
+            if (value is { } v) _objects.Add(v);
+        }
+    }
+    private int? _selectedObject;
+    private readonly HashSet<int> _objects = [];
+    /// <summary>Alle gewählten Objekte (mehrere nur bei Leisten und Deckplatten des Rahmens), samt <see cref="SelectedObject"/>.</summary>
+    public IReadOnlySet<int> SelectedObjects => _objects;
     /// <summary>Ergebnis der letzten Prüfung; die Zeichenfläche markiert die Stellen.</summary>
     public IReadOnlyList<PlanIssue> Issues { get; set; } = [];
     /// <summary>Pro-Funktionen frei? Wird vom Hauptfenster aus der Lizenz gesetzt.</summary>
@@ -153,7 +172,7 @@ public sealed partial class PlanSession
         foreach (var d in Plan.Detectors.Where(d => d.Source is null)) d.Source = DefaultDetectorSource(d.PieceId);
         // Rückmelder-Kabel folgen Kontakt und Gleis des Rückmelders
         DetectorWiring.Sync(Plan);
-        if (SelectedObject is { } so && FindObject(so) is null) SelectedObject = null;
+        PruneObjects(id => FindObject(id) is not null);
         if (Active is { } a && Connections.Find(a.PieceId, a.Index) is not { IsOpen: true }) Active = null;
         Changed?.Invoke();
     }
@@ -213,7 +232,12 @@ public sealed partial class PlanSession
         Commit();
         var text = Lang.F($"Neuer Plan angelegt: Spur {Plan.GaugeId}, {BoardGeometry.Describe(Plan)}.");
         if (Plan.Benchwork is { Manual: true })
+        {
+            // Rahmen selbst zeichnen: Raster über die ganze Zeichenfläche, Leisten rasten daran ein
+            ShowGrid = true;
+            SnapEnabled = true;
             text += " " + Lang.T("Rahmenbau selbst zeichnen: Zargen, Querriegel, Diagonalen und Streben mit Gelände › Leiste ziehen, dann Gelände › Platte auflegen; Gelände › Unterbau… zeigt Zuschnitt und Materialliste.");
+        }
         else if (Plan.Benchwork is not null)
             text += " " + Lang.T("Der Rahmenbau ist angelegt: Gelände › Unterbau… zeigt Maße, Zuschnitt und Materialliste, die 3D-Ansicht das Gestell.");
         Say(text + " " + Lang.T("Rückgängig holt den vorherigen Plan zurück."));
@@ -438,13 +462,14 @@ public sealed partial class PlanSession
 
     public void Delete()
     {
-        if (SelectedObject is { } obj)
+        if (_objects.Count > 0 && Selection.Count == 0)
         {
+            var count = _objects.Count;
             Record();
-            Plan.RemoveObject(obj);
+            foreach (var obj in _objects.ToList()) Plan.RemoveObject(obj);
             SelectedObject = null;
             Commit();
-            Say(Lang.T("Gelöscht. Rückgängig holt es zurück."));
+            Say(count == 1 ? Lang.T("Gelöscht. Rückgängig holt es zurück.") : Lang.F($"{count} Teile gelöscht. Rückgängig holt sie zurück."));
             return;
         }
         if (Selection.Count == 0) return;
@@ -453,7 +478,9 @@ public sealed partial class PlanSession
         var n = movable.Count;
         Record();
         Plan.RemovePieces(movable.Select(p => p.Id).ToHashSet());
+        foreach (var obj in _objects.ToList()) Plan.RemoveObject(obj);
         Selection.Clear();
+        SelectedObject = null;
         Commit();
         Say(Lang.F($"{n} {(n == 1 ? Lang.T("Gleis") : Lang.T("Gleise"))} gelöscht. Rückgängig holt sie zurück."));
     }
@@ -483,7 +510,7 @@ public sealed partial class PlanSession
         temp.Isolations.AddRange(Plan.Isolations.Where(i => ids.Contains(i.PieceId)).Select(i => i.Clone()));
         temp.Signals.AddRange(Plan.Signals.Where(g => ids.Contains(g.PieceId)).Select(g => g.Clone()));
         temp.Detectors.AddRange(Plan.Detectors.Where(d => ids.Contains(d.PieceId)).Select(d => d.Clone()));
-        if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item)
+        foreach (var item in Plan.Scenery.Where(s => _objects.Contains(s.Id)))
         {
             temp.Scenery.Add(item.Clone());
             if (item.IsModel && Plan.Models.TryGetValue(item.Model!, out var own)) temp.Models[own.Id] = own;
@@ -548,7 +575,7 @@ public sealed partial class PlanSession
             det.Id = Plan.NextId++; det.PieceId = map[d.PieceId]; det.Address = null;
             Plan.Detectors.Add(det);
         }
-        int? pastedObject = null;
+        var pastedObjects = new List<int>();
         foreach (var (id, m) in src.Models) Plan.Models.TryAdd(id, m);
         foreach (var s in src.Scenery)
         {
@@ -559,10 +586,13 @@ public sealed partial class PlanSession
             // mitkopierte Gleise: Verknüpfung übernehmen, sonst gehört das Modell zu keinem Gleis mehr
             item.Tracks = item.Tracks.Where(map.ContainsKey).Select(id => map[id]).ToList();
             Plan.Scenery.Add(item);
-            pastedObject = item.Id;
+            pastedObjects.Add(item.Id);
         }
         Active = null;
-        SelectedObject = Selection.Count == 0 ? pastedObject : null;
+        SelectedObject = Selection.Count == 0 && pastedObjects.Count > 0 ? pastedObjects[^1] : null;
+        // mehrere Leisten bzw. Platten eingefügt: alle gewählt, damit sie sich gleich zusammen verschieben lassen
+        if (Selection.Count == 0)
+            foreach (var id in pastedObjects) if (Plan.Scenery.FirstOrDefault(x => x.Id == id) is { } it && IsFramePart(it)) _objects.Add(id);
         Commit();
         var n = src.Pieces.Count + src.Scenery.Count;
         Say(n == 1 ? Lang.T("1 Objekt eingefügt.") : Lang.F($"{n} Objekte eingefügt."));
@@ -599,25 +629,28 @@ public sealed partial class PlanSession
     }
 
     /// <summary>Gibt es etwas, das die Pfeiltasten verschieben können (Gleise oder ein gewähltes Objekt wie eine Leiste)?</summary>
-    public bool CanNudge => Selection.Count > 0 || NudgeObject is not null;
+    public bool CanNudge => Selection.Count > 0 || NudgeObjects.Count > 0;
 
-    private SceneryItem? NudgeObject => Selection.Count == 0 && SelectedObject is { } so ? Plan.Scenery.FirstOrDefault(s => s.Id == so) : null;
+    /// <summary>Gewählte Objekte, die mit den Gleisen bzw. allein verschoben werden (Leisten, Platten, Gelände …).</summary>
+    private List<SceneryItem> NudgeObjects => Plan.Scenery.Where(s => _objects.Contains(s.Id)).ToList();
 
-    /// <summary>Auswahl mit den Pfeiltasten verschieben: gewählte Gleise oder, ohne Gleise, das gewählte Objekt (z. B. eine Leiste).</summary>
+    /// <summary>Auswahl mit den Pfeiltasten verschieben: gewählte Gleise und gewählte Objekte (z. B. mehrere Leisten).</summary>
     public void Nudge(double dx, double dy, bool record)
     {
-        if (NudgeObject is { } item)
+        var items = NudgeObjects;
+        if (Selection.Count == 0)
         {
+            if (items.Count == 0) return;
             if (record) Record();
-            item.MoveBy(dx, dy);
+            foreach (var item in items) item.MoveBy(dx, dy);
             Commit();
             return;
         }
-        if (Selection.Count == 0) return;
         var movable = MovablePieces;
         if (LockedNotice(movable)) return;
         if (record) Record();
         foreach (var p in movable) { p.X += dx; p.Y += dy; }
+        foreach (var item in items) item.MoveBy(dx, dy);
         Commit();
     }
 
@@ -786,6 +819,19 @@ public sealed partial class PlanSession
         Say(Lang.F($"Unterbau übernommen: {b.LegCount} Beine, Oberkante {Fmt.Num(spec.Height, 0)} mm. Die 3D-Ansicht zeigt ihn."));
     }
 
+    /// <summary>Spantenbau im Plan einschalten (mit diesen Maßen) oder mit null ausschalten. Die 3D-Ansicht zeigt dann Spanten und Trassen.</summary>
+    public void SetFrame(FrameSpec? spec)
+    {
+        if (spec is not null && !FrameBuild.Valid(spec)) return;
+        if (spec == Plan.Frame) return;
+        Record();
+        Plan.Frame = spec;
+        Commit();
+        if (spec is null) { Say(Lang.T("Spantenbau ausgeschaltet.")); return; }
+        var n = FrameBuild.Build(Plan, spec).Ribs.Count;
+        Say(Lang.F($"Spantenbau eingeschaltet: {n} Spanten. Die 3D-Ansicht zeigt Spanten und Trassen."));
+    }
+
     // ---------- Ebenen ----------
 
     /// <summary>Ein- und Ausblenden ist keine Planänderung: Rückgängig lässt die Sichtbarkeit, wie sie ist.</summary>
@@ -841,7 +887,7 @@ public sealed partial class PlanSession
     {
         var index = Plan.PieceIndex();
         Selection.RemoveWhere(id => index.TryGetValue(id, out var p) && !Plan.LevelVisible(p.Level));
-        if (SelectedObject is { } so && Plan.Scenery.FirstOrDefault(s => s.Id == so) is { } item && !Plan.LevelVisible(item.Level)) SelectedObject = null;
+        PruneObjects(id => Plan.Scenery.FirstOrDefault(s => s.Id == id) is not { } item || Plan.LevelVisible(item.Level));
         if (Active is { } a && Plan.Find(a.PieceId) is { } ap && !Plan.LevelVisible(ap.Level)) Active = null;
     }
 
@@ -907,18 +953,18 @@ public sealed partial class PlanSession
     {
         if (index < 0 || index >= Plan.Levels.Count) return;
         var pieces = SelectedPieces.Where(p => p.Level != index).ToList();
-        var item = SelectedObject is { } so ? Plan.Scenery.FirstOrDefault(s => s.Id == so && s.Level != index) : null;
-        if (pieces.Count == 0 && item is null) { Say(Lang.T("Erst Gleise oder ein Objekt wählen, die auf eine andere Ebene sollen.")); return; }
+        var items = Plan.Scenery.Where(s => _objects.Contains(s.Id) && s.Level != index).ToList();
+        if (pieces.Count == 0 && items.Count == 0) { Say(Lang.T("Erst Gleise oder ein Objekt wählen, die auf eine andere Ebene sollen.")); return; }
         Record();
         foreach (var p in pieces)
         {
             p.Height += Plan.Levels[index].Height - Plan.Level(p.Level).Height;
             p.Level = index;
         }
-        if (item is not null) item.Level = index;
+        foreach (var item in items) item.Level = index;
         if (!Plan.Levels[index].Visible) Plan.Levels[index].Visible = true;
         Commit();
-        var n = pieces.Count + (item is null ? 0 : 1);
+        var n = pieces.Count + items.Count;
         Say(Lang.F($"{n} auf {Plan.Levels[index].Name} gelegt."));
     }
 
@@ -932,7 +978,7 @@ public sealed partial class PlanSession
 
     public void Select(IEnumerable<int> ids, bool add)
     {
-        SelectedObject = null;
+        if (!add) SelectedObject = null;
         if (!add) Selection.Clear();
         foreach (var id in WithGroups(ids)) Selection.Add(id);
         Changed?.Invoke();
@@ -952,6 +998,62 @@ public sealed partial class PlanSession
         Active = null;
         SelectedObject = id;
         Changed?.Invoke();
+    }
+
+    /// <summary>Leisten und Deckplatten des Rahmens lassen sich zu mehreren wählen und zusammen verschieben.</summary>
+    public static bool IsFramePart(SceneryItem s) => s.IsBeam || s.IsPlate;
+
+    /// <summary>
+    /// Klick auf ein Objekt. Mit <paramref name="add"/> (Umschalt/Strg bzw. langes Drücken) kommen Leisten und Platten zur Auswahl
+    /// hinzu oder wieder heraus; ohne bleibt eine Mehrfachauswahl stehen, wenn das Objekt schon dazugehört (zum Verschieben).
+    /// False, wenn das Objekt danach nicht gewählt ist.
+    /// </summary>
+    public bool ClickObject(int id, bool add)
+    {
+        var item = Plan.Scenery.FirstOrDefault(s => s.Id == id);
+        if (add && item is not null && IsFramePart(item) && (_objects.Count == 0 || _objects.All(o => Plan.Scenery.FirstOrDefault(s => s.Id == o) is { } x && IsFramePart(x))))
+        {
+            Active = null;
+            if (_objects.Remove(id))
+            {
+                _selectedObject = _objects.Count > 0 ? _objects.Last() : null;
+                Changed?.Invoke();
+                return false;
+            }
+            _objects.Add(id);
+            _selectedObject = id;
+            if (_objects.Count > 1) Say(Lang.F($"{_objects.Count} Teile gewählt. Ziehen verschiebt alle gewählten Teile."));
+            Changed?.Invoke();
+            return true;
+        }
+        if (_objects.Contains(id) && _objects.Count > 1)
+        {
+            _selectedObject = id;
+            Changed?.Invoke();
+            return true;
+        }
+        SelectObject(id);
+        return true;
+    }
+
+    /// <summary>Rahmen aufziehen: Gleise und – wenn keine Gleise im Rahmen liegen – Leisten und Platten wählen.</summary>
+    public void SelectArea(IEnumerable<int> pieceIds, IEnumerable<int> frameIds, bool add)
+    {
+        var pieces = pieceIds.ToList();
+        var parts = pieces.Count > 0 ? [] : frameIds.Where(id => Plan.Scenery.FirstOrDefault(s => s.Id == id) is { } s && IsFramePart(s)).ToList();
+        if (parts.Count == 0) { Select(pieces, add); return; }
+        if (!add) { Selection.Clear(); SelectedObject = null; }
+        Active = null;
+        foreach (var id in parts) _objects.Add(id);
+        _selectedObject = parts[^1];
+        Changed?.Invoke();
+    }
+
+    /// <summary>Gewählte Objekte behalten, die <paramref name="keep"/> erfüllen.</summary>
+    private void PruneObjects(Func<int, bool> keep)
+    {
+        if (_objects.RemoveWhere(id => !keep(id)) == 0) return;
+        if (_selectedObject is { } so && !_objects.Contains(so)) _selectedObject = _objects.Count > 0 ? _objects.Last() : null;
     }
 
     public object? FindObject(int id)
@@ -1010,14 +1112,22 @@ public sealed partial class PlanSession
     // ---------- Verschieben mit der Maus ----------
 
     private List<(PlacedPiece Piece, double X, double Y)>? _moveStart;
-    private (SceneryItem Item, double Dx, double Dy)? _moveObject;
+    private List<SceneryItem> _moveObjects = [];
+    private (double X, double Y) _moveDone;
+    private double _moveSnap;
     private bool _moveRecorded;
 
-    public void BeginMove()
+    /// <summary>
+    /// Verschieben mit der Maus beginnen: gewählte Gleise und alle gewählten Objekte. Mit <paramref name="snapTolerance"/> &gt; 0
+    /// rasten Leisten und Platten beim Ziehen an Plattenkanten, anderen Leisten und dem Raster ein (wenn „Einrasten“ an ist).
+    /// </summary>
+    public void BeginMove(double snapTolerance = 0)
     {
         _moveStart = MovablePieces.Select(p => (p, p.X, p.Y)).ToList();
         if (_moveStart.Count == 0 && Selection.Count > 0) LockedNotice(_moveStart.Select(m => m.Item1).ToList());
-        _moveObject = SelectedObject is { } id && Plan.Scenery.FirstOrDefault(s => s.Id == id) is { } item ? (item, 0, 0) : null;
+        _moveObjects = Plan.Scenery.Where(s => _objects.Contains(s.Id)).ToList();
+        _moveDone = (0, 0);
+        _moveSnap = snapTolerance;
         _moveRecorded = false;
     }
 
@@ -1029,12 +1139,12 @@ public sealed partial class PlanSession
             Record();
             _moveRecorded = true;
         }
+        // nur Rahmenteile gezogen: am Rahmen und am Raster einrasten
+        if (SnapEnabled && _moveSnap > 0 && _moveStart.Count == 0 && _moveObjects.Count > 0 && _moveObjects.All(IsFramePart))
+            (dx, dy) = BeamLayout.SnapMove(Plan, _moveObjects, dx - _moveDone.X, dy - _moveDone.Y, _moveSnap) is var (sx, sy) ? (sx + _moveDone.X, sy + _moveDone.Y) : (dx, dy);
         foreach (var (p, x, y) in _moveStart) { p.X = x + dx; p.Y = y + dy; }
-        if (_moveObject is { } mo)
-        {
-            mo.Item.MoveBy(dx - mo.Dx, dy - mo.Dy);
-            _moveObject = (mo.Item, dx, dy);
-        }
+        foreach (var item in _moveObjects) item.MoveBy(dx - _moveDone.X, dy - _moveDone.Y);
+        _moveDone = (dx, dy);
         Commit();
     }
 
@@ -1046,7 +1156,7 @@ public sealed partial class PlanSession
             Commit();
         }
         _moveStart = null;
-        _moveObject = null;
+        _moveObjects = [];
     }
 
     // ---------- Pro: Höhe, Gelände, Elektrik ----------
@@ -1333,6 +1443,7 @@ public sealed partial class PlanSession
             var levelsBefore = Plan.Levels.Count;
             var (inner, outer) = Helix.Build(Plan, spec, ActiveConnector, center);
             var newLevels = Plan.Levels.Count - levelsBefore;
+            Plan.Helices.Add(new PlanHelix { Spec = spec, PieceIds = inner.Concat(outer).Select(p => p.Id).ToList() });
             Selection.Clear();
             foreach (var p in inner.Concat(outer)) Selection.Add(p.Id);
             var last = inner[^1];
@@ -1351,6 +1462,28 @@ public sealed partial class PlanSession
             Say(e.Message);
             return null;
         }
+    }
+
+    /// <summary>Gebaute Gleiswendeln, von denen noch Gleise im Plan liegen.</summary>
+    public IReadOnlyList<PlanHelix> Helices => Plan.Helices.Where(h => h.PieceIds.Any(id => Plan.Find(id) is not null)).ToList();
+
+    /// <summary>
+    /// Holzliste und Zuschnitt einer schon gebauten Gleiswendel: die mit einem gewählten Gleis, sonst die zuletzt gebaute.
+    /// Null, wenn im Plan keine gespeicherte Wendel liegt (Grund in der Statuszeile).
+    /// </summary>
+    public HelixMaterial? HelixMaterialAgain()
+    {
+        var all = Helices;
+        if (all.Count == 0)
+        {
+            Say(Lang.T("Im Plan ist keine Gleiswendel gespeichert. Wendeln aus älteren Plänen bitte einmal über „Gleiswendel…“ neu bauen."));
+            return null;
+        }
+        var helix = all.LastOrDefault(h => h.PieceIds.Any(Selection.Contains)) ?? all[^1];
+        if (all.Count > 1 && !helix.PieceIds.Any(Selection.Contains))
+            Say(Lang.F($"Im Plan liegen {all.Count} Gleiswendeln – gezeigt wird die zuletzt gebaute. Für eine andere vorher eines ihrer Gleise wählen."));
+        try { return Helix.Material(helix.Spec, Plan.Gauge); }
+        catch (Exception e) when (e is InvalidOperationException or KeyNotFoundException) { Say(e.Message); return null; }
     }
 
     /// <summary>
@@ -1413,13 +1546,96 @@ public sealed partial class PlanSession
         return item;
     }
 
-    /// <summary>Deckplatte nach den Maßen des Rahmens auf den Unterbau legen (über den gezeichneten Leisten bzw. der Platte des Plans).</summary>
+    /// <summary>
+    /// Platten automatisch nach Grundriss und Rahmen auflegen: je zusammenhängender Fläche eine Platte, die dem Umriss folgt –
+    /// Anlagenplatte (auch L, U, Module) samt allem, was gezogene Leisten einschließen (z. B. das Dreieck zwischen versetzten
+    /// Modulen und der Diagonale). Beim selbst gezeichneten Rahmen zählen nur die Leisten; schließen sie keine Fläche ein, wird
+    /// es ein Rechteck über den Leisten. Vorhandene Platten werden ersetzt. Gibt die erste (größte) Platte zurück.
+    /// </summary>
     public SceneryItem AddPlate()
     {
         var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
-        var item = AddScenery(new SceneryItem { Kind = SceneryKind.Plate, X = x, Y = y, Width = w, Depth = d, Variant = t, Height = top });
-        Say(Lang.F($"Deckplatte {PlateLayout.Size(item)} mm, {t} mm stark, aufgelegt (Oberkante {Fmt.Num(top, 0)} mm). Lage, Größe, Stärke und Oberkante stehen in den Eigenschaften; verschieben mit der Maus oder den Pfeiltasten."));
+        var manual = Plan.Benchwork is { Manual: true } && Plan.Scenery.Any(b => b.IsBeam);
+        var shapes = FrameOutline.Plates(Plan, board: !manual);
+        if (shapes.Count == 0) shapes = [[(x, y), (x + w, y), (x + w, y + d), (x, y + d)]];
+        Record();
+        var replaced = Plan.Scenery.Count(p => p.IsPlate);
+        Plan.Scenery.RemoveAll(p => p.IsPlate);
+        var level = Math.Clamp(Plan.ActiveLevel, 0, Plan.Levels.Count - 1);
+        var made = new List<SceneryItem>();
+        foreach (var shape in shapes)
+        {
+            var item = new SceneryItem { Kind = SceneryKind.Plate, Variant = t, Height = top, Level = level, Id = Plan.NextId++ };
+            // achsparallele Rechtecke bleiben einfache Platten, alles andere wird Sonderform
+            if (shape.Count == 4 && shape.Select((p, i) => (p, q: shape[(i + 1) % 4])).All(e => Math.Abs(e.p.X - e.q.X) < 0.05 || Math.Abs(e.p.Y - e.q.Y) < 0.05))
+            {
+                (item.X, item.Y) = (shape.Min(p => p.X), shape.Min(p => p.Y));
+                (item.Width, item.Depth) = (shape.Max(p => p.X) - item.X, shape.Max(p => p.Y) - item.Y);
+            }
+            else item.Points = shape;
+            PlateLayout.Repair(item);
+            item.Name = $"{SceneryItem.KindName(SceneryKind.Plate)} {made.Count + 1}";
+            Plan.Scenery.Add(item);
+            made.Add(item);
+        }
+        Selection.Clear();
+        Active = null;
+        SelectedObject = made[0].Id;
+        foreach (var m in made) _objects.Add(m.Id);
+        Commit();
+        var area = made.Sum(PlateLayout.Area);
+        Say((made.Count == 1
+                ? Lang.F($"Deckplatte nach Grundriss und Rahmen aufgelegt: {Fmt.Num(area, 2)} m², {t} mm stark, Oberkante {Fmt.Num(top, 0)} mm.")
+                : Lang.F($"{made.Count} Deckplatten nach Grundriss und Rahmen aufgelegt: zusammen {Fmt.Num(area, 2)} m², {t} mm stark, Oberkante {Fmt.Num(top, 0)} mm."))
+            + (replaced > 0 ? " " + Lang.T("Die bisherigen Platten wurden ersetzt; Rückgängig holt sie zurück.") : "")
+            + " " + Lang.T("Stärke und Oberkante stehen in den Eigenschaften."));
+        return made[0];
+    }
+
+    /// <summary>
+    /// Deckplatte in Sonderform (Vieleck, z. B. das Dreieck zwischen versetzten Modulen und der Diagonale). Stärke und Oberkante
+    /// wie bei „Platte auflegen“: auf den Leisten bzw. bündig mit der Platte des Rahmens. Null, wenn die Form zu klein ist.
+    /// </summary>
+    public SceneryItem? AddPlate(IReadOnlyList<(double X, double Y)> points)
+    {
+        var pts = PlateLayout.Clean(points);
+        if (pts.Count < 3 || Math.Abs(Geometry2D.SignedArea(pts)) < PlateLayout.MinSize * PlateLayout.MinSize)
+        {
+            Say(Lang.T("Eine Platte braucht mindestens drei Ecken, die eine Fläche einschließen."));
+            return null;
+        }
+        var (_, _, _, _, t, top) = PlateLayout.FromFrame(Plan);
+        var item = new SceneryItem { Kind = SceneryKind.Plate, Points = pts, Variant = t, Height = top };
+        PlateLayout.Repair(item);
+        AddScenery(item);
+        Say(Lang.F($"Platte in Sonderform aufgelegt: {Fmt.Num(Math.Abs(Geometry2D.SignedArea(pts)) / 1e6, 2)} m², {t} mm stark, Oberkante {Fmt.Num(top, 0)} mm. Stärke und Oberkante stehen in den Eigenschaften."));
         return item;
+    }
+
+    /// <summary>
+    /// Alle Platten entfernen, damit nur der Rahmen zu sehen ist: aufgelegte Deckplatten löschen und die Platte des Unterbaus
+    /// (auch eigene Plattenstärken der Module) weglassen – offene Rahmenbauweise. Rückgängig holt alles zurück.
+    /// </summary>
+    public void RemoveAllPlates()
+    {
+        var plates = Plan.Scenery.Where(s => s.IsPlate).Select(s => s.Id).ToList();
+        var bench = Plan.Benchwork;
+        var top = bench is { TopThickness: > 0 } || Plan.Modules.Any(m => m.Thickness > 0);
+        if (plates.Count == 0 && !top)
+        {
+            Say(bench is null
+                ? Lang.T("Es liegen keine Platten auf. Ohne Unterbau gehört die Anlagenplatte zum Plan; einen Rahmen legt Gelände › Unterbau… an.")
+                : Lang.T("Es liegen keine Platten auf – zu sehen ist schon nur der Rahmen."));
+            return;
+        }
+        Record();
+        foreach (var id in plates) Plan.RemoveObject(id);
+        if (bench is not null) bench.TopThickness = 0;
+        foreach (var m in Plan.Modules) m.Thickness = 0;
+        Commit();
+        Say(bench is null
+            ? Lang.F($"{plates.Count} aufgelegte Platte(n) entfernt. Ohne Unterbau bleibt die Anlagenplatte; einen Rahmen legt Gelände › Unterbau… an.")
+            : Lang.T("Alle Platten entfernt – zu sehen ist nur noch der Rahmen (3D-Ansicht). „Platte auflegen“ bzw. „Platte zeichnen“ legt wieder Platten auf, Rückgängig holt alle zurück."));
     }
 
     /// <summary>Gewählte Deckplatte wieder auf die Maße des Rahmens bringen.</summary>
@@ -1429,6 +1645,7 @@ public sealed partial class PlanSession
         Record();
         var (x, y, w, d, t, top) = PlateLayout.FromFrame(Plan);
         (s.X, s.Y, s.Width, s.Depth) = (x, y, w, d);
+        s.Points = [];   // Sonderform wird wieder zum Rechteck über dem Rahmen
         s.Height = Math.Round(top - t + PlateLayout.Thickness(s), 1);   // auf dem Rahmen, eigene Stärke bleibt
         Commit();
     }

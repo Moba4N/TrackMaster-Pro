@@ -312,6 +312,7 @@ public partial class App : ComponentBase, IAppHost
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -323,6 +324,8 @@ public partial class App : ComponentBase, IAppHost
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
+        Add("toolPlate", Lang.T("Platte zeichnen"), () => SetTool(CanvasTool.Plate));
+        Add("removePlates", Lang.T("Alle Platten entfernen"), () => { SetTool(CanvasTool.Select); _session.RemoveAllPlates(); });
         Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
@@ -507,6 +510,7 @@ public partial class App : ComponentBase, IAppHost
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
+        "toolPlate" => _session.Tool == CanvasTool.Plate,
         "wires" => _session.ShowWires,
         "detectorWires" => _session.Plan.DetectorWiring,
         "toolOccupancy" => _session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder",
@@ -533,15 +537,17 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPlate", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
         "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate", "detectorWires", "toolOccupancy",
     ];
 
     private void SetTool(CanvasTool tool)
     {
-        if (_view.IsDrawingPolygon && tool != _session.Tool) _view.CancelPolygon();
-        _session.Tool = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        var next = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        // Werkzeug wechseln: angefangene Fläche, Leiste oder Maß verwerfen
+        if (next != _session.Tool) _view.CancelPolygon();
+        _session.Tool = next;
         if (_session.Tool is not (CanvasTool.Select or CanvasTool.Pan)) _session.ClearSelection();
         _view.Invalidate();
         Refresh();
@@ -568,7 +574,8 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)} ({Signal.SystemShort(_session.SignalSystem)}): auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
-        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
+        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
+        CanvasTool.Plate => Lang.F($"Platte zeichnen: Ecken setzen ({_view.PolygonPoints}) – Plattenecken, Kanten, Leisten und das Raster rasten ein. Klick auf die erste Ecke, Doppelklick oder „Fertig“ legt die Platte auf."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
             ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")
@@ -873,6 +880,12 @@ public partial class App : ComponentBase, IAppHost
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 ShowHelixMaterial(material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
         });
+    }
+
+    private void ShowHelixAgain()
+    {
+        if (_session.HelixMaterialAgain() is not { } material) return;
+        ShowHelixMaterial(material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
     }
 
     private void AskViewAngle() => AskAngle(Lang.T("Ansicht drehen"),

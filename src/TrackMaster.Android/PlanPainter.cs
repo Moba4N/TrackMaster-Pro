@@ -173,7 +173,7 @@ public sealed class PlanPainter
     private static readonly Color IsolationColor = Color.Rgb(0xE0, 0x6C, 0x00);
 
     /// <summary>Zeichnet alles in Weltkoordinaten; die Canvas ist bereits skaliert. <paramref name="zoom"/> = Pixel je mm.</summary>
-    public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null, bool wires = true)
+    public void Draw(Canvas c, float zoom, bool scenery, IReadOnlySet<int> selection, int? selectedObject, Action<Canvas>? afterBoard = null, bool wires = true, IReadOnlySet<int>? selectedObjects = null)
     {
         var plan = _plan;
         float z = zoom, g = _g;
@@ -183,7 +183,7 @@ public sealed class PlanPainter
         c.DrawPath(board, Fill(Ui.Board));
         if (plan.Background is { Visible: true, PixelWidth: > 0 } bg) DrawBackground(c, bg);
         c.DrawPath(board, Stroke(Ui.BoardStroke, 1.2f * Ui.Density / z));
-        DrawBeams(c, z, selectedObject, selWidth);
+        DrawBeams(c, z, selectedObjects ?? (selectedObject is { } so ? new HashSet<int> { so } : []), selWidth);
 
         if (scenery)
         {
@@ -333,19 +333,19 @@ public sealed class PlanPainter
     private static readonly Color PlateFill = Color.Argb(0x50, 0xC8, 0xA8, 0x78);
 
     /// <summary>Frei gezogene Leisten des Unterbaus (Diagonale, Streben): Holzfarbe, immer sichtbar; darüber durchscheinend aufgelegte Deckplatten.</summary>
-    private void DrawBeams(Canvas c, float z, int? selectedObject, float selWidth)
+    private void DrawBeams(Canvas c, float z, IReadOnlySet<int> selected, float selWidth)
     {
         foreach (var p in _plan.Scenery.Where(s => s.IsPlate))
         {
             var path = Polygon(PlateLayout.Outline(p));
             c.DrawPath(path, Fill(PlateFill));
-            c.DrawPath(path, p.Id == selectedObject ? Stroke(Ui.Accent, selWidth) : Stroke(BeamStroke, 1.5f * Ui.Density / z, effect: new DashPathEffect([8 / z, 4 / z], 0)));
+            c.DrawPath(path, selected.Contains(p.Id) ? Stroke(Ui.Accent, selWidth) : Stroke(BeamStroke, 1.5f * Ui.Density / z, effect: new DashPathEffect([8 / z, 4 / z], 0)));
         }
         foreach (var b in _plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2))
         {
             var path = Polygon(BeamLayout.Outline(b));
             c.DrawPath(path, Fill(BeamFill));
-            c.DrawPath(path, Stroke(b.Id == selectedObject ? Ui.Accent : BeamStroke, b.Id == selectedObject ? selWidth : 1.2f * Ui.Density / z));
+            c.DrawPath(path, Stroke(selected.Contains(b.Id) ? Ui.Accent : BeamStroke, selected.Contains(b.Id) ? selWidth : 1.2f * Ui.Density / z));
         }
     }
 

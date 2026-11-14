@@ -28,6 +28,13 @@ public sealed record HelixSpec(
     public double TotalHeight => Rise * Turns;
 }
 
+/// <summary>Eine im Plan gebaute Gleiswendel: ihre Angaben und Gleise, damit Holzliste und Zuschnitt später wieder aufrufbar sind.</summary>
+public sealed class PlanHelix
+{
+    public required HelixSpec Spec { get; init; }
+    public List<int> PieceIds { get; init; } = [];
+}
+
 /// <summary>Ein Zuschnitt- oder Kaufteil für den Wendelbau.</summary>
 public sealed record HelixPart(string Name, int Count, string Size, string Note, double AreaM2 = 0);
 

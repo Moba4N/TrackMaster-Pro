@@ -448,11 +448,11 @@ public static partial class Dialogs
                         break;
                     case SceneryKind.Plate:
                         body.AddView(Columns(c,
-                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => s.X = v)),
-                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => s.Y = v))));
+                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => PlateLayout.SetBox(s, x: v))),
+                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => PlateLayout.SetBox(s, y: v)))));
                         body.AddView(Columns(c,
-                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v)),
-                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v))));
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, width: v))),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, depth: v)))));
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Stärke (mm)"), Num(PlateLayout.Thickness(s), Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v))),
                             Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
@@ -1049,12 +1049,12 @@ public static partial class Dialogs
     }
 
     /// <summary>Angaben für den Spantenbau der Anlage.</summary>
-    public static void AskFrame(Context c, Gauge gauge, Action<FrameSpec> build)
+    public static void AskFrame(Context c, Gauge gauge, FrameSpec? current, Action<FrameSpec, bool> build)
     {
-        var def = FrameBuild.Defaults(gauge);
+        var def = current ?? FrameBuild.Defaults(gauge);
         var body = Ui.Column(c, 6);
         body.AddView(Hint(c, Lang.T("Offene Rahmenbauweise: Spanten stehen in festem Abstand auf dem Rahmen, die Trassen liegen oben drauf. Höhe und Neigung jeder Auflage kommen aus den Gleishöhen. Liegt eine Trasse unter einer anderen, bekommt der Spant einen Ausschnitt mit Durchfahrtshöhe – so tragen dieselben Spanten mehrere Ebenen.")));
-        var direction = Choice(c, [Lang.T("quer (parallel zur Tiefe)"), Lang.T("längs (parallel zur Breite)")], 0);
+        var direction = Choice(c, [Lang.T("quer (parallel zur Tiefe)"), Lang.T("längs (parallel zur Breite)")], def.Direction == FrameDirection.Laengs ? 1 : 0);
         var spacing = Ui.Number(c, def.Spacing);
         var width = Ui.Number(c, def.TrasseWidth);
         var thick = Ui.Number(c, def.Thickness);
@@ -1062,18 +1062,21 @@ public static partial class Dialogs
         body.AddView(Ui.Field(c, Lang.T("Lage der Spanten"), direction));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Abstand höchstens (mm)"), spacing), Ui.Field(c, Lang.T("Trassenbreite (mm)"), width)));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Trassenstärke (mm)"), thick), Ui.Field(c, Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)"), bas)));
+        var use = new CheckBox(c) { Text = Lang.T("Spantenbau im Plan einschalten"), Checked = true };
+        body.AddView(use);
+        body.AddView(Hint(c, Lang.T("Die Maße werden mit dem Plan gespeichert; die 3D-Ansicht zeigt Spanten und Trassen.")));
         var error = Error(c);
         body.AddView(error);
         Show(c, Lang.T("Spantenbau"), body, Lang.T("Berechnen"), () =>
         {
             var errors = new List<string>();
-            Read(spacing, Lang.T("Abstand"), 50, 2000, errors, out var vs);
-            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
-            Read(thick, Lang.T("Trassenstärke"), 3, 50, errors, out var vt);
-            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var vb);
+            Read(spacing, Lang.T("Abstand"), FrameBuild.MinSpacing, FrameBuild.MaxSpacing, errors, out var vs);
+            Read(width, Lang.T("Trassenbreite"), FrameBuild.MinWidth, FrameBuild.MaxWidth, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), FrameBuild.MinThickness, FrameBuild.MaxThickness, errors, out var vt);
+            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), FrameBuild.MinBase, FrameBuild.MaxBase, errors, out var vb);
             SetError(error, errors);
             if (errors.Count > 0) return false;
-            build(new FrameSpec(direction.SelectedItemPosition == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb));
+            build(new FrameSpec(direction.SelectedItemPosition == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb), use.Checked);
             return true;
         });
     }

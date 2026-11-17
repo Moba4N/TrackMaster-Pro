@@ -576,7 +576,7 @@ A detailed guide for your very first plan is in chapter <a href="#ke">4</a>.</p>
     layout table), <span class="ui">Open frame (rib construction)</span> without a top board, <span class="ui">L-girder frame</span> for large free-standing layouts and
     <span class="ui">Exhibition module (1,300 mm high)</span>.</li>
   <li><span class="ui">Draw benchwork yourself</span>: only the baseboard is created and the <span class="ui">Scenery › Draw batten</span> tool is switched on straight away.
-    You then draw the side rails, cross members, diagonals and braces yourself.</li>
+    You then draw the side rails, cross members, diagonals and braces yourself. The grid is shown across the whole drawing area and snapping is switched on.</li>
 </ul>
 <p>You can change the shape and dimensions later at any time: click an empty spot or <span class="ui">Scenery › Baseboard</span>; the properties then show the
 baseboard dimensions. More about baseboard, modules and benchwork is in chapter <a href="#kp">7</a>.</p>
@@ -689,10 +689,18 @@ with battens and track. <span class="ui">Remove</span> in the window takes the b
 draws such battens freely: click the start and end. Baseboard corners, baseboard edges and other battens snap. If a brace starts at a module edge, its end snaps
 exactly onto the diagonal, vertically or horizontally below. The properties show the batten's width, height, length and top edge (negative = below the baseboard).
 The <b>arrow keys</b> move a selected batten by 1 mm, with <kbd>Shift</kbd> by 10 mm.</p>
-<h3>Laying a top board</h3>
-<p><span class="ui">Scenery › Lay top sheet</span> lays a top board on an open or self-drawn frame. It gets the outer dimensions of the drawn battens (without battens,
-the baseboard dimensions) and rests on the highest batten. In the properties you can type the top left corner, width, depth, thickness and top edge to the millimetre.
-<span class="ui">Fit to frame</span> places the board exactly over the frame again.</p>
+<p>Where nothing else snaps, battens snap to a <b>grid</b> of 10 mm. As soon as there are battens or top sheets in the plan, the grid is shown across the whole drawing area,
+not only on the baseboard.</p>
+<p><b>Several battens at once:</b> hold <kbd>Ctrl</kbd> or <kbd>Shift</kbd> and click further battens and top sheets, or drag a rectangle around them from an empty spot
+(on a tablet: long-press and drag). You can then move the selected parts together with the mouse or the arrow keys, copy or delete them, or put them on another level.
+When moved together they snap to baseboard corners, other battens and the grid.</p>
+<h3>Laying and removing top sheets</h3>
+<p><span class="ui">Scenery › Lay top sheet</span> lays the top sheets <b>automatically</b> following the outline and the frame: every connected area made of baseboard,
+modules and drawn battens gets one sheet, including special shapes such as the triangle between staggered modules and the diagonal. The sheet reaches to the middle of the
+outer battens; battens sticking out freely do not count. Sheets already laid are replaced; <span class="ui">Undo</span> brings them back.</p>
+<p>To draw a sheet of your own shape, use <span class="ui">Scenery › Draw top sheet</span>: click the corners (they snap like battens) and finally click the first corner
+again or choose <span class="ui">Done</span>. In the properties you can type position, width, depth, thickness and top edge to the millimetre; the area in m² is shown too.
+<span class="ui">Scenery › Remove all top sheets</span> takes all top sheets out of the plan so that only the frame is visible.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -958,6 +966,9 @@ Drill the holes for the threaded rods with a template so that all turns lie exac
 <div class="warn"><b>Caution</b>If the free height under the roadbed is tight, a warning appears in the list. Then increase the height per turn or use thinner timber.</div>
 <p><b>Cutting template as SVG:</b> this button in the timber list window saves every segment, board and splice plate as a separate drawing at full size (1:1),
 together in a ZIP file. Printed out, it serves as a template to stick on the wood; it is also suitable for plotters and CNC routers.</p>
+<p><b>Calling it up again later:</b> the settings of every helix you build are saved with the plan. <span class="ui">Tracks › Helix timber list…</span> shows the timber list
+and cutting templates again at any time, also after reloading. If there are several helixes in the plan, select a track of the one you want first; otherwise the one built
+last appears. Helixes from plans made with older program versions need to be built again once for this.</p>
 
 <h2 id="k7-7">Rib construction for the layout <span class="badge">PRO</span></h2>
 <p>In <b>open-frame construction</b> there is no continuous baseboard. Instead, vertical boards called <b>ribs</b> stand on the frame at regular intervals. Narrow
@@ -972,6 +983,10 @@ roadbed boards lie on them only where tracks run. This makes it easy to form hil
 </ul>
 <p>The result shows each rib with position, length, height, supports and cut-outs. It can be copied, saved as CSV and output as SVG:
 an overview and each rib as a 1:1 template, together in a ZIP file.</p>
+<p><b>Switching it on in the plan:</b> with <i>Switch on rib construction in the plan</i> (preset), rib construction becomes part of the plan: the dimensions are saved with
+the plan and are already filled in the next time you open the window. The <b>3D view</b> then shows the ribs with their cut-outs and the roadbed boards under the tracks;
+the frame sits lower by the set height for this, and the top board is left out. If tracks or heights change, the ribs in 3D adjust by themselves. To switch rib construction
+off again, clear the tick and click <span class="ui">Calculate</span>.</p>
 
 <h2 id="k7-8">Roadbed from selection <span class="badge">PRO</span></h2>
 <p>For a ramp or a freely routed line, <span class="ui">Tracks › Roadbed…</span> calculates the board under the selected tracks:</p>

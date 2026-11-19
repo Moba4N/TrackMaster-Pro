@@ -70,6 +70,7 @@
  ", Masse fehlt!": ", ground missing!",
  ", außen {0} %": ", outer {0} %",
  ", gültig bis {0:dd.MM.yyyy}": ", valid until {0:yyyy-MM-dd}",
+ ", Lizenznummer {0}": ", licence number {0}",
  ", kleinster Radius {0} mm": ", smallest radius {0} mm",
  ", ohne Adresse": ", no address",
  ", {0} Einspeisung(en)": ", {0} feed(s)",

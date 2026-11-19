@@ -3,7 +3,7 @@ using TrackMaster.Licensing.Management;
 
 // Lizenz-Werkzeug für den Hersteller von TrackMaster Pro.
 //   keygen  <ordner>                                   erzeugt trackmaster.private.pem und trackmaster.public.pem
-//   issue   <private.pem> <ausgabe.lic> --name "Max Muster" [--email a@b.de] [--expires 2027-12-31] [--machine <id>]
+//   issue   <private.pem> <ausgabe.lic> --name "Max Muster" [--email a@b.de] [--expires 2027-12-31] [--machine <id>] [--abo ja]
 //   verify  <datei.lic> [public.pem]
 //   machine                                            zeigt die Rechnerkennung dieses PCs
 
@@ -22,7 +22,7 @@ static int Usage()
         TrackMaster Pro Lizenz-Werkzeug
 
           keygen  <ordner>
-          issue   <private.pem> <ausgabe.lic> --name <Name> [--email <mail>] [--expires <JJJJ-MM-TT>] [--machine <id>]
+          issue   <private.pem> <ausgabe.lic> --name <Name> [--email <mail>] [--expires <JJJJ-MM-TT>] [--machine <id>] [--abo ja]
           verify  <datei.lic> [public.pem]
           machine
 
@@ -63,7 +63,8 @@ static int Issue(string[] args)
         }
         expires = d;
     }
-    var request = new LicenseRequest { Licensee = name, Email = options.GetValueOrDefault("email"), ExpiresOn = expires, MachineId = options.GetValueOrDefault("machine") };
+    var request = new LicenseRequest { Licensee = name, Email = options.GetValueOrDefault("email"), ExpiresOn = expires, MachineId = options.GetValueOrDefault("machine"),
+        Subscription = options.TryGetValue("abo", out var abo) && abo is "ja" or "yes" or "true" or "1" };
     try
     {
         var key = LoadedKey.FromFile(args[1]);
@@ -93,6 +94,7 @@ static int Verify(string[] args)
         Console.WriteLine($"Pakete: {string.Join(", ", l.Features.Select(Features.DisplayName))}");
         Console.WriteLine($"Gültig bis: {(l.ExpiresAt?.ToString("dd.MM.yyyy") ?? "unbefristet")}");
         if (l.MachineId is not null) Console.WriteLine($"Rechner: {l.MachineId}");
+        if (l.Subscription) Console.WriteLine("Abo-Lizenz (monatliche Abrechnung, „bezahlt bis“ in der Lizenz-Übersicht)");
     }
     return result.IsValid ? 0 : 3;
 }

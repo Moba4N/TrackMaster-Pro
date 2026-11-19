@@ -2822,5 +2822,7 @@
  "Verbindungen zum Gleis entfernen": "Remove track connections",
  "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back.",
  ", Abo bezahlt bis {0:dd.MM.yyyy}": ", subscription paid until {0:dd.MM.yyyy}",
- "Abo-Lizenz: Seit mehr als {0} Tagen nicht online geprüft. Für Pro das Gerät einmal mit dem Internet verbinden und „Jetzt aktivieren“ wählen.": "Subscription licence: not checked online for more than {0} days. For Pro, connect the device to the internet once and choose “Activate now”."
+ "Abo-Lizenz: Seit mehr als {0} Tagen nicht online geprüft. Für Pro das Gerät einmal mit dem Internet verbinden und „Jetzt aktivieren“ wählen.": "Subscription licence: not checked online for more than {0} days. For Pro, connect the device to the internet once and choose “Activate now”.",
+ "Pro kaufen": "Buy Pro",
+ "Pro gibt es als Kauflizenz (einmalig, unbefristet) oder als Abo mit monatlicher Abrechnung. „Pro kaufen“ öffnet die Bestellseite im Browser.": "Pro is available as a perpetual licence (one-off payment) or as a monthly subscription. “Buy Pro” opens the order page in your browser."
 }

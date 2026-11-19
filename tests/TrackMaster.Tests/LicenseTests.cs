@@ -106,6 +106,13 @@ public class LicenseTests
     }
 
     [Fact]
+    public void Bestellseite_fuer_Pro_ist_eingetragen()
+    {
+        Assert.StartsWith("https://", EditionInfo.BuyUrl);
+        Assert.EndsWith("pro-kaufen.php", EditionInfo.BuyUrl);
+    }
+
+    [Fact]
     public void Eingebauter_Schluessel_ist_lesbar()
     {
         using var rsa = System.Security.Cryptography.RSA.Create();

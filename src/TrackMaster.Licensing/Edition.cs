@@ -1,3 +1,4 @@
+using System.Reflection;
 using TrackMaster.Core;
 
 namespace TrackMaster.Licensing;
@@ -19,6 +20,14 @@ public static class Features
 /// <summary>Was Basis und Pro enthalten – für Lizenzdialog, Lizenzverwaltung und README.</summary>
 public static class EditionInfo
 {
+    /// <summary>Bestellseite für Pro (Kauf und Abo) aus den Programm-Metadaten (BuyUrl in Directory.Build.props); null = keine.</summary>
+    public static string? BuyUrl
+        => typeof(EditionInfo).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == "BuyUrl")?.Value is { Length: > 0 } url ? url : null;
+
+    /// <summary>Kurzer Hinweis, wo es Pro gibt.</summary>
+    public static string BuyHint => Lang.T("Pro gibt es als Kauflizenz (einmalig, unbefristet) oder als Abo mit monatlicher Abrechnung. „Pro kaufen“ öffnet die Bestellseite im Browser.");
+
     public static readonly string[] Basis =
     [
         Lang.T("Gleisplanung in allen Spuren (Z, N, TT, H0, 0, G) mit allen Gleissystemen"),

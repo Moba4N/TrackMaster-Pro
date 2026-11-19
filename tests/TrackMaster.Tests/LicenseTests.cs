@@ -93,6 +93,19 @@ public class LicenseTests
     }
 
     [Fact]
+    public void Abo_Lizenz_traegt_ihr_Kennzeichen_signiert_und_ohne_Rechnerbindung()
+    {
+        var (data, text) = LicenseIssuer.Issue(new LicenseRequest { Licensee = "Abo Kunde", Subscription = true }, Keys.Private, Now);
+        Assert.True(data.Subscription);
+        var check = LicenseCodec.Verify(text, Keys.Public, Now, null);
+        Assert.Equal(LicenseStatus.Valid, check.Status);
+        Assert.True(check.License!.Subscription);
+        Assert.Contains("\"subscription\": true", System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(System.Text.Json.JsonDocument.Parse(text).RootElement.GetProperty("payload").GetString()!)));
+        Assert.NotEmpty(LicenseIssuer.Validate(new LicenseRequest { Licensee = "X", Subscription = true, MachineId = "ABCDEFGH12" }, Now));
+        Assert.False(LicenseIssuer.Issue(new LicenseRequest { Licensee = "Kauf" }, Keys.Private, Now).Data.Subscription);
+    }
+
+    [Fact]
     public void Eingebauter_Schluessel_ist_lesbar()
     {
         using var rsa = System.Security.Cryptography.RSA.Create();

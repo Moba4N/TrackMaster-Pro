@@ -2851,5 +2851,7 @@
  "Holzliste Wendel…": "Helix timber list…",
  "Holzliste und Zuschnitt einer schon gebauten Gleiswendel noch einmal zeigen – die mit einem gewählten Gleis, sonst die zuletzt gebaute.": "Show the timber list and cutting plans of a helix you already built – the one with a selected track, otherwise the last one built.",
  "Im Plan ist keine Gleiswendel gespeichert. Wendeln aus älteren Plänen bitte einmal über „Gleiswendel…“ neu bauen.": "No helix is stored in the plan. For helixes from older plans, build them again once with “Helix…”.",
- "Im Plan liegen {0} Gleiswendeln – gezeigt wird die zuletzt gebaute. Für eine andere vorher eines ihrer Gleise wählen.": "The plan has {0} helixes – showing the last one built. For another one, select one of its tracks first."
+ "Im Plan liegen {0} Gleiswendeln – gezeigt wird die zuletzt gebaute. Für eine andere vorher eines ihrer Gleise wählen.": "The plan has {0} helixes – showing the last one built. For another one, select one of its tracks first.",
+ ", Abo bezahlt bis {0:dd.MM.yyyy}": ", subscription paid until {0:dd.MM.yyyy}",
+ "Abo-Lizenz: Seit mehr als {0} Tagen nicht online geprüft. Für Pro das Gerät einmal mit dem Internet verbinden und „Jetzt aktivieren“ wählen.": "Subscription licence: not checked online for more than {0} days. For Pro, connect the device to the internet once and choose “Activate now”."
 }

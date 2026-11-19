@@ -2169,6 +2169,10 @@
                 <div class="section">@Lang.T("Aktivierung")</div>
                 <div>@act</div>
             }
+            @if (!_license.IsPro && EditionInfo.BuyUrl is { } buy)
+            {
+                <div class="buy">@Hint(EditionInfo.BuyHint)<a class="btn accent" href="@buy" target="_blank" rel="noopener">@Lang.T("Pro kaufen")</a></div>
+            }
             <div class="section">@Lang.T("Basis")</div>
             <ul class="bullets">@foreach (var x in EditionInfo.Basis) { <li>@x</li> }</ul>
             <div class="section">@Lang.T("Pro")</div>
@@ -2212,6 +2216,10 @@
             <div class="strong">@Lang.F($"„{feature}“ gehört zu TrackMaster Pro.")</div>
             <div>@Lang.T("Pro enthält zusätzlich:")</div>
             <ul class="bullets">@foreach (var x in EditionInfo.Pro.Skip(1)) { <li>@x</li> }</ul>
+            @if (EditionInfo.BuyUrl is { } buy)
+            {
+                <div class="buy">@Hint(EditionInfo.BuyHint)<a class="btn accent" href="@buy" target="_blank" rel="noopener">@Lang.T("Pro kaufen")</a></div>
+            }
         </div>);
         d.Buttons.Add(new(Lang.T("Schließen"), () => true));
         d.Buttons.Add(new(Lang.T("Lizenz…"), () => { CloseAllDialogs(); ShowLicense(); return false; }, true));

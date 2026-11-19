@@ -181,4 +181,35 @@ public class LicenseActivationTests
             dir.Delete(true);
         }
     }
+
+    [Fact]
+    public async Task Abo_Lizenz_braucht_regelmaessig_die_Online_Pruefung_und_endet_ohne_Zahlung()
+    {
+        var abo = Data() with { Subscription = true };
+        var d = new Device { Server = _ => JsonSerializer.Serialize(new { status = "active", devices = 1, max = 2, paidUntil = "2026-12-01" }) };
+        Assert.Equal(ActivationState.Active, (await d.Activation.SyncAsync(abo, "lizenz")).State);
+        Assert.Contains("01.12.2026", d.Activation.Describe(abo));
+
+        // Offline: bis zu 30 Tage weiter Pro, danach nicht mehr (eine normale Lizenz bliebe aktiv)
+        d.Server = _ => throw new HttpRequestException("offline");
+        d.Now = Start.AddDays(LicenseActivation.SubscriptionOfflineDays - 1);
+        Assert.True(d.Activation.Allows(abo));
+        d.Now = Start.AddDays(LicenseActivation.SubscriptionOfflineDays + 1);
+        Assert.False(d.Activation.Allows(abo));
+        Assert.True(d.Activation.Allows(Data()));
+        Assert.Contains("nicht online geprüft", d.Activation.Describe(abo));
+        Assert.True(d.Activation.DueForSync(abo));
+
+        // Abo nicht bezahlt: Server meldet abgelaufen
+        d.Server = _ => Reply("blocked", message: "Das Abo dieser Lizenz ist am 01.12.2026 abgelaufen.");
+        var (state, message) = await d.Activation.SyncAsync(abo, "lizenz");
+        Assert.Equal(ActivationState.Refused, state);
+        Assert.Contains("abgelaufen", message);
+        Assert.True(d.Activation.DueForSync(abo));
+
+        // Nach der Zahlung: wieder aktiv
+        d.Server = _ => JsonSerializer.Serialize(new { status = "active", devices = 1, max = 2, paidUntil = "2027-01-01" });
+        Assert.Equal(ActivationState.Active, (await d.Activation.SyncAsync(abo, "lizenz")).State);
+        Assert.True(d.Activation.Allows(abo));
+    }
 }

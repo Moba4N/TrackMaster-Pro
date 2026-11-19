@@ -66,9 +66,33 @@ function tm_aufraeumen(array &$daten): void
         }
         $e['abgelehnt'] = array_values(array_filter($e['abgelehnt'] ?? [],
             fn($v) => $jetzt - (strtotime((string)($v['zeit'] ?? '')) ?: 0) <= TM_VERSUCH_FRIST_TAGE * 86400));
-        if (empty($e['geraete']) && empty($e['abgelehnt']) && empty($e['gesperrt']) && empty($e['max'])) unset($daten[$id]);
+        if (empty($e['geraete']) && empty($e['abgelehnt']) && empty($e['gesperrt']) && empty($e['max']) && empty($e['bezahlt_bis'])) unset($daten[$id]);
     }
     unset($e);
+}
+
+/** Nach Ablauf von „bezahlt bis“ läuft ein Abo noch so viele Tage weiter (Zahlung unterwegs). */
+const TM_ABO_NACHFRIST_TAGE = 3;
+
+/**
+ * Abo-Lizenz: Ende des bezahlten Zeitraums als Zeitstempel (Ende des Tages), sonst null (keine Abo-Lizenz).
+ * Ohne Eintrag „bezahlt bis“ gilt der erste Monat ab Ausstellung der Lizenz als bezahlt.
+ */
+function tm_abo_bis(array $lizenz, array $eintrag): ?int
+{
+    if (empty($lizenz['subscription'])) return null;
+    $bis = (string)($eintrag['bezahlt_bis'] ?? '');
+    if ($bis !== '' && ($t = strtotime($bis . ' 23:59:59'))) return $t;
+    $ausgestellt = strtotime((string)($lizenz['issuedAt'] ?? '')) ?: time();
+    return strtotime('+1 month', $ausgestellt);
+}
+
+/** Verlängert „bezahlt bis“ um einen Monat – ab dem bisherigen Ende oder, wenn das schon vorbei ist, ab heute. */
+function tm_abo_verlaengern(?string $bisher): string
+{
+    $basis = $bisher ? (strtotime($bisher . ' 12:00') ?: time()) : time();
+    if ($basis < time()) $basis = time();
+    return date('Y-m-d', strtotime('+1 month', $basis));
 }
 
 function tm_daten_lesen(): array

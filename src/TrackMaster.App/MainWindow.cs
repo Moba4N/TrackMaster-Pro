@@ -172,6 +172,7 @@ public sealed partial class MainWindow : Window
         Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
         Add("gradient", AskGradient, HasSelection);
         Add("helix", AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -184,6 +185,8 @@ public sealed partial class MainWindow : Window
         Add("toolDimension", () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", () => SetTool(CanvasTool.Beam));
         Add("addPlate", () => { SetTool(CanvasTool.Select); Session.AddPlate(); });
+        Add("toolPlate", () => SetTool(CanvasTool.Plate));
+        Add("removePlates", () => { SetTool(CanvasTool.Select); Session.RemoveAllPlates(); });
         foreach (var t in Enum.GetValues<PowerSourceType>())
         {
             var type = t;
@@ -585,6 +588,7 @@ public sealed partial class MainWindow : Window
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
         CanvasTool.Signal => Lang.T("Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder."),
         CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
+        CanvasTool.Plate => Lang.T("Platte zeichnen: Ecken anklicken – Plattenecken, Kanten, Leisten und das Raster rasten ein. Klick auf die erste Ecke, Doppelklick oder Eingabetaste legt die Platte auf. Esc bricht ab."),
         CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
         CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
         CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – rastet an Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben ein; ein Ende auf einem Gleis wird zur Einspeisung. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
@@ -852,8 +856,9 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
+                Small(Lang.T("Holzliste Wendel…"), "List", "helixMaterial", Lang.T("Holzliste und Zuschnitt einer schon gebauten Gleiswendel noch einmal zeigen – die mit einem gewählten Gleis, sonst die zuletzt gebaute.")),
                 Large(Lang.T("Höhen­profil"), "Profile", "profile", Lang.T("Höhe und Steigung entlang der gewählten Gleise als Diagramm.")),
-                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
+                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen. Eingeschaltet zeigt die 3D-Ansicht Spanten und Trassen.")),
                 Large(Lang.T("Trasse…"), "Ramp", "rampCut", Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")),
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
 
@@ -864,7 +869,9 @@ public sealed partial class MainWindow : Window
                 ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
                 Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt.")),
                 ToolToggle(Lang.T("Leiste ziehen"), "Beam", false, CanvasTool.Beam, "toolBeam", Lang.T("Einzelne Holzleiste frei ziehen, z. B. eine Diagonale unter versetzten Modulen und Streben dazu. Anfang und Ende anklicken; Kanten, Ecken und andere Leisten rasten ein.")),
-                Small(Lang.T("Platte auflegen"), "Plate", "addPlate", Lang.T("Deckplatte nach den Maßen der gezeichneten Leisten bzw. des Rahmens auf den Unterbau legen. Lage, Größe und Stärke in mm in den Eigenschaften; verschieben mit Maus oder Pfeiltasten."))),
+                Small(Lang.T("Platte auflegen"), "Plate", "addPlate", Lang.T("Deckplatten automatisch nach Grundriss und Rahmen auflegen: sie folgen dem Umriss der Anlage (auch L, U und Module) und füllen, was gezogene Leisten einschließen, z. B. das Dreieck an einer Diagonale. Vorhandene Platten werden ersetzt.")),
+                ToolToggle(Lang.T("Platte zeichnen"), "Plate", false, CanvasTool.Plate, "toolPlate", Lang.T("Platte in Sonderform auflegen, z. B. das Dreieck zwischen versetzten Modulen und der Diagonale: Ecken anklicken, Klick auf die erste Ecke oder Doppelklick schließt ab. Ecken rasten an Platte, Leisten und Raster ein.")),
+                Small(Lang.T("Alle Platten entfernen"), "Delete", "removePlates", Lang.T("Aufgelegte Platten und die Platte des Unterbaus weglassen, damit nur der Rahmen zu sehen ist. Rückgängig holt sie zurück."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),
@@ -1706,9 +1713,18 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void ShowHelixAgain()
+    {
+        if (Session.HelixMaterialAgain() is not { } material) return;
+        Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv),
+            cut => ExportSvgFiles(Lang.T("Zuschnitt speichern"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel"), cut.ToSvgFiles(SafeName)));
+    }
+
     private void AskFrame()
     {
-        if (Dialogs.AskFrame(this, Session.Plan.Gauge) is not { } spec) return;
+        if (Dialogs.AskFrame(this, Session.Plan.Gauge, Session.Plan.Frame) is not { } ask) return;
+        var spec = ask.Spec;
+        Session.SetFrame(ask.Use ? spec : null);
         var f = FrameBuild.Build(Session.Plan, spec);
         Dialogs.ShowFrame(this, f,
             () => ExportSvgFiles(Lang.T("Spanten als SVG speichern"), Lang.F($"{SafeName} – Spanten"), f.ToSvgFiles(SafeName)),

@@ -1689,6 +1689,8 @@
  "Oval (mit Geraden an den Längsseiten)": "Oval (with straights on the long sides)",
  "Oval mit Abstellgleis": "Oval with siding",
  "Oval mit Ausweiche": "Oval with passing loop",
+ "Oval mit Ausweiche und Abstellgleis": "Oval with passing loop and siding",
+ "Rundkurs {0}, Ausweichgleis ({1} mm) und Abstellgleis ({2} mm Gerade)": "Loop {0}, passing track ({1} mm) and siding ({2} mm straight)",
  "Oval mit zwei Abstellgleisen": "Oval with two sidings",
  "Ovale": "Oval",
  "PNG-Bild (*.png)|*.png": "PNG image (*.png)|*.png",

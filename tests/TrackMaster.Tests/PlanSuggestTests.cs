@@ -199,6 +199,37 @@ public class PlanSuggestTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void LeftAndRightTurnoutsAreBothUsed()
+    {
+        // Eine linke und eine rechte Weiche: beide werden verbaut, keine wird gespiegelt
+        var board = new LayoutPlan { GaugeId = "H0", BoardWidth = 2400, BoardHeight = 1200 };
+        var stock = new Dictionary<string, int>
+        {
+            ["H0|mc|24611"] = 1, ["H0|mc|24612"] = 1, ["H0|mc|24130"] = 12, ["H0|mc|24188"] = 14, ["H0|mc|24172"] = 4,
+            ["H0|mc|24977"] = 2, ["H0|mc|24224"] = 2,
+        };
+        var list = PlanSuggest.Build(board, stock);
+        AssertValid(board, stock, list);
+        Assert.All(list.SelectMany(s => s.Pieces).Where(p => p.Def.Kind == PieceKind.Switch), p => Assert.False(p.Flipped));
+        Assert.Contains(list, s => s.Name == "Oval mit zwei Abstellgleisen" && s.Counts.ContainsKey("H0|mc|24611") && s.Counts.ContainsKey("H0|mc|24612"));
+        Assert.Contains(list, s => s.Name == "Oval mit Ausweiche" && s.Counts.ContainsKey("H0|mc|24611") && s.Counts.ContainsKey("H0|mc|24612"));
+    }
+
+    [Fact]
+    public void MoreTurnoutsGiveLoopAndSiding()
+    {
+        var board = new LayoutPlan { GaugeId = "H0", BoardWidth = 2400, BoardHeight = 1200 };
+        var stock = new Dictionary<string, int>
+        {
+            ["H0|mc|24611"] = 2, ["H0|mc|24612"] = 2, ["H0|mc|24130"] = 12, ["H0|mc|24188"] = 14, ["H0|mc|24172"] = 4,
+            ["H0|mc|24071"] = 4, ["H0|mc|24064"] = 4, ["H0|mc|24977"] = 2, ["H0|mc|24224"] = 4,
+        };
+        var list = PlanSuggest.Build(board, stock);
+        AssertValid(board, stock, list);
+        Assert.Contains(list, s => s.Name == "Oval mit Ausweiche und Abstellgleis" && s.Pieces.Count(p => p.Def.Kind == PieceKind.Switch) == 3);
+    }
+
+    [Fact]
     public void ShortSpacersAreNoCollision()
     {
         // Gerade, zwei kurze Ausgleichsstücke (8 + 2 mm), Bogen: die Planprüfung darf Gerade und Bogen nicht als Kollision melden

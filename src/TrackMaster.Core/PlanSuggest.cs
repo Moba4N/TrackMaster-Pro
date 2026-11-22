@@ -91,6 +91,7 @@ public static class PlanSuggest
             Add(b.OvalWithLoop(r));
             Add(b.FigureEight(r));
         }
+        foreach (var s in b.Extra) Add(s);
         var groups = b.RadiusGroups();
         for (var i = 0; i < groups.Count; i++)
             for (var j = i + 1; j < groups.Count; j++)
@@ -109,6 +110,8 @@ public static class PlanSuggest
         private readonly List<Curve> _curves;
         private readonly List<Turnout> _turnouts;
         private readonly List<string> _buffers;
+        /// <summary>Weichengruppe (Schlüssel des ersten Teils) → Teile mit Ausführung (+1 rechts / −1 links) und Bestand.</summary>
+        private readonly Dictionary<string, List<(string Key, int Hand, int Stock)>> _hands = [];
         private readonly List<(string Key, (double Radius, double Angle, double Straight) Shape)> _curvedTurnouts;
         private readonly List<TrackPieceDef> _crossings;
         private readonly BoardRect _area;
@@ -127,6 +130,13 @@ public static class PlanSuggest
             _stock = stock;
             _flex = flex;
             _flexBudget = flexBudget;
+            // Linke und rechte Ausführung derselben Weiche zählen beim Planen zusammen; welche wo liegt, entscheidet Finish
+            foreach (var g in stock.Keys.Select(Catalog.Get).Where(d => d.Kind == PieceKind.Switch && d.IsPlainTurnout).GroupBy(TurnoutShape).ToList())
+            {
+                var rep = g.First().Key;
+                _hands[rep] = g.Select(d => (d.Key, Hand(d, false), stock[d.Key])).ToList();
+                foreach (var d in g.Skip(1)) { stock[rep] += stock[d.Key]; stock.Remove(d.Key); }
+            }
             var defs = stock.Keys.Select(Catalog.Get).ToList();
             _straights = defs.Where(d => d.Kind == PieceKind.Straight).Select(d => new Straight(d.Key, d.Length)).OrderByDescending(s => s.Length).ToList();
             _curves = defs.Where(d => d.Kind == PieceKind.Curve).Select(d => new Curve(d.Key, d.Radius, d.Angle)).ToList();
@@ -287,11 +297,64 @@ public static class PlanSuggest
             public PlacedPiece Last => Plan.Pieces[^1];
         }
 
+        /// <summary>Lage des Abzweigs: +1 auf der einen, −1 auf der anderen Seite (gespiegelt umgekehrt).</summary>
+        private static int Hand(TrackPieceDef d, bool flipped) => Math.Sign(TrackGeometry.LocalConnectors(d, flipped)[2].Y);
+
+        /// <summary>Form einer Weiche ohne Seite: linke und rechte Ausführung ergeben dieselbe Form.</summary>
+        private static (double, double, double, double) TurnoutShape(TrackPieceDef d)
+        {
+            var c = TrackGeometry.LocalConnectors(d, false);
+            return (Math.Round(c[1].X, 1), Math.Round(c[2].X, 1), Math.Round(Math.Abs(c[2].Y), 1), Math.Round(Math.Abs(Angles.Normalize(c[2].Heading)), 1));
+        }
+
+        /// <summary>
+        /// Setzt für jede Weiche die Ausführung (links/rechts) ein, die an ihrer Stelle gebraucht wird, statt eine Weiche zu spiegeln.
+        /// Reicht der Bestand so nicht, wird die ganze Anlage gespiegelt (dann tauschen links und rechts). false, wenn beides nicht geht.
+        /// </summary>
+        private bool AssignHands(List<PlacedPiece> pieces)
+        {
+            var sw = pieces.Where(p => _hands.ContainsKey(p.Key)).ToList();
+            if (sw.Count == 0) return true;
+            bool Fits(int sign) => sw.GroupBy(p => p.Key).All(g =>
+            {
+                var members = _hands[g.Key];
+                var plus = g.Count(p => Hand(p.Def, p.Flipped) * sign > 0);
+                return members.Where(m => m.Hand > 0).Sum(m => m.Stock) >= plus && members.Where(m => m.Hand < 0).Sum(m => m.Stock) >= g.Count() - plus;
+            });
+            if (!Fits(1))
+            {
+                if (!Fits(-1)) return false;
+                // an der x-Achse spiegeln: Anschluss 0 bleibt Bezug, gespiegelte Teile wechseln die Seite
+                foreach (var p in pieces)
+                {
+                    var c = p.WorldConnectors()[0];
+                    if (p.Def.CanFlip) p.Flipped = !p.Flipped;
+                    PlanEditing.PlaceAt(p, 0, c.X, -c.Y, -c.Heading - 180);
+                }
+            }
+            foreach (var g in sw.GroupBy(p => p.Key).ToList())
+            {
+                var left = _hands[g.Key].ToDictionary(m => m.Key, m => m.Stock);
+                foreach (var p in g)
+                {
+                    var hand = Hand(p.Def, p.Flipped);
+                    var key = _hands[g.Key].First(m => m.Hand == hand && left[m.Key] > 0).Key;
+                    left[key]--;
+                    if (key == p.Key && !p.Flipped) continue;
+                    var c = p.WorldConnectors()[0];
+                    p.Key = key;
+                    p.Flipped = false;
+                    PlanEditing.PlaceAt(p, 0, c.X, c.Y, c.Heading - 180);
+                }
+            }
+            return true;
+        }
+
         /// <summary>Richtet die Anlage aus (lange Seite der Platte), mittig auf die Platte, und prüft: geschlossen, auf der Platte, keine Fehler.</summary>
         private PlanSuggestion? Finish(Layer layer, string name, string description)
         {
             var pieces = layer.Plan.Pieces;
-            if (pieces.Count == 0) return null;
+            if (pieces.Count == 0 || !AssignHands(pieces)) return null;
             var (x0, y0, x1, y1) = Extent(pieces);
             var areaW = _area.X1 - _area.X0;
             var areaH = _area.Y1 - _area.Y0;
@@ -366,12 +429,16 @@ public static class PlanSuggest
             return Finish(layer, Lang.T("Oval"), Lang.F($"Einfacher Rundkurs, {Size(radius)}"));
         }
 
-        /// <summary>Weiche (zweigt nach innen ab), Gegenbogen, Geraden, Prellbock. Gibt das Ende des Hauptgleises zurück.</summary>
-        private Pose Siding(Layer layer, Pose at, Turnout t, IReadOnlyList<string> counter, IReadOnlyList<string> straights, string buffer)
+        /// <summary>
+        /// Weiche (zweigt nach innen ab), Gegenbogen, Geraden, Prellbock. Gibt das Ende des Hauptgleises zurück.
+        /// <paramref name="trailing"/>: Die Weiche wird von der Herzstückseite befahren, das Abstellgleis zeigt zurück
+        /// (braucht die andere Ausführung, links statt rechts).
+        /// </summary>
+        private Pose Siding(Layer layer, Pose at, Turnout t, IReadOnlyList<string> counter, IReadOnlyList<string> straights, string buffer, bool trailing = false)
         {
-            var sw = layer.Lay(t.Key, at, turnRight: true);
+            var sw = trailing ? layer.Lay(t.Key, at, turnRight: false, entry: 1, exit: 0) : layer.Lay(t.Key, at, turnRight: true);
             var branch = layer.Last.WorldConnectors()[2];
-            var e = layer.Chain(branch, counter, turnRight: false);
+            var e = layer.Chain(branch, counter, turnRight: trailing);
             e = layer.Chain(e, straights);
             layer.Lay(buffer, e);
             return sw;
@@ -434,15 +501,18 @@ public static class PlanSuggest
                 }
                 var angled = counter.Count == 0;
                 // Abstellgleis so lang wie möglich, bis es passt
+                // Bei zwei Abstellgleisen: entweder beide gleich, oder das zweite am Ende der Gegenseite zurückzeigend (eine linke und eine rechte Weiche)
                 for (var max = LongSide; max >= 0; max -= Math.Max(LongSide / 12, 20))
+                foreach (var trailing in count == 2 ? new[] { false, true } : [false])
                 {
                     var stub = Fill(sideUsed, count, max);
                     var layer = new Layer(_board.GaugeId);
                     var e = Siding(layer, new Pose(0, 0, 0), t, counter, stub, buffer);
                     e = layer.Chain(e, side);
                     e = layer.Chain(e, half, true);
-                    e = count == 2 ? Siding(layer, e, t, counter, stub, buffer) : e;
+                    e = count == 2 && !trailing ? Siding(layer, e, t, counter, stub, buffer) : e;
                     e = layer.Chain(e, other);
+                    if (trailing) e = Siding(layer, e, t, counter, stub, buffer, trailing: true);
                     layer.Chain(e, half, true);
                     var name = count == 1 ? Lang.T("Oval mit Abstellgleis") : Lang.T("Oval mit zwei Abstellgleisen");
                     var where = angled ? Lang.T("schräg innen") : Lang.T("innen");
@@ -453,9 +523,10 @@ public static class PlanSuggest
                     {
                         if (best is null || s.Used > best.Used) best = s;
                         if (parallel) parallelDone.Add(t.Key);
-                        break;
+                        goto nextTurnout;
                     }
                 }
+                nextTurnout:;
             }
             return best;
         }
@@ -604,12 +675,64 @@ public static class PlanSuggest
                         e = layer.Chain(e, side);
                         layer.Chain(e, half, true);
                         var r = Finish(layer, Lang.T("Oval mit Ausweiche"), Lang.F($"Rundkurs {Size(radius)}, Ausweichgleis innen ({Fmt.Num(Length(loop), 0)} mm Gerade)"));
-                        if (r is not null && (best is null || r.Used > best.Used)) best = r;
-                        if (r is not null) goto nextTurnout;
+                        if (r is null) continue;
+                        if (best is null || r.Used > best.Used) best = r;
+                        // Mit weiteren Weichen: auf der Gegenseite zusätzlich ein Abstellgleis
+                        if (LoopWithSiding(radius, used, loop, main, side, half, blockLength, LayLoop) is { } more) Extra.Add(more);
+                        goto nextTurnout;
                     }
                 nextTurnout:;
             }
             return best;
+        }
+
+        /// <summary>Weitere Vorschläge, die beim Bauen nebenbei entstehen (Ausweiche mit Abstellgleis).</summary>
+        public List<PlanSuggestion> Extra { get; } = [];
+
+        private delegate Pose LoopLayer(Layer layer, IReadOnlyList<string> loop, out Pose mainStart, out Pose mainEnd);
+
+        /// <summary>Oval mit Ausweiche wie in <see cref="OvalWithLoop"/>, auf der Gegenseite statt der Ausgleichsgeraden ein Abstellgleis nach innen.</summary>
+        private PlanSuggestion? LoopWithSiding(double radius, Dictionary<string, int> loopUsed, List<string> loop, List<string> main, List<string> side,
+            List<string> half, double blockLength, LoopLayer layLoop)
+        {
+            if (_buffers.Count == 0) return null;
+            foreach (var t in _turnouts)
+            foreach (var parallel in new[] { true, false })
+            {
+                var used = new Dictionary<string, int>(loopUsed);
+                if (Avail(t.Key, used) < 1) continue;
+                Use(used, [t.Key]);
+                List<string> counter = [];
+                if (parallel)
+                {
+                    if (CounterArc(t, used, 1) is not { } arc) continue;
+                    counter = arc;
+                }
+                Use(used, counter);
+                var buffer = _buffers.FirstOrDefault(k => Avail(k, used) >= 1);
+                if (buffer is null) continue;
+                Use(used, [buffer]);
+                // Gegenseite: Weiche plus Geraden so lang wie Ausweichblock plus Seite
+                if (blockLength + Length(side) - t.Length is var rest && rest < 0) continue;
+                if (ExactStraight(rest, used, tolerance: 0.6, budget: 20_000) is not { } other) continue;
+                Use(used, other);
+                for (var max = Length(other); max >= 0; max -= Math.Max(LongSide / 12, 20))
+                {
+                    var stub = Fill(used, 1, max);
+                    var layer = new Layer(_board.GaugeId);
+                    var swB = layLoop(layer, loop, out var a1, out _);
+                    layer.Chain(a1, main);
+                    var e = layer.Chain(swB, side);
+                    e = layer.Chain(e, half, true);
+                    e = Siding(layer, e, t, counter, stub, buffer);
+                    e = layer.Chain(e, other);
+                    layer.Chain(e, half, true);
+                    var s = Finish(layer, Lang.T("Oval mit Ausweiche und Abstellgleis"),
+                        Lang.F($"Rundkurs {Size(radius)}, Ausweichgleis ({Fmt.Num(Length(loop), 0)} mm) und Abstellgleis ({Fmt.Num(Length(stub), 0)} mm Gerade)"));
+                    if (s is not null) return s;
+                }
+            }
+            return null;
         }
 
         /// <summary>Zwei Ovale ineinander (zweigleisige Strecke).</summary>

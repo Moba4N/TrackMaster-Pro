@@ -90,4 +90,113 @@ public class PlanSuggestTests(ITestOutputHelper output)
         s.Undo();
         Assert.Single(s.Plan.Pieces);
     }
+
+    /// <summary>Prüft jeden Vorschlag: Bestand eingehalten (feste Teile), geschlossen, auf der Platte, ohne Fehler.</summary>
+    private static void AssertValid(LayoutPlan board, IReadOnlyDictionary<string, int> stock, IReadOnlyList<PlanSuggestion> list)
+    {
+        foreach (var s in list)
+        {
+            foreach (var (key, n) in s.Counts)
+                if (!Catalog.Get(key).IsFlex) Assert.True(n <= stock[key], $"{s.Name}: {key} {n} > {stock[key]}");
+            var plan = new LayoutPlan { GaugeId = board.GaugeId, BoardWidth = board.BoardWidth, BoardHeight = board.BoardHeight };
+            plan.Pieces.AddRange(s.Pieces);
+            Assert.Empty(Connectivity.Analyze(plan).Open);
+            Assert.DoesNotContain(PlanCheck.Run(plan), i => i.Level == IssueLevel.Fehler);
+        }
+    }
+
+    /// <summary>Typischer Bestand eines Systems: Bögen der zwei kleinsten Radien, Geraden, je Weiche zwei, Prellböcke.</summary>
+    private static (LayoutPlan Board, Dictionary<string, int> Stock) Typical(string systemId, int flexBars = 0)
+    {
+        var (gauge, system) = Catalog.Gauges.SelectMany(g => g.Systems.Select(s => (g, s))).First(x => x.s.Id == systemId);
+        var usable = system.Pieces.Where(PlanSuggest.IsUsable).ToList();
+        var radii = usable.Where(d => d.Kind == PieceKind.Curve).Select(d => Math.Round(d.Radius, 1)).Distinct().Order().Take(2).ToList();
+        var stock = usable.Where(d => d.Kind != PieceKind.Crossing).ToDictionary(d => d.Key, d => d.Kind switch
+        {
+            PieceKind.Curve => radii.Contains(Math.Round(d.Radius, 1)) ? 24 : 4,
+            PieceKind.Straight => 12,
+            _ => 2,
+        });
+        if (flexBars > 0) stock[PlanSuggest.FlexStockKey(Catalog.Flex(gauge, system).SystemId)] = flexBars;
+        var r = radii.DefaultIfEmpty(gauge.TrackWidth * 30).Max();
+        return (new LayoutPlan { GaugeId = gauge.Id, BoardWidth = Math.Round(r * 5.5), BoardHeight = Math.Round(r * 2.8) }, stock);
+    }
+
+    [Theory]
+    [InlineData("rf-n")]      // Weichen mit Abzweig plus Gerade (Stränge), fehlten bisher ganz
+    [InlineData("minitrix")]
+    [InlineData("mk")]        // Prellbock fehlte im Katalog
+    [InlineData("lgb")]
+    [InlineData("tillig-h0")] // kein Bogen im Weichenwinkel: Abstellgleis schräg
+    [InlineData("rocoline")]  // kurze Ausgleichsstücke D2–D12
+    public void EverySystemGivesSidings(string systemId)
+    {
+        var (board, stock) = Typical(systemId);
+        var list = PlanSuggest.Build(board, stock);
+        Dump(list);
+        Assert.Contains(list, s => s.Name == "Oval");
+        Assert.Contains(list, s => s.Name == "Oval mit Abstellgleis");
+        Assert.Contains(list, s => s.Name == "Oval mit zwei Abstellgleisen");
+        AssertValid(board, stock, list);
+    }
+
+    [Theory]
+    [InlineData("peco-55-n")]
+    [InlineData("weinert")]
+    [InlineData("tillig-h0m")]
+    public void FlexOnlySystemsUseFlexTrack(string systemId)
+    {
+        // Ohne Flexgleis gibt es keine Bögen und damit keinen Vorschlag
+        var (board, stock) = Typical(systemId);
+        Assert.Empty(PlanSuggest.Build(board, stock));
+        (board, stock) = Typical(systemId, flexBars: 20);
+        var list = PlanSuggest.Build(board, stock);
+        Dump(list);
+        Assert.Contains(list, s => s.Name == "Oval mit Abstellgleis");
+        Assert.Contains(list, s => s.Name == "Oval mit Ausweiche");
+        Assert.All(list, s => Assert.Contains("Flexgleis", s.Description));
+        AssertValid(board, stock, list);
+        // nie mehr Flexgleis als die Stangen (mit 5 % Verschnitt) hergeben
+        var bar = Catalog.Flex(Catalog.GetGauge(board.GaugeId), Catalog.GetSystem(board.GaugeId, systemId)).Length;
+        Assert.All(list, s => Assert.True(s.Pieces.Where(p => p.Def.IsFlex).Sum(p => p.Def.TrackLength) <= 20 * bar * 0.95));
+    }
+
+    [Fact]
+    public void FlexBudgetLimitsLayout()
+    {
+        // Zwei Stangen reichen für kein Oval in H0
+        var (board, stock) = Typical("weinert", flexBars: 2);
+        Assert.Empty(PlanSuggest.Build(board, stock));
+    }
+
+    [Fact]
+    public void TurnoutsWithPathsAreOffered()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("N", BoardShape.Rechteck, 1500, 800, 400, 0));
+        s.SelectSystem("rf-n");
+        Assert.Contains(s.SuggestPieces(), p => p.Def.Number == "22261");
+        // Bogen- und Dreiwegweichen werden genannt, aber nicht verbaut
+        Assert.Contains(s.SuggestUnused(), d => d.Number == "22273");
+        Assert.Contains(s.SuggestUnused(), d => d.Number == "22247");
+        Assert.NotEmpty(s.SuggestFlex());
+    }
+
+    [Fact]
+    public void ShortSpacersAreNoCollision()
+    {
+        // Gerade, zwei kurze Ausgleichsstücke (8 + 2 mm), Bogen: die Planprüfung darf Gerade und Bogen nicht als Kollision melden
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2000, 1250, 600, 0));
+        foreach (var nr in new[] { "42410", "98003", "98000", "42423", "42423" }) s.Attach("H0|rocoline|" + nr, (300, 300));
+        Assert.Equal(5, s.Plan.Pieces.Count);
+        Assert.DoesNotContain(PlanCheck.Run(s.Plan), i => i.Category == "Kollision");
+    }
+
+    [Theory]
+    [InlineData("mk")]
+    [InlineData("lgb")]
+    public void EverySystemHasBufferStop(string systemId)
+        => Assert.Contains(Catalog.Gauges.SelectMany(g => g.Systems).First(x => x.Id == systemId).Pieces, d => d.Kind == PieceKind.Buffer);
 }
+

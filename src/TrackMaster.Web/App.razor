@@ -2537,6 +2537,8 @@
         _suggestions = null;
         foreach (var (def, stock) in _session.SuggestPieces())
             _d["n|" + def.Key] = _suggestCounts.TryGetValue(def.Key, out var v) ? v : stock > 0 ? stock.ToString() : "";
+        foreach (var f in _session.SuggestFlex())
+            _d["n|" + PlanSuggest.FlexStockKey(f.SystemId)] = _suggestCounts.GetValueOrDefault(PlanSuggest.FlexStockKey(f.SystemId), "");
         _d["replace"] = "1";
         var d = Show(Lang.T("Planvorschlag"), SuggestBody, wide: true, keepFields: true);
         d.Buttons.Add(new(Lang.T("Schließen"), () => true));
@@ -2544,13 +2546,15 @@
         {
             var counts = new Dictionary<string, int>();
             var errors = new List<string>();
-            foreach (var (def, _) in _session.SuggestPieces())
+            var entries = _session.SuggestPieces().Select(p => (p.Def.Key, p.Def.Number))
+                .Concat(_session.SuggestFlex().Select(f => (PlanSuggest.FlexStockKey(f.SystemId), f.Number)));
+            foreach (var (key, number) in entries)
             {
-                var t = D("n|" + def.Key).Trim();
-                _suggestCounts[def.Key] = t;
+                var t = D("n|" + key).Trim();
+                _suggestCounts[key] = t;
                 if (t.Length == 0) continue;
-                if (int.TryParse(t, out var n) && n >= 0 && n <= 999) { if (n > 0) counts[def.Key] = n; }
-                else errors.Add(Lang.F($"{def.Number}: Anzahl bitte als ganze Zahl eingeben."));
+                if (int.TryParse(t, out var n) && n >= 0 && n <= 999) { if (n > 0) counts[key] = n; }
+                else errors.Add(Lang.F($"{number}: Anzahl bitte als ganze Zahl eingeben."));
             }
             if (counts.Count == 0) errors.Add(Lang.T("Bitte bei mindestens einem Gleis eine Anzahl eintragen."));
             if (!Fail(errors)) return false;
@@ -2609,28 +2613,35 @@
     private RenderFragment SuggestBody => @<div class="form">
         @{
             var pieces = _session.SuggestPieces();
+            var flexes = _session.SuggestFlex();
+            var unused = _session.SuggestUnused();
             var plan = _session.Plan;
         }
         @Hint(Lang.F($"Trag ein, wie viele Gleise von jeder Sorte du hast – leer oder 0 heißt keins. Das Programm baut daraus kleine Anlagen, die auf die Platte ({Fmt.Num(plan.BoardWidth, 0)} × {Fmt.Num(plan.BoardHeight, 0)} mm) passen, geschlossen sind und die Planprüfung bestehen. Gleissystem: {_session.CurrentSystem.Name} (in der Gleisbibliothek umschalten)."))
-        @if (pieces.Count == 0)
+        <div class="suggest-stock">
+            <table class="table bom">
+                <tr><th>@Lang.T("Anzahl")</th><th>@Lang.T("Artikel")</th></tr>
+                @foreach (var (def, _) in pieces)
+                {
+                    var key = def.Key;
+                    <tr>
+                        <td><input class="input tiny" inputmode="numeric" placeholder="0" @bind='_d["n|" + key]' @bind:event="oninput" /></td>
+                        <td><div>@($"{def.Number} · {def.Name}")</div><div class="secondary">@def.Spec</div></td>
+                    </tr>
+                }
+                @foreach (var f in flexes)
+                {
+                    var key = PlanSuggest.FlexStockKey(f.SystemId);
+                    <tr>
+                        <td><input class="input tiny" inputmode="numeric" placeholder="0" @bind='_d["n|" + key]' @bind:event="oninput" /></td>
+                        <td><div>@($"{f.Number} · {Lang.T("Flexgleis")}")</div><div class="secondary">@Lang.F($"Stangen à {Fmt.Num(f.Length, 0)} mm ({f.Name}); daraus schneidet der Vorschlag Bögen und Geraden zu")</div></td>
+                    </tr>
+                }
+            </table>
+        </div>
+        @if (unused.Count > 0)
         {
-            <div>@Lang.T("Dieses Gleissystem hat keine Gleise, aus denen sich ein Vorschlag bauen lässt.")</div>
-        }
-        else
-        {
-            <div class="suggest-stock">
-                <table class="table bom">
-                    <tr><th>@Lang.T("Anzahl")</th><th>@Lang.T("Artikel")</th></tr>
-                    @foreach (var (def, _) in pieces)
-                    {
-                        var key = def.Key;
-                        <tr>
-                            <td><input class="input tiny" inputmode="numeric" placeholder="0" @bind='_d["n|" + key]' @bind:event="oninput" /></td>
-                            <td><div>@($"{def.Number} · {def.Name}")</div><div class="secondary">@def.Spec</div></td>
-                        </tr>
-                    }
-                </table>
-            </div>
+            @Hint(Lang.F($"Noch nicht im Vorschlag verbaut: {string.Join(", ", unused.Select(d => $"{d.Number} {d.Name}"))}. Diese Teile setzt du nach dem Übernehmen von Hand ein."))
         }
         @if (plan.Pieces.Count > 0)
         {

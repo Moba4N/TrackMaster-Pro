@@ -186,6 +186,13 @@ public sealed partial class PlanSession
     public IReadOnlyList<(TrackPieceDef Def, int Stock)> SuggestPieces()
         => CurrentSystem.Pieces.Where(PlanSuggest.IsUsable).Select(d => (d, Plan.Stock.GetValueOrDefault(d.Key))).ToList();
 
+    /// <summary>Flexgleise, die der Planvorschlag zu Bögen und Geraden zuschneiden kann (Schlüssel für den Bestand: <see cref="PlanSuggest.FlexStockKey"/>).</summary>
+    public IReadOnlyList<FlexStock> SuggestFlex() => Catalog.Flexes(Plan.Gauge, Catalog.IsFlexSystem(CurrentSystem.Id) ? null : CurrentSystem);
+
+    /// <summary>Teile des aktuellen Gleissystems, die der Planvorschlag (noch) nicht verbaut, z. B. Bogen- und Dreiwegweichen.</summary>
+    public IReadOnlyList<TrackPieceDef> SuggestUnused()
+        => CurrentSystem.Pieces.Where(d => !d.IsFlex && !d.IsTable && !PlanSuggest.IsUsable(d)).ToList();
+
     /// <summary>Übernimmt einen Vorschlag in den Plan (rückgängig machbar). <paramref name="replace"/> entfernt vorher alle Gleise.</summary>
     public void ApplySuggestion(PlanSuggestion suggestion, bool replace)
     {

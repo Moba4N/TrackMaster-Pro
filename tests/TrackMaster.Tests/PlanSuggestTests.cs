@@ -176,10 +176,26 @@ public class PlanSuggestTests(ITestOutputHelper output)
         s.NewPlan(new BoardSetup("N", BoardShape.Rechteck, 1500, 800, 400, 0));
         s.SelectSystem("rf-n");
         Assert.Contains(s.SuggestPieces(), p => p.Def.Number == "22261");
-        // Bogen- und Dreiwegweichen werden genannt, aber nicht verbaut
+        // Bogenweichen mit zwei Radien und Dreiwegweichen werden genannt, aber nicht verbaut
         Assert.Contains(s.SuggestUnused(), d => d.Number == "22273");
         Assert.Contains(s.SuggestUnused(), d => d.Number == "22247");
         Assert.NotEmpty(s.SuggestFlex());
+    }
+
+    [Theory]
+    [InlineData("mc")]
+    [InlineData("tc")]
+    public void CurvedTurnoutsGiveSidings(string systemId)
+    {
+        // Nur Bogenweichen (C-Gleis R1, 30° mit 77,5 mm Gerade) im Bestand: das Abstellgleis zweigt im Bogen ab
+        var (board, stock) = Typical(systemId);
+        foreach (var k in stock.Keys.Where(k => Catalog.Get(k) is { Kind: PieceKind.Switch } d && PlanSuggest.CurvedTurnout(d) is null).ToList()) stock.Remove(k);
+        var curved = stock.Keys.Where(k => Catalog.Get(k).Kind == PieceKind.Switch).ToList();
+        Assert.Equal(4, curved.Count);
+        var list = PlanSuggest.Build(board, stock);
+        AssertValid(board, stock, list);
+        Assert.Contains(list, s => s.Name == "Oval mit Abstellgleis" && s.Counts.Keys.Any(curved.Contains));
+        Assert.Contains(list, s => s.Name == "Oval mit zwei Abstellgleisen" && s.Counts.Keys.Count(curved.Contains) >= 1);
     }
 
     [Fact]

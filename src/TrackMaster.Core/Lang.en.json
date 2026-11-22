@@ -1868,6 +1868,8 @@
  "schräg innen": "angled inside",
  "Rundkurs {0}, Ausweichgleis innen ({1} mm Gerade)": "Loop {0}, passing track inside ({1} mm straight)",
  "Rundkurs {0}, zwei Abstellgleise {1} ({2} mm Gerade)": "Loop {0}, two sidings {1} ({2} mm straight)",
+ "Rundkurs {0}, Abstellgleis an einer Bogenweiche ({1} mm Gerade)": "Loop {0}, siding at a curved turnout ({1} mm straight)",
+ "Rundkurs {0}, zwei Abstellgleise an Bogenweichen ({1} mm Gerade)": "Loop {0}, two sidings at curved turnouts ({1} mm straight)",
  "Rundumsicht": "Orbit view",
  "Rücken": "Spine",
  "Rückgängig": "Undo",

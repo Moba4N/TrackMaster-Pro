@@ -24,12 +24,24 @@ public static class PlanSuggest
     public static string FlexStockKey(string flexSystemId) => FlexStockPrefix + flexSystemId;
     private const string FlexStockPrefix = "flexstock|";
 
+    /// <summary>
+    /// Bogenweiche, die der Vorschlag in einen Halbkreis einbauen kann: der innere Strang ist ein Bogen (Radius, Winkel),
+    /// der äußere dieselbe Kurve mit einer Geraden davor (z. B. Märklin C-Gleis 24671: 77,5 mm + R 360 · 30°).
+    /// </summary>
+    public static (double Radius, double Angle, double Straight)? CurvedTurnout(TrackPieceDef d)
+    {
+        if (d.Kind != PieceKind.Switch || d.Routes is not null || d.Paths is not [var outer, var inner]) return null;
+        if (inner is not [{ Turn: not 0 } arc] || outer is not [{ Turn: 0, Length: > 0 } straight, { Turn: not 0 } outerArc]) return null;
+        if (outerArc.Turn != arc.Turn || Math.Abs(outerArc.Radius - arc.Radius) > 0.1 || Math.Abs(outerArc.Angle - arc.Angle) > 0.01) return null;
+        return (arc.Radius, arc.Angle, straight.Length);
+    }
+
     /// <summary>Teile, die der Vorschlag verwenden kann (Geraden, Bögen, einfache Weichen, Prellböcke, Kreuzungen).</summary>
     public static bool IsUsable(TrackPieceDef d) => !d.IsFlex && d.Kind switch
     {
         PieceKind.Straight => d.Length > 0,
         PieceKind.Curve => d.Radius > 0 && d.Angle > 0 && d.Routes is null && d.Paths is null,
-        PieceKind.Switch => d.IsPlainTurnout && d.Drives == 1,
+        PieceKind.Switch => (d.IsPlainTurnout || CurvedTurnout(d) is not null) && d.Drives == 1,
         PieceKind.Buffer => true,
         PieceKind.Crossing => d.RouteCount == 2 && !d.IsDoubleSlip && d.Angle > 0,
         _ => false,
@@ -74,6 +86,8 @@ public static class PlanSuggest
             Add(b.Oval(r));
             Add(b.OvalWithSidings(r, 1));
             Add(b.OvalWithSidings(r, 2));
+            Add(b.OvalWithCurvedSidings(r, 1));
+            Add(b.OvalWithCurvedSidings(r, 2));
             Add(b.OvalWithLoop(r));
             Add(b.FigureEight(r));
         }
@@ -95,6 +109,7 @@ public static class PlanSuggest
         private readonly List<Curve> _curves;
         private readonly List<Turnout> _turnouts;
         private readonly List<string> _buffers;
+        private readonly List<(string Key, (double Radius, double Angle, double Straight) Shape)> _curvedTurnouts;
         private readonly List<TrackPieceDef> _crossings;
         private readonly BoardRect _area;
         private readonly double _margin;
@@ -115,7 +130,9 @@ public static class PlanSuggest
             var defs = stock.Keys.Select(Catalog.Get).ToList();
             _straights = defs.Where(d => d.Kind == PieceKind.Straight).Select(d => new Straight(d.Key, d.Length)).OrderByDescending(s => s.Length).ToList();
             _curves = defs.Where(d => d.Kind == PieceKind.Curve).Select(d => new Curve(d.Key, d.Radius, d.Angle)).ToList();
-            _turnouts = defs.Where(d => d.Kind == PieceKind.Switch).Select(d =>
+            _curvedTurnouts = defs.Where(d => d.Kind == PieceKind.Switch && !d.IsPlainTurnout && CurvedTurnout(d) is not null)
+                .Select(d => (d.Key, CurvedTurnout(d)!.Value)).ToList();
+            _turnouts = defs.Where(d => d.Kind == PieceKind.Switch && d.IsPlainTurnout).Select(d =>
             {
                 var c = TrackGeometry.LocalConnectors(d, false);
                 return new Turnout(d.Key, c[1].X, Math.Abs(Angles.Normalize(c[2].Heading)), d.Radius);
@@ -439,6 +456,91 @@ public static class PlanSuggest
                         break;
                     }
                 }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Oval mit Bogenweiche: Die Weiche ersetzt einen Bogen im Halbkreis, das Oval läuft über den äußeren Strang (Gerade + Bogen),
+        /// das Abstellgleis zweigt nach innen ab. Bei einem Abstellgleis gleicht im anderen Halbkreis eine Gerade an derselben Stelle die Länge aus.
+        /// </summary>
+        public PlanSuggestion? OvalWithCurvedSidings(double radius, int count)
+        {
+            if (2 * radius > ShortSide || _buffers.Count == 0) return null;
+            PlanSuggestion? best = null;
+            foreach (var (key, shape) in _curvedTurnouts)
+            {
+                if (Math.Abs(shape.Radius - radius) > 0.15 || _stock[key] < count) continue;
+                var used = new Dictionary<string, int>();
+                Use(used, [key], count);
+                // beide Halbkreise enthalten dieselbe Bogenfolge, damit Weiche und Ausgleichsgerade an derselben Stelle liegen
+                if (Arc(radius, 180 - shape.Angle, used, 2) is not { } restA) continue;
+                Use(used, restA, 2);
+                var buffer = _buffers.FirstOrDefault(k => Avail(k, used) >= count);
+                if (buffer is null) continue;
+                Use(used, [buffer], count);
+                // Stelle der Weiche im Halbkreis: Der innere Strang folgt danach den restlichen Bögen und liegt am Ende parallel zur Längsseite,
+                // im Abstand Gerade × sin(Winkel am Weichenanfang). Am besten liegt die Weiche daher im Scheitel (90°).
+                double StartAngle(int pos) => restA.Take(pos).Sum(k => Catalog.Get(k).Angle);
+                foreach (var pos in Enumerable.Range(0, restA.Count + 1).OrderBy(p => Math.Abs(StartAngle(p) - 90)))
+                {
+                    var start = StartAngle(pos) * Math.PI / 180;
+                    if (shape.Straight * Math.Sin(start) < _spacing) continue;
+                    var posUsed = new Dictionary<string, int>(used);
+                    // Bögen des inneren Strangs bis zur Längsseite
+                    var inner = restA[pos..];
+                    if (inner.Distinct().Any(k => Avail(k, posUsed) < count * inner.Count(x => x == k))) continue;
+                    Use(posUsed, inner, count);
+                    List<string> halfB;
+                    if (count == 2) halfB = [.. restA[..pos], key, .. restA[pos..]];
+                    else
+                    {
+                        // Halbkreis B: Bögen von A plus ein Bogen im Weichenwinkel, davor an derselben Stelle die Ausgleichsgerade
+                        var extra = CurvesOf(radius).FirstOrDefault(c => Math.Abs(c.Angle - shape.Angle) < 0.05 && Avail(c.Key, posUsed) > 0);
+                        if (extra is null) break;
+                        if (ExactStraight(shape.Straight, posUsed, tolerance: 0.3, budget: 20_000) is not { } comp) break;
+                        Use(posUsed, [extra.Key]);
+                        Use(posUsed, comp);
+                        halfB = [.. restA[..pos], .. comp, extra.Key, .. restA[pos..]];
+                    }
+                    var halfA = new List<string>(restA);
+                    // die Gerade in der Weiche (und die Ausgleichsgerade) verlängert das Oval um Gerade × cos(Winkel)
+                    var side = Sides(radius, posUsed, 2, 2 * shape.Straight * Math.Abs(Math.Cos(start)));
+                    var sideUsed = new Dictionary<string, int>(posUsed);
+                    Use(sideUsed, side, 2);
+                    for (var max = Length(side); max >= 0; max -= Math.Max(LongSide / 12, 20))
+                    {
+                        var stub = Fill(sideUsed, count, max);
+                        var layer = new Layer(_board.GaugeId);
+                        Pose HalfWithTurnout(Pose at, List<string> rest)
+                        {
+                            at = layer.Chain(at, rest[..pos], true);
+                            var exit = layer.Lay(key, at, turnRight: true, entry: 0, exit: 1);
+                            var e = layer.Chain(layer.Last.WorldConnectors()[2], inner, true);
+                            e = layer.Chain(e, stub);
+                            layer.Lay(buffer, e);
+                            return layer.Chain(exit, rest[pos..], true);
+                        }
+                        var e = layer.Chain(new Pose(0, 0, 0), side);
+                        e = HalfWithTurnout(e, halfA);
+                        e = layer.Chain(e, side);
+                        if (count == 2) HalfWithTurnout(e, halfA);
+                        else
+                        {
+                            foreach (var k in halfB) e = layer.Lay(k, e, turnRight: true);
+                        }
+                        var name = count == 1 ? Lang.T("Oval mit Abstellgleis") : Lang.T("Oval mit zwei Abstellgleisen");
+                        var r = Finish(layer, name, count == 1
+                            ? Lang.F($"Rundkurs {Size(radius)}, Abstellgleis an einer Bogenweiche ({Fmt.Num(Length(stub), 0)} mm Gerade)")
+                            : Lang.F($"Rundkurs {Size(radius)}, zwei Abstellgleise an Bogenweichen ({Fmt.Num(Length(stub), 0)} mm Gerade)"));
+                        if (r is not null)
+                        {
+                            if (best is null || r.Used > best.Used) best = r;
+                            goto next;
+                        }
+                    }
+                }
+                next:;
             }
             return best;
         }

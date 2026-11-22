@@ -20,12 +20,16 @@ public static class PlanSuggest
     private sealed record Curve(string Key, double Radius, double Angle);
     private sealed record Turnout(string Key, double Length, double Angle, double Radius);
 
+    /// <summary>Schlüssel für den Bestand an Flexgleis-Stangen im Bestand (<see cref="Build"/>), z. B. „flexstock|flex-mk“.</summary>
+    public static string FlexStockKey(string flexSystemId) => FlexStockPrefix + flexSystemId;
+    private const string FlexStockPrefix = "flexstock|";
+
     /// <summary>Teile, die der Vorschlag verwenden kann (Geraden, Bögen, einfache Weichen, Prellböcke, Kreuzungen).</summary>
     public static bool IsUsable(TrackPieceDef d) => !d.IsFlex && d.Kind switch
     {
         PieceKind.Straight => d.Length > 0,
         PieceKind.Curve => d.Radius > 0 && d.Angle > 0 && d.Routes is null && d.Paths is null,
-        PieceKind.Switch => d.IsSimpleSwitch && d.Drives == 1,
+        PieceKind.Switch => d.IsPlainTurnout && d.Drives == 1,
         PieceKind.Buffer => true,
         PieceKind.Crossing => d.RouteCount == 2 && !d.IsDoubleSlip && d.Angle > 0,
         _ => false,
@@ -38,11 +42,25 @@ public static class PlanSuggest
     public static IReadOnlyList<PlanSuggestion> Build(LayoutPlan board, IReadOnlyDictionary<string, int> inventory)
     {
         var stock = new Dictionary<string, int>();
+        FlexStock? flex = null;
+        var flexBudget = 0.0;
         foreach (var (key, n) in inventory)
-            if (n > 0 && Catalog.Find(key) is { } d && d.GaugeId == board.GaugeId && IsUsable(d))
+        {
+            if (n <= 0) continue;
+            if (key.StartsWith(FlexStockPrefix, StringComparison.Ordinal))
+            {
+                // Flexgleis: Stangen mit 5 % Verschnitt wie in der Stückliste; mehrere Sorten zählen zusammen als die erste
+                if (Catalog.FlexOf(board.GaugeId, key[FlexStockPrefix.Length..]) is { } f)
+                {
+                    flex ??= f;
+                    flexBudget += n * f.Length * 0.95;
+                }
+            }
+            else if (Catalog.Find(key) is { } d && d.GaugeId == board.GaugeId && IsUsable(d))
                 stock[d.Key] = n;
-        if (stock.Count == 0) return [];
-        var b = new Builder(board, stock);
+        }
+        if (stock.Count == 0 && flex is null) return [];
+        var b = new Builder(board, stock, flex, flexBudget);
         var list = new List<PlanSuggestion>();
         void Add(PlanSuggestion? s)
         {
@@ -81,11 +99,19 @@ public static class PlanSuggest
         private readonly BoardRect _area;
         private readonly double _margin;
         private readonly double _spacing;
+        /// <summary>Flexgleis im Bestand: daraus entstehen Bögen und Geraden in beliebiger Länge, zusammen höchstens <see cref="_flexBudget"/> mm.</summary>
+        private readonly FlexStock? _flex;
+        private readonly double _flexBudget;
+        private readonly HashSet<string> _flexKeys = [];
+        /// <summary>Unter diesem Schlüssel zählt <c>used</c> die verbrauchte Flexgleislänge in mm.</summary>
+        private const string FlexUsed = "~flex";
 
-        public Builder(LayoutPlan board, Dictionary<string, int> stock)
+        public Builder(LayoutPlan board, Dictionary<string, int> stock, FlexStock? flex, double flexBudget)
         {
             _board = board;
             _stock = stock;
+            _flex = flex;
+            _flexBudget = flexBudget;
             var defs = stock.Keys.Select(Catalog.Get).ToList();
             _straights = defs.Where(d => d.Kind == PieceKind.Straight).Select(d => new Straight(d.Key, d.Length)).OrderByDescending(s => s.Length).ToList();
             _curves = defs.Where(d => d.Kind == PieceKind.Curve).Select(d => new Curve(d.Key, d.Radius, d.Angle)).ToList();
@@ -96,6 +122,22 @@ public static class PlanSuggest
             }).Where(t => t.Angle > 1).ToList();
             _buffers = defs.Where(d => d.Kind == PieceKind.Buffer).Select(d => d.Key).ToList();
             _crossings = defs.Where(d => d.Kind == PieceKind.Crossing).ToList();
+            if (flex is not null)
+            {
+                // Bögen aus Flexgleis: in den Radien der Weichen und in üblichen Radien der Spur, je 30° und im Weichenwinkel als Gegenbogen
+                var tw = board.Gauge.TrackWidth;
+                var radii = new[] { 22, 26, 30, 36 }.Select(k => Math.Round(k * tw / 5) * 5)
+                    .Concat(_turnouts.Select(t => Math.Round(t.Radius, 1)).Where(r => r > 0)).Distinct().ToList();
+                void AddFlexCurve(double r, double a)
+                {
+                    var key = Catalog.FlexCurveKey(board.GaugeId, r, a, flex.SystemId);
+                    if (Catalog.Find(key) is null || !_flexKeys.Add(key)) return;
+                    _curves.Add(new Curve(key, r, a));
+                }
+                foreach (var r in radii) AddFlexCurve(r, 30);
+                foreach (var t in _turnouts)
+                    if (t.Radius > 0) AddFlexCurve(Math.Round(t.Radius, 1), Math.Round(t.Angle, 3));
+            }
             _area = BoardGeometry.Rects(board).OrderByDescending(r => (r.X1 - r.X0) * (r.Y1 - r.Y0)).FirstOrDefault(new BoardRect(0, 0, board.BoardWidth, board.BoardHeight));
             _margin = Math.Max(board.Gauge.TrackWidth * 3, 8);
             _spacing = board.Gauge.TrackWidth * PlanCheck.MinSpacingFactor;
@@ -111,19 +153,41 @@ public static class PlanSuggest
 
         // ---------- Bestand ----------
 
-        private int Avail(string key, Dictionary<string, int> used) => _stock.GetValueOrDefault(key) - used.GetValueOrDefault(key);
+        private int Avail(string key, Dictionary<string, int> used)
+            => IsFlex(key) ? (int)Math.Floor(FlexLeft(used) / Catalog.Get(key).TrackLength)
+             : _stock.GetValueOrDefault(key) - used.GetValueOrDefault(key);
 
-        private static void Use(Dictionary<string, int> used, IEnumerable<string> keys, int times = 1)
+        private bool IsFlex(string key) => _flexKeys.Contains(key);
+
+        /// <summary>Noch freie Flexgleislänge in mm.</summary>
+        private double FlexLeft(Dictionary<string, int> used) => _flexBudget - used.GetValueOrDefault(FlexUsed);
+
+        private void Use(Dictionary<string, int> used, IEnumerable<string> keys, int times = 1)
         {
-            foreach (var k in keys) used[k] = used.GetValueOrDefault(k) + times;
+            foreach (var k in keys)
+            {
+                used[k] = used.GetValueOrDefault(k) + times;
+                if (IsFlex(k)) used[FlexUsed] = used.GetValueOrDefault(FlexUsed) + (int)Math.Ceiling(Catalog.Get(k).TrackLength) * times;
+            }
+        }
+
+        /// <summary>Gerades Flexgleis der Länge <paramref name="length"/> (auf 1 mm abgerundet), wenn genug Flexgleis da ist.</summary>
+        private string? FlexStraight(double length, Dictionary<string, int> used, int share)
+        {
+            if (_flex is null) return null;
+            var len = Math.Floor(Math.Min(length, FlexLeft(used) / share - 1));
+            if (len < 5) return null;
+            var key = Catalog.FlexStraightKey(_board.GaugeId, len, _flex.SystemId);
+            if (Catalog.Find(key) is null) return null;
+            _flexKeys.Add(key);
+            return key;
         }
 
         /// <summary>Teile mit Wert, deren Summe genau <paramref name="target"/> ergibt; jedes Teil höchstens <c>Avail / share</c> mal.</summary>
-        private static List<string>? Exact(IEnumerable<(string Key, double Value, int Avail)> items, double target, double tolerance, int maxPieces)
+        private static List<string>? Exact(IEnumerable<(string Key, double Value, int Avail)> items, double target, double tolerance, int maxPieces, int budget = 200_000)
         {
             var order = items.Where(i => i.Avail > 0 && i.Value > 0).OrderByDescending(i => i.Value).ToList();
             var pick = new List<string>();
-            var budget = 200_000;
             bool Go(int i, double rest, int left)
             {
                 if (Math.Abs(rest) <= tolerance) return true;
@@ -156,17 +220,29 @@ public static class PlanSuggest
                     len += s.Length;
                 }
             }
+            // Rest mit Flexgleis auffüllen
+            if (maxLength - len >= 5 && FlexStraight(maxLength - len, used, share) is { } flex) pick.Add(flex);
             return pick;
         }
 
         private static double Length(IEnumerable<string> straights) => straights.Sum(k => Catalog.Get(k).Length);
 
+        private bool UsesFlex(IEnumerable<PlacedPiece> pieces) => pieces.Any(p => IsFlex(p.Key));
+
         /// <summary>Bögen eines Radius, die zusammen <paramref name="angle"/> Grad ergeben; jedes Teil höchstens <c>Avail / share</c> mal.</summary>
         private List<string>? Arc(double radius, double angle, Dictionary<string, int> used, int share)
             => Exact(CurvesOf(radius).Select(c => (c.Key, c.Angle, Avail(c.Key, used) / share)), angle, 0.05, 64);
 
-        private List<string>? ExactStraight(double length, Dictionary<string, int> used, int share = 1)
-            => Exact(_straights.Select(s => (s.Key, s.Length, Avail(s.Key, used) / share)), length, 0.4, 12);
+        private List<string>? ExactStraight(double length, Dictionary<string, int> used, int share = 1, double tolerance = 0.4, int budget = 200_000)
+        {
+            if (Exact(_straights.Select(s => (s.Key, s.Length, Avail(s.Key, used) / share)), length, tolerance, 24, budget) is { } exact) return exact;
+            // Sonst ein Flexgleis genau dieser Länge
+            if (_flex is null || length < 5 || length * share > FlexLeft(used)) return null;
+            var key = Catalog.FlexStraightKey(_board.GaugeId, Math.Round(length, 2), _flex.SystemId);
+            if (Catalog.Find(key) is null) return null;
+            _flexKeys.Add(key);
+            return [key];
+        }
 
         // ---------- Verlegen ----------
 
@@ -233,6 +309,7 @@ public static class PlanSuggest
                     for (var t = 0.0; t <= 1; t += 0.25)
                         if (l.At(t) is var q && !BoardGeometry.Contains(check, q.X, q.Y)) return null;
             if (PlanCheck.Run(check).Any(i => i.Level == IssueLevel.Fehler)) return null;
+            if (UsesFlex(pieces)) description += Lang.T(", mit Flexgleis");
             return new PlanSuggestion(name, description, pieces.ToList(), pieces.Count, Math.Round(w), Math.Round(h));
         }
 
@@ -273,41 +350,72 @@ public static class PlanSuggest
         }
 
         /// <summary>Weiche (zweigt nach innen ab), Gegenbogen, Geraden, Prellbock. Gibt das Ende des Hauptgleises zurück.</summary>
-        private Pose Siding(Layer layer, Pose at, Turnout t, Curve counter, IReadOnlyList<string> straights, string buffer)
+        private Pose Siding(Layer layer, Pose at, Turnout t, IReadOnlyList<string> counter, IReadOnlyList<string> straights, string buffer)
         {
             var sw = layer.Lay(t.Key, at, turnRight: true);
             var branch = layer.Last.WorldConnectors()[2];
-            var e = layer.Lay(counter.Key, branch, turnRight: false);
+            var e = layer.Chain(branch, counter, turnRight: false);
             e = layer.Chain(e, straights);
             layer.Lay(buffer, e);
             return sw;
         }
 
-        private Curve? CounterCurve(Turnout t)
-            => _curves.Where(c => Math.Abs(c.Angle - t.Angle) < 0.3).OrderBy(c => Math.Abs(c.Radius - t.Radius)).FirstOrDefault();
+        /// <summary>
+        /// Gegenbogen hinter dem Abzweig, damit das Nebengleis parallel läuft: Bögen eines Radius, die zusammen den Weichenwinkel ergeben,
+        /// möglichst im Radius der Weiche. Jedes Teil höchstens <c>Avail / share</c> mal. null, wenn es keine passenden Bögen gibt.
+        /// </summary>
+        private List<string>? CounterArc(Turnout t, Dictionary<string, int> used, int share)
+        {
+            foreach (var r in _curves.Select(c => Math.Round(c.Radius, 1)).Distinct().OrderBy(r => Math.Abs(r - t.Radius)))
+                if (Exact(CurvesOf(r).Select(c => (c.Key, c.Angle, Avail(c.Key, used) / share)), t.Angle, 0.3, 8) is { Count: > 0 } arc)
+                    return arc;
+            return null;
+        }
 
         public PlanSuggestion? OvalWithSidings(double radius, int count)
         {
             if (2 * radius > ShortSide || _buffers.Count == 0) return null;
             PlanSuggestion? best = null;
+            // Ohne passenden Gegenbogen – oder wenn das Nebengleis damit zu nah am Hauptgleis liegt – läuft das Abstellgleis schräg nach innen
+            var parallelDone = new HashSet<string>();
             foreach (var t in _turnouts)
+            foreach (var parallel in new[] { true, false })
             {
-                if (CounterCurve(t) is not { } counter) continue;
+                if (_stock[t.Key] < count || !parallel && parallelDone.Contains(t.Key)) continue;
                 var used = new Dictionary<string, int>();
                 if (Arc(radius, 180, used, 2) is not { } half) continue;
                 Use(used, half, 2);
                 Use(used, [t.Key], count);
-                Use(used, [counter.Key], count);
+                List<string> counter = [];
+                if (parallel)
+                {
+                    if (CounterArc(t, used, count) is not { } arc) continue;
+                    counter = arc;
+                }
+                Use(used, counter, count);
                 var buffer = _buffers.FirstOrDefault(k => Avail(k, used) >= count);
-                if (buffer is null || _stock[t.Key] < count || Avail(counter.Key, used) < 0 || Avail(t.Key, used) < 0) continue;
+                if (buffer is null) continue;
                 Use(used, [buffer], count);
-                var side = Sides(radius, used, 2, t.Length);
+                // Zwei Abstellgleise: beide Längsseiten gleich. Eines: die Gegenseite braucht Geraden in Länge von Seite plus Weiche.
+                var side = Sides(radius, used, count == 2 ? 2 : 1, t.Length);
+                List<string>? other = side;
                 var sideUsed = new Dictionary<string, int>(used);
-                Use(sideUsed, side, 2);
-                // Ohne zweite Weiche braucht die Gegenseite Geraden in Weichenlänge
-                List<string>? fill = [];
-                if (count == 1 && (fill = ExactStraight(t.Length, sideUsed)) is null) continue;
-                Use(sideUsed, fill);
+                if (count == 2) Use(sideUsed, side, 2);
+                else
+                {
+                    other = null;
+                    while (true)
+                    {
+                        var trial = new Dictionary<string, int>(used);
+                        Use(trial, side);
+                        if ((other = ExactStraight(Length(side) + t.Length, trial)) is not null) { sideUsed = trial; break; }
+                        if (side.Count == 0) break;
+                        side = side[..^1];
+                    }
+                    if (other is null) continue;
+                    Use(sideUsed, other);
+                }
+                var angled = counter.Count == 0;
                 // Abstellgleis so lang wie möglich, bis es passt
                 for (var max = LongSide; max >= 0; max -= Math.Max(LongSide / 12, 20))
                 {
@@ -316,16 +424,18 @@ public static class PlanSuggest
                     var e = Siding(layer, new Pose(0, 0, 0), t, counter, stub, buffer);
                     e = layer.Chain(e, side);
                     e = layer.Chain(e, half, true);
-                    e = count == 2 ? Siding(layer, e, t, counter, stub, buffer) : layer.Chain(e, fill);
-                    e = layer.Chain(e, side);
+                    e = count == 2 ? Siding(layer, e, t, counter, stub, buffer) : e;
+                    e = layer.Chain(e, other);
                     layer.Chain(e, half, true);
                     var name = count == 1 ? Lang.T("Oval mit Abstellgleis") : Lang.T("Oval mit zwei Abstellgleisen");
+                    var where = angled ? Lang.T("schräg innen") : Lang.T("innen");
                     var s = Finish(layer, name, count == 1
-                        ? Lang.F($"Rundkurs {Size(radius)}, Abstellgleis innen ({Fmt.Num(Length(stub), 0)} mm Gerade)")
-                        : Lang.F($"Rundkurs {Size(radius)}, zwei Abstellgleise innen ({Fmt.Num(Length(stub), 0)} mm Gerade)"));
+                        ? Lang.F($"Rundkurs {Size(radius)}, Abstellgleis {where} ({Fmt.Num(Length(stub), 0)} mm Gerade)")
+                        : Lang.F($"Rundkurs {Size(radius)}, zwei Abstellgleise {where} ({Fmt.Num(Length(stub), 0)} mm Gerade)"));
                     if (s is not null)
                     {
                         if (best is null || s.Used > best.Used) best = s;
+                        if (parallel) parallelDone.Add(t.Key);
                         break;
                     }
                 }
@@ -340,41 +450,53 @@ public static class PlanSuggest
             PlanSuggestion? best = null;
             foreach (var t in _turnouts)
             {
-                if (CounterCurve(t) is not { } counter || _stock[t.Key] < 2) continue;
+                if (_stock[t.Key] < 2) continue;
                 var baseUsed = new Dictionary<string, int>();
                 if (Arc(radius, 180, baseUsed, 2) is not { } half) continue;
                 Use(baseUsed, half, 2);
                 Use(baseUsed, [t.Key], 2);
-                Use(baseUsed, [counter.Key], 2);
-                if (Avail(counter.Key, baseUsed) < 0) continue;
-                // Länge des Parallelgleises: n gleiche Geraden, die längste Ausweiche zuerst
-                foreach (var s in _straights)
-                    for (var n = Avail(s.Key, baseUsed); n >= 1; n--)
+                if (CounterArc(t, baseUsed, 2) is not { } counter) continue;
+                Use(baseUsed, counter, 2);
+                // Lage der Weichen ohne Ausweichgerade einmal bestimmen: Versatz und Länge des Hauptgleises
+                Pose LayLoop(Layer layer, IReadOnlyList<string> loop, out Pose mainStart, out Pose mainEnd)
+                {
+                    layer.Lay(t.Key, new Pose(0, 0, 0), turnRight: true);
+                    var a = layer.Last.WorldConnectors();
+                    var e = layer.Chain(a[2], counter, turnRight: false);
+                    e = layer.Chain(e, loop);
+                    e = layer.Chain(e, Enumerable.Reverse(counter), turnRight: false);
+                    // zweite Weiche mit dem abzweigenden Strang ansetzen
+                    var swB = layer.Lay(t.Key, e, turnRight: false, entry: 2, exit: 0);
+                    mainStart = a[1];
+                    mainEnd = layer.Last.WorldConnectors()[1];
+                    return swB;
+                }
+                LayLoop(new Layer(_board.GaugeId), [], out var s0, out var e0);
+                if (Math.Abs(e0.Y - s0.Y) > 0.3) continue;
+                var gap0 = e0.X - s0.X;
+                // Länge des Parallelgleises: n gleiche Geraden, die längste Ausweiche zuerst; das Hauptgleis gleicht die Länge genau aus
+                var loops = _straights.SelectMany(st => Enumerable.Range(1, Math.Max(0, Avail(st.Key, baseUsed))).Reverse()
+                    .Select(n => Enumerable.Repeat(st.Key, n).ToList())).ToList();
+                // Mit Flexgleis: Ausweichgleis aus einem Stück, von lang nach kurz
+                for (var len = LongSide - 2 * radius - 2 * t.Length - gap0; _flex is not null && len >= 50; len -= Math.Max(50, LongSide / 20))
+                    if (FlexStraight(len, baseUsed, 2) is { } flexLoop) loops.Add([flexLoop]);
+                foreach (var loop in loops)
                     {
                         var used = new Dictionary<string, int>(baseUsed);
-                        var loop = Enumerable.Repeat(s.Key, n).ToList();
                         Use(used, loop);
-                        var layer = new Layer(_board.GaugeId);
-                        var start = new Pose(0, 0, 0);
-                        layer.Lay(t.Key, start, turnRight: true);
-                        var a = layer.Last.WorldConnectors();
-                        var e = layer.Lay(counter.Key, a[2], turnRight: false);
-                        e = layer.Chain(e, loop);
-                        e = layer.Lay(counter.Key, e, turnRight: false);
-                        // zweite Weiche mit dem abzweigenden Strang ansetzen
-                        var swB = layer.Lay(t.Key, e, turnRight: false, entry: 2, exit: 0);
-                        var b1 = layer.Last.WorldConnectors()[1];
-                        if (Math.Abs(b1.Y - a[1].Y) > 0.3 || b1.X <= a[1].X) continue;
-                        var gap = b1.X - a[1].X;
-                        if (ExactStraight(gap, used) is not { } main) continue;
+                        var gap = gap0 + Length(loop);
+                        if (gap <= 0 || gap + 2 * t.Length > LongSide - 2 * radius) continue;
+                        if (ExactStraight(gap, used, tolerance: 0.6, budget: 20_000) is not { } main) continue;
                         Use(used, main);
-                        layer.Chain(a[1], main);
-                        var blockLength = swB.X - start.X;
+                        var layer = new Layer(_board.GaugeId);
+                        var swB = LayLoop(layer, loop, out var a1, out _);
+                        layer.Chain(a1, main);
+                        var blockLength = swB.X;
                         if (blockLength > LongSide - 2 * radius) continue;
                         var side = Sides(radius, used, 2, blockLength);
                         Use(used, side, 2);
-                        if (ExactStraight(blockLength, used) is not { } fill) continue;
-                        e = layer.Chain(swB, side);
+                        if (ExactStraight(blockLength, used, tolerance: 0.6, budget: 20_000) is not { } fill) continue;
+                        var e = layer.Chain(swB, side);
                         e = layer.Chain(e, half, true);
                         e = layer.Chain(e, fill);
                         e = layer.Chain(e, side);

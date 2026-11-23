@@ -230,6 +230,42 @@ public class PlanSuggestTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void StockListReadsCsvAndText()
+    {
+        (string, string)[] entries = [("H0|mc|24130", "24130"), ("H0|mc|24188", "24188"), ("H0|mc|24611", "24611"), ("H0|mc|24977", "24977"), ("H0|kato-h0|2-150", "2-150")];
+        var text = "\uFEFFArtikel;Bezeichnung;Anzahl\r\n24130;Bogen R1 30°;12\r\n\"24188\";\"Gerade 188,3 mm\";8\n"
+            + "4 x 24611\n24977 Prellbock 2 Stück\n24130;Bogen;4\n99999;Unbekannt;3\n2 150 3\n# Kommentar 24188 5\n24 188\n";
+        var list = PlanSuggest.ParseStockList(text, entries);
+        Assert.Equal(16, list.Counts["H0|mc|24130"]);
+        Assert.Equal(9, list.Counts["H0|mc|24188"]);   // 8 + eine Zeile ohne Anzahl
+        Assert.Equal(4, list.Counts["H0|mc|24611"]);
+        Assert.Equal(2, list.Counts["H0|mc|24977"]);
+        Assert.Equal(3, list.Counts["H0|kato-h0|2-150"]);
+        Assert.Equal(["99999;Unbekannt;3"], list.Unknown);
+    }
+
+    [Fact]
+    public void StockListReadsBillOfMaterialsWithStockColumn()
+    {
+        // Stückliste als CSV: die Spalte „Bestand“ zählt, nicht „Anzahl“
+        (string, string)[] entries = [("H0|mc|24130", "24130")];
+        var csv = "\"Hersteller/System\";\"Artikel\";\"Bezeichnung\";\"Daten\";\"Anzahl\";\"Bestand\";\"Zu kaufen\"\r\n\"Märklin C-Gleis\";\"24130\";\"Bogen\";\"R 360 mm · 30°\";\"12\";\"20\";\"0\"\r\n";
+        Assert.Equal(20, PlanSuggest.ParseStockList(csv, entries).Counts["H0|mc|24130"]);
+    }
+
+    [Fact]
+    public void SessionStockImportSplitsUnusable()
+    {
+        var s = new PlanSession();
+        s.NewPlan(new BoardSetup("H0", BoardShape.Rechteck, 2400, 1200, 600, 0));
+        s.SelectSystem("mc");
+        var (counts, unusable, unknown) = s.ParseSuggestStock("24130;12\n24630;1\nfoo 12345\n");
+        Assert.Equal(12, counts["H0|mc|24130"]);
+        Assert.Contains(unusable, d => d.Number == "24630");   // Dreiwegweiche
+        Assert.Single(unknown);
+    }
+
+    [Fact]
     public void ShortSpacersAreNoCollision()
     {
         // Gerade, zwei kurze Ausgleichsstücke (8 + 2 mm), Bogen: die Planprüfung darf Gerade und Bogen nicht als Kollision melden

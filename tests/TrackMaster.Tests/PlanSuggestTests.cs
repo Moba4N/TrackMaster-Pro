@@ -240,12 +240,18 @@ public class PlanSuggestTests(ITestOutputHelper output)
     {
         var board = new LayoutPlan { GaugeId = "H0", BoardWidth = 2600, BoardHeight = 1400 };
         var stock = BigMc();
+        stock["H0|mc|24115"] = 4;
+        stock["H0|mc|24215"] = 8;
         var list = PlanSuggest.Build(board, stock);
         AssertValid(board, stock, list);
         int Turnouts(PlanSuggestion s) => s.Pieces.Count(p => p.Def.Kind == PieceKind.Switch);
         Assert.Contains(list, s => s.Name == "Oval mit Abstellgruppe" && Turnouts(s) == 3 && s.Pieces.Count(p => p.Def.Kind == PieceKind.Buffer) == 3);
         Assert.Contains(list, s => s.Name == "Oval mit Bahnhof" && Turnouts(s) == 4);
         Assert.Contains(list, s => s.Name == "Doppeloval mit Gleiswechsel" && Turnouts(s) == 4);
+        Assert.Contains(list, s => s.Name == "Hundeknochen");
+        Assert.Contains(list, s => s.Name == "Oval mit Anschlussgleis" && Turnouts(s) == 1);
+        Assert.Contains(list, s => s.Name == "Oval mit dreigleisigem Bahnhof" && Turnouts(s) == 4);
+        Assert.Contains(list, s => s.Name == "Doppeloval mit Gleiswechsel und Abstellgleisen" && Turnouts(s) >= 3);
         Assert.All(list.SelectMany(s => s.Pieces).Where(p => p.Def.Kind == PieceKind.Switch), p => Assert.False(p.Flipped));
     }
 

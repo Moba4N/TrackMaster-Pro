@@ -2169,7 +2169,7 @@
  "Trafo / Zentrale setzen": "Place transformer / command station",
  "Trafo / Zentrale: an die Stelle im Plan klicken, wo das Gerät stehen soll (auch neben der Platte). Esc beendet das Werkzeug.": "Transformer / command station: click the spot in the plan where the device should stand (also beside the baseboard). Esc ends the tool.",
  "Trafo / Zentrale…": "Transformer / command station…",
- "Trag ein, wie viele Gleise von jeder Sorte du hast – leer oder 0 heißt keins. Das Programm baut daraus kleine Anlagen, die auf die Platte ({0} × {1} mm) passen, geschlossen sind und die Planprüfung bestehen. Gleissystem: {2} (in der Gleisbibliothek umschalten).": "Enter how many pieces of each kind you have – empty or 0 means none. The program builds small layouts from them that fit the baseboard ({0} × {1} mm), are closed and pass the plan check. Track system: {2} (switch it in the track library).",
+ "Trag ein, wie viele Gleise von jeder Sorte du hast – leer oder 0 heißt keins. Das Programm baut daraus kleine Anlagen, die auf die Platte ({0} × {1} mm) passen, geschlossen sind und die Planprüfung bestehen. Gleissystem: {2} (in der Gleisbibliothek umschalten). Mit „Bestand aus Datei…“ liest du eine CSV- oder Textdatei mit Artikelnummer und Anzahl je Zeile ein.": "Enter how many pieces of each kind you have – empty or 0 means none. The program builds small layouts from them that fit the baseboard ({0} × {1} mm), are closed and pass the plan check. Track system: {2} (switch it in the track library). “Stock from file…” reads a CSV or text file with an article number and a quantity on each line.",
  "Trasse": "Roadbed",
  "Trasse als SVG speichern": "Save roadbed as SVG",
  "Trasse aus Auswahl": "Roadbed from selection",
@@ -2829,5 +2829,10 @@
  "Es gibt keine Verbindungen zum Gleis.": "There are no connections to the track.",
  "Verbindungen zum Gleis entfernt: {0} Anschlüsse und {1} Kabel. Zentrale, Booster, Module, Melder und Trennstellen bleiben.": "Track connections removed: {0} connection(s) and {1} wire(s). Command station, boosters, modules, detectors and isolations stay.",
  "Verbindungen zum Gleis entfernen": "Remove track connections",
- "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back."
+ "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back.",
+ "Bestand aus Datei…": "Stock from file…",
+ "In der Datei wurden keine Artikel des Gleissystems {0} gefunden. Erwartet wird je Zeile eine Artikelnummer und eine Stückzahl, z. B. „24130;12“.": "No articles of the track system {0} were found in the file. Each line should hold an article number and a quantity, e.g. “24130;12”.",
+ "{0} Gleise in {1} Sorten aus der Datei übernommen.": "{0} pieces of {1} kinds taken from the file.",
+ "Nicht für den Vorschlag verwendbar: {0}.": "Not usable for the suggestion: {0}.",
+ "Nicht erkannt ({0}): {1}{2}": "Not recognised ({0}): {1}{2}"
 }

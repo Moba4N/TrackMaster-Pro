@@ -36,6 +36,69 @@ public static class PlanSuggest
         return (arc.Radius, arc.Angle, straight.Length);
     }
 
+    /// <summary>Ergebnis von <see cref="ParseStockList"/>: Stückzahl je Schlüssel und Zeilen, deren Artikel nicht erkannt wurde.</summary>
+    public sealed record StockList(Dictionary<string, int> Counts, List<string> Unknown);
+
+    private static readonly HashSet<string> StockHeads = new(["Bestand", "Stock", "In stock", "Vorhanden"], StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> CountHeads = new(["Anzahl", "Menge", "Stück", "Stückzahl", "Stk.", "Count", "Quantity", "Qty"], StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Liest einen Gleisbestand aus CSV oder Text: je Zeile eine Artikelnummer und eine Stückzahl, getrennt durch Semikolon, Komma,
+    /// Tabulator oder Leerzeichen („24130;12“, „12 x 24130“, „24130 Bogen R1 12 Stück“). Eine Kopfzeile mit „Bestand“ oder „Anzahl“
+    /// bestimmt die Spalte der Stückzahl (so passt auch die Stückliste als CSV). Ohne Stückzahl zählt die Zeile als ein Stück.
+    /// <paramref name="entries"/>: Schlüssel und Artikelnummer der Teile, die erkannt werden sollen.
+    /// </summary>
+    public static StockList ParseStockList(string text, IEnumerable<(string Key, string Number)> entries)
+    {
+        static string Norm(string s) => new(s.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+        var byNumber = new Dictionary<string, string>();
+        foreach (var (key, number) in entries)
+            if (Norm(number) is { Length: > 0 } n) byNumber.TryAdd(n, key);
+        var counts = new Dictionary<string, int>();
+        var unknown = new List<string>();
+        int? countColumn = null;
+        string? headSep = null;
+        foreach (var raw in text.Replace("\r", "").Split('\n'))
+        {
+            var line = raw.Trim().TrimStart('\uFEFF');
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+            // Trennzeichen: das erste vorkommende, mit dem sich ein Artikel findet; Komma kann auch in Maßen stehen („188,3 mm“)
+            List<string> Cells(string? sep) => (sep is null ? line.Split(' ', StringSplitOptions.RemoveEmptyEntries) : line.Split(sep))
+                .Select(c => c.Trim().Trim('"').Trim()).ToList();
+            var seps = new string?[] { ";", "\t", "," }.Where(x => line.Contains(x!)).Append(null).ToList();
+            var sep = seps.FirstOrDefault(x => Cells(x).Any(c => byNumber.ContainsKey(Norm(c))), seps[0]);
+            var cells = Cells(sep);
+            // Kopfzeile: Spalte für die Stückzahl merken
+            var head = cells.FindIndex(c => StockHeads.Contains(c));
+            if (head < 0) head = cells.FindIndex(c => CountHeads.Contains(c));
+            if (head >= 0 && !cells.Any(c => byNumber.ContainsKey(Norm(c)))) { countColumn = head; headSep = sep; continue; }
+            // Artikel: erste Zelle, die eine bekannte Nummer ist; bei Leerzeichen-Trennung auch zwei Teile („24 130“)
+            var article = cells.FindIndex(c => byNumber.ContainsKey(Norm(c)));
+            string? key = article >= 0 ? byNumber[Norm(cells[article])] : null;
+            var skip = new HashSet<int> { article };
+            if (key is null && sep is null)
+                for (var i = 0; i + 1 < cells.Count && key is null; i++)
+                    if (byNumber.TryGetValue(Norm(cells[i] + cells[i + 1]), out var k)) { key = k; skip = [i, i + 1]; }
+            if (key is null)
+            {
+                if (cells.Any(c => c.Any(char.IsDigit))) unknown.Add(line.Length > 60 ? line[..60] + "…" : line);
+                continue;
+            }
+            static int? Count(string c)
+            {
+                var t = c.Trim().TrimEnd('x', 'X', '×', '*').TrimStart('x', 'X', '×', '*').Trim();
+                if (t.EndsWith("Stück", StringComparison.OrdinalIgnoreCase)) t = t[..^5].Trim();
+                if (t.EndsWith("Stk.", StringComparison.OrdinalIgnoreCase) || t.EndsWith("pcs", StringComparison.OrdinalIgnoreCase)) t = t[..^(t.EndsWith('.') ? 4 : 3)].Trim();
+                return int.TryParse(t, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n) && n <= 9999 ? n : null;
+            }
+            int? count = countColumn is { } col && sep == headSep && col < cells.Count && !skip.Contains(col) ? Count(cells[col]) : null;
+            for (var i = 0; i < cells.Count && count is null; i++)
+                if (!skip.Contains(i)) count = Count(cells[i]);
+            counts[key] = counts.GetValueOrDefault(key) + (count ?? 1);
+        }
+        return new StockList(counts, unknown);
+    }
+
     /// <summary>Teile, die der Vorschlag verwenden kann (Geraden, Bögen, einfache Weichen, Prellböcke, Kreuzungen).</summary>
     public static bool IsUsable(TrackPieceDef d) => !d.IsFlex && d.Kind switch
     {

@@ -2525,8 +2525,10 @@
         foreach (var f in _session.SuggestFlex())
             _d["n|" + PlanSuggest.FlexStockKey(f.SystemId)] = _suggestCounts.GetValueOrDefault(PlanSuggest.FlexStockKey(f.SystemId), "");
         _d["replace"] = "1";
+        _suggestImportNote = null;
         var d = Show(Lang.T("Planvorschlag"), SuggestBody, wide: true, keepFields: true);
         d.Buttons.Add(new(Lang.T("Schließen"), () => true));
+        d.Buttons.Add(new(Lang.T("Bestand aus Datei…"), () => { _ = ImportSuggestStock(); return false; }));
         d.Buttons.Add(new(Lang.T("Vorschläge berechnen"), () =>
         {
             var counts = new Dictionary<string, int>();
@@ -2549,6 +2551,33 @@
     }
 
     private bool _suggestBusy;
+    /// <summary>Ergebnis des letzten Datei-Imports im Planvorschlag (wird im Dialog angezeigt).</summary>
+    private string? _suggestImportNote;
+
+    /// <summary>Bestand aus CSV oder Text laden: ersetzt alle Stückzahlen im Dialog.</summary>
+    private async Task ImportSuggestStock()
+    {
+        var result = await Js.PickFile(".csv,.txt,text/csv,text/plain");
+        if (string.IsNullOrEmpty(result)) return;
+        var cut = result.IndexOf('\0');
+        var text = cut >= 0 ? result[(cut + 1)..] : result;
+        var (counts, unusable, unknown) = _session.ParseSuggestStock(text);
+        if (counts.Count == 0 && unusable.Count == 0)
+        {
+            _suggestImportNote = Lang.F($"In der Datei wurden keine Artikel des Gleissystems {_session.CurrentSystem.Name} gefunden. Erwartet wird je Zeile eine Artikelnummer und eine Stückzahl, z. B. „24130;12“.");
+            StateHasChanged();
+            return;
+        }
+        foreach (var k in _d.Keys.Where(k => k.StartsWith("n|", StringComparison.Ordinal)).ToList())
+            _d[k] = counts.TryGetValue(k[2..], out var n) && n > 0 ? n.ToString() : "";
+        _suggestions = null;
+        var note = Lang.F($"{counts.Values.Sum()} Gleise in {counts.Count} Sorten aus der Datei übernommen.");
+        if (unusable.Count > 0) note += " " + Lang.F($"Nicht für den Vorschlag verwendbar: {string.Join(", ", unusable.Select(d => d.Number))}.");
+        if (unknown.Count > 0) note += " " + Lang.F($"Nicht erkannt ({unknown.Count}): {string.Join(" · ", unknown.Take(5))}{(unknown.Count > 5 ? " …" : "")}");
+        _suggestImportNote = note;
+        if (_dialog is { } dlg) dlg.Error = null;
+        StateHasChanged();
+    }
 
     /// <summary>Rechnet nach einem kurzen Aufschub, damit „Berechne …“ erst zu sehen ist.</summary>
     private async Task ComputeSuggestions(Dictionary<string, int> counts)
@@ -2602,7 +2631,11 @@
             var unused = _session.SuggestUnused();
             var plan = _session.Plan;
         }
-        @Hint(Lang.F($"Trag ein, wie viele Gleise von jeder Sorte du hast – leer oder 0 heißt keins. Das Programm baut daraus kleine Anlagen, die auf die Platte ({Fmt.Num(plan.BoardWidth, 0)} × {Fmt.Num(plan.BoardHeight, 0)} mm) passen, geschlossen sind und die Planprüfung bestehen. Gleissystem: {_session.CurrentSystem.Name} (in der Gleisbibliothek umschalten)."))
+        @Hint(Lang.F($"Trag ein, wie viele Gleise von jeder Sorte du hast – leer oder 0 heißt keins. Das Programm baut daraus kleine Anlagen, die auf die Platte ({Fmt.Num(plan.BoardWidth, 0)} × {Fmt.Num(plan.BoardHeight, 0)} mm) passen, geschlossen sind und die Planprüfung bestehen. Gleissystem: {_session.CurrentSystem.Name} (in der Gleisbibliothek umschalten). Mit „Bestand aus Datei…“ liest du eine CSV- oder Textdatei mit Artikelnummer und Anzahl je Zeile ein."))
+        @if (_suggestImportNote is { } importNote)
+        {
+            @Hint(importNote)
+        }
         <div class="suggest-stock">
             <table class="table bom">
                 <tr><th>@Lang.T("Anzahl")</th><th>@Lang.T("Artikel")</th></tr>

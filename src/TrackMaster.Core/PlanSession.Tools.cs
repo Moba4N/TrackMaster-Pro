@@ -193,6 +193,23 @@ public sealed partial class PlanSession
     public IReadOnlyList<TrackPieceDef> SuggestUnused()
         => CurrentSystem.Pieces.Where(d => !d.IsFlex && !d.IsTable && !PlanSuggest.IsUsable(d)).ToList();
 
+    /// <summary>
+    /// Liest einen Gleisbestand aus CSV oder Text für den Planvorschlag (siehe <see cref="PlanSuggest.ParseStockList"/>).
+    /// Counts enthält nur Teile, die der Vorschlag verwenden kann (Schlüssel wie im Dialog); Teile des Systems, die er nicht verbaut,
+    /// stehen in Unusable, unbekannte Zeilen in Unknown.
+    /// </summary>
+    public (Dictionary<string, int> Counts, List<TrackPieceDef> Unusable, List<string> Unknown) ParseSuggestStock(string text)
+    {
+        var flex = SuggestFlex();
+        var entries = CurrentSystem.Pieces.Where(d => !d.IsTable && !d.IsFlex).Select(d => (d.Key, d.Number))
+            .Concat(flex.Select(f => (PlanSuggest.FlexStockKey(f.SystemId), f.Number)));
+        var list = PlanSuggest.ParseStockList(text, entries);
+        var usable = SuggestPieces().Select(p => p.Def.Key).Concat(flex.Select(f => PlanSuggest.FlexStockKey(f.SystemId))).ToHashSet();
+        var counts = list.Counts.Where(kv => usable.Contains(kv.Key)).ToDictionary();
+        var unusable = list.Counts.Keys.Where(k => !usable.Contains(k)).Select(Catalog.Get).ToList();
+        return (counts, unusable, list.Unknown);
+    }
+
     /// <summary>Übernimmt einen Vorschlag in den Plan (rückgängig machbar). <paramref name="replace"/> entfernt vorher alle Gleise.</summary>
     public void ApplySuggestion(PlanSuggestion suggestion, bool replace)
     {

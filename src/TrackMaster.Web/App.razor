@@ -2512,22 +2512,29 @@
 
     // ---------- Planvorschlag ----------
 
-    /// <summary>Zuletzt eingegebene Stückzahlen, damit sie beim nächsten Öffnen wieder dastehen.</summary>
-    private readonly Dictionary<string, string> _suggestCounts = [];
     private IReadOnlyList<PlanSuggestion>? _suggestions;
 
     private void AskSuggest()
     {
         _d.Clear();
         _suggestions = null;
-        foreach (var (def, stock) in _session.SuggestPieces())
-            _d["n|" + def.Key] = _suggestCounts.TryGetValue(def.Key, out var v) ? v : stock > 0 ? stock.ToString() : "";
+        // Die Tabelle beginnt immer leer
+        foreach (var (def, _) in _session.SuggestPieces())
+            _d["n|" + def.Key] = "";
         foreach (var f in _session.SuggestFlex())
-            _d["n|" + PlanSuggest.FlexStockKey(f.SystemId)] = _suggestCounts.GetValueOrDefault(PlanSuggest.FlexStockKey(f.SystemId), "");
+            _d["n|" + PlanSuggest.FlexStockKey(f.SystemId)] = "";
         _d["replace"] = "1";
         _suggestImportNote = null;
         var d = Show(Lang.T("Planvorschlag"), SuggestBody, wide: true, keepFields: true);
         d.Buttons.Add(new(Lang.T("Schließen"), () => true));
+        d.Buttons.Add(new(Lang.T("Leeren"), () =>
+        {
+            foreach (var k in _d.Keys.Where(k => k.StartsWith("n|", StringComparison.Ordinal)).ToList()) _d[k] = "";
+            _suggestions = null;
+            _suggestImportNote = null;
+            d.Error = null;
+            return false;
+        }));
         d.Buttons.Add(new(Lang.T("Bestand aus Datei…"), () => { _ = ImportSuggestStock(); return false; }));
         d.Buttons.Add(new(Lang.T("Vorschläge berechnen"), () =>
         {
@@ -2538,7 +2545,6 @@
             foreach (var (key, number) in entries)
             {
                 var t = D("n|" + key).Trim();
-                _suggestCounts[key] = t;
                 if (t.Length == 0) continue;
                 if (int.TryParse(t, out var n) && n >= 0 && n <= 999) { if (n > 0) counts[key] = n; }
                 else errors.Add(Lang.F($"{number}: Anzahl bitte als ganze Zahl eingeben."));

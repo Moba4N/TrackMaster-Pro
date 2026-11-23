@@ -14,7 +14,7 @@ public sealed record PlanSuggestion(string Name, string Description, IReadOnlyLi
 /// </summary>
 public static class PlanSuggest
 {
-    public const int MaxResults = 8;
+    public const int MaxResults = 12;
 
     private sealed record Straight(string Key, double Length);
     private sealed record Curve(string Key, double Radius, double Angle);
@@ -152,13 +152,18 @@ public static class PlanSuggest
             Add(b.OvalWithCurvedSidings(r, 1));
             Add(b.OvalWithCurvedSidings(r, 2));
             Add(b.OvalWithLoop(r));
+            for (var k = 2; k <= 4; k++) Add(b.OvalWithFan(r, k));
             Add(b.FigureEight(r));
         }
         foreach (var s in b.Extra) Add(s);
         var groups = b.RadiusGroups();
         for (var i = 0; i < groups.Count; i++)
             for (var j = i + 1; j < groups.Count; j++)
+            {
                 Add(b.DoubleOval(groups[i], groups[j]));
+                Add(b.DoubleOvalWithCrossovers(groups[i], groups[j], 1));
+                Add(b.DoubleOvalWithCrossovers(groups[i], groups[j], 2));
+            }
         // Von jeder Form zuerst der größte Vorschlag, danach die übrigen
         var sorted = list.OrderByDescending(s => s.Used).ToList();
         var best = sorted.GroupBy(s => s.Name).Select(g => g.First()).ToList();
@@ -742,6 +747,8 @@ public static class PlanSuggest
                         if (best is null || r.Used > best.Used) best = r;
                         // Mit weiteren Weichen: auf der Gegenseite zusätzlich ein Abstellgleis
                         if (LoopWithSiding(radius, used, loop, main, side, half, blockLength, LayLoop) is { } more) Extra.Add(more);
+                        for (var k = 2; k <= 3; k++)
+                            if (LoopWithFan(radius, used, loop, main, side, half, blockLength, LayLoop, k) is { } station) Extra.Add(station);
                         goto nextTurnout;
                     }
                 nextTurnout:;
@@ -794,6 +801,255 @@ public static class PlanSuggest
                         Lang.F($"Rundkurs {Size(radius)}, Ausweichgleis ({Fmt.Num(Length(loop), 0)} mm) und Abstellgleis ({Fmt.Num(Length(stub), 0)} mm Gerade)"));
                     if (s is not null) return s;
                 }
+            }
+            return null;
+        }
+
+        /// <summary>Weg entlang der Fahrtrichtung von <paramref name="from"/> bis <paramref name="to"/>.</summary>
+        private static double Along(Pose from, Pose to)
+        {
+            var h = from.Heading * Math.PI / 180;
+            return (to.X - from.X) * Math.Cos(h) + (to.Y - from.Y) * Math.Sin(h);
+        }
+
+        /// <summary>
+        /// Abstellgruppe: Weiche im Hauptgleis, jedes weitere Abstellgleis zweigt vom vorigen nach innen ab (Weichenstraße),
+        /// alle laufen parallel und enden mit Prellbock bei <paramref name="end"/> mm hinter <paramref name="at"/>.
+        /// Weichen, Gegenbögen und Prellböcke muss der Aufrufer schon in <paramref name="used"/> gezählt haben; die Geraden zählt Fan selbst.
+        /// Gibt das Ende des Hauptgleises zurück, null, wenn ein Gleis kürzer als <paramref name="minStub"/> würde.
+        /// </summary>
+        private Pose? Fan(Layer layer, Pose at, Turnout t, IReadOnlyList<string> counter, int tracks, double end, double minStub,
+            Dictionary<string, int> used, string buffer, List<double>? stubs = null)
+        {
+            var main = layer.Lay(t.Key, at, turnRight: true);
+            var e = layer.Chain(layer.Last.WorldConnectors()[2], counter, turnRight: false);
+            for (var i = 1; i <= tracks; i++)
+            {
+                Pose? next = null;
+                if (i < tracks)
+                {
+                    var cont = layer.Lay(t.Key, e, turnRight: true);
+                    next = layer.Chain(layer.Last.WorldConnectors()[2], counter, turnRight: false);
+                    e = cont;
+                }
+                var stub = Fill(used, 1, end - Along(at, e) - Catalog.Get(buffer).TrackLength);
+                var len = Length(stub);
+                if (len < minStub) return null;
+                Use(used, stub);
+                stubs?.Add(len);
+                e = layer.Chain(e, stub);
+                layer.Lay(buffer, e);
+                if (next is { } n) e = n;
+            }
+            return main;
+        }
+
+        /// <summary>Platz für Weichen, Gegenbögen und Prellböcke einer Abstellgruppe; null, wenn der Bestand nicht reicht.</summary>
+        private (Turnout T, List<string> Counter, string Buffer)? FanParts(Dictionary<string, int> used, int tracks)
+        {
+            foreach (var t in _turnouts)
+            {
+                if (Avail(t.Key, used) < tracks) continue;
+                var trial = new Dictionary<string, int>(used);
+                Use(trial, [t.Key], tracks);
+                if (CounterArc(t, trial, tracks) is not { } counter) continue;
+                Use(trial, counter, tracks);
+                if (_buffers.FirstOrDefault(k => Avail(k, trial) >= tracks) is not { } buffer) continue;
+                Use(trial, [buffer], tracks);
+                foreach (var (k, v) in trial) used[k] = v;
+                return (t, counter, buffer);
+            }
+            return null;
+        }
+
+        /// <summary>Kürzestes sinnvolles Abstellgleis: eine Weichenlänge, mindestens 100 mm im Maßstab H0.</summary>
+        private double MinStub(Turnout t) => Math.Max(t.Length, _board.Gauge.TrackWidth * 6);
+
+        /// <summary>Oval mit Abstellgruppe: <paramref name="tracks"/> Abstellgleise nebeneinander innen an einer Längsseite.</summary>
+        public PlanSuggestion? OvalWithFan(double radius, int tracks)
+        {
+            if (2 * radius > ShortSide || _buffers.Count == 0) return null;
+            var used = new Dictionary<string, int>();
+            if (Arc(radius, 180, used, 2) is not { } half) return null;
+            Use(used, half, 2);
+            if (FanParts(used, tracks) is not var (t, counter, buffer)) return null;
+            // Seite mit der Weiche: Weiche plus Geraden; Gegenseite gleich lang
+            var side = Sides(radius, used, 1, t.Length);
+            List<string>? other = null;
+            while (true)
+            {
+                var trial = new Dictionary<string, int>(used);
+                Use(trial, side);
+                if ((other = ExactStraight(Length(side) + t.Length, trial)) is not null) { used = trial; break; }
+                if (side.Count == 0) return null;
+                side = side[..^1];
+            }
+            Use(used, other);
+            var full = Length(side) + t.Length;
+            for (var end = full; end >= MinStub(t) * tracks; end -= Math.Max(LongSide / 16, 20))
+            {
+                var fanUsed = new Dictionary<string, int>(used);
+                var stubs = new List<double>();
+                var layer = new Layer(_board.GaugeId);
+                if (Fan(layer, new Pose(0, 0, 0), t, counter, tracks, end, MinStub(t), fanUsed, buffer, stubs) is not { } e) continue;
+                e = layer.Chain(e, side);
+                e = layer.Chain(e, half, true);
+                e = layer.Chain(e, other);
+                layer.Chain(e, half, true);
+                var s = Finish(layer, Lang.T("Oval mit Abstellgruppe"),
+                    Lang.F($"Rundkurs {Size(radius)}, {tracks} Abstellgleise nebeneinander (je {Fmt.Num(stubs.Min(), 0)} bis {Fmt.Num(stubs.Max(), 0)} mm Gerade)"));
+                if (s is not null) return s;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Zwei Ovale ineinander mit Gleiswechseln: je Längsseite (oder nur einer) eine Weiche außen, deren Abzweig in eine Weiche innen
+        /// mündet. Passt, wenn der Gleisabstand der beiden Ovale dem Versatz zweier Weichen entspricht (bei Bedarf mit Gerade dazwischen).
+        /// </summary>
+        public PlanSuggestion? DoubleOvalWithCrossovers(double inner, double outer, int crossovers)
+        {
+            var d = outer - inner;
+            if (d < _spacing || 2 * outer > ShortSide) return null;
+            var baseUsed = new Dictionary<string, int>();
+            if (Arc(inner, 180, baseUsed, 2) is not { } halfIn) return null;
+            Use(baseUsed, halfIn, 2);
+            if (Arc(outer, 180, baseUsed, 2) is not { } halfOut) return null;
+            Use(baseUsed, halfOut, 2);
+            foreach (var t in _turnouts)
+            {
+                if (Avail(t.Key, baseUsed) < 2 * crossovers) continue;
+                var used = new Dictionary<string, int>(baseUsed);
+                Use(used, [t.Key], 2 * crossovers);
+                // Versatz zweier Weichen; fehlt etwas zum Gleisabstand, kommt eine Gerade zwischen die Abzweige
+                var probe = new Layer(_board.GaugeId);
+                probe.Lay(t.Key, new Pose(0, 0, 0), turnRight: true);
+                var br = probe.Last.WorldConnectors()[2];
+                var lateral0 = 2 * Math.Abs(br.Y);
+                List<string> mid = [];
+                if (d - lateral0 > 0.5)
+                {
+                    var sin = Math.Sin(Math.Abs(Angles.Normalize(br.Heading)) * Math.PI / 180);
+                    if (sin < 0.01 || ExactStraight((d - lateral0) / sin, used, crossovers, tolerance: 0.3, budget: 20_000) is not { } m) continue;
+                    mid = m;
+                    Use(used, mid, crossovers);
+                }
+                else if (d - lateral0 < -0.5) continue;
+                var side = Sides(outer, used, 4);
+                if (side.Count == 0) continue;
+                var sideLen = Length(side);
+
+                // Gleiswechsel von außen nach innen (fromOuter) oder von innen nach außen; die zweite Weiche wird so gedreht,
+                // dass ihr gerader Strang auf dem anderen Gleis liegt. Gibt das Ende auf dem Ausgangsgleis zurück.
+                Pose LayCross(Layer layer, Pose at, bool fromOuter, bool flipB, out Pose toStart, out Pose toEnd)
+                {
+                    var exit = layer.Lay(t.Key, at, turnRight: fromOuter);
+                    var e = layer.Chain(layer.Last.WorldConnectors()[2], mid);
+                    toEnd = layer.Lay(t.Key, e, turnRight: flipB, entry: 2, exit: 0);
+                    toStart = layer.Last.WorldConnectors()[1];
+                    return exit;
+                }
+                // je Richtung: Drehung der zweiten Weiche und Lage auf dem Zielgleis bestimmen
+                var shapes = new Dictionary<bool, (bool FlipB, double Before, double After)>();
+                foreach (var fromOuter in new[] { true, false })
+                    foreach (var flipB in new[] { false, true })
+                    {
+                        var pl = new Layer(_board.GaugeId);
+                        var start = new Pose(0, fromOuter ? 0 : d, 0);
+                        LayCross(pl, start, fromOuter, flipB, out var s1, out var e1);
+                        if (Math.Abs(s1.Y - (fromOuter ? d : 0)) > 0.3 || Math.Abs(e1.Y - s1.Y) > 0.3) continue;
+                        shapes[fromOuter] = (flipB, s1.X, sideLen - e1.X);
+                        break;
+                    }
+                // Reihenfolge der Richtungen: zuerst beide gleich (gleiche Weichen), dann gemischt (linke und rechte)
+                foreach (var dirs in new[] { new[] { true, true }, new[] { true, false }, new[] { false, false } })
+                {
+                    if (dirs.Take(crossovers).Any(x => !shapes.ContainsKey(x))) continue;
+                    var crossUsed = new Dictionary<string, int>(used);
+                    var plans = new List<(bool FromOuter, List<string> FromRest, List<string> ToBefore, List<string> ToAfter)>();
+                    for (var k = 0; k < crossovers && plans.Count == k; k++)
+                    {
+                        var (_, before, after) = shapes[dirs[k]];
+                        if (before < -0.3 || after < -0.3 || sideLen - t.Length < -0.3) break;
+                        List<string>? Need(double len) => len < 0.3 ? [] : ExactStraight(len, crossUsed, 1, tolerance: 0.4, budget: 20_000);
+                        if (Need(sideLen - t.Length) is not { } fromRest) break;
+                        Use(crossUsed, fromRest);
+                        if (Need(before) is not { } toBefore) break;
+                        Use(crossUsed, toBefore);
+                        if (Need(after) is not { } toAfter) break;
+                        Use(crossUsed, toAfter);
+                        plans.Add((dirs[k], fromRest, toBefore, toAfter));
+                    }
+                    if (plans.Count < crossovers) continue;
+                    // Seiten ohne Gleiswechsel: normale Geraden für innen und außen
+                    if (crossovers == 1)
+                    {
+                        if (side.Any(k => Avail(k, crossUsed) < side.Count(x => x == k) * 2)) continue;
+                        Use(crossUsed, side, 2);
+                    }
+                    var layer = new Layer(_board.GaugeId);
+                    var o = new Pose(0, 0, 0);
+                    var i0 = new Pose(0, d, 0);
+                    for (var k = 0; k < 2; k++)
+                    {
+                        if (k < plans.Count)
+                        {
+                            var (fromOuter, fromRest, toBefore, toAfter) = plans[k];
+                            var flipB = shapes[fromOuter].FlipB;
+                            if (fromOuter)
+                            {
+                                o = layer.Chain(LayCross(layer, o, true, flipB, out _, out var toEnd), fromRest);
+                                layer.Chain(i0, toBefore);
+                                i0 = layer.Chain(toEnd, toAfter);
+                            }
+                            else
+                            {
+                                i0 = layer.Chain(LayCross(layer, i0, false, flipB, out _, out var toEnd), fromRest);
+                                layer.Chain(o, toBefore);
+                                o = layer.Chain(toEnd, toAfter);
+                            }
+                        }
+                        else
+                        {
+                            o = layer.Chain(o, side);
+                            i0 = layer.Chain(i0, side);
+                        }
+                        o = layer.Chain(o, halfOut, true);
+                        i0 = layer.Chain(i0, halfIn, true);
+                    }
+                    var r = Finish(layer, Lang.T("Doppeloval mit Gleiswechsel"), crossovers == 1
+                        ? Lang.F($"Zwei Rundkurse {Size(inner)} und {Size(outer)}, ein Gleiswechsel")
+                        : Lang.F($"Zwei Rundkurse {Size(inner)} und {Size(outer)}, zwei Gleiswechsel"));
+                    if (r is not null) return r;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Bahnhof: Ausweiche auf einer Längsseite, auf der Gegenseite eine Abstellgruppe mit <paramref name="tracks"/> Gleisen.</summary>
+        private PlanSuggestion? LoopWithFan(double radius, Dictionary<string, int> loopUsed, List<string> loop, List<string> main, List<string> side,
+            List<string> half, double blockLength, LoopLayer layLoop, int tracks)
+        {
+            var used = new Dictionary<string, int>(loopUsed);
+            if (FanParts(used, tracks) is not var (t, counter, buffer)) return null;
+            if (blockLength + Length(side) - t.Length is var rest && rest < 0) return null;
+            if (ExactStraight(rest, used, tolerance: 0.6, budget: 20_000) is not { } other) return null;
+            Use(used, other);
+            for (var end = Length(other) + t.Length; end >= MinStub(t) * tracks; end -= Math.Max(LongSide / 16, 20))
+            {
+                var fanUsed = new Dictionary<string, int>(used);
+                var stubs = new List<double>();
+                var layer = new Layer(_board.GaugeId);
+                var swB = layLoop(layer, loop, out var a1, out _);
+                layer.Chain(a1, main);
+                var e = layer.Chain(swB, side);
+                e = layer.Chain(e, half, true);
+                if (Fan(layer, e, t, counter, tracks, end, MinStub(t), fanUsed, buffer, stubs) is not { } f) continue;
+                e = layer.Chain(f, other);
+                layer.Chain(e, half, true);
+                var s = Finish(layer, Lang.T("Oval mit Bahnhof"),
+                    Lang.F($"Rundkurs {Size(radius)}, Ausweichgleis ({Fmt.Num(Length(loop), 0)} mm) und {tracks} Abstellgleise ({Fmt.Num(stubs.Min(), 0)} bis {Fmt.Num(stubs.Max(), 0)} mm Gerade)"));
+                if (s is not null) return s;
             }
             return null;
         }

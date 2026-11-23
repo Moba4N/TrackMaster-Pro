@@ -229,6 +229,41 @@ public class PlanSuggestTests(ITestOutputHelper output)
         Assert.Contains(list, s => s.Name == "Oval mit Ausweiche und Abstellgleis" && s.Pieces.Count(p => p.Def.Kind == PieceKind.Switch) == 3);
     }
 
+    private static Dictionary<string, int> BigMc() => new()
+    {
+        ["H0|mc|24611"] = 3, ["H0|mc|24612"] = 3, ["H0|mc|24130"] = 24, ["H0|mc|24230"] = 24, ["H0|mc|24188"] = 16, ["H0|mc|24172"] = 8,
+        ["H0|mc|24071"] = 6, ["H0|mc|24064"] = 6, ["H0|mc|24077"] = 4, ["H0|mc|24094"] = 4, ["H0|mc|24977"] = 4, ["H0|mc|24224"] = 8,
+    };
+
+    [Fact]
+    public void LargerStockGivesStationsYardsAndCrossovers()
+    {
+        var board = new LayoutPlan { GaugeId = "H0", BoardWidth = 2600, BoardHeight = 1400 };
+        var stock = BigMc();
+        var list = PlanSuggest.Build(board, stock);
+        AssertValid(board, stock, list);
+        int Turnouts(PlanSuggestion s) => s.Pieces.Count(p => p.Def.Kind == PieceKind.Switch);
+        Assert.Contains(list, s => s.Name == "Oval mit Abstellgruppe" && Turnouts(s) == 3 && s.Pieces.Count(p => p.Def.Kind == PieceKind.Buffer) == 3);
+        Assert.Contains(list, s => s.Name == "Oval mit Bahnhof" && Turnouts(s) == 4);
+        Assert.Contains(list, s => s.Name == "Doppeloval mit Gleiswechsel" && Turnouts(s) == 4);
+        Assert.All(list.SelectMany(s => s.Pieces).Where(p => p.Def.Kind == PieceKind.Switch), p => Assert.False(p.Flipped));
+    }
+
+    [Theory]
+    [InlineData("rf-n")]
+    [InlineData("minitrix")]
+    [InlineData("tillig")]
+    [InlineData("piko")]
+    [InlineData("rocoline")]
+    public void CrossoversWorkAcrossSystems(string systemId)
+    {
+        var (board, stock) = Typical(systemId);
+        foreach (var k in stock.Keys.Where(k => Catalog.Get(k).Kind == PieceKind.Switch).ToList()) stock[k] = 4;
+        var list = PlanSuggest.Build(board, stock);
+        AssertValid(board, stock, list);
+        Assert.Contains(list, s => s.Name == "Doppeloval mit Gleiswechsel");
+    }
+
     [Fact]
     public void StockListReadsCsvAndText()
     {

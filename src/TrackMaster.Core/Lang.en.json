@@ -1872,6 +1872,11 @@
  "Rundkurs {0}, zwei Abstellgleise {1} ({2} mm Gerade)": "Loop {0}, two sidings {1} ({2} mm straight)",
  "Rundkurs {0}, Abstellgleis an einer Bogenweiche ({1} mm Gerade)": "Loop {0}, siding at a curved turnout ({1} mm straight)",
  "Rundkurs {0}, zwei Abstellgleise an Bogenweichen ({1} mm Gerade)": "Loop {0}, two sidings at curved turnouts ({1} mm straight)",
+ "Bestand aus Datei…": "Stock from file…",
+ "In der Datei wurden keine Artikel des Gleissystems {0} gefunden. Erwartet wird je Zeile eine Artikelnummer und eine Stückzahl, z. B. „24130;12“.": "No articles of the track system {0} were found in the file. Each line should hold an article number and a quantity, e.g. “24130;12”.",
+ "{0} Gleise in {1} Sorten aus der Datei übernommen.": "{0} pieces of {1} kinds taken from the file.",
+ "Nicht für den Vorschlag verwendbar: {0}.": "Not usable for the suggestion: {0}.",
+ "Nicht erkannt ({0}): {1}{2}": "Not recognised ({0}): {1}{2}",
  "Rundumsicht": "Orbit view",
  "Rücken": "Spine",
  "Rückgängig": "Undo",
@@ -2829,10 +2834,5 @@
  "Es gibt keine Verbindungen zum Gleis.": "There are no connections to the track.",
  "Verbindungen zum Gleis entfernt: {0} Anschlüsse und {1} Kabel. Zentrale, Booster, Module, Melder und Trennstellen bleiben.": "Track connections removed: {0} connection(s) and {1} wire(s). Command station, boosters, modules, detectors and isolations stay.",
  "Verbindungen zum Gleis entfernen": "Remove track connections",
- "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back.",
- "Bestand aus Datei…": "Stock from file…",
- "In der Datei wurden keine Artikel des Gleissystems {0} gefunden. Erwartet wird je Zeile eine Artikelnummer und eine Stückzahl, z. B. „24130;12“.": "No articles of the track system {0} were found in the file. Each line should hold an article number and a quantity, e.g. “24130;12”.",
- "{0} Gleise in {1} Sorten aus der Datei übernommen.": "{0} pieces of {1} kinds taken from the file.",
- "Nicht für den Vorschlag verwendbar: {0}.": "Not usable for the suggestion: {0}.",
- "Nicht erkannt ({0}): {1}{2}": "Not recognised ({0}): {1}{2}"
+ "Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.": "Remove all connections to the track (track power and ground, automatic or manual) together with their wires. Command station, boosters, modules, detectors and isolations stay. Undo brings everything back."
 }

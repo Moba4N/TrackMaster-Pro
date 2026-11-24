@@ -162,7 +162,7 @@ All three open the same plans and have the same tabs. A few things differ:</p>
   <tr><td>Snapping on/off</td><td><span class="ui">Snap</span> switch in the status bar</td><td><span class="ui">Snap</span> switch in the status bar or under <span class="ui">View</span></td></tr>
   <tr><td>Help on keys</td><td><span class="ui">View › Shortcuts</span> (<kbd>F1</kbd>)</td><td><span class="ui">View › How to use</span> or <span class="ui">File › How to use</span> (<kbd>F1</kbd>)</td></tr>
   <tr><td>Plan file</td><td>Extension <b>.mpr</b> (also opens older .trackmaster.json)</td><td>Extension <b>.mpr</b> (also opens older .trackmaster.json)</td></tr>
-  <tr><td>Only here</td><td>–</td><td>Layout suggestion from your own track stock, turntable as a quick command, modules at different heights, cutting track at module edges,
+  <tr><td>Only here</td><td>–</td><td>Turntable as a quick command, modules at different heights, cutting track at module edges,
     changing the height at a joint</td></tr>
 </table>
 <p>The Android app is designed for finger operation. What is different there is described in chapter <a href="#k13">17</a>.</p>
@@ -812,25 +812,6 @@ field you put all selected tracks at a common height; any gradient is removed. F
 <figure class="third"><img src="img-en/parallel.png" alt=""><figcaption>Parallel track window.</figcaption></figure>
 <p>The new track is laid as <b>flexible track</b> of the chosen system; curves automatically get the matching larger or smaller radius. If it is on the wrong side,
 undo it with <kbd>Ctrl</kbd>+<kbd>Z</kbd> and choose the other side.</p>
-
-<h2 id="k6-7">Layout suggestion from your own track stock</h2>
-<p>You have a box full of track but no idea for a layout? The layout suggestion builds small layouts from your quantities, as ideas to get started.
-<i>This function is only available in the web version.</i></p>
-<ol class="steps">
-  <li>Set the <b>baseboard</b> (size and shape) and choose your <b>track system</b> in the track library.</li>
-  <li>Click <span class="ui">Tracks › Layout suggestion…</span>.</li>
-  <li>For each track, enter <b>how many</b> you have. Empty or 0 means none. The table is always empty when the window opens; <span class="ui">Clear</span> removes all quantities again. You can also read in a list with <span class="ui">Stock from file…</span>: a CSV or text file with an article number and a quantity on each line, such as <code>24130;12</code> or <code>12 x 24130</code>. The parts list saved as CSV works too; then the “In stock” column counts. The program replaces all quantities in the window and names any articles it does not recognise.</li>
-  <li>Click <span class="ui">Calculate suggestions</span>. After a moment the suggestions appear with a small preview, number of tracks and size.</li>
-  <li>If you like one, click <span class="ui">Apply</span>. <kbd>Ctrl</kbd>+<kbd>Z</kbd> removes it again.</li>
-</ol>
-<p>Depending on your stock, these shapes are possible: <b>oval</b>, <b>oval with siding</b> (or two), <b>oval with passing loop</b> (also with an extra siding), <b>oval with siding group</b> (two to four sidings side by side), <b>oval with station</b> (passing loop and siding group), <b>oval with three-track station</b>, <b>oval with industry spur</b> outside (for example to a factory at the baseboard edge), <b>double oval</b> (two loops
-inside each other, also with crossovers and sidings inside), the <b>dogbone</b> (two reversing loops with a double-track middle) and the <b>figure of eight</b> with a crossing in the middle. Every suggestion is closed, fits on the baseboard and passes the plan check. It never
-uses more track than you entered. Left and right turnouts are placed where each fits; no turnout is mirrored.</p>
-<div class="tip"><b>No suggestion?</b>An oval needs curves for a full circle of one radius (for example 12 curves of 30°), and the baseboard must be at least twice
-as deep as the radius plus some margin. Sidings need a turnout and a buffer stop; without a curve matching the turnout angle the siding runs inwards at an angle.
-Also enter your lengths of flexible track at the bottom of the list: the suggestion cuts missing curves and straights from them – for track systems without
-fixed curves (such as Peco Code 55) this is the only way. Curved turnouts such as those of Märklin and Trix C track are placed in the curve, and the siding then runs inside, parallel to the straight. Curved turnouts with two different radii, three-way and slip turnouts are not used yet; the list names them. If “Replace existing tracks” is ticked, the suggestion
-replaces the track in the plan; otherwise it is added.</div>
 
 <h2 id="k6-4">Flexible track</h2>
 <p>Flexible track comes in long lengths that you bend yourself and cut to length. With it you can lay lines that are impossible with fixed pieces. There are three ways:</p>

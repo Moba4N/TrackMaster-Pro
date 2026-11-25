@@ -173,20 +173,6 @@
                     <button class="icon-btn" title="@Lang.T("Hervorhebung beenden")" @onclick="CloseIssueNav">✕</button>
                 </div>
             }
-            @if (plan.Pieces.Count == 0 && plan.Scenery.Count == 0 && _session.Tool == CanvasTool.Select && _dialog is null && !_open3D && !ReferenceEquals(_emptyHintClosedFor, plan))
-            {
-                <div class="empty-hint" role="note">
-                    <button class="icon-btn empty-close" title="@Lang.T("Schließen")" aria-label="@Lang.T("Schließen")" @onclick="@(() => _emptyHintClosedFor = plan)">@((MarkupString)Icons.Svg("Close", 18))</button>
-                    <div class="strong">@Lang.T("Der Plan ist noch leer.")</div>
-                    <div class="secondary">@Lang.T("Ein Gleis in der Gleisbibliothek anklicken oder auf die Platte ziehen – jedes weitere setzt am freien Ende an.")</div>
-                    <div class="button-row inline">
-                        <button class="btn only-narrow" @onclick="@(() => { _libraryOpen = true; _propsOpen = false; })">@Lang.T("Gleisbibliothek")</button>
-                        <button class="btn" @onclick="@(() => Run("suggest"))">@Lang.T("Planvorschlag…")</button>
-                        <button class="btn" @onclick="@(() => Run("sample"))">@Lang.T("Beispielanlage")</button>
-                        <button class="btn" @onclick="@(() => Run("help"))">@Lang.T("Bedienung")</button>
-                    </div>
-                </div>
-            }
             @if (_toast is not null)
             {
                 <div class="toast" role="status" @onclick="() => _toast = null">@_toast</div>

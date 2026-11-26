@@ -1365,7 +1365,10 @@ public sealed partial class MainWindow : Window
 
     // ---------- Dateien ----------
 
-    private static string FileFilter => Lang.T("TrackMaster-Plan (*.trackmaster.json)|*.trackmaster.json|JSON-Dateien (*.json)|*.json|Alle Dateien (*.*)|*.*");
+    /// <summary>Öffnen: *.mpr und ältere *.trackmaster.json zusammen.</summary>
+    private static string FileFilter => Lang.T("TrackMaster-Plan (*.mpr;*.trackmaster.json)|*.mpr;*.trackmaster.json|Ältere Pläne (*.json)|*.json|Alle Dateien (*.*)|*.*");
+    /// <summary>Speichern: immer *.mpr.</summary>
+    private static string SaveFilter => Lang.T("TrackMaster-Plan (*.mpr)|*.mpr");
 
     private string SafeName => string.Join("", Session.Plan.Name.Split(Path.GetInvalidFileNameChars())).Trim() is { Length: > 0 } n ? n : Lang.T("Gleisplan");
 
@@ -1445,7 +1448,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var other = PlanSerializer.FromJson(File.ReadAllText(dlg.FileName), out _);
-            var file = Path.GetFileName(dlg.FileName).Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var file = PlanSerializer.BaseName(Path.GetFileName(dlg.FileName));
             var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : file;
             if (Session.AppendModule(other, title)) Canvas.Fit();
         }
@@ -1474,12 +1477,17 @@ public sealed partial class MainWindow : Window
     {
         if (!Session.RequireSave()) return false;
         var path = Session.FilePath;
-        if (askForName || path is null)
+        // ältere Pläne (*.trackmaster.json) werden beim Speichern zu *.mpr: Name vorschlagen, die alte Datei bleibt unverändert
+        if (askForName || path is null || !PlanSerializer.IsPlanFile(path))
         {
-            var dlg = new SaveFileDialog { Filter = FileFilter, Title = Lang.T("Gleisplan speichern"), FileName = SafeName + PlanSerializer.FileExtension, AddExtension = false };
+            var suggested = path is null ? SafeName + PlanSerializer.FileExtension : Path.GetFileName(PlanSerializer.WithPlanExtension(path));
+            var dlg = new SaveFileDialog
+            {
+                Filter = SaveFilter, Title = Lang.T("Gleisplan speichern"), FileName = suggested, DefaultExt = PlanSerializer.FileExtension, AddExtension = true,
+                InitialDirectory = path is null ? "" : Path.GetDirectoryName(path) ?? "",
+            };
             if (dlg.ShowDialog(this) != true) return false;
-            path = dlg.FileName;
-            if (!path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) path += PlanSerializer.FileExtension;
+            path = PlanSerializer.WithPlanExtension(dlg.FileName);
         }
         try
         {
@@ -1867,7 +1875,7 @@ public sealed partial class MainWindow : Window
         var items = _recent.Items;
         foreach (var path in items)
         {
-            var item = new RibbonApplicationMenuItem { Header = Path.GetFileName(path).Replace(PlanSerializer.FileExtension, ""), ToolTip = path };
+            var item = new RibbonApplicationMenuItem { Header = PlanSerializer.BaseName(Path.GetFileName(path)), ToolTip = path };
             item.Click += (_, _) => { if (ConfirmDiscard()) OpenPath(path); };
             _recentMenu.Items.Add(item);
         }

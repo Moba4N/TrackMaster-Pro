@@ -683,7 +683,7 @@ public partial class App : ComponentBase, IAppHost
     // ---------- Dateien ----------
 
     /// <summary>Endung, unter der die Webversion Pläne speichert. Inhalt wie *.trackmaster.json, daher öffnet sie auch diese.</summary>
-    private const string WebFileExtension = ".mpr";
+    private const string WebFileExtension = PlanSerializer.FileExtension;
     private const string PlanFileTypes = ".mpr,.json,.trackmaster.json,application/json";
 
     private async Task OpenFile()
@@ -747,7 +747,7 @@ public partial class App : ComponentBase, IAppHost
         try
         {
             var other = PlanSerializer.FromJson(text, out _);
-            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "").Replace(WebFileExtension, "");
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : PlanSerializer.BaseName(name);
             if (_session.AppendModule(other, title)) _view.Fit();
         }
         catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException or FormatException or NotSupportedException or ArgumentException or KeyNotFoundException)

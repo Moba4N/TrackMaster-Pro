@@ -1440,7 +1440,7 @@ public static partial class Dialogs
             col.AddView(Ui.Label(c, v, 13.5, color: Ui.TextSecondary));
             body.AddView(col);
         }
-        body.AddView(Hint(c, Lang.T("Pläne sind mit der Windows-Version austauschbar (*.trackmaster.json).")));
+        body.AddView(Hint(c, Lang.T("Pläne werden als *.mpr gespeichert und sind mit Windows und der Webversion austauschbar; ältere *.trackmaster.json öffnen weiter.")));
         Show(c, Lang.T("Bedienung"), body, "OK", cancelText: null);
     }
 }

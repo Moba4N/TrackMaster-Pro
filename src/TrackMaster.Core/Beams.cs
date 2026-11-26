@@ -9,6 +9,8 @@ namespace TrackMaster.Core;
 public static class BeamLayout
 {
     public const double MinSection = 5, MaxWidth = 200, MaxDepth = 300, MinTop = -3000, MaxTop = 1000, MinLength = 10;
+    /// <summary>Raster, an dem Leisten und Platten einrasten, wenn keine Kante und keine andere Leiste in der Nähe ist (mm).</summary>
+    public const double GridStep = 10;
 
     /// <summary>Querschnitt und Lage einer neuen Leiste: wie die Zarge des Unterbaus, direkt unter der Platte.</summary>
     public static (double Width, double Depth, double Top) Defaults(LayoutPlan plan)
@@ -51,9 +53,10 @@ public static class BeamLayout
     /// <summary>
     /// Fangpunkt für eine Leiste: Plattenecken, Enden anderer Leisten und – vom Anfang <paramref name="from"/> aus senkrecht
     /// oder waagrecht – der Schnitt mit einer anderen Leiste; sonst der nächste Punkt auf einer Plattenkante oder Leiste.
-    /// So steht eine Strebe von einer Modulkante genau rechtwinklig auf der Diagonale.
+    /// So steht eine Strebe von einer Modulkante genau rechtwinklig auf der Diagonale. Mit <paramref name="grid"/> &gt; 0 rastet ein freier
+    /// Punkt am Raster ein, ein Punkt auf einer waagrechten oder senkrechten Kante entlang der Kante.
     /// </summary>
-    public static (double X, double Y) Snap(LayoutPlan plan, double x, double y, double tolerance, (double X, double Y)? from = null, int skipId = -1)
+    public static (double X, double Y) Snap(LayoutPlan plan, double x, double y, double tolerance, (double X, double Y)? from = null, int skipId = -1, double grid = 0)
     {
         var beams = plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2 && s.Id != skipId).ToList();
         var points = BoardGeometry.Outlines(plan).SelectMany(o => o).Concat(beams.SelectMany(s => s.Points)).ToList();
@@ -71,15 +74,89 @@ public static class BeamLayout
             for (int i = 0, j = o.Count - 1; i < o.Count; j = i++) edges.Add((o[j], o[i]));
         edges.AddRange(beams.Select(s => (s.Points[0], s.Points[1])));
         var foot = edges.Select(e => Foot(e.A, e.B, x, y)).ToList();
-        if (Nearest(foot, x, y, tolerance) is { } q) return Round(q);
-        // frei: vom Anfang aus waagrecht bzw. senkrecht, wenn fast
+        if (Nearest(foot, x, y, tolerance) is { } q)
+        {
+            if (grid > 0)
+            {
+                var e = edges[foot.IndexOf(q)];
+                // entlang einer waagrechten bzw. senkrechten Kante am Raster bleiben
+                if (Math.Abs(e.A.Y - e.B.Y) < 1e-6) q = (Math.Clamp(OnGrid(q.X, grid), Math.Min(e.A.X, e.B.X), Math.Max(e.A.X, e.B.X)), q.Y);
+                else if (Math.Abs(e.A.X - e.B.X) < 1e-6) q = (q.X, Math.Clamp(OnGrid(q.Y, grid), Math.Min(e.A.Y, e.B.Y), Math.Max(e.A.Y, e.B.Y)));
+            }
+            return Round(q);
+        }
+        // frei: vom Anfang aus waagrecht bzw. senkrecht, wenn fast; sonst am Raster
+        bool lockX = false, lockY = false;
         if (from is { } g)
         {
-            if (Math.Abs(x - g.X) < tolerance / 2) x = g.X;
-            if (Math.Abs(y - g.Y) < tolerance / 2) y = g.Y;
+            if (Math.Abs(x - g.X) < tolerance / 2) { x = g.X; lockX = true; }
+            if (Math.Abs(y - g.Y) < tolerance / 2) { y = g.Y; lockY = true; }
+        }
+        if (grid > 0)
+        {
+            if (!lockX) x = OnGrid(x, grid);
+            if (!lockY) y = OnGrid(y, grid);
         }
         return Round((x, y));
     }
+
+    private static double OnGrid(double v, double grid) => Math.Round(v / grid) * grid;
+
+    /// <summary>
+    /// Verschieben gewählter Leisten und Platten um (<paramref name="dx"/>, <paramref name="dy"/>) mit Einrasten: Ecken und Enden
+    /// rasten an Plattenecken, Enden anderer Leisten und Plattenkanten bzw. Mittellinien anderer Leisten ein, sonst am Raster.
+    /// Gibt die eingerastete Verschiebung zurück.
+    /// </summary>
+    public static (double X, double Y) SnapMove(LayoutPlan plan, IReadOnlyCollection<SceneryItem> moving, double dx, double dy, double tolerance, double grid = GridStep)
+    {
+        var ids = moving.Select(m => m.Id).ToHashSet();
+        var own = moving.SelectMany(Corners).Select(p => (X: p.X + dx, Y: p.Y + dy)).ToList();
+        if (own.Count == 0) return (dx, dy);
+        var others = plan.Scenery.Where(s => (s.IsBeam || s.IsPlate) && !ids.Contains(s.Id)).ToList();
+        var outlines = BoardGeometry.Outlines(plan);
+        var targets = outlines.SelectMany(o => o).Concat(others.SelectMany(Corners)).ToList();
+        (double X, double Y)? best = null;
+        var bestD = tolerance;
+        foreach (var p in own)
+            foreach (var t in targets)
+            {
+                var d = Math.Sqrt((t.X - p.X) * (t.X - p.X) + (t.Y - p.Y) * (t.Y - p.Y));
+                if (d < bestD) { bestD = d; best = (t.X - p.X, t.Y - p.Y); }
+            }
+        if (best is { } b) return Round((dx + b.X, dy + b.Y));
+        var edges = new List<((double X, double Y) A, (double X, double Y) B)>();
+        foreach (var o in outlines)
+            for (int i = 0, j = o.Count - 1; i < o.Count; j = i++) edges.Add((o[j], o[i]));
+        foreach (var s in others)
+        {
+            if (s.IsBeam && s.Points.Count == 2) edges.Add((s.Points[0], s.Points[1]));
+            else if (s.IsPlate) { var o = PlateLayout.Outline(s); for (int i = 0, j = o.Count - 1; i < o.Count; j = i++) edges.Add((o[j], o[i])); }
+        }
+        var hit = (P: (X: 0.0, Y: 0.0), E: (A: (X: 0.0, Y: 0.0), B: (X: 0.0, Y: 0.0)));
+        foreach (var p in own)
+            foreach (var e in edges)
+            {
+                var f = Foot(e.A, e.B, p.X, p.Y);
+                var d = Math.Sqrt((f.X - p.X) * (f.X - p.X) + (f.Y - p.Y) * (f.Y - p.Y));
+                if (d < bestD) { bestD = d; best = (f.X - p.X, f.Y - p.Y); hit = (p, e); }
+            }
+        if (best is { } c)
+        {
+            // an einer Kante: entlang der Kante am Raster bleiben, wenn sie waagrecht oder senkrecht ist
+            var (ex, ey) = (dx + c.X, dy + c.Y);
+            var (pt, edge) = hit;
+            if (grid > 0 && Math.Abs(edge.A.Y - edge.B.Y) < 1e-6) ex = dx + OnGrid(pt.X, grid) - pt.X;
+            else if (grid > 0 && Math.Abs(edge.A.X - edge.B.X) < 1e-6) ey = dy + OnGrid(pt.Y, grid) - pt.Y;
+            return Round((ex, ey));
+        }
+        if (grid <= 0) return (dx, dy);
+        var first = own[0];
+        return Round((dx + OnGrid(first.X, grid) - first.X, dy + OnGrid(first.Y, grid) - first.Y));
+    }
+
+    /// <summary>Punkte, die beim Verschieben einrasten: Enden einer Leiste bzw. Ecken einer Platte.</summary>
+    public static IEnumerable<(double X, double Y)> Corners(SceneryItem s)
+        => s.IsBeam ? s.Points.Count == 2 ? s.Points : [] : s.IsPlate ? PlateLayout.Outline(s) : [];
 
     private static (double X, double Y) Round((double X, double Y) p) => (Math.Round(p.X, 1), Math.Round(p.Y, 1));
 
@@ -131,6 +208,8 @@ public static class BeamLayout
 /// Eine Deckplatte ist ein <see cref="SceneryItem"/> der Art <see cref="SceneryKind.Plate"/>: linke obere Ecke
 /// (<see cref="SceneryItem.X"/>, <see cref="SceneryItem.Y"/>), Breite und Tiefe (<see cref="SceneryItem.Width"/>,
 /// <see cref="SceneryItem.Depth"/>), Oberkante (<see cref="SceneryItem.Height"/>) und Stärke in mm (<see cref="SceneryItem.Variant"/>).
+/// Eine Platte in Sonderform hat ihren Umriss in <see cref="SceneryItem.Points"/> (mindestens drei Ecken); X, Y, Breite und Tiefe
+/// sind dann das umschließende Rechteck (für Zuschnitt und Anzeige).
 /// </summary>
 public static class PlateLayout
 {
@@ -140,16 +219,69 @@ public static class PlateLayout
     public static double Thickness(SceneryItem s) => Math.Clamp(s.Variant, MinThickness, MaxThickness);
 
     public static IReadOnlyList<(double X, double Y)> Outline(SceneryItem s)
-        => [(s.X, s.Y), (s.X + s.Width, s.Y), (s.X + s.Width, s.Y + s.Depth), (s.X, s.Y + s.Depth)];
+        => IsShaped(s) ? s.Points : [(s.X, s.Y), (s.X + s.Width, s.Y), (s.X + s.Width, s.Y + s.Depth), (s.X, s.Y + s.Depth)];
+
+    /// <summary>Platte in Sonderform (Vieleck statt Rechteck)?</summary>
+    public static bool IsShaped(SceneryItem s) => s.Points.Count >= 3;
+
+    /// <summary>Ecken einer Sonderform aufräumen: gerundet, doppelte Punkte und Punkte auf einer Geraden entfernt.</summary>
+    public static List<(double X, double Y)> Clean(IEnumerable<(double X, double Y)> points)
+    {
+        var pts = new List<(double X, double Y)>();
+        foreach (var p in points.Where(p => double.IsFinite(p.X) && double.IsFinite(p.Y)).Select(p => (Math.Round(p.X, 1), Math.Round(p.Y, 1))))
+            if (pts.Count == 0 || Math.Abs(pts[^1].Item1 - p.Item1) + Math.Abs(pts[^1].Item2 - p.Item2) > 0.5) pts.Add(p);
+        if (pts.Count > 1 && Math.Abs(pts[0].X - pts[^1].X) + Math.Abs(pts[0].Y - pts[^1].Y) <= 0.5) pts.RemoveAt(pts.Count - 1);
+        for (var i = 0; pts.Count > 3 && i < pts.Count;)
+        {
+            var (a, b, c) = (pts[(i + pts.Count - 1) % pts.Count], pts[i], pts[(i + 1) % pts.Count]);
+            var cross = (b.X - a.X) * (c.Y - b.Y) - (b.Y - a.Y) * (c.X - b.X);
+            if (Math.Abs(cross) < 1e-6 * Math.Max(1, Math.Abs(b.X - a.X) + Math.Abs(b.Y - a.Y)) * Math.Max(1, Math.Abs(c.X - b.X) + Math.Abs(c.Y - b.Y))) pts.RemoveAt(i);
+            else i++;
+        }
+        return pts;
+    }
+
+    /// <summary>Fläche in m² (Sonderform: Vieleck, sonst Breite × Tiefe).</summary>
+    public static double Area(SceneryItem s) => (IsShaped(s) ? Math.Abs(Geometry2D.SignedArea(s.Points)) : s.Width * s.Depth) / 1e6;
+
+    /// <summary>
+    /// Lage oder Größe aus den Eigenschaften setzen (linke obere Ecke, Breite, Tiefe). Eine Sonderform wird dabei verschoben bzw.
+    /// auf das neue umschließende Rechteck gestreckt.
+    /// </summary>
+    public static void SetBox(SceneryItem s, double? x = null, double? y = null, double? width = null, double? depth = null)
+    {
+        double nx = x ?? s.X, ny = y ?? s.Y;
+        double nw = Math.Clamp(width ?? s.Width, MinSize, MaxSize), nd = Math.Clamp(depth ?? s.Depth, MinSize, MaxSize);
+        if (IsShaped(s))
+        {
+            double ox = s.X, oy = s.Y, sx = s.Width > 0 ? nw / s.Width : 1, sy = s.Depth > 0 ? nd / s.Depth : 1;
+            s.Points = s.Points.Select(p => (Math.Round(nx + (p.X - ox) * sx, 1), Math.Round(ny + (p.Y - oy) * sy, 1))).ToList();
+        }
+        (s.X, s.Y, s.Width, s.Depth) = (nx, ny, nw, nd);
+    }
+
+    /// <summary>Umschließendes Rechteck einer Sonderform in X, Y, Breite und Tiefe übernehmen.</summary>
+    private static void Bounds(SceneryItem s)
+    {
+        if (!IsShaped(s)) return;
+        (s.X, s.Y) = (s.Points.Min(p => p.X), s.Points.Min(p => p.Y));
+        (s.Width, s.Depth) = (s.Points.Max(p => p.X) - s.X, s.Points.Max(p => p.Y) - s.Y);
+    }
 
     public static string Size(SceneryItem s) => $"{Fmt.Num(s.Width, 0)} × {Fmt.Num(s.Depth, 0)}";
 
-    public static bool Valid(SceneryItem s) => s.Width is >= MinSize and <= MaxSize && s.Depth is >= MinSize and <= MaxSize
+    public static bool Valid(SceneryItem s) => (!IsShaped(s) || s.Points.All(p => double.IsFinite(p.X) && double.IsFinite(p.Y))) && s.Width is >= MinSize and <= MaxSize && s.Depth is >= MinSize and <= MaxSize
         && s.Variant is >= MinThickness and <= MaxThickness && s.Height is >= BeamLayout.MinTop and <= BeamLayout.MaxTop
         && double.IsFinite(s.X) && double.IsFinite(s.Y);
 
     public static void Repair(SceneryItem s)
     {
+        if (s.Points.Count > 0)
+        {
+            s.Points = Clean(s.Points);
+            if (s.Points.Count < 3) s.Points = [];
+            Bounds(s);
+        }
         s.X = double.IsFinite(s.X) ? s.X : 0;
         s.Y = double.IsFinite(s.Y) ? s.Y : 0;
         s.Width = double.IsFinite(s.Width) ? Math.Clamp(s.Width, MinSize, MaxSize) : 600;

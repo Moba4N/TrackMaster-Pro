@@ -162,7 +162,7 @@ Alle drei können dieselben Pläne öffnen und haben dieselben Register. Ein paa
   <tr><td>Beispiel laden</td><td><span class="ui">Datei › Beispielplan laden</span></td><td><span class="ui">Datei › Beispielanlage</span></td></tr>
   <tr><td>Einrasten ein/aus</td><td>Schalter <span class="ui">Fang</span> in der Statusleiste</td><td>Schalter <span class="ui">Einrasten</span> in der Statusleiste oder unter <span class="ui">Ansicht</span></td></tr>
   <tr><td>Hilfe zu Tasten</td><td><span class="ui">Ansicht › Tastenkürzel</span> (<kbd>F1</kbd>)</td><td><span class="ui">Ansicht › Bedienung</span> oder <span class="ui">Datei › Bedienung</span> (<kbd>F1</kbd>)</td></tr>
-  <tr><td>Plandatei</td><td>Endung <b>.trackmaster.json</b></td><td>Endung <b>.mpr</b> (gleicher Inhalt, öffnet auch .trackmaster.json)</td></tr>
+  <tr><td>Plandatei</td><td>Endung <b>.mpr</b> (öffnet auch ältere .trackmaster.json)</td><td>Endung <b>.mpr</b> (öffnet auch ältere .trackmaster.json)</td></tr>
   <tr><td>Nur hier</td><td>–</td><td>Planvorschlag aus dem eigenen Gleisbestand, Drehscheibe als Schnellbefehl, Module in verschiedenen Höhen, Gleise an Modulkanten trennen,
     Höhe an einem Verbindungspunkt ändern</td></tr>
 </table>
@@ -238,8 +238,8 @@ startet schneller.</p>
   <tr><td><b>Speichern</b></td><td><span class="ui">Datei › Speichern</span> lädt den Plan als Datei mit der Endung <b>.mpr</b> herunter, meist in den Ordner <i>Downloads</i>.
     <span class="ui">Datei › Speichern unter…</span> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>S</kbd>) fragt nach dem Dateinamen. In Chrome und Edge wählen Sie dabei auch
     den Ordner, und <span class="ui">Speichern</span> schreibt danach immer in diese Datei.</td></tr>
-  <tr><td><b>Öffnen</b></td><td><span class="ui">Datei › Öffnen…</span> lädt eine <b>.mpr</b>- oder <b>.trackmaster.json</b>-Datei. Der Inhalt ist derselbe wie unter Windows
-    und Android. Dort öffnen Sie eine .mpr-Datei, indem Sie im Öffnen-Fenster „Alle Dateien“ wählen.</td></tr>
+  <tr><td><b>Öffnen</b></td><td><span class="ui">Datei › Öffnen…</span> lädt eine <b>.mpr</b>- oder <b>.trackmaster.json</b>-Datei. Windows und Android speichern
+    ebenfalls als .mpr, die Dateien sind austauschbar.</td></tr>
   <tr><td><b>Lizenz</b></td><td><span class="ui">Datei › Lizenz…</span>: Lizenzdatei wählen oder ihren Inhalt einfügen. Sie gilt nur in diesem Browser. Nach dem Löschen der
     Websitedaten spielen Sie sie neu ein.</td></tr>
   <tr><td><b>3D-Ansicht</b></td><td>braucht WebGL. Meldet der Browser, dass er keine 3D-Grafik zeigen kann, schalten Sie in seinen Einstellungen die Hardwarebeschleunigung ein.</td></tr>
@@ -605,7 +605,7 @@ Eine ausführliche Anleitung für den allerersten Plan steht in Kapitel <a href=
     Anlagentisch), <span class="ui">Offener Rahmen (Spantenbau)</span> ohne Deckplatte, <span class="ui">L-Bein-Gestell</span> für große, frei stehende Anlagen und
     <span class="ui">Ausstellungsmodul (1.300 mm hoch)</span>.</li>
   <li><span class="ui">Rahmenbau selbst zeichnen</span>: Es entsteht nur die Platte, und das Werkzeug <span class="ui">Gelände › Leiste ziehen</span> ist gleich eingeschaltet.
-    Zargen, Querriegel, Diagonalen und Streben ziehen Sie dann selbst.</li>
+    Zargen, Querriegel, Diagonalen und Streben ziehen Sie dann selbst. Das Raster ist dabei auf der ganzen Zeichenfläche zu sehen, und Einrasten ist eingeschaltet.</li>
 </ul>
 <p>Form und Maße ändern Sie später jederzeit: Klicken Sie auf eine freie Stelle oder auf <span class="ui">Gelände › Anlagenplatte</span>; die Eigenschaften zeigen dann die
 Plattenmaße. Mehr zu Platte, Modulen und Unterbau steht in Kapitel <a href="#kp">7</a>.</p>
@@ -712,17 +712,25 @@ jedem Plattenteil, Beine in den Ecken und entlang der langen Seiten, auf Wunsch 
 </table>
 <p>Die <b>Materialliste</b> nennt Latten und Kanthölzer nach Handelslänge, Platten, Schrauben und Leim, also Ihre Einkaufsliste für den Baumarkt. Die <b>Zuschnittliste</b>
 zeigt jedes Teil mit Querschnitt, Länge und Anzahl. Beides lässt sich kopieren oder als CSV-Datei speichern. Zu lange Teile und zu große Deckplatten werden mit einem Hinweis
-zum Stoßen gemeldet. Die 3D-Ansicht zeigt den Unterbau unter der Platte; beim offenen Rahmen (Spantenbau) zeigt sie nur das Holzgerüst mit Leisten und Gleisen.
+zum Stoßen gemeldet. Die 3D-Ansicht zeigt den Unterbau unter der Platte; beim offenen Rahmen (Spantenbau) zeigt sie nur das Holzgerüst mit Leisten und Gleisen, bei eingeschaltetem Spantenbau im Plan auch Spanten und Trassen (Abschnitt <a href="#k7-7">Spantenbau der Anlage</a>).
 <span class="ui">Entfernen</span> im Fenster nimmt den Unterbau wieder aus dem Plan.</p>
 <h3>Diagonale und Streben</h3>
 <p>Stehen Module versetzt, zum Beispiel stufenförmig an einer schrägen Wand, trägt oft eine durchgehende Diagonale mit einzelnen Streben. <span class="ui">Gelände › Leiste ziehen</span>
 zieht solche Leisten frei: Anfang und Ende anklicken. Plattenecken, Plattenkanten und andere Leisten rasten ein. Beginnt eine Strebe an einer Modulkante, rastet ihr Ende
 senkrecht oder waagrecht darunter genau auf der Diagonale ein. Die Eigenschaften zeigen Breite, Höhe der Latte, Länge und Oberkante (negativ = unter der Platte).
 Eine gewählte Leiste verschieben die <b>Pfeiltasten</b> um 1 mm, mit <kbd>Umschalt</kbd> um 10 mm.</p>
-<h3>Deckplatte auflegen</h3>
-<p>Auf einen offenen oder selbst gezeichneten Rahmen legt <span class="ui">Gelände › Platte auflegen</span> eine Deckplatte. Sie bekommt die Außenmaße der gezeichneten
-Leisten (ohne Leisten die Maße der Anlagenplatte) und liegt auf der höchsten Leiste. In den Eigenschaften lassen sich linke obere Ecke, Breite, Tiefe, Stärke und
-Oberkante millimetergenau eintippen. <span class="ui">An Rahmen anpassen</span> legt die Platte wieder genau über den Rahmen.</p>
+<p>Wo nichts anderes einrastet, rasten Leisten im <b>Raster</b> von 10 mm ein. Sobald Leisten oder Platten im Plan liegen, ist das Raster auf der ganzen Zeichenfläche zu sehen,
+nicht nur auf der Anlagenplatte.</p>
+<p><b>Mehrere Leisten auf einmal:</b> Klicken Sie mit gedrückter <kbd>Strg</kbd>- oder <kbd>Umschalt</kbd>-Taste auf weitere Leisten und Platten, oder ziehen Sie auf einer freien
+Stelle einen Rahmen um sie auf (am Tablet: lange drücken und ziehen). Die gewählten Teile verschieben Sie dann gemeinsam mit der Maus oder den Pfeiltasten, kopieren,
+löschen oder legen sie auf eine andere Ebene. Beim gemeinsamen Verschieben rasten sie an Plattenecken, anderen Leisten und im Raster ein.</p>
+<h3>Deckplatten auflegen und entfernen</h3>
+<p><span class="ui">Gelände › Platte auflegen</span> legt die Deckplatten <b>automatisch</b> nach Grundriss und Rahmen auf: Jede zusammenhängende Fläche aus Anlagenplatte,
+Modulen und gezogenen Leisten bekommt eine Platte, auch Sonderformen wie das Dreieck zwischen versetzten Modulen und der Diagonale. Die Platte reicht bis zur Mitte der
+äußeren Leisten; frei abstehende Leisten zählen nicht. Bereits aufgelegte Platten werden dabei ersetzt, <span class="ui">Rückgängig</span> holt sie zurück.</p>
+<p>Eine Platte mit eigener Form zeichnen Sie mit <span class="ui">Gelände › Platte zeichnen</span>: Ecken anklicken (sie rasten wie Leisten ein) und zum Schluss die erste
+Ecke wieder anklicken oder <span class="ui">Fertig</span> wählen. In den Eigenschaften lassen sich Lage, Breite, Tiefe, Stärke und Oberkante millimetergenau eintippen;
+die Fläche in m² steht dabei. <span class="ui">Gelände › Alle Platten entfernen</span> nimmt alle Deckplatten aus dem Plan, sodass nur der Rahmen zu sehen ist.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -990,6 +998,9 @@ Bohren Sie die Löcher für die Gewindestangen mit einer Schablone, damit alle W
 <div class="warn"><b>Achtung</b>Ist die freie Höhe unter der Trasse knapp, steht ein Warnhinweis in der Liste. Erhöhen Sie dann die Höhe je Windung oder nehmen Sie dünneres Holz.</div>
 <p><b>Zuschnitt als SVG:</b> Dieser Knopf im Fenster der Holzliste speichert jedes Segment, jedes Brett und jede Lasche als eigene Zeichnung in Originalgröße (1:1),
 zusammen in einer ZIP-Datei. Ausgedruckt dient sie als Schablone zum Aufkleben aufs Holz; sie eignet sich auch für Plotter und CNC-Fräse.</p>
+<p><b>Später noch einmal aufrufen:</b> Die Angaben jeder gebauten Wendel werden mit dem Plan gespeichert. <span class="ui">Gleise › Holzliste Wendel…</span> zeigt Holzliste
+und Zuschnitt jederzeit wieder, auch nach dem Neuladen. Liegen mehrere Wendeln im Plan, wählen Sie vorher ein Gleis der gewünschten Wendel; sonst erscheint die zuletzt
+gebaute. Wendeln aus Plänen älterer Programmversionen bauen Sie dafür einmal neu.</p>
 
 <h2 id="k7-7">Spantenbau der Anlage <span class="badge">PRO</span></h2>
 <p>Bei der <b>offenen Rahmenbauweise</b> gibt es keine durchgehende Platte. Stattdessen stehen auf dem Rahmen in regelmäßigen Abständen senkrechte Bretter, die
@@ -1004,6 +1015,10 @@ zusammen in einer ZIP-Datei. Ausgedruckt dient sie als Schablone zum Aufkleben a
 </ul>
 <p>Das Ergebnis zeigt jeden Spant mit Lage, Länge, Höhe, Auflagen und Ausschnitten. Es lässt sich kopieren, als CSV speichern und als SVG ausgeben:
 eine Übersicht und jeder Spant als Schablone 1:1, zusammen in einer ZIP-Datei.</p>
+<p><b>Im Plan einschalten:</b> Mit <i>Spantenbau im Plan einschalten</i> (vorgegeben) wird der Spantenbau Teil des Plans: Die Maße werden mit dem Plan gespeichert und stehen
+beim nächsten Öffnen des Fensters schon drin. Die <b>3D-Ansicht</b> zeigt dann die Spanten mit ihren Ausschnitten und die Trassenbretter unter den Gleisen; der Rahmen
+steht dafür um die eingestellte Höhe tiefer, und die Deckplatte entfällt. Ändern sich Gleise oder Höhen, passen sich die Spanten in 3D von selbst an. Um den Spantenbau
+wieder auszuschalten, nehmen Sie das Häkchen weg und klicken auf <span class="ui">Berechnen</span>.</p>
 
 <h2 id="k7-8">Trasse aus Auswahl <span class="badge">PRO</span></h2>
 <p>Für eine Rampe oder eine frei geführte Strecke berechnet <span class="ui">Gleise › Trasse…</span> das Brett unter den markierten Gleisen:</p>
@@ -1502,11 +1517,11 @@ sich ansehen. Ein <b>Hinweis</b> ist ein Ratschlag – manchmal ist die Stelle g
   <tr><th style="width:22%"></th><th>Windows</th><th>Webversion</th></tr>
   <tr><td>Speichern</td><td><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span></td>
     <td><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>S</kbd>)</td></tr>
-  <tr><td>Dateiendung</td><td><code>.trackmaster.json</code></td><td><code>.mpr</code> – im Downloads-Ordner des Browsers oder am gewählten Ort</td></tr>
-  <tr><td>Öffnen</td><td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>), <span class="ui">Zuletzt geöffnet</span></td>
+  <tr><td>Dateiendung</td><td><code>.mpr</code> (ältere <code>.trackmaster.json</code> werden beim Speichern zu <code>.mpr</code>; die alte Datei bleibt)</td><td><code>.mpr</code> – im Downloads-Ordner des Browsers oder am gewählten Ort</td></tr>
+  <tr><td>Öffnen</td><td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>), <span class="ui">Zuletzt geöffnet</span>; öffnet <code>.mpr</code> und <code>.trackmaster.json</code></td>
     <td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>); öffnet <code>.mpr</code> und <code>.trackmaster.json</code></td></tr>
 </table>
-<p>Die Dateien sind zwischen Windows, Web und Android austauschbar. Unter Windows und Android wählen Sie zum Öffnen einer <code>.mpr</code>-Datei im Dateifenster „Alle Dateien“.
+<p>Alle drei Versionen speichern Pläne als <code>.mpr</code>; die Dateien sind zwischen Windows, Web und Android austauschbar. Ältere Pläne <code>.trackmaster.json</code> öffnen weiter.
 Beim Öffnen stellt sich die Gleisbibliothek auf das Gleissystem des Plans ein.</p>
 <p><b>Automatische Sicherung (Windows):</b> Während Sie arbeiten, sichert das Programm den Plan regelmäßig im Hintergrund. Wurde es nicht regulär beendet – etwa bei einem
 Stromausfall –, bietet es beim nächsten Start an, den gesicherten Stand wiederherzustellen. Das ersetzt nicht das Speichern.</p>

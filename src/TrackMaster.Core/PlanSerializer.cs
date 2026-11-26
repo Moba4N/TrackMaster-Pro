@@ -4,11 +4,29 @@ using System.Text.Json.Serialization;
 namespace TrackMaster.Core;
 
 /// <summary>
-/// Dateiformat *.trackmaster.json – dasselbe wie in der Browser-Version, Dateien lassen sich hin und her öffnen.
+/// Dateiformat *.mpr (Inhalt JSON) – dasselbe in Windows, Android und Browser, Dateien lassen sich hin und her öffnen.
+/// Ältere Pläne *.trackmaster.json (gleicher Inhalt) werden weiter geöffnet.
 /// </summary>
 public static partial class PlanSerializer
 {
-    public const string FileExtension = ".trackmaster.json";
+    /// <summary>Endung, unter der alle Versionen Pläne speichern.</summary>
+    public const string FileExtension = ".mpr";
+    /// <summary>Frühere Endung der Windows- und Android-Version; wird weiter geöffnet, aber nicht mehr geschrieben.</summary>
+    public const string LegacyExtension = ".trackmaster.json";
+
+    /// <summary>Hat der Pfad die Endung *.mpr?</summary>
+    public static bool IsPlanFile(string path) => path.EndsWith(FileExtension, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Dateiname ohne Plan-Endung (*.mpr, *.trackmaster.json, *.json).</summary>
+    public static string BaseName(string fileName)
+    {
+        foreach (var ext in new[] { FileExtension, LegacyExtension, ".json" })
+            if (fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return fileName[..^ext.Length];
+        return fileName;
+    }
+
+    /// <summary>Pfad mit der Endung *.mpr: ältere Endungen werden ersetzt, fehlende ergänzt.</summary>
+    public static string WithPlanExtension(string path) => IsPlanFile(path) ? path : BaseName(path) + FileExtension;
     /// <summary>
     /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. 3: Raum, Hintergrundbild,
     /// Rückmelder, Preise und Bestand, gesperrte und gruppierte Gleise. 4: Ausstattungsmodelle (Gebäude mit Modell und Farbe,

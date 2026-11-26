@@ -10,6 +10,10 @@
     <NeutralLanguage>de-DE</NeutralLanguage>
     <!-- Öffentliche Adresse der Datei version.json (wird bei jedem Release erzeugt). Leer = keine Update-Prüfung. -->
     <UpdateUrl>https://github.com/Moba4N/TrackMaster-Pro/releases/latest/download/version.json</UpdateUrl>
+    <!-- Download-Seite, die die Programme bei einem Update öffnen (steht im Release in version.json). Leer = Release-Seite bei GitHub. -->
+    <DownloadUrl>https://www.jm-jungwirth.de/download.php</DownloadUrl>
+    <!-- Kurzer Satz zum Update, erscheint im Hinweis der Programme (z. B. "Neu: Bogenweichen für C-Gleis."). Darf leer sein. -->
+    <UpdateNotes></UpdateNotes>
     <!-- Online-Aktivierung der Lizenzen (lizenz/aktivierung.php auf der Webseite). Leer = keine Aktivierung, Lizenzen laufen wie bisher. -->
     <ActivationUrl>https://www.jm-jungwirth.de/lizenz/aktivierung.php</ActivationUrl>
     <!-- Bestellseite für Pro (Kauf und Abo) auf der Webseite. Leer = kein Knopf „Pro kaufen“. -->

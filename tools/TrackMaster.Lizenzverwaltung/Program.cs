@@ -86,6 +86,7 @@ public sealed class MainWindow : Window
     private readonly TextBox _email = new();
     private readonly DatePicker _expires = new() { SelectedDateFormat = DatePickerFormat.Short };
     private readonly TextBox _machine = new();
+    private readonly CheckBox _subscription = new() { Content = "Abo-Lizenz (monatliche Abrechnung; „bezahlt bis“ in der Lizenz-Übersicht der Webseite pflegen)", Margin = new Thickness(0, 4, 0, 8) };
     private readonly TextBlock _result = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
     private readonly TextBox _search = new();
     private readonly ListBox _list = new() { MinHeight = 200 };
@@ -144,6 +145,7 @@ public sealed class MainWindow : Window
         form.Children.Add(Field("E-Mail (optional)", _email));
         form.Children.Add(Field("Gültig bis (leer = unbefristet)", _expires));
         form.Children.Add(Field("Rechnerkennung (optional, aus TrackMaster Pro › Datei › Lizenz)", _machine));
+        form.Children.Add(_subscription);
         var save = Button("Pro-Lizenz speichern…", SaveLicense, accent: true);
         save.HorizontalAlignment = HorizontalAlignment.Left;
         form.Children.Add(save);
@@ -268,7 +270,7 @@ public sealed class MainWindow : Window
     private void SaveLicense()
     {
         if (_key is null) { _result.Text = "Bitte zuerst den privaten Schlüssel wählen."; _result.Foreground = Brushes.DarkRed; return; }
-        var request = new LicenseRequest { Licensee = _name.Text, Email = _email.Text, ExpiresOn = _expires.SelectedDate, MachineId = _machine.Text };
+        var request = new LicenseRequest { Licensee = _name.Text, Email = _email.Text, ExpiresOn = _expires.SelectedDate, MachineId = _machine.Text, Subscription = _subscription.IsChecked == true };
         var errors = LicenseIssuer.Validate(request, DateTimeOffset.Now);
         if (errors.Count > 0) { _result.Text = string.Join("\n", errors); _result.Foreground = Brushes.DarkRed; return; }
         var folder = _settings.LastFolder is { } f && Directory.Exists(f) ? f : AppFolders.LicensesInDocuments;
@@ -304,7 +306,7 @@ public sealed class MainWindow : Window
             s.Children.Add(new TextBlock { Text = e.Licensee, FontWeight = FontWeights.SemiBold });
             s.Children.Add(new TextBlock
             {
-                Text = $"{e.Id} · {e.IssuedAt:dd.MM.yyyy} · {(e.ExpiresAt is { } x ? $"bis {x:dd.MM.yyyy}" : "unbefristet")}{(e.MachineId is null ? "" : " · Rechner " + e.MachineId)}",
+                Text = $"{e.Id} · {e.IssuedAt:dd.MM.yyyy} · {(e.ExpiresAt is { } x ? $"bis {x:dd.MM.yyyy}" : "unbefristet")}{(e.MachineId is null ? "" : " · Rechner " + e.MachineId)}{(e.Subscription ? " · Abo" : "")}",
                 Foreground = Secondary, FontSize = 12,
             });
             _list.Items.Add(new ListBoxItem { Content = s, Tag = e });

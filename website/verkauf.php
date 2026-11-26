@@ -5,6 +5,9 @@
    Anbieter-Daten aus config.php (IMP_NAME, IMP_STREET, IMP_CITY, IMP_EMAIL, IMP_PHONE).
    Optional in config.php:
      define('TM_PREIS', '29,00 €');          // Preis einer Pro-Lizenz (Endpreis)
+     define('TM_PREIS_MONAT', '2,90 €');     // Preis des Pro-Abos je Monat (Endpreis); ohne Angabe wird kein Abo angeboten
+   Abo (§ 5a): Wird das Abo über die Website abgeschlossen (Formular, Bestellknopf), verlangt § 312k BGB zusätzlich
+   einen Kündigungsbutton („Verträge hier kündigen“) auf der Website. Bei Bestellung nur per E-Mail bitte prüfen lassen.
      define('IMP_VAT', 'DE123456789');       // USt-IdNr., falls vorhanden
      define('IMP_SMALL_BUSINESS', false);    // nur nötig, wenn KEIN Kleinunternehmer mehr (Standard: § 19 UStG)
    ===================================================================== */
@@ -19,13 +22,14 @@ require __DIR__ . '/header.php';
 $anbieter = h(IMP_NAME) . ', ' . h(IMP_STREET) . ', ' . h(IMP_CITY) . ', ' . ($en ? 'Germany' : 'Deutschland');
 $mail = '<a href="mailto:' . h(IMP_EMAIL) . '">' . h(IMP_EMAIL) . '</a>';
 $preis = defined('TM_PREIS') && TM_PREIS ? h(TM_PREIS) : null;
+$preisMonat = defined('TM_PREIS_MONAT') && TM_PREIS_MONAT ? h(TM_PREIS_MONAT) : null;
 $klein = defined('IMP_SMALL_BUSINESS') ? (bool)IMP_SMALL_BUSINESS : true;   // Standard: Kleinunternehmer
 ?>
 <div class="wrap-narrow section legal">
   <a class="pill-link" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:18px;" href="<?= h(url('index.php')) ?>"><?= $ic_back ?> <?= h(t('pub_back_home')) ?></a>
 <?php if ($en): ?>
   <h1>Terms of sale and licence TrackMaster Pro</h1>
-  <p class="muted">These terms are available in German only; the German version below is legally binding. In short: you buy a Pro licence file for TrackMaster Pro for use on up to two devices, paid by PayPal, credit card (via PayPal) or bank transfer and delivered by e-mail after payment; as a small business no VAT is charged. As a consumer you have a 14-day right of withdrawal, which expires once the licence file has been delivered with your express consent.</p>
+  <p class="muted">These terms are available in German only; the German version below is legally binding. In short: you buy a Pro licence file for TrackMaster Pro for use on up to two devices, paid by PayPal, credit card (via PayPal) or bank transfer and delivered by e-mail after payment; as a small business no VAT is charged. As a consumer you have a 14-day right of withdrawal, which expires once the licence file has been delivered with your express consent.<?php if ($preisMonat): ?> Alternatively you can take out a monthly Pro subscription (<?= $preisMonat ?> per month), which can be cancelled at any time to the end of the current month; Pro then works as long as the subscription is paid and the device checks in online at least every 30 days.<?php endif; ?></p>
 <?php endif; ?>
   <h1>Verkaufs- und Lizenzbedingungen TrackMaster&nbsp;Pro</h1>
   <p class="muted">Stand: November 2026</p>
@@ -37,13 +41,25 @@ $klein = defined('IMP_SMALL_BUSINESS') ? (bool)IMP_SMALL_BUSINESS : true;   // S
   <p>Gegenstand des Vertrags ist eine Lizenzdatei („trackmaster.lic“), mit der die Pro-Funktionen von TrackMaster&nbsp;Pro freigeschaltet werden. Sie erhalten ein einfaches, nicht übertragbares, zeitlich unbefristetes Recht, die Software in der jeweils bereitgestellten Fassung für eigene Zwecke zu nutzen. Eine Lizenz darf auf bis zu zwei Geräten gleichzeitig genutzt werden; dazu wird jedes Gerät einmal online aktiviert (siehe Datenschutzerklärung, Abschnitt&nbsp;9.2). Ein Gerät lässt sich im Lizenzdialog jederzeit freigeben, um die Lizenz auf ein anderes Gerät zu übertragen. Die Funktionen der Basis- und der Pro-Version sind im Programm unter „Lizenz“ beschrieben.</p>
 
   <h2>§ 3 Vertragsschluss</h2>
-  <p>Die Darstellung der Software auf dieser Website ist kein bindendes Angebot. Sie bestellen eine Lizenz per E-Mail oder über das Kontaktformular unter Angabe Ihres Namens und Ihrer E-Mail-Adresse. Der Vertrag kommt zustande, wenn ich Ihre Bestellung per E-Mail bestätige (Bestellbestätigung mit Rechnung und Zahlungsangaben). Vertragssprache ist Deutsch. Den Vertragstext speichere ich nicht gesondert; diese Bedingungen können Sie jederzeit auf dieser Seite abrufen und speichern.</p>
+  <p>Die Darstellung der Software auf dieser Website ist kein bindendes Angebot. Sie bestellen eine Lizenz über die <a href="<?= h(url('pro-kaufen.php')) ?>">Bestellseite</a>, per E-Mail oder über das Kontaktformular unter Angabe Ihres Namens und Ihrer E-Mail-Adresse. Der Vertrag kommt zustande, wenn ich Ihre Bestellung per E-Mail bestätige (Bestellbestätigung mit Rechnung und Zahlungsangaben). Vertragssprache ist Deutsch. Den Vertragstext speichere ich nicht gesondert; diese Bedingungen können Sie jederzeit auf dieser Seite abrufen und speichern.</p>
 
   <h2>§ 4 Preise und Zahlung</h2>
   <p>Es gilt der zum Zeitpunkt der Bestellung auf dieser Website angegebene Preis<?= $preis ? ' (derzeit ' . $preis . ' je Lizenz)' : '' ?>. Alle Preise sind Endpreise<?= $klein ? '; gemäß §&nbsp;19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung)' : ' einschließlich der gesetzlichen Umsatzsteuer' ?>. Versandkosten fallen nicht an. Sie zahlen per Vorkasse wahlweise mit PayPal, per Kreditkarte (abgewickelt über PayPal, auch ohne PayPal-Konto) oder per Überweisung; die Zahlungsangaben stehen in der Bestellbestätigung. Der Betrag ist mit der Bestellbestätigung fällig.</p>
 
   <h2>§ 5 Lieferung</h2>
   <p>Nach Zahlungseingang erhalten Sie die Lizenzdatei per E-Mail, in der Regel innerhalb von drei Werktagen. Die Software selbst laden Sie über diese Website bzw. die dort genannten Download-Seiten herunter.</p>
+
+<?php if ($preisMonat): ?>
+  <h2>§ 5a Pro-Abo (monatliche Abrechnung)</h2>
+  <p>Statt einer unbefristeten Lizenz können Sie Pro auch im Abo nutzen. Sie erhalten dann eine Abo-Lizenzdatei; für sie gelten diese Bedingungen mit folgenden Abweichungen:</p>
+  <ul>
+    <li><strong>Preis und Zahlung:</strong> <?= $preisMonat ?> je Monat<?= $klein ? ' (gemäß §&nbsp;19 UStG ohne Umsatzsteuer)' : ' einschließlich Umsatzsteuer' ?>, monatlich im Voraus per PayPal-Abonnement oder per Dauerauftrag. Der erste Monat ist mit der Bestellbestätigung fällig.</li>
+    <li><strong>Laufzeit und Kündigung:</strong> Das Abo läuft zunächst einen Monat ab der Bestellbestätigung und verlängert sich jeweils um einen weiteren Monat, wenn es nicht gekündigt wird. Sie können jederzeit zum Ende des laufenden Monats kündigen: über <a href="<?= h(url('abo-kuendigen.php')) ?>">Verträge hier kündigen</a>, formlos per E-Mail an <?= $mail ?> oder durch Beenden des PayPal-Abonnements. Ich kann mit einer Frist von einem Monat zum Monatsende kündigen; bereits bezahlte Monate bleiben nutzbar.</li>
+    <li><strong>Nutzung:</strong> Das Nutzungsrecht nach §&nbsp;2 gilt für die Dauer des bezahlten Abos statt unbefristet. Die Abo-Lizenz wird bei der Online-Aktivierung jeweils für den bezahlten Zeitraum freigegeben; jedes Gerät muss sich dazu mindestens alle 30&nbsp;Tage einmal mit dem Internet verbinden. Nach dem Ende des Abos läuft die Basisversion; Ihre Pläne bleiben erhalten und lassen sich weiter öffnen, ansehen und in der Basisversion bearbeiten.</li>
+    <li><strong>Zahlungsverzug:</strong> Geht eine Monatszahlung nicht ein, endet die Freigabe der Pro-Funktionen drei Tage nach Ablauf des bezahlten Zeitraums und wird nach Zahlungseingang wieder erteilt.</li>
+    <li><strong>Preisänderungen</strong> teile ich mindestens sechs Wochen vorher per E-Mail mit; sie gelten erst nach Ihrer Zustimmung. Ohne Zustimmung können beide Seiten das Abo zum Wirksamwerden der Änderung kündigen.</li>
+  </ul>
+<?php endif; ?>
 
   <h2>§ 6 Widerrufsrecht für Verbraucher</h2>
   <p>Verbrauchern steht ein Widerrufsrecht nach folgender Maßgabe zu. Verbraucher ist jede natürliche Person, die ein Rechtsgeschäft zu Zwecken abschließt, die überwiegend weder ihrer gewerblichen noch ihrer selbständigen beruflichen Tätigkeit zugerechnet werden können.</p>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>TrackMaster Pro – User Manual</title>
-<meta name="pdf-footer" content="TrackMaster Pro 1.5.0 · User Manual">
+<meta name="pdf-footer" content="TrackMaster Pro 1.0.0 · User Manual">
 <meta name="pdf-start" content="is a planning program for model railway layouts">
 <style>
   @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
@@ -84,12 +84,12 @@
   <div class="inner">
     <div class="logocard"><img src="img/logo.png" alt=""></div>
     <h1>TrackMaster Pro</h1>
-    <div class="sub">User Manual · Version 1.5.0</div>
+    <div class="sub">User Manual · Version 1.0.0</div>
     <div class="what">Track planning for model railway layouts in all common gauges – with height planning, helix and
       timber list, modules, levels and benchwork, scenery, room planning, wiring and signals, plan check, costs and 3D view. For Windows, Android and the browser –
 with a step-by-step introduction for everyone planning for the first time.</div>
   </div>
-  <div class="foot"><span>TrackMaster Pro 1.5.0 · Basic and Pro</span><span>As of November 2026</span></div>
+  <div class="foot"><span>TrackMaster Pro 1.0.0 · Basic and Pro</span><span>As of November 2026</span></div>
 </section>
 
 <section class="toc">
@@ -147,7 +147,8 @@ and unlocks the results of your planning: parts list, printing and exports.</p>
   <tr><td>Opening plans, viewing routes</td><td>Export for control software (TXT, CSV, JSON)</td></tr>
 </table>
 <p>Pro functions are marked in the program: in the tooltip as “Pro function”, in the Android app with a padlock. If you choose a Pro function in the Basic edition,
-a note explains what Pro offers and, if you wish, takes you straight to the licence. Your plan stays open and unchanged.</p>
+a note explains what Pro offers and, if you wish, takes you straight to the licence or to the order page. Your plan stays open and unchanged.
+Pro is available as a <b>perpetual licence</b> with a one-time payment or as a <b>subscription</b> billed monthly (chapter <a href="#k3">3</a>).</p>
 
 <h2 id="k1-4">Three versions: Windows, browser and Android</h2>
 <p>TrackMaster Pro runs as a program on <b>Windows</b>, as a <b>web version</b> in any current browser and as an <b>app on Android</b>.
@@ -160,7 +161,7 @@ All three open the same plans and have the same tabs. A few things differ:</p>
   <tr><td>Loading the sample</td><td><span class="ui">File › Load sample plan</span></td><td><span class="ui">File › Sample layout</span></td></tr>
   <tr><td>Snapping on/off</td><td><span class="ui">Snap</span> switch in the status bar</td><td><span class="ui">Snap</span> switch in the status bar or under <span class="ui">View</span></td></tr>
   <tr><td>Help on keys</td><td><span class="ui">View › Shortcuts</span> (<kbd>F1</kbd>)</td><td><span class="ui">View › How to use</span> or <span class="ui">File › How to use</span> (<kbd>F1</kbd>)</td></tr>
-  <tr><td>Plan file</td><td>Extension <b>.trackmaster.json</b></td><td>Extension <b>.mpr</b> (same content; also opens .trackmaster.json)</td></tr>
+  <tr><td>Plan file</td><td>Extension <b>.mpr</b> (also opens older .trackmaster.json)</td><td>Extension <b>.mpr</b> (also opens older .trackmaster.json)</td></tr>
   <tr><td>Only here</td><td>–</td><td>Turntable as a quick command, modules at different heights, cutting track at module edges,
     changing the height at a joint</td></tr>
 </table>
@@ -199,7 +200,7 @@ and keyboard, and takes you to your first layout in ten steps. Read the other ch
 
 <h3>Installing</h3>
 <ol class="steps">
-  <li>Download the file <b>TrackMasterPro-1.5.0.msi</b>. It usually ends up in the <i>Downloads</i> folder.</li>
+  <li>Download the file <b>TrackMasterPro-1.0.0.msi</b>. It usually ends up in the <i>Downloads</i> folder.</li>
   <li>Double-click the file.</li>
   <li>If Windows reports “Windows protected your PC”, click <span class="ui">More info</span> and then <span class="ui">Run anyway</span>.
       This message appears for programs that Windows has not seen often yet.</li>
@@ -219,9 +220,9 @@ Your plan files and the licence file are not deleted.</p>
 <h3>For administrators: silent installation</h3>
 <table>
   <tr><th style="width:52%">Command</th><th>Effect</th></tr>
-  <tr><td><code>msiexec /i TrackMasterPro-1.5.0.msi /qn</code></td><td>Installation without user interface</td></tr>
-  <tr><td><code>msiexec /i TrackMasterPro-1.5.0.msi INSTALLFOLDER="D:\Programs\TrackMaster Pro" /qn</code></td><td>Installation into another folder</td></tr>
-  <tr><td><code>msiexec /x TrackMasterPro-1.5.0.msi /qn</code></td><td>Uninstallation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.0.0.msi /qn</code></td><td>Installation without user interface</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.0.0.msi INSTALLFOLDER="D:\Programs\TrackMaster Pro" /qn</code></td><td>Installation into another folder</td></tr>
+  <tr><td><code>msiexec /x TrackMasterPro-1.0.0.msi /qn</code></td><td>Uninstallation without user interface</td></tr>
 </table>
 
 <h2 id="k2-4">Web version in the browser</h2>
@@ -234,8 +235,8 @@ a few seconds. After that it comes from the browser's cache and starts faster.</
   <tr><td><b>Saving</b></td><td><span class="ui">File › Save</span> downloads the plan as a file with the extension <b>.mpr</b>, usually into the <i>Downloads</i> folder.
     <span class="ui">File › Save as…</span> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>) asks for the file name. In some browsers you also choose the folder,
     and <span class="ui">Save</span> then always writes to that file.</td></tr>
-  <tr><td><b>Opening</b></td><td><span class="ui">File › Open…</span> loads a <b>.mpr</b> or <b>.trackmaster.json</b> file. The content is the same as on Windows and Android.
-    There you open a .mpr file by choosing “All files” in the open window.</td></tr>
+  <tr><td><b>Opening</b></td><td><span class="ui">File › Open…</span> loads a <b>.mpr</b> or <b>.trackmaster.json</b> file. Windows and Android also save as .mpr;
+    the files are interchangeable.</td></tr>
   <tr><td><b>Licence</b></td><td><span class="ui">File › Licence…</span>: choose the licence file or paste its content. It applies only in this browser. After deleting the
     site data, install it again.</td></tr>
   <tr><td><b>3D view</b></td><td>needs WebGL. If the browser reports that it cannot show 3D graphics, turn on hardware acceleration in its settings.</td></tr>
@@ -253,7 +254,7 @@ a few seconds. After that it comes from the browser's cache and starts faster.</
 </ul>
 <h3>Installing</h3>
 <ol class="steps">
-  <li>Copy the file <b>TrackMasterPro-1.5.0.apk</b> to the device, for example via USB cable, cloud storage or as an e-mail attachment.</li>
+  <li>Copy the file <b>TrackMasterPro-1.0.0.apk</b> to the device, for example via USB cable, cloud storage or as an e-mail attachment.</li>
   <li>Tap the file on the device, for example in the <span class="ui">Files</span> app in the <span class="ui">Downloads</span> folder.</li>
   <li>The first time, Android asks whether this app may <b>install unknown apps</b>. Tap <span class="ui">Settings</span>, allow it and go back.</li>
   <li>Tap <span class="ui">Install</span>. TrackMaster Pro then appears in the app overview.</li>
@@ -273,12 +274,34 @@ Without internet, the check is simply skipped. The web version is always up to d
 <p class="lead">The Pro edition is unlocked with a personal licence file. The file is digitally signed and cannot be altered.
 The program checks it every time it starts.</p>
 
+<h2 id="k3-kauf">Buying Pro: perpetual licence or subscription</h2>
+<p>The <span class="ui">Buy Pro</span> button is in the licence window (<span class="ui">File › Licence…</span>) and in the note that appears when you choose a
+Pro function in the Basic edition. It opens the order page in the browser. There are two options:</p>
+<table>
+  <tr><th style="width:22%">Type</th><th style="width:39%">Perpetual licence</th><th>Subscription</th></tr>
+  <tr><td>Payment</td><td>once</td><td>every month</td></tr>
+  <tr><td>Term</td><td>unlimited</td><td>as long as it is paid; can be cancelled monthly at the end of the month</td></tr>
+  <tr><td>Internet</td><td>only for activation, then about once a week when available</td><td>at least once every 30 days</td></tr>
+  <tr><td>Devices</td><td colspan="2">up to two at the same time, whether Windows, Android or browser</td></tr>
+</table>
+<ol class="steps">
+  <li>Read the terms of sale and licence on the order page and tick both boxes. Only then can the buttons be clicked.</li>
+  <li>Pay with PayPal or order by e-mail. Give the name the licence should be issued to.</li>
+  <li>Once payment has been received, you get the licence file <b>trackmaster.lic</b> by e-mail, usually within three working days.</li>
+  <li>Install the file as described in the next section.</li>
+</ol>
+<p><b>Cancelling the subscription:</b> on the website under <b>Cancel contracts here</b> (linked on the order page) enter your name
+and e-mail address and confirm with <span class="ui">jetzt kündigen</span> (cancel now). You receive a confirmation straight away. If you paid with PayPal, also end
+the subscription there so that no further payment is taken. Months already paid remain usable; after that the Basic edition runs and all plans are kept.
+A perpetual licence does not need to be cancelled.</p>
+
 <h2 id="k3-1">Installing the licence</h2>
 <ol class="steps">
   <li>Save the licence file you received after purchase (extension <b>.lic</b>) on the computer, for example in the <i>Downloads</i> folder.</li>
   <li>Open <span class="ui">File › Licence…</span>. On Windows you can also use <span class="ui">Home › Licence</span>.</li>
   <li>Click <span class="ui">Install licence…</span> and select the file. In the web version you can also paste the file's content into the text box.</li>
-  <li>The window now shows <b>Pro</b>, the licensee's name and, if present, the expiry date. The indicator at the top or in the status bar changes from
+  <li>The window now shows <b>Pro</b>, the licensee's name, the expiry date if present, and the <b>licence number</b>. Quote this number with any question or
+      cancellation. The indicator at the top or in the status bar changes from
       “Basic” to “Pro”.</li>
 </ol>
 <figure class="half"><img src="img-en/lizenz.png" alt=""><figcaption>The licence window shows the edition and what Basic and Pro contain.</figcaption></figure>
@@ -290,11 +313,13 @@ the licence the same way via <span class="ui">File › Licence…</span> and cho
 whether Windows, Android or browser. For this to work, the device registers once over the internet the first time it starts with the licence. After that it checks
 about once a week whether the registration still exists. The licence window shows the status in the <b>Activation</b> section.</p>
 <ul>
-  <li><b>Without internet</b>, Pro keeps running for up to 14 days after installing the licence. A device that has been activated stays activated without internet.</li>
+  <li><b>Without internet</b>, Pro keeps running for up to 14 days after installing the licence. With a perpetual licence, a device that has been activated stays activated without internet; with a subscription licence it must check in every 30 days (see below).</li>
   <li>If <b>both places are taken</b>, the third device stays on the Basic edition. The message names the registered devices.</li>
   <li><b>Changing devices:</b> on the old device choose <span class="ui">Release this device</span> in the licence window. Then click
     <span class="ui">Activate now</span> on the new device. If the old device no longer exists (broken, sold), the publisher frees the place on request.</li>
   <li><b>Browser:</b> every browser counts as a separate device. If you delete the site data, it registers as a new device next time.</li>
+  <li><b>Subscription licence</b> (monthly billing): Pro works as long as the subscription is paid; the licence window shows “subscription paid until …”. A device with a
+    subscription licence must connect to the internet at least once every 30 days. When the subscription ends, the basic version runs and your plans are kept.</li>
 </ul>
 
 <h2 id="k3-2">Licence bound to a computer</h2>
@@ -303,7 +328,7 @@ It is shown in the licence window. <span class="ui">Copy</span> puts it on the c
 
 <h2 id="k3-3">If you choose a Pro function in the Basic edition</h2>
 <p>If you choose the parts list, printing or an export, or save a plan with more than 50 tracks, a note appears. <span class="ui">Licence…</span>
-takes you straight to the licence window. Your plan stays open and unchanged.</p>
+takes you straight to the licence window, <span class="ui">Buy Pro</span> to the order page. Your plan stays open and unchanged.</p>
 <div class="warn"><b>Caution</b>In the Basic edition, plans with more than 50 tracks cannot be saved. If you then close the program, start a new plan or open
 another one, TrackMaster Pro asks whether the changes should be discarded. Only answer Yes if you really no longer need the plan.</div>
 </section>
@@ -576,7 +601,7 @@ A detailed guide for your very first plan is in chapter <a href="#ke">4</a>.</p>
     layout table), <span class="ui">Open frame (rib construction)</span> without a top board, <span class="ui">L-girder frame</span> for large free-standing layouts and
     <span class="ui">Exhibition module (1,300 mm high)</span>.</li>
   <li><span class="ui">Draw benchwork yourself</span>: only the baseboard is created and the <span class="ui">Scenery › Draw batten</span> tool is switched on straight away.
-    You then draw the side rails, cross members, diagonals and braces yourself.</li>
+    You then draw the side rails, cross members, diagonals and braces yourself. The grid is shown across the whole drawing area and snapping is switched on.</li>
 </ul>
 <p>You can change the shape and dimensions later at any time: click an empty spot or <span class="ui">Scenery › Baseboard</span>; the properties then show the
 baseboard dimensions. More about baseboard, modules and benchwork is in chapter <a href="#kp">7</a>.</p>
@@ -683,16 +708,24 @@ each baseboard part, legs in the corners and along the long sides, and if you wi
 <p>The <b>material list</b> lists battens and square timber by stock length, boards, screws and glue: your shopping list for the DIY store. The <b>cutting list</b>
 shows every part with cross-section, length and quantity. Both can be copied or saved as a CSV file. Parts that are too long and top boards that are too big are
 reported with a note on joining them. The 3D view shows the benchwork under the baseboard; with an open frame (rib construction) it shows only the wooden framework
-with battens and track. <span class="ui">Remove</span> in the window takes the benchwork out of the plan again.</p>
+with battens and track, and with rib construction switched on in the plan also the ribs and roadbed (section <a href="#k7-7">Rib construction</a>). <span class="ui">Remove</span> in the window takes the benchwork out of the plan again.</p>
 <h3>Diagonals and braces</h3>
 <p>If modules are staggered, for example in steps along a slanted wall, a continuous diagonal with individual braces often carries them. <span class="ui">Scenery › Draw batten</span>
 draws such battens freely: click the start and end. Baseboard corners, baseboard edges and other battens snap. If a brace starts at a module edge, its end snaps
 exactly onto the diagonal, vertically or horizontally below. The properties show the batten's width, height, length and top edge (negative = below the baseboard).
 The <b>arrow keys</b> move a selected batten by 1 mm, with <kbd>Shift</kbd> by 10 mm.</p>
-<h3>Laying a top board</h3>
-<p><span class="ui">Scenery › Lay top sheet</span> lays a top board on an open or self-drawn frame. It gets the outer dimensions of the drawn battens (without battens,
-the baseboard dimensions) and rests on the highest batten. In the properties you can type the top left corner, width, depth, thickness and top edge to the millimetre.
-<span class="ui">Fit to frame</span> places the board exactly over the frame again.</p>
+<p>Where nothing else snaps, battens snap to a <b>grid</b> of 10 mm. As soon as there are battens or top sheets in the plan, the grid is shown across the whole drawing area,
+not only on the baseboard.</p>
+<p><b>Several battens at once:</b> hold <kbd>Ctrl</kbd> or <kbd>Shift</kbd> and click further battens and top sheets, or drag a rectangle around them from an empty spot
+(on a tablet: long-press and drag). You can then move the selected parts together with the mouse or the arrow keys, copy or delete them, or put them on another level.
+When moved together they snap to baseboard corners, other battens and the grid.</p>
+<h3>Laying and removing top sheets</h3>
+<p><span class="ui">Scenery › Lay top sheet</span> lays the top sheets <b>automatically</b> following the outline and the frame: every connected area made of baseboard,
+modules and drawn battens gets one sheet, including special shapes such as the triangle between staggered modules and the diagonal. The sheet reaches to the middle of the
+outer battens; battens sticking out freely do not count. Sheets already laid are replaced; <span class="ui">Undo</span> brings them back.</p>
+<p>To draw a sheet of your own shape, use <span class="ui">Scenery › Draw top sheet</span>: click the corners (they snap like battens) and finally click the first corner
+again or choose <span class="ui">Done</span>. In the properties you can type position, width, depth, thickness and top edge to the millimetre; the area in m² is shown too.
+<span class="ui">Scenery › Remove all top sheets</span> takes all top sheets out of the plan so that only the frame is visible.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -941,6 +974,9 @@ Drill the holes for the threaded rods with a template so that all turns lie exac
 <div class="warn"><b>Caution</b>If the free height under the roadbed is tight, a warning appears in the list. Then increase the height per turn or use thinner timber.</div>
 <p><b>Cutting template as SVG:</b> this button in the timber list window saves every segment, board and splice plate as a separate drawing at full size (1:1),
 together in a ZIP file. Printed out, it serves as a template to stick on the wood; it is also suitable for plotters and CNC routers.</p>
+<p><b>Calling it up again later:</b> the settings of every helix you build are saved with the plan. <span class="ui">Tracks › Helix timber list…</span> shows the timber list
+and cutting templates again at any time, also after reloading. If there are several helixes in the plan, select a track of the one you want first; otherwise the one built
+last appears. Helixes from plans made with older program versions need to be built again once for this.</p>
 
 <h2 id="k7-7">Rib construction for the layout <span class="badge">PRO</span></h2>
 <p>In <b>open-frame construction</b> there is no continuous baseboard. Instead, vertical boards called <b>ribs</b> stand on the frame at regular intervals. Narrow
@@ -955,6 +991,10 @@ roadbed boards lie on them only where tracks run. This makes it easy to form hil
 </ul>
 <p>The result shows each rib with position, length, height, supports and cut-outs. It can be copied, saved as CSV and output as SVG:
 an overview and each rib as a 1:1 template, together in a ZIP file.</p>
+<p><b>Switching it on in the plan:</b> with <i>Switch on rib construction in the plan</i> (preset), rib construction becomes part of the plan: the dimensions are saved with
+the plan and are already filled in the next time you open the window. The <b>3D view</b> then shows the ribs with their cut-outs and the roadbed boards under the tracks;
+the frame sits lower by the set height for this, and the top board is left out. If tracks or heights change, the ribs in 3D adjust by themselves. To switch rib construction
+off again, clear the tick and click <span class="ui">Calculate</span>.</p>
 
 <h2 id="k7-8">Roadbed from selection <span class="badge">PRO</span></h2>
 <p>For a ramp or a freely routed line, <span class="ui">Tracks › Roadbed…</span> calculates the board under the selected tracks:</p>
@@ -1450,11 +1490,11 @@ decide where to go at the next turnout. <kbd>W</kbd> switches the next turnout t
   <tr><th style="width:22%"></th><th>Windows</th><th>Web version</th></tr>
   <tr><td>Saving</td><td><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span></td>
     <td><span class="ui">File › Save</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and <span class="ui">Save as…</span> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>)</td></tr>
-  <tr><td>File extension</td><td><code>.trackmaster.json</code></td><td><code>.mpr</code> – in the browser's downloads folder or at the chosen location</td></tr>
-  <tr><td>Opening</td><td><span class="ui">File › Open…</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>), <span class="ui">Recently opened</span></td>
+  <tr><td>File extension</td><td><code>.mpr</code> (older <code>.trackmaster.json</code> files become <code>.mpr</code> when saved; the old file stays)</td><td><code>.mpr</code> – in the browser's downloads folder or at the chosen location</td></tr>
+  <tr><td>Opening</td><td><span class="ui">File › Open…</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>), <span class="ui">Recently opened</span>; opens <code>.mpr</code> and <code>.trackmaster.json</code></td>
     <td><span class="ui">File › Open…</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>); opens <code>.mpr</code> and <code>.trackmaster.json</code></td></tr>
 </table>
-<p>The files can be exchanged between Windows, web and Android. On Windows and Android, choose “All files” in the file window to open a <code>.mpr</code> file.
+<p>All three versions save plans as <code>.mpr</code>; the files can be exchanged between Windows, web and Android. Older <code>.trackmaster.json</code> plans still open.
 When a plan is opened, the track library switches to the plan's track system.</p>
 <p><b>Automatic backup (Windows):</b> while you work, the program regularly backs up the plan in the background. If it was not closed normally – for example
 after a power cut – it offers to restore the backed-up state at the next start. This does not replace saving.</p>
@@ -1615,10 +1655,14 @@ with two-rail track on the other rail from the track power.</p>
 <p>The Basic edition saves plans with up to 50 tracks. For larger plans install your licence under <span class="ui">File › Licence…</span> (chapter <a href="#k3">3</a>).</p>
 <h3>The licence is reported as invalid.</h3>
 <p>The licence file must not be changed – not even by opening and saving it in a text editor. If the licence is bound to a computer, it only applies there;
-if an expiry date is set, only up to that day. Contact the publisher with your computer ID.</p>
+if an expiry date is set, only up to that day. Contact the publisher with your licence number and computer ID.</p>
 <h3>The licence is valid but “not activated on this device”.</h3>
 <p>The licence is already running on two other devices, or the device has not been connected to the internet for 14 days. Release another device or connect to the
 internet and click <span class="ui">Activate now</span> in the licence window (section <a href="#k3-akt">Online activation</a>).</p>
+<h3>My subscription is running, but the program only shows the Basic edition.</h3>
+<p>A device with a subscription licence must check in online at least once every 30 days. Connect it to the internet and click
+<span class="ui">Activate now</span> in the licence window. If the window says the subscription has expired, the last payment has not been booked yet. In that case
+write to the publisher and quote your licence number.</p>
 <h3>Windows reports “Windows protected your PC” during installation.</h3>
 <p>Click <span class="ui">More info</span> and then <span class="ui">Run anyway</span>. The message appears for programs that Windows has not seen often yet.</p>
 <h3>Android does not install the app.</h3>
@@ -1634,7 +1678,8 @@ uninstall it first.</p>
 <p>Update the graphics driver or the browser. On very large layouts <span class="ui">Track plan only</span> helps.</p>
 <h3>Where is my data?</h3>
 <p>Plans are wherever you saved them. On Windows the licence, settings and automatic backup are under <i>%APPDATA%\TrackMaster Pro</i>;
-the web version stores settings and your own models in the browser. The program does not send plans to third parties; at start-up it only retrieves the current version number.</p>
+the web version stores settings and your own models in the browser. The program never sends plans. At start-up it asks for the current version number; with a licence
+it also checks in for activation (the licence window lists which data is transmitted).</p>
 </section>
 
 <!-- ======================================================= -->
@@ -1692,7 +1737,7 @@ the web version stores settings and your own models in the browser. The program 
   <tr><td>Two-rail</td><td>Kind of track in which the two rails carry track power and ground. Operated with DC.</td></tr>
   <tr><td>Usable length</td><td>The maximum length of a train on a track.</td></tr>
 </table>
-<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.5.0 · User Manual, November 2026. Subject to change.
+<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.0.0 · User Manual, November 2026. Subject to change.
 All dimensions without guarantee; check dimensions against the original before cutting and buying.</p>
 </section>
 <script>

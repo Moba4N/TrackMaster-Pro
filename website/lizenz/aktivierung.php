@@ -4,7 +4,8 @@
 // 'max_geraete' Geräte erlaubt (einstellungen.php). Gespeichert wird in daten/aktivierungen.json.
 //
 // POST action=activate|release, license=<Inhalt der Lizenzdatei>, licenseId, device, platform, name, version
-// Antwort (JSON): { "status": "active|released|limit|blocked|invalid", "devices": n, "max": m, "message": "…" }
+// Antwort (JSON): { "status": "active|released|limit|blocked|invalid", "devices": n, "max": m, "message": "…", "paidUntil": "JJJJ-MM-TT" }
+// Abo-Lizenzen („subscription“ in der Lizenz) gelten nur bis „bezahlt bis“ (in der Übersicht gepflegt) plus Nachfrist.
 
 declare(strict_types=1);
 require __DIR__ . '/gemeinsam.php';
@@ -59,6 +60,20 @@ try {
                 'message' => 'Diese Lizenz wurde vom Hersteller gesperrt.'];
         }
 
+        // Abo: nur freigeben, solange bezahlt (plus Nachfrist)
+        $aboBis = tm_abo_bis($lizenz, $e);
+        $abo = [];
+        if ($aboBis !== null) {
+            $e['abo'] = true;
+            if (empty($e['bezahlt_bis'])) $e['bezahlt_bis'] = date('Y-m-d', $aboBis);
+            $abo = ['paidUntil' => date('Y-m-d', $aboBis)];
+            if (time() > $aboBis + TM_ABO_NACHFRIST_TAGE * 86400) {
+                $daten[$id] = $e;
+                return ['status' => 'blocked', 'devices' => count($e['geraete']), 'max' => $max, 'paidUntil' => date('Y-m-d', $aboBis),
+                    'message' => 'Das Abo dieser Lizenz ist am ' . date('d.m.Y', $aboBis) . ' abgelaufen. Nach der nächsten Zahlung läuft Pro wieder – dann „Jetzt aktivieren“ wählen.'];
+            }
+        }
+
         if (isset($e['geraete'][$geraet])) {
             $e['geraete'][$geraet] = array_merge($e['geraete'][$geraet], ['plattform' => $plattform, 'name' => $name, 'version' => $version, 'zuletzt' => $jetzt]);
         } elseif (count($e['geraete']) < $max) {
@@ -70,12 +85,12 @@ try {
             $daten[$id] = $e;
             $belegt = [];
             foreach ($e['geraete'] as $g) $belegt[] = trim(($g['plattform'] ?? '') . ' ' . ($g['name'] ?? ''));
-            return ['status' => 'limit', 'devices' => count($e['geraete']), 'max' => $max,
+            return $abo + ['status' => 'limit', 'devices' => count($e['geraete']), 'max' => $max,
                 'message' => "Diese Lizenz ist schon auf $max Geräten aktiviert (" . implode(', ', $belegt) . "). "
                     . 'Auf einem davon im Lizenzdialog „Dieses Gerät freigeben“ wählen, dann hier „Jetzt aktivieren“.'];
         }
         $daten[$id] = $e;
-        return ['status' => 'active', 'devices' => count($e['geraete']), 'max' => $max];
+        return $abo + ['status' => 'active', 'devices' => count($e['geraete']), 'max' => $max];
     });
 } catch (Throwable $t) {
     antwort(['status' => 'error', 'message' => 'Aktivierungsserver: ' . $t->getMessage()], 500);

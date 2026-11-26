@@ -1395,6 +1395,11 @@ public static partial class Dialogs
                 }), Ui.Wrap());
             }
         }
+        if (!license.IsPro && EditionInfo.BuyUrl is not null)
+        {
+            body.AddView(Hint(c, EditionInfo.BuyHint));
+            body.AddView(Ui.Button(c, Lang.T("Pro kaufen"), () => OpenBuyPage(c)), Ui.Wrap());
+        }
         if (license.Activation is not null) body.AddView(Hint(c, LicenseActivation.PrivacyNotice));
         body.AddView(Section(c, Lang.T("Basis")));
         body.AddView(Ui.Label(c, string.Join("\n", EditionInfo.Basis.Select(x => "• " + x)), 13.5));
@@ -1414,7 +1419,20 @@ public static partial class Dialogs
         var body = Ui.Column(c, 8);
         body.AddView(Ui.Label(c, Lang.F($"„{feature}“ gehört zu TrackMaster Pro."), 15, true));
         body.AddView(Ui.Label(c, Lang.T("Pro enthält zusätzlich:\n") + string.Join("\n", EditionInfo.Pro.Skip(1).Select(x => "• " + x)), 13.5));
+        if (EditionInfo.BuyUrl is not null)
+        {
+            body.AddView(Hint(c, EditionInfo.BuyHint));
+            body.AddView(Ui.Button(c, Lang.T("Pro kaufen"), () => OpenBuyPage(c)), Ui.Wrap());
+        }
         Show(c, Lang.T("Pro-Funktion"), body, Lang.T("Lizenz…"), () => { openLicense(); return true; }, Lang.T("Schließen"));
+    }
+
+    /// <summary>Öffnet die Bestellseite für Pro im Browser.</summary>
+    private static void OpenBuyPage(Context c)
+    {
+        if (EditionInfo.BuyUrl is not { } url) return;
+        try { c.StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(url))); }
+        catch (ActivityNotFoundException) { }
     }
 
     public static void ShowHelp(Context c)

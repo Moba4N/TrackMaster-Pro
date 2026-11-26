@@ -848,13 +848,23 @@ public static partial class Dialogs
         }
         var message = Theme.Label("", 12);
         body.Children.Add(message);
+        if (!license.IsPro && EditionInfo.BuyUrl is not null)
+        {
+            var hint = Theme.Label(EditionInfo.BuyHint, 11.5, false, Theme.TextSecondaryBrush);
+            hint.TextWrapping = TextWrapping.Wrap;
+            hint.Margin = new Thickness(0, 0, 6, 6);
+            body.Children.Add(hint);
+        }
+        var buyButton = Theme.Button(Lang.T("Pro kaufen"), accent: !license.IsPro);
+        buyButton.Visibility = !license.IsPro && EditionInfo.BuyUrl is not null ? Visibility.Visible : Visibility.Collapsed;
+        buyButton.Click += (_, _) => OpenBuyPage();
         var installButton = Theme.Button(Lang.T("Lizenz einspielen…"), "Open");
         activateButton = Theme.Button(Lang.T("Jetzt aktivieren"));
         releaseButton = Theme.Button(Lang.T("Dieses Gerät freigeben"));
-        var close = Theme.Button(Lang.T("Schließen"), accent: true);
+        var close = Theme.Button(Lang.T("Schließen"), accent: license.IsPro);
         close.IsCancel = true;
         Sync();
-        var window = Frame(owner, Lang.T("Lizenz"), body, releaseButton, activateButton, installButton, close);
+        var window = Frame(owner, Lang.T("Lizenz"), body, buyButton, releaseButton, activateButton, installButton, close);
         activateButton.Click += async (_, _) =>
         {
             activateButton.IsEnabled = false;
@@ -892,14 +902,25 @@ public static partial class Dialogs
                                       Lang.T("Pläne mit bis zu 50 Gleisen lassen sich auch in der Basisversion speichern. Mit einer Pro-Lizenz kommen Speichern ohne Größengrenze, die Stücklisten, das Drucken und die Exporte dazu.")));
         body.Children.Add(new Border { Height = 8 });
         foreach (var l in EditionInfo.Pro.Skip(1)) body.Children.Add(Theme.Label("• " + l, 11.5, false, Theme.TextSecondaryBrush));
-        var open = Theme.Button(Lang.T("Lizenz…"), "Shield", accent: true);
+        var open = Theme.Button(Lang.T("Lizenz…"), "Shield");
+        var buy = Theme.Button(Lang.T("Pro kaufen"), accent: true);
+        buy.Visibility = EditionInfo.BuyUrl is not null ? Visibility.Visible : Visibility.Collapsed;
+        buy.Click += (_, _) => OpenBuyPage();
         var close = Theme.Button(Lang.T("Schließen"));
         close.IsCancel = true;
-        var window = Small(owner, Lang.T("Pro-Funktion"), body, 520, 400, close, open);
+        var window = Small(owner, Lang.T("Pro-Funktion"), body, 520, 400, close, open, buy);
         var wants = false;
         open.Click += (_, _) => { wants = true; window.Close(); };
         close.Click += (_, _) => window.Close();
         window.ShowDialog();
         return wants;
+    }
+
+    /// <summary>Öffnet die Bestellseite für Pro im Browser.</summary>
+    private static void OpenBuyPage()
+    {
+        if (EditionInfo.BuyUrl is not { } url) return;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
     }
 }

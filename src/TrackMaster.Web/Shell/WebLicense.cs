@@ -73,7 +73,7 @@ public sealed class WebLicense
             if (Result.IsValid)
             {
                 var l = Result.License!;
-                return Lang.F($"Pro – lizenziert für {l.Licensee}{(l.ExpiresAt is { } e ? Lang.F($", gültig bis {e:dd.MM.yyyy}") : "")}");
+                return Lang.F($"Pro – lizenziert für {l.Licensee}{(l.ExpiresAt is { } e ? Lang.F($", gültig bis {e:dd.MM.yyyy}") : "")}{Lang.F($", Lizenznummer {l.LicenseId}")}");
             }
             return Result.Status == LicenseStatus.Missing ? Lang.T("Basisversion (ohne Lizenz)") : Lang.F($"Basisversion – Lizenz {Result.StatusText}");
         }

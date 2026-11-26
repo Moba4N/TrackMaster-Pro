@@ -6,15 +6,18 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Company>TrackMaster Pro</Company>
     <Product>TrackMaster Pro</Product>
-    <Version>1.5.0</Version>
+    <Version>1.0.0</Version>
     <NeutralLanguage>de-DE</NeutralLanguage>
     <!-- Öffentliche Adresse der Datei version.json (wird bei jedem Release erzeugt). Leer = keine Update-Prüfung. -->
     <UpdateUrl>https://github.com/Moba4N/TrackMaster-Pro/releases/latest/download/version.json</UpdateUrl>
     <!-- Online-Aktivierung der Lizenzen (lizenz/aktivierung.php auf der Webseite). Leer = keine Aktivierung, Lizenzen laufen wie bisher. -->
     <ActivationUrl>https://www.jm-jungwirth.de/lizenz/aktivierung.php</ActivationUrl>
+    <!-- Bestellseite für Pro (Kauf und Abo) auf der Webseite. Leer = kein Knopf „Pro kaufen“. -->
+    <BuyUrl>https://www.jm-jungwirth.de/pro-kaufen.php</BuyUrl>
   </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="UpdateUrl" Value="$(UpdateUrl)" />
     <AssemblyMetadata Include="ActivationUrl" Value="$(ActivationUrl)" />
+    <AssemblyMetadata Include="BuyUrl" Value="$(BuyUrl)" />
   </ItemGroup>
 </Project>

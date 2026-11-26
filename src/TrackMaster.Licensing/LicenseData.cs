@@ -18,6 +18,12 @@ public sealed record LicenseData
     /// <summary>Ablaufdatum; <c>null</c> = unbefristet.</summary>
     public DateTimeOffset? ExpiresAt { get; init; }
 
+    /// <summary>
+    /// Abo-Lizenz (monatliche Abrechnung): Der Aktivierungsserver gibt sie nur frei, solange das Abo bezahlt ist, und das Gerät
+    /// muss sich regelmäßig online melden (<see cref="LicenseActivation.SubscriptionOfflineDays"/>).
+    /// </summary>
+    public bool Subscription { get; init; }
+
     /// <summary>Optionale Rechnerbindung (siehe <see cref="MachineFingerprint"/>); <c>null</c> = an keinen Rechner gebunden.</summary>
     public string? MachineId { get; init; }
 }

@@ -202,7 +202,7 @@ public sealed class SceneryItem
         var r = degrees * Math.PI / 180;
         double c = Math.Cos(r), s = Math.Sin(r);
         (double X, double Y) Turn(double x, double y) => (cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c);
-        if (Kind == SceneryKind.Plate)
+        if (Kind == SceneryKind.Plate && Points.Count < 3)
         {
             // Deckplatten bleiben achsparallel: Mitte drehen, bei Vierteldrehung Breite und Tiefe tauschen
             var m = Turn(X + Width / 2, Y + Depth / 2);
@@ -213,6 +213,7 @@ public sealed class SceneryItem
         (X, Y) = Turn(X, Y);
         Points = Points.Select(p => Turn(p.X, p.Y)).ToList();
         if (Kind is SceneryKind.Building or SceneryKind.Label or SceneryKind.Obstacle or SceneryKind.Power) Rotation = Angles.Normalize(Rotation + degrees);
+        if (Kind == SceneryKind.Plate) PlateLayout.Repair(this);   // umschließendes Rechteck der gedrehten Sonderform
     }
 
     public void MoveBy(double dx, double dy)
@@ -486,6 +487,10 @@ public sealed class LayoutPlan
     public double TrainLength { get; set; }
     /// <summary>Holz-Unterbau (Rahmen, Beine, Deckplatte); null = keiner geplant.</summary>
     public BenchworkSpec? Benchwork { get; set; }
+    /// <summary>Spantenbau als Teil des Plans (wie in Wintrack): die 3D-Ansicht zeigt Spanten und Trassen; null = aus.</summary>
+    public FrameSpec? Frame { get; set; }
+    /// <summary>Gebaute Gleiswendeln (Angaben und Gleise), für Holzliste und Zuschnitt im Nachhinein.</summary>
+    public List<PlanHelix> Helices { get; } = [];
     /// <summary>Ebenen; immer mindestens eine.</summary>
     public List<PlanLevel> Levels { get; } = [new() { Name = PlanLevel.DefaultName(0) }];
     /// <summary>Ebene, auf die neue Gleise und Objekte kommen.</summary>
@@ -548,10 +553,11 @@ public sealed class LayoutPlan
         {
             Name = Name, GaugeId = GaugeId, BoardWidth = BoardWidth, BoardHeight = BoardHeight, BoardShape = BoardShape, BoardDepth = BoardDepth,
             BoardTurn = BoardTurn, BoardLegLeft = BoardLegLeft, BoardLegRight = BoardLegRight, VehicleLength = VehicleLength, NextId = NextId, ActiveLevel = ActiveLevel,
-            Benchwork = Benchwork, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation, DetectorWiring = DetectorWiring,
+            Benchwork = Benchwork, Frame = Frame, Background = Background, TrainLength = TrainLength, Current = Current, Operation = Operation, DetectorWiring = DetectorWiring,
         };
         v.Levels.Clear();
         v.Levels.AddRange(Levels);
+        v.Helices.AddRange(Helices);
         v.BoardLegs.AddRange(BoardLegs);
         v.Modules.AddRange(Modules);
         v.Pieces.AddRange(Pieces.Where(p => LevelVisible(p.Level)));

@@ -448,11 +448,11 @@ public static partial class Dialogs
                         break;
                     case SceneryKind.Plate:
                         body.AddView(Columns(c,
-                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => s.X = v)),
-                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => s.Y = v))));
+                            Ui.Field(c, Lang.T("Links (mm)"), Num(s.X, Lang.T("Links"), -20000, 20000, v => PlateLayout.SetBox(s, x: v))),
+                            Ui.Field(c, Lang.T("Oben (mm)"), Num(s.Y, Lang.T("Oben"), -20000, 20000, v => PlateLayout.SetBox(s, y: v)))));
                         body.AddView(Columns(c,
-                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Width = v)),
-                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => s.Depth = v))));
+                            Ui.Field(c, Lang.T("Breite (mm)"), Num(s.Width, Lang.T("Breite"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, width: v))),
+                            Ui.Field(c, Lang.T("Tiefe (mm)"), Num(s.Depth, Lang.T("Tiefe"), PlateLayout.MinSize, PlateLayout.MaxSize, v => PlateLayout.SetBox(s, depth: v)))));
                         body.AddView(Columns(c,
                             Ui.Field(c, Lang.T("Stärke (mm)"), Num(PlateLayout.Thickness(s), Lang.T("Stärke"), PlateLayout.MinThickness, PlateLayout.MaxThickness, v => s.Variant = (int)Math.Round(v))),
                             Ui.Field(c, Lang.T("Oberkante (mm)"), Num(s.Height, Lang.T("Oberkante"), BeamLayout.MinTop, BeamLayout.MaxTop, v => s.Height = v))));
@@ -675,6 +675,11 @@ public static partial class Dialogs
                 body.AddView(Ui.Field(c, Lang.T("Art"), type));
                 var address = Ui.Number(c, det.Address ?? 0);
                 body.AddView(Ui.Field(c, Lang.T("Kontakt am Rückmeldemodul (0 = keiner)"), address));
+                var srcNames = new List<string> { "" };
+                srcNames.AddRange(session.DetectorSources.Select(x => x.Name));
+                if (det.Source is { Length: > 0 } missing && !srcNames.Contains(missing)) srcNames.Add(missing);
+                var srcChoice = Choice(c, srcNames.Select(n => n.Length == 0 ? Lang.T("keine Verbindung") : n).ToList(), Math.Max(0, srcNames.IndexOf(det.Source ?? "")));
+                if (plan.Operation == PowerMode.Digital) body.AddView(Ui.Field(c, Lang.T("Fahrstrom von (Zentrale / Booster)"), srcChoice));
                 var rows = new List<(string, string, Color?)>();
                 if (det.Address is { } da) rows.Add((Lang.T("Modul / Eingang"), Lang.F($"{(da - 1) / Detector.InputsPerModule + 1} / {(da - 1) % Detector.InputsPerModule + 1}"), null));
                 rows.Add((Lang.T("Gleis"), $"{plan.Find(det.PieceId)?.Def.Number} (Nr. {det.PieceId})", null));
@@ -689,7 +694,8 @@ public static partial class Dialogs
                     var t = types[Math.Max(0, type.SelectedItemPosition)];
                     var n = (name.Text ?? "").Trim();
                     int? addr = a >= 1 ? (int)Math.Round(a) : null;
-                    if (n != det.Name || t != det.Type || addr != det.Address) session.Edit(() => { det.Name = n; det.Type = t; det.Address = addr; });
+                    var src = plan.Operation == PowerMode.Digital ? srcNames[Math.Clamp(srcChoice.SelectedItemPosition, 0, srcNames.Count - 1)] : det.Source;
+                    if (n != det.Name || t != det.Type || addr != det.Address || src != det.Source) session.Edit(() => { det.Name = n; det.Type = t; det.Address = addr; det.Source = src; });
                     return true;
                 });
                 break;
@@ -1043,12 +1049,12 @@ public static partial class Dialogs
     }
 
     /// <summary>Angaben für den Spantenbau der Anlage.</summary>
-    public static void AskFrame(Context c, Gauge gauge, Action<FrameSpec> build)
+    public static void AskFrame(Context c, Gauge gauge, FrameSpec? current, Action<FrameSpec, bool> build)
     {
-        var def = FrameBuild.Defaults(gauge);
+        var def = current ?? FrameBuild.Defaults(gauge);
         var body = Ui.Column(c, 6);
         body.AddView(Hint(c, Lang.T("Offene Rahmenbauweise: Spanten stehen in festem Abstand auf dem Rahmen, die Trassen liegen oben drauf. Höhe und Neigung jeder Auflage kommen aus den Gleishöhen. Liegt eine Trasse unter einer anderen, bekommt der Spant einen Ausschnitt mit Durchfahrtshöhe – so tragen dieselben Spanten mehrere Ebenen.")));
-        var direction = Choice(c, [Lang.T("quer (parallel zur Tiefe)"), Lang.T("längs (parallel zur Breite)")], 0);
+        var direction = Choice(c, [Lang.T("quer (parallel zur Tiefe)"), Lang.T("längs (parallel zur Breite)")], def.Direction == FrameDirection.Laengs ? 1 : 0);
         var spacing = Ui.Number(c, def.Spacing);
         var width = Ui.Number(c, def.TrasseWidth);
         var thick = Ui.Number(c, def.Thickness);
@@ -1056,18 +1062,21 @@ public static partial class Dialogs
         body.AddView(Ui.Field(c, Lang.T("Lage der Spanten"), direction));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Abstand höchstens (mm)"), spacing), Ui.Field(c, Lang.T("Trassenbreite (mm)"), width)));
         body.AddView(Columns(c, Ui.Field(c, Lang.T("Trassenstärke (mm)"), thick), Ui.Field(c, Lang.T("Schienenoberkante bei Höhe 0 über Rahmen (mm)"), bas)));
+        var use = new CheckBox(c) { Text = Lang.T("Spantenbau im Plan einschalten"), Checked = true };
+        body.AddView(use);
+        body.AddView(Hint(c, Lang.T("Die Maße werden mit dem Plan gespeichert; die 3D-Ansicht zeigt Spanten und Trassen.")));
         var error = Error(c);
         body.AddView(error);
         Show(c, Lang.T("Spantenbau"), body, Lang.T("Berechnen"), () =>
         {
             var errors = new List<string>();
-            Read(spacing, Lang.T("Abstand"), 50, 2000, errors, out var vs);
-            Read(width, Lang.T("Trassenbreite"), 10, 1000, errors, out var vw);
-            Read(thick, Lang.T("Trassenstärke"), 3, 50, errors, out var vt);
-            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), 10, 2000, errors, out var vb);
+            Read(spacing, Lang.T("Abstand"), FrameBuild.MinSpacing, FrameBuild.MaxSpacing, errors, out var vs);
+            Read(width, Lang.T("Trassenbreite"), FrameBuild.MinWidth, FrameBuild.MaxWidth, errors, out var vw);
+            Read(thick, Lang.T("Trassenstärke"), FrameBuild.MinThickness, FrameBuild.MaxThickness, errors, out var vt);
+            Read(bas, Lang.T("Schienenoberkante bei Höhe 0"), FrameBuild.MinBase, FrameBuild.MaxBase, errors, out var vb);
             SetError(error, errors);
             if (errors.Count > 0) return false;
-            build(new FrameSpec(direction.SelectedItemPosition == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb));
+            build(new FrameSpec(direction.SelectedItemPosition == 1 ? FrameDirection.Laengs : FrameDirection.Quer, vs, vw, vt, vb), use.Checked);
             return true;
         });
     }
@@ -1386,6 +1395,11 @@ public static partial class Dialogs
                 }), Ui.Wrap());
             }
         }
+        if (!license.IsPro && EditionInfo.BuyUrl is not null)
+        {
+            body.AddView(Hint(c, EditionInfo.BuyHint));
+            body.AddView(Ui.Button(c, Lang.T("Pro kaufen"), () => OpenBuyPage(c)), Ui.Wrap());
+        }
         if (license.Activation is not null) body.AddView(Hint(c, LicenseActivation.PrivacyNotice));
         body.AddView(Section(c, Lang.T("Basis")));
         body.AddView(Ui.Label(c, string.Join("\n", EditionInfo.Basis.Select(x => "• " + x)), 13.5));
@@ -1405,7 +1419,20 @@ public static partial class Dialogs
         var body = Ui.Column(c, 8);
         body.AddView(Ui.Label(c, Lang.F($"„{feature}“ gehört zu TrackMaster Pro."), 15, true));
         body.AddView(Ui.Label(c, Lang.T("Pro enthält zusätzlich:\n") + string.Join("\n", EditionInfo.Pro.Skip(1).Select(x => "• " + x)), 13.5));
+        if (EditionInfo.BuyUrl is not null)
+        {
+            body.AddView(Hint(c, EditionInfo.BuyHint));
+            body.AddView(Ui.Button(c, Lang.T("Pro kaufen"), () => OpenBuyPage(c)), Ui.Wrap());
+        }
         Show(c, Lang.T("Pro-Funktion"), body, Lang.T("Lizenz…"), () => { openLicense(); return true; }, Lang.T("Schließen"));
+    }
+
+    /// <summary>Öffnet die Bestellseite für Pro im Browser.</summary>
+    private static void OpenBuyPage(Context c)
+    {
+        if (EditionInfo.BuyUrl is not { } url) return;
+        try { c.StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(url))); }
+        catch (ActivityNotFoundException) { }
     }
 
     public static void ShowHelp(Context c)
@@ -1434,7 +1461,7 @@ public static partial class Dialogs
             col.AddView(Ui.Label(c, v, 13.5, color: Ui.TextSecondary));
             body.AddView(col);
         }
-        body.AddView(Hint(c, Lang.T("Pläne sind mit der Windows-Version austauschbar (*.trackmaster.json).")));
+        body.AddView(Hint(c, Lang.T("Pläne werden als *.mpr gespeichert und sind mit Windows und der Webversion austauschbar; ältere *.trackmaster.json öffnen weiter.")));
         Show(c, Lang.T("Bedienung"), body, "OK", cancelText: null);
     }
 }

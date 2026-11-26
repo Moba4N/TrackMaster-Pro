@@ -172,6 +172,7 @@ public sealed partial class MainWindow : Window
         Add("flexConnect", () => Session.ConnectEnds(Session.CurrentFlex));
         Add("gradient", AskGradient, HasSelection);
         Add("helix", AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", () => Session.SetTunnel(!Session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -184,6 +185,8 @@ public sealed partial class MainWindow : Window
         Add("toolDimension", () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", () => SetTool(CanvasTool.Beam));
         Add("addPlate", () => { SetTool(CanvasTool.Select); Session.AddPlate(); });
+        Add("toolPlate", () => SetTool(CanvasTool.Plate));
+        Add("removePlates", () => { SetTool(CanvasTool.Select); Session.RemoveAllPlates(); });
         foreach (var t in Enum.GetValues<PowerSourceType>())
         {
             var type = t;
@@ -204,6 +207,10 @@ public sealed partial class MainWindow : Window
         Add("wiring", ShowWiring);
         Add("wires", () => { Session.ShowWires = !Session.ShowWires; Session.Say(Session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); Canvas.InvalidateVisual(); });
         Add("numberElectrics", () => Session.NumberElectrics());
+        Add("autoWire", () => { Session.ShowWires = true; Session.AutoWire(); Canvas.Rebuild(); });
+        Add("autoWireRemove", () => { Session.RemoveAutoWiring(); Canvas.Rebuild(); });
+        Add("trackConnRemove", () => { Session.RemoveTrackConnections(); Canvas.Rebuild(); });
+        Add("detectorWires", () => { var on = !Session.Plan.DetectorWiring; if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); });
         Add("routes", ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ExportControl);
         Add("view3d", () => Open3D(View3DMode.Orbit));
@@ -575,12 +582,13 @@ public sealed partial class MainWindow : Window
         CanvasTool.Building => Lang.T("Gebäude: Rechteck aufziehen oder einmal klicken für ein Standardgebäude. Esc beendet das Werkzeug."),
         CanvasTool.Tree => Lang.T("Vegetation: Jeder Klick setzt einen Baum. Esc beendet das Werkzeug."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => Decoders.Find(Session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
+        CanvasTool.Power => Decoders.Find(Session.ModuleModel) is { } mm ? Lang.F($"{mm.Short}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte). Esc beendet das Werkzeug.")
             : Lang.T("Trafo / Zentrale bzw. Verteiler: an die Stelle im Plan klicken, wo das Teil stehen soll (auch neben der Platte). Esc beendet das Werkzeug."),
         CanvasTool.Isolation => Lang.T("Trennstelle: Auf eine Gleisverbindung (grüner Punkt) klicken; ein zweiter Klick entfernt sie wieder."),
         CanvasTool.Flex => Lang.T("Flexgleis ziehen: An einem offenen Gleisende (oder frei) drücken und ziehen – das Gleis biegt sich mit und rastet an Gleisenden ein. Esc beendet das Werkzeug."),
         CanvasTool.Signal => Lang.T("Signal: Auf ein Gleisende klicken – das Signal steht rechts davor und gilt für Züge, die auf dieses Ende zufahren. Ein Klick auf ein Signal entfernt es wieder."),
         CanvasTool.Room => Lang.T("Raum zeichnen: Ecken der Wand-Innenkante anklicken, Doppelklick oder Eingabetaste schließt ab. Esc bricht ab."),
+        CanvasTool.Plate => Lang.T("Platte zeichnen: Ecken anklicken – Plattenecken, Kanten, Leisten und das Raster rasten ein. Klick auf die erste Ecke, Doppelklick oder Eingabetaste legt die Platte auf. Esc bricht ab."),
         CanvasTool.Obstacle => Lang.T("Raumelement: klicken oder Rechteck aufziehen. Größe und Drehung stehen danach in den Eigenschaften. Esc beendet das Werkzeug."),
         CanvasTool.Detector => Lang.T("Rückmelder: auf ein Gleis klicken; ein Klick auf einen Rückmelder entfernt ihn wieder."),
         CanvasTool.Wire => Lang.T("Kabel verlegen: Punkte anklicken – rastet an Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben ein; ein Ende auf einem Gleis wird zur Einspeisung. Doppelklick oder Eingabetaste beendet, Esc bricht ab."),
@@ -848,8 +856,9 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Höhe"),
                 Large(Lang.T("Steigung…"), "Slope", "gradient", Lang.T("Gleichmäßige Steigung über die gewählten Gleise legen.")),
                 Large(Lang.T("Gleis­wendel…"), "Helix", "helix", Lang.T("Wendel aus Bögen mit mehreren Windungen bauen.")),
+                Small(Lang.T("Holzliste Wendel…"), "List", "helixMaterial", Lang.T("Holzliste und Zuschnitt einer schon gebauten Gleiswendel noch einmal zeigen – die mit einem gewählten Gleis, sonst die zuletzt gebaute.")),
                 Large(Lang.T("Höhen­profil"), "Profile", "profile", Lang.T("Höhe und Steigung entlang der gewählten Gleise als Diagramm.")),
-                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen.")),
+                Large(Lang.T("Spanten­bau…"), "Frame", "frame", Lang.T("Spanten für die offene Rahmenbauweise aus den Gleishöhen berechnen, auch für mehrere Ebenen. Eingeschaltet zeigt die 3D-Ansicht Spanten und Trassen.")),
                 Large(Lang.T("Trasse…"), "Ramp", "rampCut", Lang.T("Trasse unter den markierten Gleisen, z. B. einer Steigung, berechnen und die Teile als SVG speichern.")),
                 Small("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren oder die Markierung aufheben.")))));
 
@@ -860,7 +869,9 @@ public sealed partial class MainWindow : Window
                 ToolToggle(Lang.T("Platte ziehen"), "Resize", true, CanvasTool.Board, "toolBoard", Lang.T("Mit der Maus: Ecken ziehen ändert die Größe, Module ziehen verschiebt sie samt Gleisen. Klicken öffnet die Maße zum Eintippen.")),
                 Large(Lang.T("Unterbau…"), "Table", "benchwork", Lang.T("Holzkonstrukt aus Rahmen, Querriegeln und Beinen mit eigenen Maßen planen, mit Materialliste und Zuschnitt.")),
                 ToolToggle(Lang.T("Leiste ziehen"), "Beam", false, CanvasTool.Beam, "toolBeam", Lang.T("Einzelne Holzleiste frei ziehen, z. B. eine Diagonale unter versetzten Modulen und Streben dazu. Anfang und Ende anklicken; Kanten, Ecken und andere Leisten rasten ein.")),
-                Small(Lang.T("Platte auflegen"), "Plate", "addPlate", Lang.T("Deckplatte nach den Maßen der gezeichneten Leisten bzw. des Rahmens auf den Unterbau legen. Lage, Größe und Stärke in mm in den Eigenschaften; verschieben mit Maus oder Pfeiltasten."))),
+                Small(Lang.T("Platte auflegen"), "Plate", "addPlate", Lang.T("Deckplatten automatisch nach Grundriss und Rahmen auflegen: sie folgen dem Umriss der Anlage (auch L, U und Module) und füllen, was gezogene Leisten einschließen, z. B. das Dreieck an einer Diagonale. Vorhandene Platten werden ersetzt.")),
+                ToolToggle(Lang.T("Platte zeichnen"), "Plate", false, CanvasTool.Plate, "toolPlate", Lang.T("Platte in Sonderform auflegen, z. B. das Dreieck zwischen versetzten Modulen und der Diagonale: Ecken anklicken, Klick auf die erste Ecke oder Doppelklick schließt ab. Ecken rasten an Platte, Leisten und Raster ein.")),
+                Small(Lang.T("Alle Platten entfernen"), "Delete", "removePlates", Lang.T("Aufgelegte Platten und die Platte des Unterbaus weglassen, damit nur der Rahmen zu sehen ist. Rückgängig holt sie zurück."))),
             Group(Lang.T("Landschaft"),
                 ToolToggle(Lang.T("Gelände formen"), "Terrain", true, CanvasTool.Terrain, "toolTerrain", Lang.T("Höhenfläche (Hügel, Berg, Plateau) als Vieleck zeichnen.")),
                 Large("Tunnel", "Tunnel", "tunnel", Lang.T("Gewählte Gleise als Tunnel markieren.")),
@@ -991,6 +1002,9 @@ public sealed partial class MainWindow : Window
             Group(Lang.T("Stromversorgung"),
                 currentMenu, powerMenu,
                 ToolToggle(Lang.T("Trennstelle"), "Isolate", false, CanvasTool.Isolation, "toolIsolation", Lang.T("Isolierte Schienenverbinder an einer Gleisverbindung setzen.")),
+                Small(Lang.T("Automatisch verkabeln"), "Wire", "autoWire", Lang.T("Erst den Gleisplan bauen und die Trennstellen setzen, dann verkabelt das Programm selbst: jeder Abschnitt bekommt Bahnstrom und Masse. Liegt alles auf einer Ebene, speist die Zentrale; über mehrere Ebenen bekommt jede Ebene einen Booster und die Zentrale schaltet nur. Bei Gleichstrom bekommt jede Kehrschleife ein Kehrschleifenmodul (KS1 …). Digital setzt es je Abschnitt einen Melder und speist ihn über den Besetztmelder. Ein erneuter Aufruf ersetzt die automatische Verkabelung.")),
+                Small(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove", Lang.T("Alles, was „Automatisch verkabeln“ angelegt hat, wieder herausnehmen: Kabel, Anschlüsse am Gleis, Zentrale und Booster, Kehrschleifen- und Besetztmelder, Melder und Trennstellen. Selbst Gesetztes bleibt. Rückgängig holt alles zurück.")),
+                Small(Lang.T("Verbindungen zum Gleis entfernen"), "Delete", "trackConnRemove", Lang.T("Alle Anschlüsse am Gleis (Bahnstrom und Masse, automatisch oder von Hand) samt ihren Kabeln entfernen. Zentrale, Booster, Module, Melder und Trennstellen bleiben stehen. Rückgängig holt alles zurück.")),
                 Toggle(Lang.T("Stromkreise zeigen"), "Grid", false, () => Session.ShowSections, on => { Session.ShowSections = on; Canvas.Rebuild(); }),
                 Toggle(Lang.T("Nur Elektrik beschriften"), "Hash", false, () => Session.ElectricLabelsOnly, on => { Session.ElectricLabelsOnly = on; Canvas.InvalidateVisual(); },
                     Lang.T("Solange die Stromkreise gezeigt werden, Höhen und Artikelnummern ausblenden und die Abschnitte beschriften.")),
@@ -1002,8 +1016,11 @@ public sealed partial class MainWindow : Window
                 Small(Lang.T("Adressen"), "Hash", "addresses", Lang.T("Digitaladressen für Weichen und Signale vergeben und sehen, an welchem Baustein sie hängen.")),
                 signalMenu,
                 distributorMenu,
+                Small(Lang.T("Besetztmelder"), "Detector", "moduleBesetztmelder", Lang.T("Besetztmelder (16 Eingänge) wie einen Booster in den Plan setzen. Er bekommt Bahnstrom (B) und Masse (0) von Zentrale oder Booster und speist die Abschnitte mit Melder.")),
                 ToolToggle(Lang.T("Rückmelder"), "Detector", true, CanvasTool.Detector, "toolDetector", Lang.T("Rückmelder (Gleisbesetzt, Schaltgleis, Reed) auf Gleise setzen; sie werden fortlaufend nummeriert.")),
-                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Rückmelder (M1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
+                Toggle(Lang.T("Melder verkabeln"), "Wire", false, () => Session.Plan.DetectorWiring, on => { if (on) Session.ShowWires = true; Session.SetDetectorWiring(on); Canvas.InvalidateVisual(); },
+                    Lang.T("Rückmelder mit Kontakt automatisch per Kabel mit der passenden Klemme ihres Rückmeldemoduls verbinden. Fehlt ein Modul, wird es unter dem Plan angelegt (je 16 Kontakte ein Modul). Ändert sich Kontakt oder Gleis, folgt das Kabel. Ausschalten entfernt diese Kabel wieder.")),
+                Small(Lang.T("Nummerieren"), "Hash", "numberElectrics", Lang.T("Einspeisungen (G1 …), Melder (Melder 1 …) und Kabel (K1 …) von links oben nach rechts unten durchnummerieren – für den Kabelplan und die Anschlussliste.")),
                 Small(Lang.T("Kabelplan"), "Wire", "wiring", Lang.T("Stromquellen, Abschnitte, Einspeisungen, Trennstellen und Decoderbelegung als Liste.")),
                 Small(Lang.T("Fahrstraßen"), "Route", "routes", Lang.T("Alle Wege von Signal zu Signal mit den nötigen Weichenstellungen.")),
                 Small(Lang.T("Export Steuerung"), "Export", "controlExport", Lang.T("Weichen, Signale, Adressen, Abschnitte und Fahrstraßen als Datei für Steuerprogramme.")))));
@@ -1355,7 +1372,10 @@ public sealed partial class MainWindow : Window
 
     // ---------- Dateien ----------
 
-    private static string FileFilter => Lang.T("TrackMaster-Plan (*.trackmaster.json)|*.trackmaster.json|JSON-Dateien (*.json)|*.json|Alle Dateien (*.*)|*.*");
+    /// <summary>Öffnen: *.mpr und ältere *.trackmaster.json zusammen.</summary>
+    private static string FileFilter => Lang.T("TrackMaster-Plan (*.mpr;*.trackmaster.json)|*.mpr;*.trackmaster.json|Ältere Pläne (*.json)|*.json|Alle Dateien (*.*)|*.*");
+    /// <summary>Speichern: immer *.mpr.</summary>
+    private static string SaveFilter => Lang.T("TrackMaster-Plan (*.mpr)|*.mpr");
 
     private string SafeName => string.Join("", Session.Plan.Name.Split(Path.GetInvalidFileNameChars())).Trim() is { Length: > 0 } n ? n : Lang.T("Gleisplan");
 
@@ -1435,7 +1455,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var other = PlanSerializer.FromJson(File.ReadAllText(dlg.FileName), out _);
-            var file = Path.GetFileName(dlg.FileName).Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var file = PlanSerializer.BaseName(Path.GetFileName(dlg.FileName));
             var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : file;
             if (Session.AppendModule(other, title)) Canvas.Fit();
         }
@@ -1464,12 +1484,17 @@ public sealed partial class MainWindow : Window
     {
         if (!Session.RequireSave()) return false;
         var path = Session.FilePath;
-        if (askForName || path is null)
+        // ältere Pläne (*.trackmaster.json) werden beim Speichern zu *.mpr: Name vorschlagen, die alte Datei bleibt unverändert
+        if (askForName || path is null || !PlanSerializer.IsPlanFile(path))
         {
-            var dlg = new SaveFileDialog { Filter = FileFilter, Title = Lang.T("Gleisplan speichern"), FileName = SafeName + PlanSerializer.FileExtension, AddExtension = false };
+            var suggested = path is null ? SafeName + PlanSerializer.FileExtension : Path.GetFileName(PlanSerializer.WithPlanExtension(path));
+            var dlg = new SaveFileDialog
+            {
+                Filter = SaveFilter, Title = Lang.T("Gleisplan speichern"), FileName = suggested, DefaultExt = PlanSerializer.FileExtension, AddExtension = true,
+                InitialDirectory = path is null ? "" : Path.GetDirectoryName(path) ?? "",
+            };
             if (dlg.ShowDialog(this) != true) return false;
-            path = dlg.FileName;
-            if (!path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) path += PlanSerializer.FileExtension;
+            path = PlanSerializer.WithPlanExtension(dlg.FileName);
         }
         try
         {
@@ -1607,6 +1632,10 @@ public sealed partial class MainWindow : Window
         if (menu.Items.Count == 0) menu.Items.Add(Cmd(Lang.T("Ganze Anlage"), "Fit", "fit"));
         if (menu.Items[menu.Items.Count - 1] is not Separator) menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(Session.ShowWires ? Lang.T("Kabel ausblenden") : Lang.T("Kabel einblenden"), "Wire", "wires"));
+        menu.Items.Add(Cmd(Lang.T("Automatisch verkabeln"), "Wire", "autoWire"));
+        menu.Items.Add(Cmd(Lang.T("Verkabelung entfernen"), "Delete", "autoWireRemove"));
+        menu.Items.Add(Cmd(Lang.T("Verbindungen zum Gleis entfernen"), "Delete", "trackConnRemove"));
+        menu.Items.Add(Cmd(Session.Plan.DetectorWiring ? Lang.T("Rückmelder-Kabel entfernen") : Lang.T("Rückmelder mit Modul verbinden"), "Detector", "detectorWires"));
         menu.Items.Add(Cmd(Lang.T("Elektrik nummerieren"), "Hash", "numberElectrics"));
         if (menu.Items[menu.Items.Count - 1] is Separator) menu.Items.RemoveAt(menu.Items.Count - 1);
         menu.PlacementTarget = Canvas;
@@ -1692,9 +1721,18 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void ShowHelixAgain()
+    {
+        if (Session.HelixMaterialAgain() is not { } material) return;
+        Dialogs.ShowHelixMaterial(this, material, csv => ExportTo(Lang.T("Holzliste speichern"), Lang.T("CSV-Datei (*.csv)|*.csv"), Lang.F($"{SafeName} – Holzliste Gleiswendel.csv"), csv),
+            cut => ExportSvgFiles(Lang.T("Zuschnitt speichern"), Lang.F($"{SafeName} – Zuschnitt Gleiswendel"), cut.ToSvgFiles(SafeName)));
+    }
+
     private void AskFrame()
     {
-        if (Dialogs.AskFrame(this, Session.Plan.Gauge) is not { } spec) return;
+        if (Dialogs.AskFrame(this, Session.Plan.Gauge, Session.Plan.Frame) is not { } ask) return;
+        var spec = ask.Spec;
+        Session.SetFrame(ask.Use ? spec : null);
         var f = FrameBuild.Build(Session.Plan, spec);
         Dialogs.ShowFrame(this, f,
             () => ExportSvgFiles(Lang.T("Spanten als SVG speichern"), Lang.F($"{SafeName} – Spanten"), f.ToSvgFiles(SafeName)),
@@ -1853,7 +1891,7 @@ public sealed partial class MainWindow : Window
         var items = _recent.Items;
         foreach (var path in items)
         {
-            var item = new RibbonApplicationMenuItem { Header = Path.GetFileName(path).Replace(PlanSerializer.FileExtension, ""), ToolTip = path };
+            var item = new RibbonApplicationMenuItem { Header = PlanSerializer.BaseName(Path.GetFileName(path)), ToolTip = path };
             item.Click += (_, _) => { if (ConfirmDiscard()) OpenPath(path); };
             _recentMenu.Items.Add(item);
         }

@@ -265,7 +265,8 @@ public static class ModelPlacement
         Dictionary<int, PlacedPiece>? index = null;
         foreach (var s in plan.Scenery)
         {
-            if (s.Tracks.Count == 0) continue;
+            // nur Ausstattungsmodelle; Kabel und Bausteine von „Melder verkabeln“ verwalten ihre Verweise selbst (DetectorWiring)
+            if (s.Tracks.Count == 0 || !s.IsModel) continue;
             index ??= plan.PieceIndex();
             s.Tracks.RemoveAll(id => !index.ContainsKey(id));
             if (s.Tracks.Count > 0) s.Level = Math.Clamp(index[s.Tracks[0]].Level, 0, plan.Levels.Count - 1);

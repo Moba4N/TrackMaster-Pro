@@ -160,3 +160,60 @@ public class HelixCutTests
         Assert.Contains(problems, p => p.StartsWith("Segmente je Kreis"));
     }
 }
+
+public class FramePlanIntegrationTests
+{
+    private const string Straight = "H0|mc|24188";
+
+    private static LayoutPlan Plan() => new() { GaugeId = "H0", BoardWidth = 2000, BoardHeight = 1000 };
+
+    private static void Line(LayoutPlan plan, double x, double y, int count, double height)
+    {
+        var len = Catalog.Get(Straight).TrackLength;
+        for (var i = 0; i < count; i++)
+            plan.Pieces.Add(new PlacedPiece { Id = plan.Pieces.Count + 1, Key = Straight, X = x + i * len, Y = y, Height = height });
+    }
+
+    [Fact]
+    public void Eingeschalteter_Spantenbau_wird_mit_dem_Plan_gespeichert_und_laesst_sich_rueckgaengig_machen()
+    {
+        var session = new PlanSession();
+        session.Replace(Plan(), null);
+        Line(session.Plan, 0, 500, 10, 0);
+        var spec = FrameBuild.Defaults(session.Plan.Gauge) with { Direction = FrameDirection.Laengs, Spacing = 333 };
+        session.SetFrame(spec);
+        Assert.Equal(spec, session.Plan.Frame);
+        var back = PlanSerializer.FromJson(PlanSerializer.ToJson(session.Plan), out _);
+        Assert.Equal(spec, back.Frame);
+        session.Undo();
+        Assert.Null(session.Plan.Frame);
+        Assert.Null(PlanSerializer.FromJson(PlanSerializer.ToJson(session.Plan), out _).Frame);
+        // Unsinnige Maße werden nicht übernommen
+        session.SetFrame(spec with { Thickness = double.NaN });
+        Assert.Null(session.Plan.Frame);
+    }
+
+    [Fact]
+    public void Dreid_Ansicht_zeigt_Spanten_und_Trassen_nur_wenn_eingeschaltet()
+    {
+        var plan = Plan();
+        Line(plan, 0, 500, 10, 0);
+        Line(plan, 0, 520, 10, 120);
+        var off = new Scene3DModel(plan);
+        Assert.False(off.Meshes.ContainsKey((Scene3DModel.RibColor, SurfaceKind.Matte)));
+        plan.Frame = FrameBuild.Defaults(plan.Gauge);
+        var on = new Scene3DModel(plan);
+        Assert.True(on.OpenFrame);
+        var ribs = on.Meshes[(Scene3DModel.RibColor, SurfaceKind.Matte)].Points;
+        Assert.NotEmpty(ribs);
+        Assert.NotEmpty(on.Meshes[(Scene3DModel.TrasseColor, SurfaceKind.Matte)].Points);
+        // Spanten stehen auf dem Rahmen (Fuß) und reichen bis unter die obere Trasse; 3D: Y ist oben
+        var foot = FrameBuild.FootZ(plan.Gauge, plan.Frame);
+        Assert.Equal(foot, ribs.Min(p => p.Y), 1);
+        Assert.Equal(120 - plan.Frame.Thickness, ribs.Max(p => p.Y), 1);
+        // Ausschnitt: Holz endet an der Unterkante und beginnt wieder an der Oberkante der Durchfahrt
+        var cut = FrameBuild.Build(plan, plan.Frame).Ribs[0].Cutouts.Single();
+        Assert.Contains(ribs, p => Math.Abs(p.Y - (foot + cut.Top)) < 0.01);
+        Assert.Contains(ribs, p => Math.Abs(p.Y - (foot + cut.BottomFrom)) < 0.01 && p.Z > cut.From && p.Z < cut.To + 0.01);
+    }
+}

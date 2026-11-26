@@ -34,6 +34,7 @@ public partial class App : ComponentBase, IAppHost
     // Schmale Fenster: Bibliothek und Eigenschaften als Schublade
     private bool _libraryOpen, _propsOpen;
 
+
     public PlanView View => _view;
 
     private sealed record Command(string Name, Action Execute, bool Pro, Func<bool>? CanExecute);
@@ -309,6 +310,7 @@ public partial class App : ComponentBase, IAppHost
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
         Add("tunnel", "Tunnel", () => _session.SetTunnel(!_session.SelectedPieces.All(p => p.Tunnel)), HasSelection);
@@ -320,6 +322,8 @@ public partial class App : ComponentBase, IAppHost
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
+        Add("toolPlate", Lang.T("Platte zeichnen"), () => SetTool(CanvasTool.Plate));
+        Add("removePlates", Lang.T("Alle Platten entfernen"), () => { SetTool(CanvasTool.Select); _session.RemoveAllPlates(); });
         Add("toolPower", Lang.T("Trafo / Zentrale"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler) SetTool(CanvasTool.Select);
@@ -352,6 +356,15 @@ public partial class App : ComponentBase, IAppHost
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
         Add("wires", Lang.T("Kabel zeigen"), () => { _session.ShowWires = !_session.ShowWires; _session.Say(_session.ShowWires ? Lang.T("Kabel eingeblendet.") : Lang.T("Kabel ausgeblendet – über das Kontextmenü oder „Kabel zeigen“ wieder einblenden.")); _view.Invalidate(); });
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
+        Add("autoWire", Lang.T("Automatisch verkabeln"), () => { _session.ShowWires = true; _session.AutoWire(); });
+        Add("autoWireRemove", Lang.T("Verkabelung entfernen"), () => _session.RemoveAutoWiring());
+        Add("trackConnRemove", Lang.T("Verbindungen zum Gleis entfernen"), () => _session.RemoveTrackConnections());
+        Add("toolOccupancy", Lang.T("Besetztmelder setzen"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder") SetTool(CanvasTool.Select);
+            else { _session.SelectModule("Besetztmelder"); SetTool(CanvasTool.Power); }
+        });
+        Add("detectorWires", Lang.T("Rückmelder mit Modul verbinden"), () => { var on = !_session.Plan.DetectorWiring; if (on) _session.ShowWires = true; _session.SetDetectorWiring(on); });
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ShowControlExport);
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
@@ -373,7 +386,6 @@ public partial class App : ComponentBase, IAppHost
         Add("alignCX", Lang.T("Mittig waagrecht"), () => _session.Align(AlignMode.CenterX), () => _session.Selection.Count > 1);
         Add("alignCY", Lang.T("Mittig senkrecht"), () => _session.Align(AlignMode.CenterY), () => _session.Selection.Count > 1);
         Add("parallel", Lang.T("Parallelgleis"), AskParallel, HasSelection);
-        Add("suggest", Lang.T("Planvorschlag"), AskSuggest);
         Add("profile", Lang.T("Höhenprofil"), ShowProfile);
         Add("roomRect", Lang.T("Raum"), AskRoom);
         Add("toolRoom", Lang.T("Raum zeichnen"), () => SetTool(CanvasTool.Room));
@@ -495,7 +507,10 @@ public partial class App : ComponentBase, IAppHost
         "toolLabel" => _session.Tool == CanvasTool.Label,
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
+        "toolPlate" => _session.Tool == CanvasTool.Plate,
         "wires" => _session.ShowWires,
+        "detectorWires" => _session.Plan.DetectorWiring,
+        "toolOccupancy" => _session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder",
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
@@ -519,15 +534,17 @@ public partial class App : ComponentBase, IAppHost
     private static readonly HashSet<string> Toggles =
     [
         "grid", "ends", "labels", "snap", "heights", "scenery", "sections", "toolSelect", "toolPan", "toolFlex", "toolTerrain", "toolWater",
-        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
+        "toolBoard", "toolBuilding", "toolTree", "toolLabel", "toolDimension", "toolBeam", "toolPlate", "toolPower", "toolDistributor", "toolIsolation", "wires", "toolSignal",
         "toolRoom", "toolDetector", "toolDoor", "toolWindow", "toolColumn", "toolHeater", "toolFurniture", "bgToggle",
-        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate",
+        "modelsTunnel", "modelsStation", "modelsRailway", "modelsHouses", "modelsOwn", "elecLabels", "toolWire", "connDetector", "connIsolate", "detectorWires", "toolOccupancy",
     ];
 
     private void SetTool(CanvasTool tool)
     {
-        if (_view.IsDrawingPolygon && tool != _session.Tool) _view.CancelPolygon();
-        _session.Tool = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        var next = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        // Werkzeug wechseln: angefangene Fläche, Leiste oder Maß verwerfen
+        if (next != _session.Tool) _view.CancelPolygon();
+        _session.Tool = next;
         if (_session.Tool is not (CanvasTool.Select or CanvasTool.Pan)) _session.ClearSelection();
         _view.Invalidate();
         Refresh();
@@ -544,7 +561,7 @@ public partial class App : ComponentBase, IAppHost
             : Lang.T("Bitte zuerst ein Modell wählen."),
         CanvasTool.Tree => Lang.T("Vegetation: jeder Klick setzt einen Baum."),
         CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis klicken. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-        CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte).")
+        CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Short}: an die Stelle im Plan klicken, wo der Baustein liegen soll (auch neben der Platte).")
             : Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan klicken, wo sie stehen soll (auch neben der Platte)."),
         CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_view.PolygonPoints}) – rastet an Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben ein; auf einem Gleis entsteht eine Einspeisung. Doppelklick oder „Fertig“ beendet."),
         CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante setzen ({_view.PolygonPoints}), dann „Fertig“ oder Doppelklick."),
@@ -554,7 +571,8 @@ public partial class App : ComponentBase, IAppHost
         CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)} ({Signal.SystemShort(_session.SignalSystem)}): auf einen Punkt an einer Gleisverbindung klicken."),
         CanvasTool.Label => Lang.T("Text: auf die Stelle klicken und den Text eingeben."),
         CanvasTool.Dimension => Lang.T("Maß: zwei Punkte anklicken; Gleisenden und Plattenecken rasten ein."),
-        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken und andere Leisten rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
+        CanvasTool.Beam => Lang.T("Leiste: Anfang und Ende anklicken. Plattenkanten, Ecken, andere Leisten und das Raster rasten ein, von einer Kante aus auch rechtwinklig auf eine Leiste."),
+        CanvasTool.Plate => Lang.F($"Platte zeichnen: Ecken setzen ({_view.PolygonPoints}) – Plattenecken, Kanten, Leisten und das Raster rasten ein. Klick auf die erste Ecke, Doppelklick oder „Fertig“ legt die Platte auf."),
         CanvasTool.Pan => Lang.T("Verschieben: Ansicht mit der linken Maustaste ziehen."),
         CanvasTool.Board => _session.Plan.BoardShape == BoardShape.Module
             ? Lang.T("Platte ziehen: Ecke eines Moduls ziehen ändert seine Größe, ein Modul ziehen verschiebt es samt Gleisen. Kanten rasten an Nachbarmodulen ein. Klick auf ein Modul: Maße eintippen oder drehen.")
@@ -669,7 +687,7 @@ public partial class App : ComponentBase, IAppHost
     // ---------- Dateien ----------
 
     /// <summary>Endung, unter der die Webversion Pläne speichert. Inhalt wie *.trackmaster.json, daher öffnet sie auch diese.</summary>
-    private const string WebFileExtension = ".mpr";
+    private const string WebFileExtension = PlanSerializer.FileExtension;
     private const string PlanFileTypes = ".mpr,.json,.trackmaster.json,application/json";
 
     private async Task OpenFile()
@@ -733,7 +751,7 @@ public partial class App : ComponentBase, IAppHost
         try
         {
             var other = PlanSerializer.FromJson(text, out _);
-            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : name.Replace(PlanSerializer.FileExtension, "").Replace(".json", "").Replace(WebFileExtension, "");
+            var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : PlanSerializer.BaseName(name);
             if (_session.AppendModule(other, title)) _view.Fit();
         }
         catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException or FormatException or NotSupportedException or ArgumentException or KeyNotFoundException)
@@ -859,6 +877,12 @@ public partial class App : ComponentBase, IAppHost
             if (_session.RequirePro(Lang.T("Holzliste der Gleiswendel")))
                 ShowHelixMaterial(material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
         });
+    }
+
+    private void ShowHelixAgain()
+    {
+        if (_session.HelixMaterialAgain() is not { } material) return;
+        ShowHelixMaterial(material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")));
     }
 
     private void AskViewAngle() => AskAngle(Lang.T("Ansicht drehen"),

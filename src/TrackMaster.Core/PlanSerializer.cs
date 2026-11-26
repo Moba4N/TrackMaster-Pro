@@ -4,11 +4,29 @@ using System.Text.Json.Serialization;
 namespace TrackMaster.Core;
 
 /// <summary>
-/// Dateiformat *.trackmaster.json – dasselbe wie in der Browser-Version, Dateien lassen sich hin und her öffnen.
+/// Dateiformat *.mpr (Inhalt JSON) – dasselbe in Windows, Android und Browser, Dateien lassen sich hin und her öffnen.
+/// Ältere Pläne *.trackmaster.json (gleicher Inhalt) werden weiter geöffnet.
 /// </summary>
 public static partial class PlanSerializer
 {
-    public const string FileExtension = ".trackmaster.json";
+    /// <summary>Endung, unter der alle Versionen Pläne speichern.</summary>
+    public const string FileExtension = ".mpr";
+    /// <summary>Frühere Endung der Windows- und Android-Version; wird weiter geöffnet, aber nicht mehr geschrieben.</summary>
+    public const string LegacyExtension = ".trackmaster.json";
+
+    /// <summary>Hat der Pfad die Endung *.mpr?</summary>
+    public static bool IsPlanFile(string path) => path.EndsWith(FileExtension, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Dateiname ohne Plan-Endung (*.mpr, *.trackmaster.json, *.json).</summary>
+    public static string BaseName(string fileName)
+    {
+        foreach (var ext in new[] { FileExtension, LegacyExtension, ".json" })
+            if (fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return fileName[..^ext.Length];
+        return fileName;
+    }
+
+    /// <summary>Pfad mit der Endung *.mpr: ältere Endungen werden ersetzt, fehlende ergänzt.</summary>
+    public static string WithPlanExtension(string path) => IsPlanFile(path) ? path : BaseName(path) + FileExtension;
     /// <summary>
     /// Version des Dateiformats. 2: Beschriftungen, Maßlinien, Drehscheiben und Schiebebühnen. 3: Raum, Hintergrundbild,
     /// Rückmelder, Preise und Bestand, gesperrte und gruppierte Gleise. 4: Ausstattungsmodelle (Gebäude mit Modell und Farbe,
@@ -35,6 +53,8 @@ public static partial class PlanSerializer
         [JsonPropertyName("levels"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<LevelDto>? Levels { get; set; }
         [JsonPropertyName("activeLevel"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ActiveLevel { get; set; }
         [JsonPropertyName("benchwork"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BenchworkSpec? Benchwork { get; set; }
+        [JsonPropertyName("frame"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FrameDto? Frame { get; set; }
+        [JsonPropertyName("helices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<HelixDto>? Helices { get; set; }
         [JsonPropertyName("detectors"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<DetectorDto>? Detectors { get; set; }
         [JsonPropertyName("train"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Train { get; set; }
         [JsonPropertyName("prices"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, double>? Prices { get; set; }
@@ -43,6 +63,36 @@ public static partial class PlanSerializer
         [JsonPropertyName("models"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<ModelFile.ModelDto>? Models { get; set; }
         [JsonPropertyName("current"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Current { get; set; }
         [JsonPropertyName("operation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Operation { get; set; }
+        [JsonPropertyName("detWires"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? DetWires { get; set; }
+    }
+
+    private sealed class HelixDto
+    {
+        [JsonPropertyName("curve")] public string? Curve { get; set; }
+        [JsonPropertyName("turns")] public double Turns { get; set; }
+        [JsonPropertyName("rise")] public double Rise { get; set; }
+        [JsonPropertyName("right")] public bool Right { get; set; }
+        [JsonPropertyName("shape"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Shape { get; set; }
+        [JsonPropertyName("straight"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Straight { get; set; }
+        [JsonPropertyName("straights"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Straights { get; set; }
+        [JsonPropertyName("tracks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Tracks { get; set; }
+        [JsonPropertyName("spacing"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double Spacing { get; set; }
+        [JsonPropertyName("outer"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Outer { get; set; }
+        [JsonPropertyName("build"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Build { get; set; }
+        [JsonPropertyName("edge"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Edge { get; set; }
+        [JsonPropertyName("start"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Start { get; set; }
+        [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Level { get; set; }
+        [JsonPropertyName("perTurn"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool PerTurn { get; set; }
+        [JsonPropertyName("pieces")] public List<int>? Pieces { get; set; }
+    }
+
+    private sealed class FrameDto
+    {
+        [JsonPropertyName("dir"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Dir { get; set; }
+        [JsonPropertyName("spacing")] public double Spacing { get; set; }
+        [JsonPropertyName("width")] public double Width { get; set; }
+        [JsonPropertyName("thick")] public double Thick { get; set; }
+        [JsonPropertyName("base")] public double Base { get; set; }
     }
 
     private sealed class DetectorDto
@@ -52,6 +102,8 @@ public static partial class PlanSerializer
         [JsonPropertyName("type")] public string? Type { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("addr"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Addr { get; set; }
+        [JsonPropertyName("src"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Src { get; set; }
+        [JsonPropertyName("auto"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Auto { get; set; }
     }
 
     private sealed class BackgroundDto
@@ -111,6 +163,7 @@ public static partial class PlanSerializer
         [JsonPropertyName("id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Id { get; set; }
         [JsonPropertyName("piece")] public int Piece { get; set; }
         [JsonPropertyName("end")] public int End { get; set; }
+        [JsonPropertyName("auto"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Auto { get; set; }
     }
 
     private sealed class SignalDto
@@ -211,7 +264,8 @@ public static partial class PlanSerializer
     /// <param name="withIds">Für Rückgängig-Schritte: auch Kennungen von Gelände und Elektrik behalten, damit die Auswahl erhalten bleibt.</param>
     public static string ToJson(LayoutPlan plan, bool withIds = false)
     {
-        var needIds = withIds || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0
+        var helices = plan.Helices.Where(h => h.PieceIds.Any(id => plan.Find(id) is not null)).ToList();
+        var needIds = withIds || helices.Count > 0 || plan.Feeders.Count > 0 || plan.Isolations.Count > 0 || plan.Signals.Count > 0 || plan.Detectors.Count > 0
             || plan.Scenery.Any(s => s.Tracks.Count > 0);
         var dto = new FileDto
         {
@@ -257,25 +311,36 @@ public static partial class PlanSerializer
                 Id = withIds || plan.Feeders.Any(f => f.WireId == s.Id) ? s.Id : null,
                 Kind = s.Kind.ToString().ToLowerInvariant(),
                 Name = s.Name,
-                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
+                Points = s.IsArea || s.Kind is SceneryKind.Dimension or SceneryKind.Room or SceneryKind.Beam or SceneryKind.Wire || (s.Kind == SceneryKind.Building && s.Points.Count >= 2) || (s.Kind == SceneryKind.Plate && s.Points.Count >= 3) ? s.Points.Select(q => new[] { Math.Round(q.X, 2), Math.Round(q.Y, 2) }).ToList() : null,
                 X = Math.Round(s.X, 2), Y = Math.Round(s.Y, 2), W = s.Width, D = s.Depth, Rot = s.Rotation, H = s.Height, Level = s.Level, Variant = s.Variant,
                 Model = s.IsModel || s.Kind == SceneryKind.Power && !string.IsNullOrEmpty(s.Model) ? s.Model : null,
                 Addr = s.Kind == SceneryKind.Power ? s.Address : null, Color = s.Kind is SceneryKind.Building or SceneryKind.Wire or SceneryKind.Power && ModelBody.ParseColor(s.Color) is not null ? s.Color : null,
-                Tracks = s.IsModel && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
+                Tracks = (s.IsModel || DetectorWiring.IsGenerated(s) || AutoWiring.IsAuto(s)) && s.Tracks.Count > 0 ? [.. s.Tracks] : null,
             }).ToList(),
             Models = ModelFile.ForPlan(plan),
             Feeders = plan.Feeders.Count == 0 ? null : plan.Feeders.Select(f => new FeederDto { Id = withIds ? f.Id : null, Piece = f.PieceId, Circuit = f.Circuit, Rev = f.Reversed, Gnd = f.Ground, At = Math.Abs(f.At - 0.5) < 1e-9 ? null : Math.Round(f.At, 4), Wire = f.WireId, Name = f.Name.Length > 0 ? f.Name : null }).ToList(),
             Current = plan.Current == CurrentKind.Auto ? null : plan.Current == CurrentKind.Wechselstrom ? "ac" : "dc",
             Operation = plan.Operation == PowerMode.Analog ? "analog" : null,
-            Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index }).ToList(),
+            DetWires = plan.DetectorWiring ? true : null,
+            Isolations = plan.Isolations.Count == 0 ? null : plan.Isolations.Select(i => new IsolationDto { Id = withIds ? i.Id : null, Piece = i.PieceId, End = i.Index, Auto = i.Auto ? true : null }).ToList(),
             Signals = plan.Signals.Count == 0 ? null : plan.Signals.Select(g => new SignalDto
                 { Id = withIds ? g.Id : null, Piece = g.PieceId, End = g.Index, Type = g.Type.ToString(), System = g.System == SignalSystem.HV ? null : g.System.ToString(), Name = g.Name, Addr = g.Address }).ToList(),
             Levels = plan.Levels.Count == 1 && plan.Levels[0] is { Height: 0, Visible: true } ? null
                 : plan.Levels.Select(l => new LevelDto { Name = l.Name, H = Math.Round(l.Height, 2), Visible = l.Visible }).ToList(),
             ActiveLevel = plan.ActiveLevel,
             Benchwork = plan.Benchwork,
+            Helices = helices.Count == 0 ? null : helices.Select(h => new HelixDto
+            {
+                Curve = h.Spec.CurveKey, Turns = h.Spec.Turns, Rise = h.Spec.Rise, Right = h.Spec.RightHand,
+                Shape = h.Spec.Shape == HelixShape.Rund ? null : h.Spec.Shape.ToString(), Straight = h.Spec.StraightKey, Straights = h.Spec.StraightCount,
+                Tracks = h.Spec.Tracks, Spacing = h.Spec.Spacing, Outer = h.Spec.OuterCurveKey,
+                Build = h.Spec.Construction == HelixConstruction.Gewindestangen ? null : h.Spec.Construction.ToString(),
+                Edge = h.Spec.Edge, Start = h.Spec.StartHeight, Level = h.Spec.Level, PerTurn = h.Spec.LevelPerTurn,
+                Pieces = h.PieceIds.Where(id => plan.Find(id) is not null).ToList(),
+            }).ToList(),
+            Frame = plan.Frame is { } fr ? new FrameDto { Dir = fr.Direction == FrameDirection.Laengs ? "laengs" : null, Spacing = fr.Spacing, Width = fr.TrasseWidth, Thick = fr.Thickness, Base = fr.BaseHeight } : null,
             Detectors = plan.Detectors.Count == 0 ? null : plan.Detectors.Select(d => new DetectorDto
-                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address }).ToList(),
+                { Id = withIds ? d.Id : null, Piece = d.PieceId, Type = d.Type.ToString(), Name = d.Name, Addr = d.Address, Src = d.Source, Auto = d.Auto ? true : null }).ToList(),
             Train = plan.TrainLength > 0 ? plan.TrainLength : null,
             Prices = plan.Prices.Count == 0 ? null : new Dictionary<string, double>(plan.Prices),
             Stock = plan.Stock.Count == 0 ? null : new Dictionary<string, int>(plan.Stock),
@@ -317,6 +382,7 @@ public static partial class PlanSerializer
             TrainLength = dto.Train is double tl && double.IsFinite(tl) ? Math.Clamp(tl, 0, 100000) : 0,
             Current = dto.Current switch { "ac" => CurrentKind.Wechselstrom, "dc" => CurrentKind.Gleichstrom, _ => CurrentKind.Auto },
             Operation = dto.Operation == "analog" ? PowerMode.Analog : PowerMode.Digital,
+            DetectorWiring = dto.DetWires == true,
         };
         foreach (var (k, v) in dto.Prices ?? [])
             if (double.IsFinite(v) && v >= 0) plan.Prices[k] = v;
@@ -342,6 +408,11 @@ public static partial class PlanSerializer
         plan.ActiveLevel = Math.Clamp(dto.ActiveLevel, 0, plan.Levels.Count - 1);
         plan.SystemId = string.IsNullOrWhiteSpace(dto.System) ? null : dto.System;
         if (dto.Benchwork is { } bench && Enum.IsDefined(bench.LegStyle) && Core.Benchwork.Validate(bench).Count == 0) plan.Benchwork = bench;
+        if (dto.Frame is { } fd)
+        {
+            var frame = new FrameSpec(fd.Dir == "laengs" ? FrameDirection.Laengs : FrameDirection.Quer, fd.Spacing, fd.Width, fd.Thick, fd.Base);
+            if (FrameBuild.Valid(frame)) plan.Frame = frame;
+        }
         int LevelOf(int level) => Math.Clamp(level, 0, plan.Levels.Count - 1);
         foreach (var l in dto.Board?.Legs ?? [])
             plan.BoardLegs.Add(new BoardLeg(l.Length > 0 && double.IsFinite(l[0]) ? Math.Max(0, l[0]) : 0, l.Length > 1 && double.IsFinite(l[1]) ? Math.Max(0, l[1]) : 0));
@@ -372,6 +443,23 @@ public static partial class PlanSerializer
             };
             plan.Pieces.Add(piece);
             plan.NextId = Math.Max(plan.NextId, piece.Id + 1);
+        }
+        // Gleiswendeln erst nach den Gleisen, damit ihre Gleise gefunden werden
+        foreach (var h in dto.Helices ?? [])
+        {
+            var ids = (h.Pieces ?? []).Where(id => plan.Find(id) is not null).Distinct().ToList();
+            if (ids.Count == 0 || h.Curve is null || Catalog.Find(h.Curve) is null) continue;
+            if ((h.Straight is not null && Catalog.Find(h.Straight) is null) || (h.Outer is not null && Catalog.Find(h.Outer) is null)) continue;
+            if (!double.IsFinite(h.Turns) || h.Turns <= 0 || !double.IsFinite(h.Rise) || h.Rise <= 0) continue;
+            var hshape = Enum.TryParse<HelixShape>(h.Shape ?? nameof(HelixShape.Rund), out var hs) && Enum.IsDefined(hs) ? hs : HelixShape.Rund;
+            var hbuild = Enum.TryParse<HelixConstruction>(h.Build ?? nameof(HelixConstruction.Gewindestangen), out var hb) && Enum.IsDefined(hb) ? hb : HelixConstruction.Gewindestangen;
+            plan.Helices.Add(new PlanHelix
+            {
+                Spec = new HelixSpec(h.Curve, h.Turns, h.Rise, h.Right, hshape, h.Straight, Math.Max(0, h.Straights), h.Tracks == 2 ? 2 : 1,
+                    double.IsFinite(h.Spacing) ? Math.Max(0, h.Spacing) : 0, h.Outer, hbuild, h.Edge is { } e && double.IsFinite(e) ? e : null,
+                    h.Start is { } st && double.IsFinite(st) ? st : null, h.Level, h.PerTurn),
+                PieceIds = ids,
+            });
         }
         var used = new HashSet<int>(plan.Pieces.Select(p => p.Id));
         int Id(int? wanted)
@@ -408,6 +496,9 @@ public static partial class PlanSerializer
             };
             if (kind == SceneryKind.Building && item.Points.Count < 2) item.Points = [];
             if (kind == SceneryKind.Building && item.Model is not null && s.Tracks is { Count: > 0 } tracks) item.Tracks = tracks.Distinct().ToList();
+            // automatisch verlegtes Rückmelder-Kabel: Gleis des Rückmelders
+            // automatisch verlegte Kabel und angelegte Besetztmelder (siehe DetectorWiring)
+            if (kind is SceneryKind.Wire or SceneryKind.Power && s.Tracks is [var autoTag]) item.Tracks = [autoTag];
             if ((item.IsArea || kind == SceneryKind.Room) && item.Points.Count < 3) continue;
             if (kind is SceneryKind.Dimension or SceneryKind.Beam && item.Points.Count != 2) continue;
             if (kind == SceneryKind.Wire && item.Points.Count < 2) continue;
@@ -417,7 +508,7 @@ public static partial class PlanSerializer
                 if (item.Width <= 0 || item.Depth <= 0) (item.Width, item.Depth) = PowerSupply.Type(item) == PowerSourceType.Verteiler ? PowerSupply.DistributorSize(plan.Gauge) : PowerSupply.Size(plan.Gauge);
             }
             if (kind == SceneryKind.Beam && !BeamLayout.Valid(item)) BeamLayout.Repair(item);
-            if (kind == SceneryKind.Plate && !PlateLayout.Valid(item)) PlateLayout.Repair(item);
+            if (kind == SceneryKind.Plate && (item.Points.Count > 0 || !PlateLayout.Valid(item))) PlateLayout.Repair(item);
             plan.Scenery.Add(item);
         }
         foreach (var f in dto.Feeders ?? [])
@@ -425,7 +516,7 @@ public static partial class PlanSerializer
                 plan.Feeders.Add(new Feeder { Id = Id(f.Id), PieceId = f.Piece, Circuit = string.IsNullOrWhiteSpace(f.Circuit) ? "Stromkreis 1" : f.Circuit!, Reversed = f.Rev, Ground = f.Gnd, At = Math.Clamp(f.At ?? 0.5, 0, 1), WireId = f.Wire, Name = f.Name?.Trim() ?? "" });
         foreach (var i in dto.Isolations ?? [])
             if (plan.Find(i.Piece) is { } ip && i.End >= 0 && i.End < ip.WorldConnectors().Count)
-                plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End });
+                plan.Isolations.Add(new Isolation { Id = Id(i.Id), PieceId = i.Piece, Index = i.End, Auto = i.Auto == true });
         foreach (var g in dto.Signals ?? [])
             if (plan.Find(g.Piece) is { } gp && g.End >= 0 && g.End < gp.WorldConnectors().Count)
                 plan.Signals.Add(new Signal
@@ -438,7 +529,7 @@ public static partial class PlanSerializer
             if (plan.Find(d.Piece) is not null)
                 plan.Detectors.Add(new Detector
                 {
-                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr,
+                    Id = Id(d.Id), PieceId = d.Piece, Name = d.Name ?? "", Address = d.Addr, Source = d.Src?.Trim(), Auto = d.Auto == true,
                     Type = Enum.TryParse<DetectorType>(d.Type, true, out var dt) ? dt : DetectorType.Strom,
                 });
         return plan;

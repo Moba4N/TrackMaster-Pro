@@ -231,6 +231,7 @@ public sealed class MainActivity : Activity
         Add("sections", Lang.T("Stromkreise zeigen"), () => Toggle(() => _session.ShowSections = !_session.ShowSections));
         Add("gradient", Lang.T("Steigung"), AskGradient, HasSelection);
         Add("helix", Lang.T("Gleiswendel"), AskHelix);
+        Pro("helixMaterial", Lang.T("Holzliste der Gleiswendel"), ShowHelixAgain);
         Add("gauge", Lang.T("Spurweite"), AskGauge);
         Pro("frame", Lang.T("Spantenbau"), AskFrame);
         Pro("rampCut", Lang.T("Trasse aus Auswahl"), AskRampCut, HasSelection);
@@ -250,6 +251,8 @@ public sealed class MainActivity : Activity
         Add("toolDimension", Lang.T("Maß"), () => SetTool(CanvasTool.Dimension));
         Add("toolBeam", Lang.T("Leiste ziehen"), () => SetTool(CanvasTool.Beam));
         Add("addPlate", Lang.T("Platte auflegen"), () => { SetTool(CanvasTool.Select); _session.AddPlate(); });
+        Add("toolPlate", Lang.T("Platte zeichnen"), () => SetTool(CanvasTool.Plate));
+        Add("removePlates", Lang.T("Alle Platten entfernen"), () => { SetTool(CanvasTool.Select); _session.RemoveAllPlates(); });
         Add("toolDistributor", Lang.T("Verteiler"), () =>
         {
             if (_session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler) { SetTool(CanvasTool.Select); return; }
@@ -267,6 +270,15 @@ public sealed class MainActivity : Activity
                 Lang.F($"Betrieb: {PowerSupply.ModeName(_session.Plan.Operation)}. Art wählen, dann an die Stelle im Plan tippen – auch neben die Platte, wo das Gerät später steht."));
         });
         Add("toolIsolation", Lang.T("Trennstelle"), () => SetTool(CanvasTool.Isolation));
+        Add("autoWire", Lang.T("Automatisch verkabeln"), () => { _session.ShowWires = true; _session.AutoWire(); });
+        Add("autoWireRemove", Lang.T("Verkabelung entfernen"), () => _session.RemoveAutoWiring());
+        Add("trackConnRemove", Lang.T("Verbindungen zum Gleis entfernen"), () => _session.RemoveTrackConnections());
+        Add("toolOccupancy", Lang.T("Besetztmelder setzen"), () =>
+        {
+            if (_session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder") { SetTool(CanvasTool.Select); return; }
+            _session.SelectModule("Besetztmelder");
+            SetTool(CanvasTool.Power);
+        });
         Add("toolSignal", Lang.T("Signal setzen"), () => Dialogs.AskSignalType(this, _session.SignalType, _session.SignalSystem, (t, sy) => { _session.SignalType = t; _session.SignalSystem = sy; SetTool(CanvasTool.Signal); }));
         Add("elecCheck", Lang.T("Elektrik prüfen"), ShowElectricCheck);
         Add("current", Lang.T("Betrieb und Stromart"), () =>
@@ -294,6 +306,7 @@ public sealed class MainActivity : Activity
         Add("wiring", Lang.T("Kabelplan"), ShowWiring);
         Add("wires", Lang.T("Kabel zeigen"), () => Toggle(() => _session.ShowWires = !_session.ShowWires));
         Add("numberElectrics", Lang.T("Elektrik nummerieren"), () => _session.NumberElectrics());
+        Add("detectorWires", Lang.T("Rückmelder mit Modul verbinden"), () => { var on = !_session.Plan.DetectorWiring; if (on) _session.ShowWires = true; _session.SetDetectorWiring(on); });
         Add("routes", Lang.T("Fahrstraßen"), ShowRoutes);
         Pro("controlExport", Lang.T("Export für Steuerprogramme"), ShowControlExport);
         Add("view3d", Lang.T("3D-Ansicht"), () => Open3D(View3DMode.Orbit));
@@ -578,16 +591,16 @@ public sealed class MainActivity : Activity
         (Lang.T("Gleise"), [(Lang.T("Gerade"), "straight", false), (Lang.T("Bogen"), "curve", false), (Lang.T("Weiche links"), "switchL", false), (Lang.T("Weiche rechts"), "switchR", false),
                     (Lang.T("Kreuzung"), "crossing", false), (Lang.T("Prellbock"), "buffer", false), (Lang.T("Flexgleis…"), "flex", false),
                     (Lang.T("Flexgleis ziehen"), "toolFlex", true), (Lang.T("Lücke schließen"), "flexConnect", false), (Lang.T("Parallelgleis…"), "parallel", false), (Lang.T("Ebenen…"), "levels", false),
-                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
-        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
+                    (Lang.T("Steigung…"), "gradient", false), (Lang.T("Gleiswendel…"), "helix", false), (Lang.T("Holzliste Wendel…"), "helixMaterial", false), (Lang.T("Höhenprofil"), "profile", false), (Lang.T("Spantenbau…"), "frame", false), (Lang.T("Trasse…"), "rampCut", false), ("Tunnel", "tunnel", false)]),
+        (Lang.T("Gelände"), [(Lang.T("Anlagenplatte…"), "board", false), (Lang.T("Module…"), "modules", false), (Lang.T("Platte ziehen"), "toolBoard", true), (Lang.T("Anlage 90° drehen"), "boardRotate", false), (Lang.T("Unterbau…"), "benchwork", false), (Lang.T("Leiste ziehen"), "toolBeam", true), (Lang.T("Platte auflegen"), "addPlate", false), (Lang.T("Platte zeichnen"), "toolPlate", true), (Lang.T("Alle Platten entfernen"), "removePlates", false), (Lang.T("Gelände formen"), "toolTerrain", true), (Lang.T("Gewässer"), "toolWater", true), (Lang.T("Gebäude"), "toolBuilding", true),
                      (Lang.T("Vegetation"), "toolTree", true), (Lang.T("Gelände zeigen"), "scenery", true)]),
         (Lang.T("Ausstattung"), [.. ModelCommands.Select(m => (m.Category + "…", m.Command, true)), (Lang.T("Einfaches Gebäude"), "toolBuilding", true)]),
         (Lang.T("Raum"), [(Lang.T("Raum…"), "roomRect", false), (Lang.T("Raum zeichnen"), "toolRoom", true), (Lang.T("Tür"), "toolDoor", true), (Lang.T("Fenster"), "toolWindow", true),
                   (Lang.T("Säule"), "toolColumn", true), (Lang.T("Heizkörper"), "toolHeater", true), (Lang.T("Möbel"), "toolFurniture", true),
                   (Lang.T("Bild laden…"), "bgLoad", false), (Lang.T("Lage und Deckkraft…"), "bgEdit", false), (Lang.T("Nach Maß skalieren…"), "bgScale", false), (Lang.T("Bild zeigen"), "bgToggle", true)]),
-        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
+        (Lang.T("Elektrik"), [(Lang.T("Betrieb / Stromart…"), "current", false), (Lang.T("Trafo / Zentrale…"), "toolPower", true), (Lang.T("Trennstelle"), "toolIsolation", true), (Lang.T("Automatisch verkabeln"), "autoWire", false), (Lang.T("Verkabelung entfernen"), "autoWireRemove", false), (Lang.T("Verbindungen zum Gleis entfernen"), "trackConnRemove", false), (Lang.T("Signal setzen…"), "toolSignal", true), (Lang.T("Besetztmelder"), "toolOccupancy", true), (Lang.T("Rückmelder…"), "toolDetector", true), (Lang.T("Verteiler…"), "toolDistributor", true),
                       (Lang.T("Kabel verlegen…"), "toolWire", true),
-                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabel zeigen"), "wires", true), (Lang.T("Elektrik nummerieren"), "numberElectrics", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
+                      (Lang.T("Adressen…"), "addresses", false), (Lang.T("Stromkreise zeigen"), "sections", true), (Lang.T("Nur Elektrik beschriften"), "elecLabels", true), (Lang.T("Elektrik prüfen"), "elecCheck", false), (Lang.T("Markierungen entfernen"), "clearIssues", false), (Lang.T("Kabel zeigen"), "wires", true), (Lang.T("Melder verkabeln"), "detectorWires", true), (Lang.T("Elektrik nummerieren"), "numberElectrics", false), (Lang.T("Kabelplan"), "wiring", false), (Lang.T("Fahrstraßen"), "routes", false), (Lang.T("Export Steuerung"), "controlExport", false)]),
         (Lang.T("Ansicht"), [(Lang.T("Einpassen"), "fit", false), (Lang.T("Raster"), "grid", true), (Lang.T("Gleisenden"), "ends", true), (Lang.T("Beschriftung"), "labels", true),
                      (Lang.T("Höhen"), "heights", true), (Lang.T("Einrasten"), "snap", true), (Lang.T("Ebenen…"), "levels", false), (Lang.T("Ansicht ↺ 15°"), "viewRotL", false), (Lang.T("Ansicht ↻ 15°"), "viewRotR", false),
                      (Lang.T("Gerade ausrichten"), "viewReset", false), (Lang.T("Ansicht drehen…"), "viewAngle", false), (Lang.T("Design und Schrift…"), "appearance", false)]),
@@ -785,11 +798,14 @@ public sealed class MainActivity : Activity
         "toolDimension" => _session.Tool == CanvasTool.Dimension,
         "toolBeam" => _session.Tool == CanvasTool.Beam,
         "wires" => _session.ShowWires,
+        "detectorWires" => _session.Plan.DetectorWiring,
+        "toolOccupancy" => _session.Tool == CanvasTool.Power && _session.ModuleModel == "Besetztmelder",
         "toolPower" => _session.Tool == CanvasTool.Power && _session.PowerType != PowerSourceType.Verteiler && _session.ModuleModel is null,
         "toolDistributor" => _session.Tool == CanvasTool.Power && _session.PowerType == PowerSourceType.Verteiler,
         "toolIsolation" => _session.Tool == CanvasTool.Isolation,
         "toolSignal" => _session.Tool == CanvasTool.Signal,
         "toolRoom" => _session.Tool == CanvasTool.Room,
+        "toolPlate" => _session.Tool == CanvasTool.Plate,
         "toolDetector" => _session.Tool == CanvasTool.Detector,
         "toolDoor" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Tuer,
         "toolWindow" => _session.Tool == CanvasTool.Obstacle && _session.ObstacleType == ObstacleType.Fenster,
@@ -868,7 +884,7 @@ public sealed class MainActivity : Activity
     {
         var tool = _session.Tool;
         _toolBar.Visibility = tool == CanvasTool.Select ? ViewStates.Gone : ViewStates.Visible;
-        var polygon = tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire;
+        var polygon = tool is CanvasTool.Terrain or CanvasTool.Water or CanvasTool.Room or CanvasTool.Wire or CanvasTool.Plate;
         _toolFinish.Visibility = _toolBack.Visibility = polygon ? ViewStates.Visible : ViewStates.Gone;
         _toolFinish.Enabled = _canvas.PolygonPoints >= (tool == CanvasTool.Wire ? 2 : 3);
         _toolBack.Enabled = _canvas.PolygonPoints > 0;
@@ -886,11 +902,12 @@ public sealed class MainActivity : Activity
                 : Lang.T("Bitte zuerst ein Modell wählen."),
             CanvasTool.Tree => Lang.T("Vegetation: jeder Tipp setzt einen Baum."),
             CanvasTool.Feeder => Lang.T("Gleisanschluss: auf ein Gleis tippen. Er hängt an der Zentrale bzw. dem Trafo (gestrichelte Linie); fehlt sie, wird sie angelegt."),
-            CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Maker} {mm.Id}: an die Stelle im Plan tippen, wo der Baustein liegen soll (auch neben der Platte).")
+            CanvasTool.Power => Decoders.Find(_session.ModuleModel) is { } mm ? Lang.F($"{mm.Short}: an die Stelle im Plan tippen, wo der Baustein liegen soll (auch neben der Platte).")
                 : Lang.F($"{PowerSupply.TypeName(_session.PowerType)}: an die Stelle im Plan tippen, wo sie stehen soll (auch neben der Platte)."),
             CanvasTool.Isolation => Lang.T("Trennstelle: auf eine Gleisverbindung (grüner Punkt) tippen."),
             CanvasTool.Signal => Lang.F($"{Signal.TypeName(_session.SignalType)}: auf einen Punkt an einer Gleisverbindung tippen."),
             CanvasTool.Room => Lang.F($"Raum zeichnen: Ecken der Wand-Innenkante antippen ({_canvas.PolygonPoints}), dann „Fertig“."),
+            CanvasTool.Plate => Lang.F($"Platte zeichnen: Ecken antippen ({_canvas.PolygonPoints}) – Plattenecken, Kanten, Leisten und das Raster rasten ein. Erste Ecke antippen oder „Fertig“ legt die Platte auf."),
             CanvasTool.Wire => Lang.F($"Kabel ({WireLayout.UseName(_session.WireUse)}): Punkte setzen ({_canvas.PolygonPoints}) – an Gleisanschlüssen, Zentrale/Trafo (B und 0), Verteilern, Rückmeldern, Signalen und Weichenantrieben rastet es ein. Doppelklick oder „Fertig“ beendet."),
             CanvasTool.Obstacle => Lang.F($"{SceneryItem.ObstacleName(_session.ObstacleType)}: antippen oder Rechteck aufziehen."),
             CanvasTool.Detector => Lang.F($"{Detector.TypeName(_session.DetectorType)}: auf ein Gleis tippen (Tippen auf einen Rückmelder entfernt ihn)."),
@@ -900,8 +917,10 @@ public sealed class MainActivity : Activity
 
     private void SetTool(CanvasTool tool)
     {
-        if (_canvas.IsDrawingPolygon && tool != _session.Tool) _canvas.CancelPolygon();
-        _session.Tool = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        var next = _session.Tool == tool && tool != CanvasTool.Select ? CanvasTool.Select : tool;
+        // Werkzeug wechseln: angefangene Fläche, Leiste oder Maß verwerfen
+        if (next != _session.Tool) _canvas.CancelPolygon();
+        _session.Tool = next;
         if (_session.Tool != CanvasTool.Select) _session.ClearSelection();
         _canvas.Invalidate();
         UpdateToolBar();
@@ -1014,6 +1033,13 @@ public sealed class MainActivity : Activity
         }, _session.Plan, _session.ActiveConnector?.Z);
     }
 
+    private void ShowHelixAgain()
+    {
+        if (_session.HelixMaterialAgain() is not { } material) return;
+        Dialogs.ShowHelixMaterial(this, material, () => Export(material.ToCsv(), "text/csv", Lang.F($"{SafeName} – Holzliste Gleiswendel.csv")),
+            cut => ExportSvgFiles(cut.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Zuschnitt Gleiswendel")));
+    }
+
     private void AskBenchwork() => Dialogs.AskBenchwork(this, _session, ShowBenchwork);
 
     private void ShowBenchwork()
@@ -1029,8 +1055,9 @@ public sealed class MainActivity : Activity
             () => Export(b.ToCsv(), "text/csv", Lang.F($"{SafeName} – Unterbau.csv")));
     }
 
-    private void AskFrame() => Dialogs.AskFrame(this, _session.Plan.Gauge, spec =>
+    private void AskFrame() => Dialogs.AskFrame(this, _session.Plan.Gauge, _session.Plan.Frame, (spec, use) =>
     {
+        _session.SetFrame(use ? spec : null);
         var f = FrameBuild.Build(_session.Plan, spec);
         Dialogs.ShowFrame(this, f,
             () => ExportSvgFiles(f.ToSvgFiles(SafeName), Lang.F($"{SafeName} – Spanten")),
@@ -1163,8 +1190,9 @@ public sealed class MainActivity : Activity
     {
         var intent = new Intent(Intent.ActionCreateDocument);
         intent.AddCategory(Intent.CategoryOpenable);
-        intent.SetType("application/json");
-        intent.PutExtra(Intent.ExtraTitle, $"{SafeName}.trackmaster.json");
+        // octet-stream statt application/json, sonst hängt mancher Speicherort „.json“ an „.mpr“ an
+        intent.SetType("application/octet-stream");
+        intent.PutExtra(Intent.ExtraTitle, $"{SafeName}{PlanSerializer.FileExtension}");
         StartActivityForResult(intent, RequestSave);
     }
 
@@ -1196,7 +1224,7 @@ public sealed class MainActivity : Activity
                     break;
                 case RequestSave:
                     WriteText(uri, PlanSerializer.ToJson(_session.Plan));
-                    _session.MarkSaved(DisplayName(uri) ?? $"{SafeName}.trackmaster.json");
+                    _session.MarkSaved(DisplayName(uri) ?? $"{SafeName}{PlanSerializer.FileExtension}");
                     break;
                 case RequestLicense:
                     InstallLicense(ReadText(uri));
@@ -1226,7 +1254,7 @@ public sealed class MainActivity : Activity
         try
         {
             var other = PlanSerializer.FromJson(ReadText(uri), out _);
-            var file = (DisplayName(uri) ?? Lang.T("Modul")).Replace(PlanSerializer.FileExtension, "").Replace(".json", "");
+            var file = PlanSerializer.BaseName(DisplayName(uri) ?? Lang.T("Modul"));
             var title = other.Name is { Length: > 0 } n && n != Lang.T("Neuer Plan") && n != Lang.T("Gleisplan") ? n : file;
             if (_session.AppendModule(other, title)) _canvas.Fit();
         }

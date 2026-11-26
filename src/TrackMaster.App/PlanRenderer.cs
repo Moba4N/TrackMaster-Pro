@@ -5,7 +5,11 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>Was die Zeichnung zeigt (Zeichenfläche und Druck).</summary>
-public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject, bool Wires = true);
+public sealed record RenderOptions(bool Scenery, bool Sections, IReadOnlySet<int> Selected, int? SelectedObject, bool Wires = true, IReadOnlySet<int>? SelectedObjects = null)
+{
+    /// <summary>Objekt gewählt (auch als Teil einer Mehrfachauswahl von Leisten und Platten)?</summary>
+    public bool IsSelected(int id) => id == SelectedObject || SelectedObjects?.Contains(id) == true;
+}
 
 /// <summary>
 /// Zeichnet den Plan in Weltkoordinaten (mm): Platte, Gelände, Gebäude, Gleise nach Höhe geschichtet (Brücken liegen oben),
@@ -321,9 +325,9 @@ public sealed class PlanScene
     private void DrawBeams(DrawingContext dc, double z, RenderOptions o, Pen selPen)
     {
         foreach (var p in _plan.Scenery.Where(s => s.IsPlate))
-            dc.DrawGeometry(PlateFill, p.Id == o.SelectedObject ? selPen : new Pen(BeamStroke, 1.5 / z) { DashStyle = new DashStyle([6, 3], 0) }, Polygon(PlateLayout.Outline(p)));
+            dc.DrawGeometry(PlateFill, o.IsSelected(p.Id) ? selPen : new Pen(BeamStroke, 1.5 / z) { DashStyle = new DashStyle([6, 3], 0) }, Polygon(PlateLayout.Outline(p)));
         foreach (var b in _plan.Scenery.Where(s => s.IsBeam && s.Points.Count == 2))
-            dc.DrawGeometry(BeamFill, b.Id == o.SelectedObject ? selPen : new Pen(BeamStroke, 1.2 / z), Polygon(BeamLayout.Outline(b)));
+            dc.DrawGeometry(BeamFill, o.IsSelected(b.Id) ? selPen : new Pen(BeamStroke, 1.2 / z), Polygon(BeamLayout.Outline(b)));
     }
 
     private void DrawRooms(DrawingContext dc, double z, RenderOptions o, Pen selPen)
@@ -621,6 +625,12 @@ public sealed class PlanScene
         var tr = Math.Min(step * 0.32, Math.Max(g * 0.45, 3 / z));
         var ring = new Pen(B(new Rgb(0x42, 0x42, 0x42)), Math.Max(tr * 0.25, 0.6 / z));
         for (var i = 0; i < n; i++) dc.DrawEllipse(B(new Rgb(0xF2, 0xC0, 0x00)), ring, new Point(-hw + step * (i + 0.5), hd), tr, tr);
+        // Besetztmelder: Bahnstrom (B, rot) und Masse (0, braun) oben
+        if (Decoders.FeedTerminals(src) is not null)
+        {
+            dc.DrawEllipse(B(new Rgb(0xD3, 0x2F, 0x2F)), ring, new Point(-w / 6, -hd), tr * 1.2, tr * 1.2);
+            dc.DrawEllipse(B(new Rgb(0x79, 0x55, 0x48)), ring, new Point(w / 6, -hd), tr * 1.2, tr * 1.2);
+        }
         dc.Pop();
         dc.Pop();
     }

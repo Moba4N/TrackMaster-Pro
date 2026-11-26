@@ -43,15 +43,25 @@ public static class PlanCheck
         var neighbours = plan.Pieces.ToDictionary(p => p.Id, _ => new HashSet<int>());
         foreach (var c in conn.All)
             if (c.Link is { } l) { neighbours[c.PieceId].Add(l.PieceId); neighbours[l.PieceId].Add(c.PieceId); }
-        // Zwei-Schritt-Nachbarschaft je Gleis einmal bestimmen statt bei jedem Abtastpaar neu
+        // Nachbarschaft je Gleis einmal bestimmen statt bei jedem Abtastpaar neu: zwei Schritte weit und darüber hinaus,
+        // solange die Gleise dazwischen zusammen kürzer als der Mindestabstand sind (z. B. kurze Ausgleichsstücke)
         var near = new Dictionary<int, HashSet<int>>();
         bool Near(int a, int b)
         {
             if (a == b) return true;
             if (!near.TryGetValue(a, out var set))
             {
-                set = [.. neighbours[a]];
-                foreach (var x in neighbours[a]) set.UnionWith(neighbours[x]);
+                set = [];
+                var queue = new Queue<(int Id, int Steps, double Between)>();
+                foreach (var x in neighbours[a]) queue.Enqueue((x, 1, 0));
+                while (queue.Count > 0)
+                {
+                    var (x, steps, between) = queue.Dequeue();
+                    if (x == a || !set.Add(x)) continue;
+                    var further = between + byId[x].Def.TrackLength;
+                    if (steps >= 2 && further >= minSpacing) continue;
+                    foreach (var y in neighbours[x]) queue.Enqueue((y, steps + 1, steps >= 1 ? further : 0));
+                }
                 near[a] = set;
             }
             return set.Contains(b);

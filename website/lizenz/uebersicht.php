@@ -33,8 +33,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             exit;
         }
         tm_daten_aendern(function (array &$daten) use ($aktion, $id, $geraet, &$meldung) {
+            if ($aktion === 'abo_neu') {
+                // Abo einer Lizenz eintragen, die sich noch nicht gemeldet hat
+                $id = strtoupper(tm_text($id, 80));
+                $bis = (string)($_POST['bis'] ?? '');
+                if ($id === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $bis)) { $meldung = 'Bitte Lizenznummer und Datum angeben.'; return; }
+                $daten[$id] = ($daten[$id] ?? ['inhaber' => '', 'geraete' => [], 'abgelehnt' => [], 'gesperrt' => false]) + [];
+                $daten[$id]['abo'] = true;
+                $daten[$id]['bezahlt_bis'] = $bis;
+                $meldung = "Abo $id bezahlt bis " . date('d.m.Y', strtotime($bis)) . '.';
+                return;
+            }
             if (!isset($daten[$id])) return;
             switch ($aktion) {
+                case 'abo_bis':
+                    $bis = (string)($_POST['bis'] ?? '');
+                    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $bis)) { $meldung = 'Ungültiges Datum.'; break; }
+                    $daten[$id]['abo'] = true;
+                    $daten[$id]['bezahlt_bis'] = $bis;
+                    $meldung = "Abo $id bezahlt bis " . date('d.m.Y', strtotime($bis)) . '.';
+                    break;
+                case 'abo_monat':
+                    $daten[$id]['abo'] = true;
+                    $daten[$id]['bezahlt_bis'] = tm_abo_verlaengern($daten[$id]['bezahlt_bis'] ?? null);
+                    $meldung = "Abo $id verlängert bis " . date('d.m.Y', strtotime($daten[$id]['bezahlt_bis'])) . '.';
+                    break;
                 case 'entfernen':
                     unset($daten[$id]['geraete'][$geraet]);
                     $meldung = "Gerät bei $id entfernt.";
@@ -99,6 +122,7 @@ function zeit(?string $iso): string
   button { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 5px; border: 1px solid #ccc; background: #fafafa; cursor: pointer; }
   button:hover { background: #eee; }
   input[type=number] { width: 4em; font: inherit; font-size: 12px; }
+  input[type=date], input[type=text] { font: inherit; font-size: 12px; }
   .meldung { background: #E8F3DD; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
   .anmelden { max-width: 340px; margin: 60px auto; }
   .anmelden input { width: 100%; box-sizing: border-box; padding: 8px; margin: 8px 0; font: inherit; }
@@ -138,6 +162,13 @@ function zeit(?string $iso): string
   </div>
   <?php if ($meldung): ?><div class="meldung"><?= h($meldung) ?></div><?php endif; ?>
   <?php if ($mehrfach): ?><div class="karte warn"><strong><?= $mehrfach ?> Lizenz(en) mit abgelehnten Aktivierungen</strong> – dort wurde versucht, die Lizenz auf mehr Geräten zu nutzen als erlaubt. Sie stehen oben.</div><?php endif; ?>
+  <div class="karte">
+    <strong>Abo eintragen oder verlängern</strong>
+    <div class="klein">Für Abo-Lizenzen (monatliche Abrechnung). Ohne Eintrag gilt der erste Monat ab Ausstellung als bezahlt; nach „bezahlt bis“ läuft Pro noch <?= TM_ABO_NACHFRIST_TAGE ?> Tage, dann melden die Geräte bei der nächsten Prüfung „Abo abgelaufen“.</div>
+    <form method="post" class="werkzeuge"><input type="hidden" name="csrf" value="<?= h($csrf) ?>">
+      Lizenznummer <input type="text" name="lizenz" size="14" required> bezahlt bis <input type="date" name="bis" required>
+      <button name="aktion" value="abo_neu">Eintragen</button></form>
+  </div>
   <?php if (!$daten): ?><div class="karte">Noch keine Aktivierungen.</div><?php endif; ?>
   <?php foreach ($daten as $id => $x):
       $max = tm_max_geraete((string)$id, $x);
@@ -150,6 +181,11 @@ function zeit(?string $iso): string
       <span class="klein"><?= h((string)$id) ?></span>
       <span class="marke<?= count($geraete) >= $max ? ' grau' : '' ?>"><?= count($geraete) ?> von <?= $max ?> Geräten</span>
       <?php if (!empty($x['gesperrt'])): ?><span class="marke rot">gesperrt</span><?php endif; ?>
+      <?php if (!empty($x['abo'])):
+          $aboBis = !empty($x['bezahlt_bis']) ? strtotime($x['bezahlt_bis'] . ' 23:59:59') : null;
+          $aboAus = $aboBis !== null && time() > $aboBis + TM_ABO_NACHFRIST_TAGE * 86400; ?>
+        <span class="marke<?= $aboAus ? ' rot' : '' ?>">Abo <?= $aboBis ? ($aboAus ? 'abgelaufen am ' : 'bezahlt bis ') . date('d.m.Y', $aboBis) : '' ?></span>
+      <?php endif; ?>
       <?php if ($abgelehnt): ?><span class="marke rot"><?= count($abgelehnt) ?> abgelehnt</span><?php endif; ?>
     </div>
     <table>
@@ -181,6 +217,13 @@ function zeit(?string $iso): string
       <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="lizenz" value="<?= h((string)$id) ?>">
         Geräte: <input type="number" name="max" min="0" max="50" value="<?= isset($x['max']) ? (int)$x['max'] : '' ?>" placeholder="<?= (int)$e['max_geraete'] ?>">
         <button name="aktion" value="max">Setzen</button></form>
+      <?php if (!empty($x['abo'])): ?>
+      <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="lizenz" value="<?= h((string)$id) ?>">
+        <button name="aktion" value="abo_monat">+1 Monat bezahlt</button></form>
+      <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="lizenz" value="<?= h((string)$id) ?>">
+        Bezahlt bis <input type="date" name="bis" value="<?= h((string)($x['bezahlt_bis'] ?? '')) ?>">
+        <button name="aktion" value="abo_bis">Setzen</button></form>
+      <?php endif; ?>
       <?php if ($abgelehnt): ?>
       <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="lizenz" value="<?= h((string)$id) ?>">
         <button name="aktion" value="versuche">Abgelehnte Versuche löschen</button></form>

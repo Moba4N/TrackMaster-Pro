@@ -402,9 +402,14 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); cur
     color: var(--text-secondary);
     font-size: .82em;
     white-space: nowrap;
-    overflow: hidden;
+    /* schmale Fenster: wischen statt abschneiden, damit Einrasten und Raster erreichbar bleiben */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
     flex: none;
 }
+.statusbar::-webkit-scrollbar { display: none; }
+.st-toggle { flex: none; }
 .st-item { padding: 0 8px; border-right: 1px solid var(--border-strong); }
 .st-item.warn { color: var(--open-end); font-weight: 600; }
 .st-item.ok { color: var(--success); }
@@ -511,6 +516,8 @@ dl.rows dd { margin: 0; text-align: right; }
 .btn:disabled { opacity: .45; }
 .btn.accent { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
 .btn.accent:hover:not(:disabled) { background: var(--accent-dark); }
+a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+.buy { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 8px 0; }
 .btn.on { background: var(--accent-light); border-color: var(--accent-border); color: var(--accent-dark); }
 .button-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .button-row.equal > .btn { flex: 1; padding: 4px 6px; }
@@ -681,7 +688,9 @@ kbd {
     .rb.large { height: 58px; padding-top: 6px; }
     .rb.large .rb-icon svg.i { width: 20px; height: 20px; }
     .rb.small .rb-icon svg.i { width: 20px; height: 20px; }
-    .rb.large .rb-label { font-size: 1em; font-size: .78em; }
+    .rb.large .rb-label { font-size: .78em; }
+    /* weitere Register rechts: Kante ausblenden, damit man sieht, dass man wischen kann */
+    .ribbon-tabs { padding-right: 32px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
     .app-name { display: none; }
 }
 
@@ -700,6 +709,15 @@ kbd {
     .input { height: 38px; }
     .btn { min-height: 38px; }
     .item { padding: 8px 6px; }
+    /* Fingerbedienung: Filter, Spuren, Ebenen und Schalter groß genug zum Treffen (mind. 32 px) */
+    .chip, .chip.small, .ribbon-gauges .chip { min-height: 32px; padding: 4px 12px; }
+    .lb-chip { min-height: 32px; }
+    .lb-chip input[type=checkbox] { width: 20px; height: 20px; }
+    .lb-chip button { min-height: 30px; padding: 2px 4px; }
+    .lb-add { min-height: 32px; min-width: 36px; }
+    .levelbar { padding: 4px 8px; }
+    .statusbar { height: 36px; }
+    .st-toggle { min-height: 30px; padding: 2px 10px; }
 }
 
 @media print {
@@ -713,17 +731,6 @@ kbd {
 .table.modules .input { min-width: 0; width: 100%; }
 .table.modules .btn { padding: 4px 8px; }
 
-/* Planvorschlag */
-.suggest-stock { max-height: 38vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
-.suggest-stock .table { margin: 0; }
-.suggest-list { display: flex; flex-direction: column; gap: 8px; }
-.suggest-item { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); }
-.suggest-text { flex: 1; min-width: 0; }
-.suggest-preview { width: 180px; height: 112px; flex: none; }
-.suggest-preview .board { fill: var(--accent-light); stroke: var(--border-strong); stroke-width: 6; }
-.suggest-preview polyline { fill: none; stroke: var(--text); stroke-linecap: round; }
-.suggest-preview polyline.sw { stroke: var(--accent); }
-@media (max-width: 560px) { .suggest-item { flex-wrap: wrap; } .suggest-preview { width: 100%; height: auto; } }
 
 /* ---------- Modell-Editor ---------- */
 .model-editor {

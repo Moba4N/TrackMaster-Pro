@@ -193,7 +193,7 @@ public class ElectricWiringTests
         s.NumberElectrics();
         Assert.Equal(["G1", "G2"], s.Plan.Feeders.Select(f => f.Name).OrderBy(x => x));
         var det = Assert.Single(s.Plan.Detectors);
-        Assert.Equal("M1", det.Name);
+        Assert.Equal("Melder 1", det.Name);
         Assert.Equal(1, det.Address);
         Assert.Equal("K1", wire.Name);
 
@@ -202,7 +202,7 @@ public class ElectricWiringTests
         Assert.Contains(back.Feeders, f => f.Name == "G1");
         var csv = ConnectionList.ToCsv(s.Plan);
         Assert.Contains("\"K1\"", csv);
-        Assert.Contains("\"M1\"", csv);
+        Assert.Contains("\"Melder 1\"", csv);
         Assert.Contains($"Einspeisung {f1.Name}", csv);
         Assert.Contains("Anschlussliste", Electrics.WiringPlan(s.Plan));
     }

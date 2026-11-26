@@ -95,3 +95,33 @@ public class OptimizationTests
         Assert.DoesNotContain(PlanCheck.Run(plan), i => i.Category == "Kollision");
     }
 }
+
+/// <summary>Bedienung: Öffnen (Web, Android) verwirft geänderte Pläne nicht endgültig.</summary>
+public class UsabilityTests
+{
+    [Fact]
+    public void Oeffnen_holt_geaenderten_Plan_mit_Rueckgaengig_zurueck()
+    {
+        var s = new PlanSession();
+        var before = s.Plan.Pieces.Count;
+        s.Record();
+        s.Plan.RemovePieces(new HashSet<int> { s.Plan.Pieces[0].Id });
+        s.Commit();
+        Assert.True(s.Dirty);
+
+        var other = new LayoutPlan { Name = "Andere", GaugeId = "H0" };
+        s.OpenJson(PlanSerializer.ToJson(other), "Andere");
+        Assert.Equal("Andere", s.Plan.Name);
+        Assert.True(s.History.CanUndo);
+        s.Undo();
+        Assert.Equal(before - 1, s.Plan.Pieces.Count);
+    }
+
+    [Fact]
+    public void Oeffnen_ohne_Aenderungen_beginnt_mit_leerem_Verlauf()
+    {
+        var s = new PlanSession();
+        s.OpenJson(PlanSerializer.ToJson(new LayoutPlan { Name = "Andere", GaugeId = "H0" }), "Andere");
+        Assert.False(s.History.CanUndo);
+    }
+}

@@ -421,15 +421,15 @@ public sealed class PropertiesPanel : DockPanel
                         break;
                     case SceneryKind.Plate:
                         _body.Children.Add(Columns(2,
-                            Theme.Field(Lang.T("Links (mm)"), NumberBox(s.X, v => s.X = Math.Clamp(v, -20000, 20000), 1)),
-                            Theme.Field(Lang.T("Oben (mm)"), NumberBox(s.Y, v => s.Y = Math.Clamp(v, -20000, 20000), 1))));
+                            Theme.Field(Lang.T("Links (mm)"), NumberBox(s.X, v => PlateLayout.SetBox(s, x: Math.Clamp(v, -20000, 20000)), 1)),
+                            Theme.Field(Lang.T("Oben (mm)"), NumberBox(s.Y, v => PlateLayout.SetBox(s, y: Math.Clamp(v, -20000, 20000)), 1))));
                         _body.Children.Add(Columns(2,
-                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => s.Width = Math.Clamp(v, PlateLayout.MinSize, PlateLayout.MaxSize), 1)),
-                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => s.Depth = Math.Clamp(v, PlateLayout.MinSize, PlateLayout.MaxSize), 1))));
+                            Theme.Field(Lang.T("Breite (mm)"), NumberBox(s.Width, v => PlateLayout.SetBox(s, width: v), 1)),
+                            Theme.Field(Lang.T("Tiefe (mm)"), NumberBox(s.Depth, v => PlateLayout.SetBox(s, depth: v), 1))));
                         _body.Children.Add(Columns(2,
                             Theme.Field(Lang.T("Stärke (mm)"), NumberBox(PlateLayout.Thickness(s), v => s.Variant = (int)Math.Round(Math.Clamp(v, PlateLayout.MinThickness, PlateLayout.MaxThickness)), 0)),
                             Theme.Field(Lang.T("Oberkante (mm)"), NumberBox(s.Height, v => s.Height = Math.Clamp(v, BeamLayout.MinTop, BeamLayout.MaxTop), 0))));
-                        Rows((Lang.T("Fläche"), $"{Fmt.Num(s.Width * s.Depth / 1e6, 2)} m²", null));
+                        Rows((Lang.T("Fläche"), $"{Fmt.Num(PlateLayout.Area(s), 2)} m²", null));
                         var fit = Theme.Button(Lang.T("An Rahmen anpassen"), "Resize");
                         fit.ToolTip = Lang.T("Legt die Platte wieder genau über die gezeichneten Leisten bzw. den Rahmen.");
                         fit.Click += (_, _) => _session.FitPlate(s);
@@ -679,6 +679,18 @@ public sealed class PropertiesPanel : DockPanel
                 dtype.SelectionChanged += (_, _) => { if (dtype.SelectedItem is ComboBoxItem { Tag: DetectorType t } && t != det.Type) _session.Edit(() => det.Type = t); };
                 _body.Children.Add(Theme.Field(Lang.T("Art"), dtype));
                 _body.Children.Add(Theme.Field(Lang.T("Kontakt am Rückmeldemodul (0 = keiner)"), NumberBox(det.Address ?? 0, v => det.Address = v >= 1 ? (int)Math.Round(Math.Min(v, 4096)) : null, 0)));
+                if (plan.Operation == PowerMode.Digital)
+                {
+                    var dsrc = new ComboBox { Height = 28 };
+                    dsrc.Items.Add(new ComboBoxItem { Content = Lang.T("keine Verbindung"), Tag = "", IsSelected = string.IsNullOrEmpty(det.Source) });
+                    foreach (var src in _session.DetectorSources)
+                        dsrc.Items.Add(new ComboBoxItem { Content = $"{src.Name} ({PowerSupply.TypeName(PowerSupply.Type(src))})", Tag = src.Name, IsSelected = src.Name == det.Source });
+                    if (det.Source is { Length: > 0 } missing && _session.DetectorSources.All(x => x.Name != missing))
+                        dsrc.Items.Add(new ComboBoxItem { Content = Lang.F($"{missing} (fehlt im Plan)"), Tag = missing, IsSelected = true });
+                    var detId = det.Id;
+                    dsrc.SelectionChanged += (_, _) => { if (dsrc.SelectedItem is ComboBoxItem { Tag: string n }) _session.SetDetectorSource(detId, n); };
+                    _body.Children.Add(Theme.Field(Lang.T("Fahrstrom von (Zentrale / Booster)"), dsrc));
+                }
                 var drows = new List<(string, string, System.Windows.Media.Brush?)>();
                 if (det.Address is { } da) drows.Add((Lang.T("Modul / Eingang"), Lang.F($"{(da - 1) / Detector.InputsPerModule + 1} / {(da - 1) % Detector.InputsPerModule + 1}"), null));
                 drows.Add((Lang.T("Gleis"), $"{plan.Find(det.PieceId)?.Def.Number} (Nr. {det.PieceId})", null));

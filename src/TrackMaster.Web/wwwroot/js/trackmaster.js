@@ -11,6 +11,25 @@ async function E() {
 }
 E();
 
+// ---------- Beschriftungen von Eingabefeldern ----------
+// Die Formulare setzen die Beschriftung (label.field-label) direkt vor das Feld, ohne for/id.
+// Hier werden beide verbunden: Vorlesen nennt die Beschriftung, und ein Klick darauf setzt den Cursor ins Feld.
+
+let labelSeq = 0;
+function linkLabels(root) {
+    for (const label of root.querySelectorAll("label.field-label:not([for])")) {
+        const field = label.nextElementSibling;
+        if (!field || !field.matches("input, select, textarea")) continue;
+        if (!field.id) field.id = "tm-field-" + (++labelSeq);
+        label.htmlFor = field.id;
+    }
+}
+let labelTimer = 0;
+new MutationObserver(() => {
+    if (labelTimer) return;
+    labelTimer = requestAnimationFrame(() => { labelTimer = 0; linkLabels(document); });
+}).observe(document.documentElement, { childList: true, subtree: true });
+
 // ---------- Zeichenflächen ----------
 
 const surfaces = new Map();

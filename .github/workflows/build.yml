@@ -483,10 +483,16 @@ jobs:
           for f in TrackMaster-Pro-Handbuch.pdf TrackMaster-Pro-Manual.pdf; do
             if [ -f handbuch/$f ]; then cp handbuch/$f out/; elif [ -f docs/$f ]; then cp docs/$f out/; fi
           done
-          mv out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
+          # Gleichbleibende Namen für die Download-Seite der Webseite (…/releases/latest/download/<Name> zeigt immer auf die neueste Version)
+          cp out/TrackMasterPro.apk "out/TrackMasterPro-$v.apk"
+          cp "out/TrackMasterPro-$v.msi" out/TrackMasterPro-Setup.msi
           # Für die Update-Prüfung der Programme: an der in Directory.Build.props (UpdateUrl) eingetragenen Adresse ablegen
-          # "url" ist die Release-Seite dieser Version mit MSI, APK und Handbuch
-          printf '{\n  "version": "%s",\n  "url": "https://github.com/%s/releases/tag/%s",\n  "notes": ""\n}\n' "$v" "$GITHUB_REPOSITORY" "$tag" > out/version.json
+          # "url" ist die Download-Seite (DownloadUrl in Directory.Build.props), sonst die Release-Seite dieser Version
+          dl=$(sed -n 's:.*<DownloadUrl>\(.*\)</DownloadUrl>.*:\1:p' Directory.Build.props)
+          [ -n "$dl" ] || dl="https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
+          notes=$(sed -n 's:.*<UpdateNotes>\(.*\)</UpdateNotes>.*:\1:p' Directory.Build.props | sed 's/\\/\\\\/g; s/"/\\"/g')
+          printf '{\n  "version": "%s",\n  "url": "%s",\n  "notes": "%s"\n}\n' "$v" "$dl" "$notes" > out/version.json
+          cat out/version.json
           ls -la out
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "TrackMaster Pro $v" \

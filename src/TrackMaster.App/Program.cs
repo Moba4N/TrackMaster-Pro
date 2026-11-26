@@ -11,7 +11,7 @@ using TrackMaster.Core;
 namespace TrackMaster.App;
 
 /// <summary>
-/// Startpunkt. Aufruf: TrackMasterPro.exe [Plan.trackmaster.json]
+/// Startpunkt. Aufruf: TrackMasterPro.exe [Plan.mpr]
 /// Für den Build: --screenshot Datei.png [--tab Gleise] [--select] [--pro] [--3d orbit|ride|evening] [--english]
 /// erzeugt ein Bildschirmfoto und beendet sich. --pro schaltet nur im Bildschirmfoto-Modus alle Funktionen frei.
 /// </summary>

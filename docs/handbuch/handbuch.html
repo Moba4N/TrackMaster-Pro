@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>TrackMaster Pro – Handbuch</title>
-<meta name="pdf-footer" content="TrackMaster Pro 1.5.0 · Handbuch">
+<meta name="pdf-footer" content="TrackMaster Pro 1.0.0 · Handbuch">
 <meta name="pdf-start" content="ist ein Planungsprogramm für Modellbahnanlagen">
 <style>
   @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
@@ -84,12 +84,12 @@
   <div class="inner">
     <div class="logocard"><img src="img/logo.png" alt=""></div>
     <h1>TrackMaster Pro</h1>
-    <div class="sub">Handbuch · Version 1.5.0</div>
+    <div class="sub">Handbuch · Version 1.0.0</div>
     <div class="what">Gleisplanung für Modellbahnanlagen in allen gängigen Spurweiten – mit Höhenplanung, Gleiswendel und
       Holzliste, Modulen, Ebenen und Unterbau, Landschaft, Raumplanung, Elektrik und Signalen, Planprüfung, Kosten und 3D-Ansicht. Für Windows, Android und den Browser –
 mit einem Einstieg Schritt für Schritt für alle, die zum ersten Mal planen.</div>
   </div>
-  <div class="foot"><span>TrackMaster Pro 1.5.0 · Basis und Pro</span><span>Stand: November 2026</span></div>
+  <div class="foot"><span>TrackMaster Pro 1.0.0 · Basis und Pro</span><span>Stand: November 2026</span></div>
 </section>
 
 <section class="toc">
@@ -148,7 +148,8 @@ Drucken und Exporte.</p>
   <tr><td>Pläne öffnen, Fahrstraßen ansehen</td><td>Export für Steuerprogramme (TXT, CSV, JSON)</td></tr>
 </table>
 <p>Pro-Funktionen sind im Programm gekennzeichnet: im Tooltip als „Pro-Funktion“, in der Android-App mit einem Schloss. Wählen Sie in der Basisversion eine
-Pro-Funktion, erklärt ein Hinweis, was Pro bietet, und führt auf Wunsch direkt zur Lizenz. Ihr Plan bleibt dabei unverändert offen.</p>
+Pro-Funktion, erklärt ein Hinweis, was Pro bietet, und führt auf Wunsch direkt zur Lizenz oder zur Bestellseite. Ihr Plan bleibt dabei unverändert offen.
+Pro gibt es als <b>Kauflizenz</b> mit einmaliger Zahlung oder als <b>Abo</b> mit monatlicher Abrechnung (Kapitel <a href="#k3">3</a>).</p>
 
 <h2 id="k1-4">Drei Fassungen: Windows, Browser und Android</h2>
 <p>TrackMaster Pro läuft als Programm unter <b>Windows</b>, als <b>Webversion</b> in jedem aktuellen Browser und als <b>App unter Android</b>.
@@ -161,8 +162,8 @@ Alle drei können dieselben Pläne öffnen und haben dieselben Register. Ein paa
   <tr><td>Beispiel laden</td><td><span class="ui">Datei › Beispielplan laden</span></td><td><span class="ui">Datei › Beispielanlage</span></td></tr>
   <tr><td>Einrasten ein/aus</td><td>Schalter <span class="ui">Fang</span> in der Statusleiste</td><td>Schalter <span class="ui">Einrasten</span> in der Statusleiste oder unter <span class="ui">Ansicht</span></td></tr>
   <tr><td>Hilfe zu Tasten</td><td><span class="ui">Ansicht › Tastenkürzel</span> (<kbd>F1</kbd>)</td><td><span class="ui">Ansicht › Bedienung</span> oder <span class="ui">Datei › Bedienung</span> (<kbd>F1</kbd>)</td></tr>
-  <tr><td>Plandatei</td><td>Endung <b>.trackmaster.json</b></td><td>Endung <b>.mpr</b> (gleicher Inhalt, öffnet auch .trackmaster.json)</td></tr>
-  <tr><td>Nur hier</td><td>–</td><td>Planvorschlag aus dem eigenen Gleisbestand, Drehscheibe als Schnellbefehl, Module in verschiedenen Höhen, Gleise an Modulkanten trennen,
+  <tr><td>Plandatei</td><td>Endung <b>.mpr</b> (öffnet auch ältere .trackmaster.json)</td><td>Endung <b>.mpr</b> (öffnet auch ältere .trackmaster.json)</td></tr>
+  <tr><td>Nur hier</td><td>–</td><td>Drehscheibe als Schnellbefehl, Module in verschiedenen Höhen, Gleise an Modulkanten trennen,
     Höhe an einem Verbindungspunkt ändern</td></tr>
 </table>
 <p>Die Android-App ist für die Bedienung mit dem Finger eingerichtet. Was dort anders ist, steht in Kapitel <a href="#k13">17</a>.</p>
@@ -201,7 +202,7 @@ Funktion brauchen.</div>
 
 <h3>Installieren</h3>
 <ol class="steps">
-  <li>Laden Sie die Datei <b>TrackMasterPro-1.5.0.msi</b> herunter. Sie liegt danach meist im Ordner <i>Downloads</i>.</li>
+  <li>Laden Sie die Datei <b>TrackMasterPro-1.0.0.msi</b> herunter. Sie liegt danach meist im Ordner <i>Downloads</i>.</li>
   <li>Doppelklicken Sie auf die Datei.</li>
   <li>Meldet Windows „Der Computer wurde durch Windows geschützt“, klicken Sie auf <span class="ui">Weitere Informationen</span> und dann auf
       <span class="ui">Trotzdem ausführen</span>. Diese Meldung kommt bei Programmen, die Windows noch nicht oft gesehen hat.</li>
@@ -221,9 +222,9 @@ suchen <b>TrackMaster Pro</b> und klicken auf <span class="ui">Deinstallieren</s
 <h3>Für Administratoren: Installation ohne Rückfragen</h3>
 <table>
   <tr><th style="width:52%">Befehl</th><th>Wirkung</th></tr>
-  <tr><td><code>msiexec /i TrackMasterPro-1.5.0.msi /qn</code></td><td>Installation ohne Oberfläche</td></tr>
-  <tr><td><code>msiexec /i TrackMasterPro-1.5.0.msi INSTALLFOLDER="D:\Programme\TrackMaster Pro" /qn</code></td><td>Installation in einen anderen Ordner</td></tr>
-  <tr><td><code>msiexec /x TrackMasterPro-1.5.0.msi /qn</code></td><td>Deinstallation ohne Oberfläche</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.0.0.msi /qn</code></td><td>Installation ohne Oberfläche</td></tr>
+  <tr><td><code>msiexec /i TrackMasterPro-1.0.0.msi INSTALLFOLDER="D:\Programme\TrackMaster Pro" /qn</code></td><td>Installation in einen anderen Ordner</td></tr>
+  <tr><td><code>msiexec /x TrackMasterPro-1.0.0.msi /qn</code></td><td>Deinstallation ohne Oberfläche</td></tr>
 </table>
 
 <h2 id="k2-4">Webversion im Browser</h2>
@@ -237,8 +238,8 @@ startet schneller.</p>
   <tr><td><b>Speichern</b></td><td><span class="ui">Datei › Speichern</span> lädt den Plan als Datei mit der Endung <b>.mpr</b> herunter, meist in den Ordner <i>Downloads</i>.
     <span class="ui">Datei › Speichern unter…</span> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>S</kbd>) fragt nach dem Dateinamen. In Chrome und Edge wählen Sie dabei auch
     den Ordner, und <span class="ui">Speichern</span> schreibt danach immer in diese Datei.</td></tr>
-  <tr><td><b>Öffnen</b></td><td><span class="ui">Datei › Öffnen…</span> lädt eine <b>.mpr</b>- oder <b>.trackmaster.json</b>-Datei. Der Inhalt ist derselbe wie unter Windows
-    und Android. Dort öffnen Sie eine .mpr-Datei, indem Sie im Öffnen-Fenster „Alle Dateien“ wählen.</td></tr>
+  <tr><td><b>Öffnen</b></td><td><span class="ui">Datei › Öffnen…</span> lädt eine <b>.mpr</b>- oder <b>.trackmaster.json</b>-Datei. Windows und Android speichern
+    ebenfalls als .mpr, die Dateien sind austauschbar.</td></tr>
   <tr><td><b>Lizenz</b></td><td><span class="ui">Datei › Lizenz…</span>: Lizenzdatei wählen oder ihren Inhalt einfügen. Sie gilt nur in diesem Browser. Nach dem Löschen der
     Websitedaten spielen Sie sie neu ein.</td></tr>
   <tr><td><b>3D-Ansicht</b></td><td>braucht WebGL. Meldet der Browser, dass er keine 3D-Grafik zeigen kann, schalten Sie in seinen Einstellungen die Hardwarebeschleunigung ein.</td></tr>
@@ -256,7 +257,7 @@ startet schneller.</p>
 </ul>
 <h3>Installieren</h3>
 <ol class="steps">
-  <li>Bringen Sie die Datei <b>TrackMasterPro-1.5.0.apk</b> auf das Gerät, zum Beispiel per USB-Kabel, über einen Cloud-Speicher oder als E-Mail-Anhang.</li>
+  <li>Bringen Sie die Datei <b>TrackMasterPro-1.0.0.apk</b> auf das Gerät, zum Beispiel per USB-Kabel, über einen Cloud-Speicher oder als E-Mail-Anhang.</li>
   <li>Tippen Sie die Datei auf dem Gerät an, etwa in der App <span class="ui">Dateien</span> im Ordner <span class="ui">Downloads</span>.</li>
   <li>Beim ersten Mal fragt Android, ob diese App <b>unbekannte Apps installieren</b> darf. Tippen Sie auf <span class="ui">Einstellungen</span>, erlauben Sie es und
       gehen Sie zurück.</li>
@@ -277,12 +278,34 @@ Ohne Internet entfällt die Prüfung einfach. Die Webversion ist immer auf dem n
 <p class="lead">Die Pro-Version wird mit einer persönlichen Lizenzdatei freigeschaltet. Die Datei ist digital unterschrieben und lässt sich nicht verändern.
 Das Programm prüft sie bei jedem Start.</p>
 
+<h2 id="k3-kauf">Pro kaufen: Kauflizenz oder Abo</h2>
+<p>Den Knopf <span class="ui">Pro kaufen</span> finden Sie im Lizenzfenster (<span class="ui">Datei › Lizenz…</span>) und im Hinweis, der erscheint, wenn Sie in der
+Basisversion eine Pro-Funktion wählen. Er öffnet die Bestellseite im Browser. Dort gibt es zwei Wege:</p>
+<table>
+  <tr><th style="width:22%">Art</th><th style="width:39%">Kauflizenz</th><th>Abo</th></tr>
+  <tr><td>Zahlung</td><td>einmalig</td><td>jeden Monat</td></tr>
+  <tr><td>Laufzeit</td><td>unbefristet</td><td>solange das Abo bezahlt ist, monatlich kündbar zum Monatsende</td></tr>
+  <tr><td>Internet</td><td>nur zur Aktivierung, danach etwa einmal pro Woche, wenn verfügbar</td><td>mindestens alle 30 Tage einmal</td></tr>
+  <tr><td>Geräte</td><td colspan="2">bis zu zwei gleichzeitig, egal ob Windows, Android oder Browser</td></tr>
+</table>
+<ol class="steps">
+  <li>Lesen Sie auf der Bestellseite die Verkaufs- und Lizenzbedingungen und setzen Sie die beiden Häkchen. Erst dann lassen sich die Knöpfe anklicken.</li>
+  <li>Bezahlen Sie mit PayPal oder bestellen Sie per E-Mail. Geben Sie den Namen an, auf den die Lizenz lauten soll.</li>
+  <li>Nach dem Zahlungseingang erhalten Sie die Lizenzdatei <b>trackmaster.lic</b> per E-Mail, in der Regel innerhalb von drei Werktagen.</li>
+  <li>Spielen Sie die Datei ein, wie im nächsten Abschnitt beschrieben.</li>
+</ol>
+<p><b>Abo kündigen:</b> Auf der Webseite unter <b>Verträge hier kündigen</b> (Link auf der Bestellseite) geben Sie Name und E-Mail-Adresse an
+und bestätigen mit <span class="ui">jetzt kündigen</span>. Sie erhalten sofort eine Bestätigung. Haben Sie über PayPal bezahlt, beenden Sie dort zusätzlich das
+Abonnement, damit keine weitere Zahlung abgebucht wird. Bereits bezahlte Monate bleiben nutzbar; danach läuft die Basisversion und alle Pläne bleiben erhalten.
+Eine Kauflizenz muss nicht gekündigt werden.</p>
+
 <h2 id="k3-1">Lizenz einspielen</h2>
 <ol class="steps">
   <li>Speichern Sie die Lizenzdatei, die Sie nach dem Kauf erhalten haben (Endung <b>.lic</b>), auf dem Rechner, zum Beispiel im Ordner <i>Downloads</i>.</li>
   <li>Öffnen Sie <span class="ui">Datei › Lizenz…</span>. Unter Windows geht es auch über <span class="ui">Start › Lizenz</span>.</li>
   <li>Klicken Sie auf <span class="ui">Lizenz einspielen…</span> und wählen Sie die Datei aus. In der Webversion können Sie den Inhalt der Datei auch in das Textfeld einfügen.</li>
-  <li>Das Fenster zeigt nun <b>Pro</b>, den Namen des Lizenznehmers und, falls vorhanden, das Ablaufdatum. Die Anzeige oben bzw. in der Statusleiste wechselt von
+  <li>Das Fenster zeigt nun <b>Pro</b>, den Namen des Lizenznehmers, falls vorhanden das Ablaufdatum, und die <b>Lizenznummer</b>. Geben Sie diese Nummer bei
+      Fragen oder bei einer Kündigung mit an. Die Anzeige oben bzw. in der Statusleiste wechselt von
       „Basis“ zu „Pro“.</li>
 </ol>
 <figure class="half"><img src="img/lizenz.png" alt=""><figcaption>Das Lizenzfenster zeigt die Ausbaustufe und den Inhalt von Basis und Pro.</figcaption></figure>
@@ -294,11 +317,13 @@ Sie die Lizenz genauso über <span class="ui">Datei › Lizenz…</span> ein und
 egal ob Windows, Android oder Browser. Damit das funktioniert, meldet sich das Gerät beim ersten Start mit der Lizenz einmal über das Internet an. Danach prüft es
 etwa einmal pro Woche, ob die Anmeldung noch besteht. Den Stand zeigt das Lizenzfenster im Abschnitt <b>Aktivierung</b>.</p>
 <ul>
-  <li><b>Ohne Internet</b> läuft Pro nach dem Einspielen bis zu 14 Tage weiter. Ein einmal aktiviertes Gerät bleibt auch ohne Internet aktiviert.</li>
+  <li><b>Ohne Internet</b> läuft Pro nach dem Einspielen bis zu 14 Tage weiter. Ein einmal aktiviertes Gerät bleibt mit einer Kauflizenz auch ohne Internet aktiviert; mit einer Abo-Lizenz muss es sich alle 30 Tage melden (siehe unten).</li>
   <li>Sind <b>beide Plätze belegt</b>, bleibt es auf dem dritten Gerät bei der Basisversion. Die Meldung nennt die belegten Geräte.</li>
   <li><b>Gerät wechseln:</b> Wählen Sie auf dem alten Gerät im Lizenzfenster <span class="ui">Dieses Gerät freigeben</span>. Auf dem neuen Gerät klicken Sie dann auf
     <span class="ui">Jetzt aktivieren</span>. Ist das alte Gerät nicht mehr da (defekt, verkauft), gibt der Herausgeber den Platz auf Anfrage frei.</li>
   <li><b>Browser:</b> Jeder Browser zählt als eigenes Gerät. Löschen Sie die Websitedaten, meldet er sich beim nächsten Mal als neues Gerät an.</li>
+  <li><b>Abo-Lizenz</b> (monatliche Abrechnung): Pro läuft, solange das Abo bezahlt ist; das Lizenzfenster zeigt „Abo bezahlt bis …“. Ein Gerät mit Abo-Lizenz muss sich
+    mindestens alle 30 Tage einmal mit dem Internet verbinden. Nach dem Ende des Abos läuft die Basisversion, Ihre Pläne bleiben erhalten.</li>
 </ul>
 
 <h2 id="k3-2">Rechnergebundene Lizenz</h2>
@@ -308,7 +333,7 @@ dann in Ihre E-Mail ein (<kbd>Strg</kbd>+<kbd>V</kbd>).</p>
 
 <h2 id="k3-3">Wenn Sie in der Basisversion eine Pro-Funktion wählen</h2>
 <p>Wählen Sie Stückliste, Drucken, einen Export oder speichern Sie einen Plan mit mehr als 50 Gleisen, erscheint ein Hinweis. Mit <span class="ui">Lizenz…</span>
-kommen Sie direkt zum Lizenzfenster. Ihr Plan bleibt dabei offen und unverändert.</p>
+kommen Sie direkt zum Lizenzfenster, mit <span class="ui">Pro kaufen</span> zur Bestellseite. Ihr Plan bleibt dabei offen und unverändert.</p>
 <div class="warn"><b>Achtung</b>In der Basisversion lassen sich Pläne mit mehr als 50 Gleisen nicht speichern. Wenn Sie dann das Programm schließen, einen neuen
 Plan beginnen oder einen anderen öffnen, fragt TrackMaster Pro, ob die Änderungen verworfen werden sollen. Antworten Sie nur mit Ja, wenn Sie den Plan wirklich
 nicht mehr brauchen.</div>
@@ -580,7 +605,7 @@ Eine ausführliche Anleitung für den allerersten Plan steht in Kapitel <a href=
     Anlagentisch), <span class="ui">Offener Rahmen (Spantenbau)</span> ohne Deckplatte, <span class="ui">L-Bein-Gestell</span> für große, frei stehende Anlagen und
     <span class="ui">Ausstellungsmodul (1.300 mm hoch)</span>.</li>
   <li><span class="ui">Rahmenbau selbst zeichnen</span>: Es entsteht nur die Platte, und das Werkzeug <span class="ui">Gelände › Leiste ziehen</span> ist gleich eingeschaltet.
-    Zargen, Querriegel, Diagonalen und Streben ziehen Sie dann selbst.</li>
+    Zargen, Querriegel, Diagonalen und Streben ziehen Sie dann selbst. Das Raster ist dabei auf der ganzen Zeichenfläche zu sehen, und Einrasten ist eingeschaltet.</li>
 </ul>
 <p>Form und Maße ändern Sie später jederzeit: Klicken Sie auf eine freie Stelle oder auf <span class="ui">Gelände › Anlagenplatte</span>; die Eigenschaften zeigen dann die
 Plattenmaße. Mehr zu Platte, Modulen und Unterbau steht in Kapitel <a href="#kp">7</a>.</p>
@@ -687,17 +712,25 @@ jedem Plattenteil, Beine in den Ecken und entlang der langen Seiten, auf Wunsch 
 </table>
 <p>Die <b>Materialliste</b> nennt Latten und Kanthölzer nach Handelslänge, Platten, Schrauben und Leim, also Ihre Einkaufsliste für den Baumarkt. Die <b>Zuschnittliste</b>
 zeigt jedes Teil mit Querschnitt, Länge und Anzahl. Beides lässt sich kopieren oder als CSV-Datei speichern. Zu lange Teile und zu große Deckplatten werden mit einem Hinweis
-zum Stoßen gemeldet. Die 3D-Ansicht zeigt den Unterbau unter der Platte; beim offenen Rahmen (Spantenbau) zeigt sie nur das Holzgerüst mit Leisten und Gleisen.
+zum Stoßen gemeldet. Die 3D-Ansicht zeigt den Unterbau unter der Platte; beim offenen Rahmen (Spantenbau) zeigt sie nur das Holzgerüst mit Leisten und Gleisen, bei eingeschaltetem Spantenbau im Plan auch Spanten und Trassen (Abschnitt <a href="#k7-7">Spantenbau der Anlage</a>).
 <span class="ui">Entfernen</span> im Fenster nimmt den Unterbau wieder aus dem Plan.</p>
 <h3>Diagonale und Streben</h3>
 <p>Stehen Module versetzt, zum Beispiel stufenförmig an einer schrägen Wand, trägt oft eine durchgehende Diagonale mit einzelnen Streben. <span class="ui">Gelände › Leiste ziehen</span>
 zieht solche Leisten frei: Anfang und Ende anklicken. Plattenecken, Plattenkanten und andere Leisten rasten ein. Beginnt eine Strebe an einer Modulkante, rastet ihr Ende
 senkrecht oder waagrecht darunter genau auf der Diagonale ein. Die Eigenschaften zeigen Breite, Höhe der Latte, Länge und Oberkante (negativ = unter der Platte).
 Eine gewählte Leiste verschieben die <b>Pfeiltasten</b> um 1 mm, mit <kbd>Umschalt</kbd> um 10 mm.</p>
-<h3>Deckplatte auflegen</h3>
-<p>Auf einen offenen oder selbst gezeichneten Rahmen legt <span class="ui">Gelände › Platte auflegen</span> eine Deckplatte. Sie bekommt die Außenmaße der gezeichneten
-Leisten (ohne Leisten die Maße der Anlagenplatte) und liegt auf der höchsten Leiste. In den Eigenschaften lassen sich linke obere Ecke, Breite, Tiefe, Stärke und
-Oberkante millimetergenau eintippen. <span class="ui">An Rahmen anpassen</span> legt die Platte wieder genau über den Rahmen.</p>
+<p>Wo nichts anderes einrastet, rasten Leisten im <b>Raster</b> von 10 mm ein. Sobald Leisten oder Platten im Plan liegen, ist das Raster auf der ganzen Zeichenfläche zu sehen,
+nicht nur auf der Anlagenplatte.</p>
+<p><b>Mehrere Leisten auf einmal:</b> Klicken Sie mit gedrückter <kbd>Strg</kbd>- oder <kbd>Umschalt</kbd>-Taste auf weitere Leisten und Platten, oder ziehen Sie auf einer freien
+Stelle einen Rahmen um sie auf (am Tablet: lange drücken und ziehen). Die gewählten Teile verschieben Sie dann gemeinsam mit der Maus oder den Pfeiltasten, kopieren,
+löschen oder legen sie auf eine andere Ebene. Beim gemeinsamen Verschieben rasten sie an Plattenecken, anderen Leisten und im Raster ein.</p>
+<h3>Deckplatten auflegen und entfernen</h3>
+<p><span class="ui">Gelände › Platte auflegen</span> legt die Deckplatten <b>automatisch</b> nach Grundriss und Rahmen auf: Jede zusammenhängende Fläche aus Anlagenplatte,
+Modulen und gezogenen Leisten bekommt eine Platte, auch Sonderformen wie das Dreieck zwischen versetzten Modulen und der Diagonale. Die Platte reicht bis zur Mitte der
+äußeren Leisten; frei abstehende Leisten zählen nicht. Bereits aufgelegte Platten werden dabei ersetzt, <span class="ui">Rückgängig</span> holt sie zurück.</p>
+<p>Eine Platte mit eigener Form zeichnen Sie mit <span class="ui">Gelände › Platte zeichnen</span>: Ecken anklicken (sie rasten wie Leisten ein) und zum Schluss die erste
+Ecke wieder anklicken oder <span class="ui">Fertig</span> wählen. In den Eigenschaften lassen sich Lage, Breite, Tiefe, Stärke und Oberkante millimetergenau eintippen;
+die Fläche in m² steht dabei. <span class="ui">Gelände › Alle Platten entfernen</span> nimmt alle Deckplatten aus dem Plan, sodass nur der Rahmen zu sehen ist.</p>
 </section>
 
 <!-- ======================================================= -->
@@ -786,23 +819,6 @@ alle gewählten Gleise auf eine gemeinsame Höhe; eine Steigung wird dabei aufge
 <figure class="third"><img src="img/parallel.png" alt=""><figcaption>Fenster Parallelgleis.</figcaption></figure>
 <p>Das neue Gleis wird als <b>Flexgleis</b> des gewählten Systems gelegt; Bögen bekommen automatisch den passenden größeren oder kleineren Radius. Liegt es auf der falschen
 Seite, nehmen Sie es mit <kbd>Strg</kbd>+<kbd>Z</kbd> zurück und wählen die andere Seite.</p>
-
-<h2 id="k6-7">Planvorschlag aus dem eigenen Gleisbestand</h2>
-<p>Sie haben eine Kiste voller Gleise, aber keine Idee für eine Anlage? Der Planvorschlag baut aus Ihren Stückzahlen kleine Anlagen, als Ideen zum Loslegen.
-<i>Diese Funktion gibt es nur in der Webversion.</i></p>
-<ol class="steps">
-  <li>Stellen Sie die <b>Anlagenplatte</b> ein (Größe und Form) und wählen Sie in der Gleisbibliothek Ihr <b>Gleissystem</b>.</li>
-  <li>Klicken Sie auf <span class="ui">Gleise › Planvorschlag…</span>.</li>
-  <li>Tragen Sie bei jedem Gleis ein, <b>wie viele Stück</b> Sie haben. Leer oder 0 heißt: keins. Haben Sie in der Stückliste schon Ihren Bestand eingetragen, steht er hier bereits.</li>
-  <li>Klicken Sie auf <span class="ui">Vorschläge berechnen</span>. Nach einem Augenblick erscheinen die Vorschläge mit kleinem Vorschaubild, Gleisanzahl und Größe.</li>
-  <li>Gefällt Ihnen einer, klicken Sie auf <span class="ui">Übernehmen</span>. Mit <kbd>Strg</kbd>+<kbd>Z</kbd> ist er wieder weg.</li>
-</ol>
-<p>Je nach Bestand gibt es diese Formen: <b>Oval</b>, <b>Oval mit Abstellgleis</b> (oder zwei), <b>Oval mit Ausweiche</b>, <b>Doppeloval</b> (zwei Rundkurse ineinander)
-und die <b>Acht</b> mit einer Kreuzung in der Mitte. Jeder Vorschlag ist geschlossen, passt auf die Platte und besteht die Planprüfung. Es werden nie mehr Gleise
-verwendet, als Sie eingetragen haben.</p>
-<div class="tip"><b>Kein Vorschlag?</b>Für ein Oval braucht es Bögen für einen ganzen Kreis eines Radius (zum Beispiel 12 Bögen à 30°), und die Platte muss mindestens doppelt
-so tief sein wie der Radius plus etwas Rand. Für Abstellgleise braucht es eine Weiche, einen passenden Gegenbogen und einen Prellbock. Ist „Vorhandene Gleise dabei ersetzen“
-angehakt, ersetzt der Vorschlag die Gleise im Plan; sonst kommt er dazu.</div>
 
 <h2 id="k6-4">Flexgleis</h2>
 <p>Flexgleis ist Gleis in langen Stangen, das man selbst biegt und auf Länge kürzt. Damit lassen sich Strecken legen, die mit festen Gleisstücken nicht gehen. Es gibt drei Wege:</p>
@@ -965,6 +981,9 @@ Bohren Sie die Löcher für die Gewindestangen mit einer Schablone, damit alle W
 <div class="warn"><b>Achtung</b>Ist die freie Höhe unter der Trasse knapp, steht ein Warnhinweis in der Liste. Erhöhen Sie dann die Höhe je Windung oder nehmen Sie dünneres Holz.</div>
 <p><b>Zuschnitt als SVG:</b> Dieser Knopf im Fenster der Holzliste speichert jedes Segment, jedes Brett und jede Lasche als eigene Zeichnung in Originalgröße (1:1),
 zusammen in einer ZIP-Datei. Ausgedruckt dient sie als Schablone zum Aufkleben aufs Holz; sie eignet sich auch für Plotter und CNC-Fräse.</p>
+<p><b>Später noch einmal aufrufen:</b> Die Angaben jeder gebauten Wendel werden mit dem Plan gespeichert. <span class="ui">Gleise › Holzliste Wendel…</span> zeigt Holzliste
+und Zuschnitt jederzeit wieder, auch nach dem Neuladen. Liegen mehrere Wendeln im Plan, wählen Sie vorher ein Gleis der gewünschten Wendel; sonst erscheint die zuletzt
+gebaute. Wendeln aus Plänen älterer Programmversionen bauen Sie dafür einmal neu.</p>
 
 <h2 id="k7-7">Spantenbau der Anlage <span class="badge">PRO</span></h2>
 <p>Bei der <b>offenen Rahmenbauweise</b> gibt es keine durchgehende Platte. Stattdessen stehen auf dem Rahmen in regelmäßigen Abständen senkrechte Bretter, die
@@ -979,6 +998,10 @@ zusammen in einer ZIP-Datei. Ausgedruckt dient sie als Schablone zum Aufkleben a
 </ul>
 <p>Das Ergebnis zeigt jeden Spant mit Lage, Länge, Höhe, Auflagen und Ausschnitten. Es lässt sich kopieren, als CSV speichern und als SVG ausgeben:
 eine Übersicht und jeder Spant als Schablone 1:1, zusammen in einer ZIP-Datei.</p>
+<p><b>Im Plan einschalten:</b> Mit <i>Spantenbau im Plan einschalten</i> (vorgegeben) wird der Spantenbau Teil des Plans: Die Maße werden mit dem Plan gespeichert und stehen
+beim nächsten Öffnen des Fensters schon drin. Die <b>3D-Ansicht</b> zeigt dann die Spanten mit ihren Ausschnitten und die Trassenbretter unter den Gleisen; der Rahmen
+steht dafür um die eingestellte Höhe tiefer, und die Deckplatte entfällt. Ändern sich Gleise oder Höhen, passen sich die Spanten in 3D von selbst an. Um den Spantenbau
+wieder auszuschalten, nehmen Sie das Häkchen weg und klicken auf <span class="ui">Berechnen</span>.</p>
 
 <h2 id="k7-8">Trasse aus Auswahl <span class="badge">PRO</span></h2>
 <p>Für eine Rampe oder eine frei geführte Strecke berechnet <span class="ui">Gleise › Trasse…</span> das Brett unter den markierten Gleisen:</p>
@@ -1477,11 +1500,11 @@ sich ansehen. Ein <b>Hinweis</b> ist ein Ratschlag – manchmal ist die Stelle g
   <tr><th style="width:22%"></th><th>Windows</th><th>Webversion</th></tr>
   <tr><td>Speichern</td><td><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span></td>
     <td><span class="ui">Datei › Speichern</span> (<kbd>Strg</kbd>+<kbd>S</kbd>) und <span class="ui">Speichern unter…</span> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>S</kbd>)</td></tr>
-  <tr><td>Dateiendung</td><td><code>.trackmaster.json</code></td><td><code>.mpr</code> – im Downloads-Ordner des Browsers oder am gewählten Ort</td></tr>
-  <tr><td>Öffnen</td><td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>), <span class="ui">Zuletzt geöffnet</span></td>
+  <tr><td>Dateiendung</td><td><code>.mpr</code> (ältere <code>.trackmaster.json</code> werden beim Speichern zu <code>.mpr</code>; die alte Datei bleibt)</td><td><code>.mpr</code> – im Downloads-Ordner des Browsers oder am gewählten Ort</td></tr>
+  <tr><td>Öffnen</td><td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>), <span class="ui">Zuletzt geöffnet</span>; öffnet <code>.mpr</code> und <code>.trackmaster.json</code></td>
     <td><span class="ui">Datei › Öffnen…</span> (<kbd>Strg</kbd>+<kbd>O</kbd>); öffnet <code>.mpr</code> und <code>.trackmaster.json</code></td></tr>
 </table>
-<p>Die Dateien sind zwischen Windows, Web und Android austauschbar. Unter Windows und Android wählen Sie zum Öffnen einer <code>.mpr</code>-Datei im Dateifenster „Alle Dateien“.
+<p>Alle drei Versionen speichern Pläne als <code>.mpr</code>; die Dateien sind zwischen Windows, Web und Android austauschbar. Ältere Pläne <code>.trackmaster.json</code> öffnen weiter.
 Beim Öffnen stellt sich die Gleisbibliothek auf das Gleissystem des Plans ein.</p>
 <p><b>Automatische Sicherung (Windows):</b> Während Sie arbeiten, sichert das Programm den Plan regelmäßig im Hintergrund. Wurde es nicht regulär beendet – etwa bei einem
 Stromausfall –, bietet es beim nächsten Start an, den gesicherten Stand wiederherzustellen. Das ersetzt nicht das Speichern.</p>
@@ -1644,13 +1667,17 @@ beim Zweileiter auf der anderen Schiene als der Bahnstrom.</p>
 <p>Beim Zweileiter liegt Bahnstrom auf der Schiene, auf der in diesem Abschnitt schon die Masse liegt. Klicken Sie die Einspeisung an und schalten Sie
 <span class="ui">An der rechten Schiene (in Gleisrichtung)</span> um.</p>
 <h3>Beim Speichern erscheint ein Hinweis auf die Pro-Version.</h3>
-<p>Die Basisversion speichert Pläne mit bis zu 50 Gleisen. Für größere Pläne spielen Sie Ihre Lizenz unter <span class="ui">Datei › Lizenz…</span> ein (Kapitel <a href="#k3">3</a>).</p>
+<p>Die Basisversion speichert Pläne mit bis zu 50 Gleisen. Für größere Pläne spielen Sie Ihre Lizenz unter <span class="ui">Datei › Lizenz…</span> ein. Haben Sie noch keine, führt <span class="ui">Pro kaufen</span> im Hinweis zur Bestellseite (Kapitel <a href="#k3">3</a>).</p>
 <h3>Die Lizenz wird als ungültig gemeldet.</h3>
 <p>Die Lizenzdatei darf nicht verändert werden – auch nicht durch Öffnen und Speichern in einem Texteditor. Ist die Lizenz an einen Rechner gebunden, gilt sie nur dort;
-ist ein Ablaufdatum eingetragen, nur bis zu diesem Tag. Wenden Sie sich mit Ihrer Rechnerkennung an den Herausgeber.</p>
+ist ein Ablaufdatum eingetragen, nur bis zu diesem Tag. Wenden Sie sich mit Ihrer Lizenznummer und der Rechnerkennung an den Herausgeber.</p>
 <h3>Die Lizenz ist gültig, aber „auf diesem Gerät nicht aktiviert“.</h3>
 <p>Die Lizenz läuft schon auf zwei anderen Geräten, oder das Gerät war 14 Tage lang nicht mit dem Internet verbunden. Geben Sie ein anderes Gerät frei oder stellen Sie eine
 Internetverbindung her und klicken Sie im Lizenzfenster auf <span class="ui">Jetzt aktivieren</span> (Abschnitt <a href="#k3-akt">Online-Aktivierung</a>).</p>
+<h3>Mein Abo läuft, aber das Programm zeigt nur die Basisversion.</h3>
+<p>Ein Gerät mit Abo-Lizenz muss sich mindestens alle 30 Tage online melden. Verbinden Sie es mit dem Internet und klicken Sie im Lizenzfenster auf
+<span class="ui">Jetzt aktivieren</span>. Meldet das Fenster, das Abo sei abgelaufen, ist die letzte Zahlung noch nicht verbucht. Schreiben Sie dann mit Ihrer
+Lizenznummer an den Herausgeber.</p>
 <h3>Windows meldet beim Installieren „Der Computer wurde durch Windows geschützt“.</h3>
 <p>Klicken Sie auf <span class="ui">Weitere Informationen</span> und dann auf <span class="ui">Trotzdem ausführen</span>. Die Meldung erscheint bei Programmen, die Windows noch nicht oft gesehen hat.</p>
 <h3>Android installiert die App nicht.</h3>
@@ -1666,7 +1693,8 @@ Signatur installiert, deinstallieren Sie diese zuerst.</p>
 <p>Aktualisieren Sie den Grafiktreiber bzw. den Browser. Bei sehr großen Anlagen hilft <span class="ui">Nur Gleisplan</span>.</p>
 <h3>Wo liegen meine Daten?</h3>
 <p>Pläne liegen dort, wo Sie sie gespeichert haben. Unter Windows liegen Lizenz, Einstellungen und die automatische Sicherung unter <i>%APPDATA%\TrackMaster Pro</i>;
-die Webversion speichert Einstellungen und eigene Modelle im Browser. Das Programm sendet keine Pläne an Dritte; beim Start ruft es lediglich die aktuelle Versionsnummer ab.</p>
+die Webversion speichert Einstellungen und eigene Modelle im Browser. Das Programm sendet nie Pläne. Beim Start fragt es die aktuelle Versionsnummer ab; mit einer Lizenz
+meldet es sich außerdem zur Aktivierung an (welche Angaben dabei übertragen werden, steht im Lizenzfenster).</p>
 </section>
 
 <!-- ======================================================= -->
@@ -1674,6 +1702,7 @@ die Webversion speichert Einstellungen und eigene Modelle im Browser. Das Progra
 <h1 id="k16"><span class="no">20</span>Begriffe</h1>
 <table>
   <tr><th style="width:28%">Begriff</th><th>Bedeutung</th></tr>
+  <tr><td>Abo-Lizenz</td><td>Pro-Lizenz mit monatlicher Zahlung. Sie gilt, solange das Abo bezahlt ist, und ist monatlich kündbar.</td></tr>
   <tr><td>Abschnitt (Stromabschnitt)</td><td>Gleise, die elektrisch zusammenhängen. Abschnitte werden durch Trennstellen voneinander getrennt.</td></tr>
   <tr><td>Abstellgleis</td><td>Gleis, das an einem Prellbock endet und auf dem Züge oder Wagen abgestellt werden.</td></tr>
   <tr><td>Adresse</td><td>Nummer, unter der eine Digitalzentrale eine Weiche, ein Signal oder eine Lok anspricht.</td></tr>
@@ -1698,8 +1727,10 @@ die Webversion speichert Einstellungen und eigene Modelle im Browser. Das Progra
   <tr><td>Gleiswendel</td><td>Spiralförmig ansteigende Strecke, um große Höhen auf wenig Platz zu überwinden.</td></tr>
   <tr><td>Gruppe</td><td>Zusammengefasste Gleise, die mit einem Klick gemeinsam gewählt und verschoben werden.</td></tr>
   <tr><td>Haltbegriff</td><td>Signalbild, das „Halt“ bedeutet.</td></tr>
+  <tr><td>Kauflizenz</td><td>Pro-Lizenz mit einmaliger Zahlung, unbefristet gültig.</td></tr>
   <tr><td>Kehrschleife</td><td>Gleisführung, in der ein Zug wendet und in Gegenrichtung zurückkommt; beim Zweileiter braucht sie eine besondere Schaltung, sonst gibt es einen Kurzschluss.</td></tr>
   <tr><td>Kurzschluss</td><td>Bahnstrom und Masse berühren sich direkt; die Stromquelle schaltet ab.</td></tr>
+  <tr><td>Lizenznummer</td><td>Kennung Ihrer Lizenz aus zwölf Zeichen; sie steht im Lizenzfenster. Geben Sie sie bei Fragen und Kündigungen an.</td></tr>
   <tr><td>Masse (0)</td><td>Rückweg des Stroms zur Stromquelle; Klemme „0“, Kabel braun (Mittelleiter) oder blau (Zweileiter).</td></tr>
   <tr><td>Maßstab</td><td>Verhältnis zwischen Modell und Vorbild; in Spur H0 ist 1 cm im Modell 87 cm in Wirklichkeit (1:87).</td></tr>
   <tr><td>Menüband</td><td>Leiste oben im Fenster mit allen Befehlen, geordnet in Registern.</td></tr>
@@ -1724,7 +1755,7 @@ die Webversion speichert Einstellungen und eigene Modelle im Browser. Das Progra
   <tr><td>Zubehörtrafo</td><td>Trafo für Licht, Weichen und Signale; gehört nicht ans Gleis.</td></tr>
   <tr><td>Zweileiter</td><td>Gleisbauart, bei der die beiden Schienen Bahnstrom und Masse führen. Betrieb mit Gleichstrom.</td></tr>
 </table>
-<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.5.0 · Handbuch, Stand November 2026. Änderungen vorbehalten.
+<p style="margin-top:12mm; color: var(--muted); font-size: 9pt;">TrackMaster Pro 1.0.0 · Handbuch, Stand November 2026. Änderungen vorbehalten.
 Alle Maßangaben ohne Gewähr; prüfen Sie vor Zuschnitt und Kauf die Maße am Original.</p>
 </section>
 <script>

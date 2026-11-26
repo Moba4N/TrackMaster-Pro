@@ -110,6 +110,8 @@ public sealed record LicenseRequest
     public DateTime? ExpiresOn { get; init; }
     /// <summary>Rechnerkennung aus TrackMaster Pro › Datei › Lizenz; leer = an keinen Rechner gebunden.</summary>
     public string? MachineId { get; init; }
+    /// <summary>Abo-Lizenz mit monatlicher Abrechnung; „bezahlt bis“ wird in der Lizenz-Übersicht der Webseite gepflegt.</summary>
+    public bool Subscription { get; init; }
 }
 
 /// <summary>Prüft Eingaben und erzeugt daraus eine signierte Pro-Lizenz.</summary>
@@ -126,6 +128,8 @@ public static partial class LicenseIssuer
             errors.Add("Das Ablaufdatum liegt in der Vergangenheit.");
         if (!string.IsNullOrWhiteSpace(request.MachineId) && !MachinePattern().IsMatch(NormalizeMachineId(request.MachineId)!))
             errors.Add("Die Rechnerkennung darf nur Buchstaben, Ziffern und Bindestriche enthalten (mindestens 8 Zeichen).");
+        if (request.Subscription && !string.IsNullOrWhiteSpace(request.MachineId))
+            errors.Add("Eine Abo-Lizenz braucht die Online-Aktivierung und darf deshalb an keinen Rechner gebunden sein.");
         return errors;
     }
 
@@ -142,6 +146,7 @@ public static partial class LicenseIssuer
         // gültig bis zum Ende des angegebenen Tages
         ExpiresAt = request.ExpiresOn is { } d ? new DateTimeOffset(d.Date.AddDays(1).AddSeconds(-1)) : null,
         MachineId = NormalizeMachineId(request.MachineId),
+        Subscription = request.Subscription,
     };
 
     /// <summary>Prüft, erstellt und signiert. Wirft <see cref="ArgumentException"/> bei ungültigen Eingaben.</summary>
@@ -177,13 +182,14 @@ public sealed record IssuedLicense
     public DateTimeOffset IssuedAt { get; init; }
     public DateTimeOffset? ExpiresAt { get; init; }
     public string? MachineId { get; init; }
+    public bool Subscription { get; init; }
     public string? FilePath { get; init; }
     public required string SignedText { get; init; }
 
     public static IssuedLicense From(LicenseData data, string signedText, string? filePath) => new()
     {
         Id = data.LicenseId, Licensee = data.Licensee, Email = data.Email, IssuedAt = data.IssuedAt,
-        ExpiresAt = data.ExpiresAt, MachineId = data.MachineId, FilePath = filePath, SignedText = signedText,
+        ExpiresAt = data.ExpiresAt, MachineId = data.MachineId, Subscription = data.Subscription, FilePath = filePath, SignedText = signedText,
     };
 }
 

@@ -30,6 +30,8 @@ public sealed record ActivationRecord
     /// <summary>Belegte und erlaubte Geräteplätze laut letzter Antwort des Servers (0 = unbekannt).</summary>
     public int Devices { get; init; }
     public int MaxDevices { get; init; }
+    /// <summary>Bei Abo-Lizenzen: bezahlt bis (JJJJ-MM-TT) laut letzter Antwort des Servers.</summary>
+    public string? PaidUntil { get; init; }
 }
 
 /// <summary>Antwort des Aktivierungsservers (lizenz/aktivierung.php).</summary>
@@ -40,6 +42,8 @@ public sealed record ActivationReply
     public int Devices { get; init; }
     public int Max { get; init; }
     public string? Message { get; init; }
+    /// <summary>Bei Abo-Lizenzen: bezahlt bis (JJJJ-MM-TT).</summary>
+    public string? PaidUntil { get; init; }
 }
 
 /// <summary>
@@ -52,6 +56,8 @@ public sealed class LicenseActivation
 {
     public const int GraceDays = 14;
     public const int RecheckDays = 7;
+    /// <summary>So lange läuft eine Abo-Lizenz ohne erfolgreiche Online-Prüfung weiter.</summary>
+    public const int SubscriptionOfflineDays = 30;
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
 
@@ -147,10 +153,14 @@ public sealed class LicenseActivation
             Store(new ActivationRecord { LicenseId = license!.LicenseId, DeviceId = DeviceId, FirstSeen = _clock() });
             return ActivationState.Grace;
         }
-        if (r.Activated) return ActivationState.Active;
+        if (r.Activated) return license!.Subscription && SubscriptionOffline(r) ? ActivationState.Refused : ActivationState.Active;
         if (r.Refusal is not null) return ActivationState.Refused;
         return _clock() - r.FirstSeen < TimeSpan.FromDays(GraceDays) ? ActivationState.Grace : ActivationState.Refused;
     }
+
+    /// <summary>Abo-Lizenz zu lange nicht online geprüft?</summary>
+    private bool SubscriptionOffline(ActivationRecord r)
+        => _clock() - (r.LastCheck ?? r.FirstSeen) > TimeSpan.FromDays(SubscriptionOfflineDays);
 
     /// <summary>Darf Pro laufen (Aktivierung nicht nötig, aktiviert oder in der Schonfrist)?</summary>
     public bool Allows(LicenseData? license) => State(license) != ActivationState.Refused;
@@ -169,6 +179,13 @@ public sealed class LicenseActivation
         var state = State(license);
         var r = license is null ? null : Record(license);
         var slots = r is { MaxDevices: > 0 } ? Lang.F($" ({r.Devices} von {r.MaxDevices} Geräten belegt)") : "";
+        if (license is { Subscription: true } && r is not null)
+        {
+            if (state == ActivationState.Active && DateTime.TryParse(r.PaidUntil, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var paid))
+                slots += Lang.F($", Abo bezahlt bis {paid:dd.MM.yyyy}");
+            if (r.Activated && state == ActivationState.Refused && r.Refusal is null)
+                return Lang.F($"Abo-Lizenz: Seit mehr als {SubscriptionOfflineDays} Tagen nicht online geprüft. Für Pro das Gerät einmal mit dem Internet verbinden und „Jetzt aktivieren“ wählen.");
+        }
         return state switch
         {
             ActivationState.NotRequired => license is { MachineId: not null } ? Lang.T("An diesen Rechner gebunden, keine Online-Aktivierung nötig.") : "",
@@ -202,7 +219,7 @@ public sealed class LicenseActivation
         switch (reply.Status)
         {
             case "active":
-                Store(before with { Activated = true, LastCheck = now, Refusal = null, Devices = reply.Devices, MaxDevices = reply.Max });
+                Store(before with { Activated = true, LastCheck = now, Refusal = null, Devices = reply.Devices, MaxDevices = reply.Max, PaidUntil = reply.PaidUntil });
                 return (ActivationState.Active, Lang.F($"Lizenz auf diesem Gerät aktiviert ({reply.Devices} von {reply.Max} Geräten belegt)."));
             case "limit":
             {

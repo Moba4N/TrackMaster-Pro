@@ -80,6 +80,13 @@ public sealed class TrackPieceDef
     public bool IsSimpleSwitch => Kind == PieceKind.Switch && (Routes is { } r
         ? r.Count == 2 && r[0].Segments is [{ Turn: 0 }] && r[1].Segments is [{ Turn: not 0 }, ..]
         : Paths is null);
+    /// <summary>
+    /// Gewöhnliche Weiche mit geradem Stammgleis und einem Abzweig zu einer Seite, auch wenn der Hersteller sie mit
+    /// Strängen beschreibt (z. B. Abzweig mit anschließender Geraden). Keine Bogen-, Y- oder Dreiwegweiche.
+    /// </summary>
+    public bool IsPlainTurnout => IsSimpleSwitch || Kind == PieceKind.Switch && Routes is null && Paths is [var main, var branch]
+        && main.Count > 0 && main.All(s => s.Turn == 0)
+        && branch.Any(s => s.Turn != 0) && branch.Where(s => s.Turn != 0).Select(s => s.Turn).Distinct().Count() == 1;
     /// <summary>Anzahl Fahrwege (Stränge).</summary>
     public int RouteCount => Ports?.Count ?? Routes?.Count ?? Paths?.Count ?? (Kind is PieceKind.Switch or PieceKind.Crossing ? 2 : 1);
     /// <summary>Doppelte Kreuzungsweiche: zwei Antriebe.</summary>
